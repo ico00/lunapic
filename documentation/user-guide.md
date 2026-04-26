@@ -8,45 +8,41 @@ Moon Transit helps you **line up a real (or static) aircraft** with the **Moon**
 
 ## What you do (typical flow)
 
-1. **Set the observer** (your shooting location)  
-   - Default is a point in Zagreb; you can use GPS, place the **camera marker** on the map, or type coordinates.  
-   - *Rule in the app:* all moon and alignment math uses this point — **not** “whatever the map is centered on” unless you explicitly set the observer from the map.
-
-2. **Sync time (optional)**  
-   - On load, the app syncs to **now**; use **Sync** in the shell when you want the simulated time to jump back to the real time window.
-
-3. **Move the time slider**  
-   - The slider range is the **visible moon window** (roughly from moonrise to moonset) when that data is available, or a fallback window.  
-   - `reference time` in the header is the **simulated** instant: ephemeris, flight positions (extrapolation), and map overlays all follow that instant.
-
-4. **Choose a flight data source (Provider)**  
-   - **static** — demo routes; good offline.  
-   - **openSky** — live aircraft in the current map view (via the app’s server route; no key in the browser).  
-   - **mock** — small test set.
-
-5. **Pan / zoom the map**  
-   - Flights re-load for the current bounds (OpenSky / static). The observer stays where you set it.
-
-6. **Pick a flight (optional)**  
-   - Click an aircraft to select it. You get a **stand corridor** (cyan ground band) and a **pale center line** showing where to be on the ground, for the **current simulated time**, using the aircraft’s **altitude** in the line-of-sight model.
-
-7. **Read the “photographer” side** (wide layout: right column)  
-   - Countdown, angular rates, suggested shutter, compass aim, and optional beeps when a transit is very tight (“golden” alignment).
+1. **Set the observer** (your shooting location)
+  - Default is a point in Zagreb; you can use GPS, place the **camera marker** on the map, or type coordinates.  
+  - *Rule in the app:* all moon and alignment math uses this point — **not** “whatever the map is centered on” unless you explicitly set the observer from the map.
+2. **Sync time (optional)**
+  - On load, the app syncs to **now**; use **Sync** in the shell when you want the simulated time to jump back to the real time window.
+3. **Move the time slider**
+  - The slider range is the **visible moon window** (roughly from moonrise to moonset) when that data is available, or a fallback window.  
+  - `reference time` in the header is the **simulated** instant: ephemeris, flight positions (extrapolation), and map overlays all follow that instant.
+4. **Choose a flight data source (Provider)**
+  - **static** — demo routes; good offline.  
+  - **openSky** — live aircraft in the current map view (via the app’s server route; no key in the browser).  
+  - **mock** — small test set.
+5. **Pan / zoom the map**
+  - Flights re-load for the current bounds (OpenSky / static). The observer stays where you set it.
+6. **Pick a flight (optional)**
+  - Click an aircraft to select it. You get a **stand corridor** (cyan ground band) and a **pale center line** showing where to be on the ground, for the **current simulated time**, using the aircraft’s **altitude** in the line-of-sight model.
+7. **Read the “photographer” side** (wide layout: right column)
+  - Countdown, angular rates, suggested shutter, compass aim, and optional beeps when a transit is very tight (“golden” alignment).
 
 **What you do *not* need for basic use:** reading `architecture.md` or the changelog — those are for developers.
 
 ## What you see on the map (short)
 
-| Element | Meaning |
-| -------- | -------- |
-| **Camera marker** | Your **observer** on the ground. |
-| **Long yellow / white line** from the camera | **Moon azimuth** at the simulated time: direction to look in the sky (horizontal). |
-| **Dashed white arc (with time labels)** | **Moon path** in the **visible** time window (rise/set–based when known). |
-| **Purple route lines** | Static route geometry (source depends on provider). |
-| **Yellow dots** | Intersections of route geometry with the moon-azimuth idea (for static route analysis). |
-| **Aircraft symbol** | Extrapolated position for the **simulated** time (and OpenSky display skew if you use it in the field tools). |
+
+| Element                                                      | Meaning                                                                                                                                                                       |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Camera marker**                                            | Your **observer** on the ground.                                                                                                                                              |
+| **Long yellow / white line** from the camera                 | **Moon azimuth** at the simulated time: direction to look in the sky (horizontal).                                                                                            |
+| **Dashed white arc (with time labels)**                      | **Moon path** in the **visible** time window (rise/set–based when known).                                                                                                     |
+| **Purple route lines**                                       | Static route geometry (source depends on provider).                                                                                                                           |
+| **Yellow dots**                                              | Intersections of route geometry with the moon-azimuth idea (for static route analysis).                                                                                       |
+| **Aircraft symbol**                                          | Extrapolated position for the **simulated** time (and OpenSky display skew if you use it in the field tools).                                                                 |
 | **Cyan band + pale center line** (when a flight is selected) | **Stand corridor** for framing: a ground strip derived from 3D line of sight to the plane at the selected time; the **pale line** is the “zero offset” axis along that strip. |
-| **Weather overlay** (if enabled) | Cloud layer from forecast — for context only. |
+| **Weather overlay** (if enabled)                             | Cloud layer from forecast — for context only.                                                                                                                                 |
+
 
 **Golden / flash:** when alignment is very tight, the app can flash a gold cue (tolerance in the code is on the order of a tenth of a degree in separation between moon and aircraft azimuth).
 
