@@ -8,7 +8,7 @@ This document explains how the application is structured, how data moves through
 2. **Time** — a wall-clock anchor with an optional **simulated** offset (±6 h) to explore future/past transits; ephemeris uses `referenceEpochMs = timeAnchorMs + timeOffsetMs`.
 3. **Flights** — `FlightState[]` from a pluggable **flight provider** (Strategy pattern), loaded for the current map bounds.
 4. **Transit / alignment** — compare moon azimuth with aircraft position (from altitude) to find “candidates” and “active” alignments within tolerance, plus photographer tools (line-of-sight rate, duration, suggested shutter).
-5. **Map** — Mapbox GL: routes, moon azimuth ray, static-route intersections, flights as symbols, observer marker, optional “golden” UI when alignment is within a critical angle.
+5. **Map** — Mapbox GL: routes, **moon path** (12 h / 30 min, dashed line + hour labels), moon azimuth ray, static-route intersections, flights as symbols, observer marker, optional “golden” UI when alignment is within a critical angle.
 
 ## High-level layout
 
@@ -63,7 +63,7 @@ flowchart TB
 | -------------------------------------------------- | -------------------------------------------------------------------------------- |
 | `timeAnchorMs`, `timeOffsetMs`, `referenceEpochMs` | Ephemeris and screening use `referenceEpochMs` as the “current simulation time”. |
 | `mapView`                                          | Center, zoom, pitch, bearing — updated when the user pans the map.               |
-| `flightProvider`                                   | `mock` | `static` | `opensky`.                                                   |
+| `flightProvider`                                   | `mock`                                                                           |
 | `flights`                                          | Last loaded snapshot; **not** real-time until next bounds load.                  |
 | `selectedFlightId`                                 | Drives photographer tools and list highlighting.                                 |
 | `openSkyLatencySkewMs`                             | Manual time skew for display extrapolation (field section).                      |
@@ -95,8 +95,8 @@ Adding a new source: implement `IFlightProvider`, register in the registry, add 
 
 ## Domain layer
 
-- `**lib/domain/astro/`** — `AstroService.getMoonState` wraps moon ephemeris (suncalc-based helpers in `moon.ts`) → `MoonState` (azimuth, altitude, apparent radius, …).
-- `**lib/domain/geometry/**` — WGS84 helpers, ENU, horizontal line-of-sight, moon azimuth line vs static routes, **photographer** pack (angular rate, slant range, alignment time) in `GeometryEngine` / `lineOfSightKinematics` / `alignmentHint`.
+- `**lib/domain/astro/`** — `AstroService.getMoonState` wraps moon ephemeris (suncalc-based helpers in `moon.ts`) → `MoonState` (azimuth, altitude, apparent radius, …). `**getMoonPathSamples`** — 24 točke u idućih 12 h od `referenceEpochMs` (30 min; `MoonPathSample` u `src/types/moon.ts`).
+- `**lib/domain/geometry/**` — WGS84 helpers, ENU, horizontal line-of-sight, moon azimuth line vs static routes, `**buildMoonPathLineCoordinates**` (ground points along a fixed-length ray per sample azimuth) for a moon-path `LineString`, **photographer** pack (angular rate, slant range, alignment time) in `GeometryEngine` / `lineOfSightKinematics` / `alignmentHint`.
 - `**lib/domain/transit/screening.ts`** — Narrows which flights are worth listing as “candidates”.
 
 Keep **pure functions** in `lib/domain` (no React, no `window` except where a module is explicitly “browser”).
@@ -112,7 +112,7 @@ Keep **pure functions** in `lib/domain` (no React, no `window` except where a mo
 
 ## Map rendering (Mapbox)
 
-- **Sources:** `routes-geo`, `flights-geo`, `moon-azimuth-geo`, `moon-intersections-geo`, `optimal-ground-geo` (names in `MapContainer.tsx`).
+- **Sources:** `routes-geo`, `flights-geo`, `moon-azimuth-geo`, `moon-path-geo`, `moon-path-labels-geo`, `moon-intersections-geo`, `optimal-ground-geo` (names in `MapContainer.tsx`). **Moon path** — dashed line through 24 ground sample points; separate symbol layer for 2-hourly labels. **Ray length for the path** is shorter than the long moon–route intersection azimuth so the curve stays in a useful map scale. Data follows `referenceEpochMs` and `observer` (same as the simulated time controls).
 - **Flights** — Symbol layer with a rasterized aircraft icon; rotation from `trackDeg` in feature properties. Fallback circle layer if icon creation fails.
 - **Observer** — `mapboxgl.Marker` with a custom DOM (camera), not a GeoJSON point.
 

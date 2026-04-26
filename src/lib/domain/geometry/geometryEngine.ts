@@ -141,6 +141,29 @@ export class GeometryEngine {
   }
 
   /**
+   * End points of the moon-azimuth ray at `lengthMeters` for each sample, in
+   * chronological order, for a LineString (ground projection of the path).
+   */
+  static buildMoonPathLineCoordinates(
+    observer: LatLng,
+    samples: readonly { readonly azimuthDeg: number }[],
+    lengthMeters: number
+  ): [number, number][] {
+    if (samples.length < 2) {
+      return [];
+    }
+    return samples.map((s) => {
+      const p = destinationByAzimuthMeters(
+        observer.lat,
+        observer.lng,
+        s.azimuthDeg,
+        lengthMeters
+      );
+      return [p.lng, p.lat] as [number, number];
+    });
+  }
+
+  /**
    * Svi presjeci mjesinog “zraka” s rutama, nakon paralakse.
    */
   static intersectMoonAzimuthWithStaticRoutes(

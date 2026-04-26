@@ -11,3 +11,12 @@ export interface MoonState extends HorizontalDirection {
   /** 0 = new, 0.5 = full (optional). */
   readonly phaseFraction: number;
 }
+
+/**
+ * One sample along the future moon path polyline (ephemeris at fixed intervals).
+ */
+export type MoonPathSample = {
+  readonly epochMs: number;
+  readonly azimuthDeg: number;
+  readonly altitudeDeg: number;
+}
