@@ -1,6 +1,7 @@
 "use client";
 
 import { GeometryEngine } from "@/lib/domain/geometry/geometryEngine";
+import { AstroService } from "@/lib/domain/astro/astroService";
 import { extrapolateFlightForDisplay } from "@/lib/flight/extrapolateFlightPosition";
 import { useMoonStateComputed } from "@/hooks/useTransitCandidates";
 import type { IFlightProvider } from "@/types";
@@ -16,8 +17,16 @@ const ROUTES_SOURCE = "routes-geo";
 const MOON_AZ_SOURCE = "moon-azimuth-geo";
 const MOON_INT_SOURCE = "moon-intersections-geo";
 const GROUND_OPTIMAL_SOURCE = "optimal-ground-geo";
+const MOON_PATH_SOURCE = "moon-path-geo";
+const MOON_PATH_LABELS_SOURCE = "moon-path-labels-geo";
 /** Dužina “zraka” azimuta na karti (m) — dovoljno za presjek s koreidorima. */
 const MOON_AZ_LENGTH_M = 1_200_000;
+/**
+ * Kraći zrak za 12h moon path: vrhovi su na ~ovoj udaljenosti od promatrača.
+ * Uz 1,2 Mm cijela polylinija približno 24 točke bila bi stotine km daleko od zumiranog okvira,
+ * pa se na karti vidi samo trenutni mjesin zrak (jedna duga linija).
+ */
+const MOON_PATH_RAY_LENGTH_M = 200_000;
 const CRUISE_FL_M = 10_000;
 /** Polovica „tlocrtne staze” isprekidane trake. */
 const OPTIMAL_GROUND_HALF_M = 4_000;
@@ -80,6 +89,54 @@ export function MapContainer({ flightProvider, isGolden = false }: MapContainerP
     (s) => s.requestFocusOnObserver
   );
   const moon = useMoonStateComputed();
+  const referenceEpochMs = useMoonTransitStore((s) => s.referenceEpochMs);
+
+  const moonPathPack = useMemo(() => {
+    const obs = { lat: observer.lat, lng: observer.lng };
+    const samples = AstroService.getMoonPathSamples(
+      referenceEpochMs,
+      obs.lat,
+      obs.lng
+    );
+    const lineCoords = GeometryEngine.buildMoonPathLineCoordinates(
+      obs,
+      samples,
+      MOON_PATH_RAY_LENGTH_M
+    );
+    const lineFeature =
+      lineCoords.length >= 2
+        ? {
+            type: "Feature" as const,
+            properties: { kind: "moon-path" },
+            geometry: {
+              type: "LineString" as const,
+              coordinates: lineCoords,
+            },
+          }
+        : null;
+
+    const labelHours = [0, 2, 4, 6, 8, 10, 12] as const;
+    const labelFeatures = labelHours.map((h) => {
+      const t = referenceEpochMs + h * 3_600_000;
+      const m = AstroService.getMoonState(new Date(t), obs.lat, obs.lng);
+      const [, end] = GeometryEngine.buildMoonAzimuthLine(
+        obs,
+        m,
+        MOON_PATH_RAY_LENGTH_M
+      );
+      const label = `${new Date(t).getHours().toString().padStart(2, "0")}h`;
+      return {
+        type: "Feature" as const,
+        properties: { label, key: `mph-${h}` },
+        geometry: {
+          type: "Point" as const,
+          coordinates: [end.lng, end.lat],
+        },
+      };
+    });
+
+    return { lineFeature, labelFeatures };
+  }, [referenceEpochMs, observer.lat, observer.lng]);
 
   const moonAzFeature = useMemo(() => {
     const [a, b] = GeometryEngine.buildMoonAzimuthLine(
@@ -265,6 +322,11 @@ export function MapContainer({ flightProvider, isGolden = false }: MapContainerP
         },
       });
 
+      map.addSource(MOON_PATH_SOURCE, {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+
       map.addSource(MOON_AZ_SOURCE, {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
@@ -291,6 +353,11 @@ export function MapContainer({ flightProvider, isGolden = false }: MapContainerP
           "line-width": 1.4,
           "line-opacity": 0.95,
         },
+      });
+
+      map.addSource(MOON_PATH_LABELS_SOURCE, {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
       });
 
       map.addSource(FLIGHTS_SOURCE, {
@@ -323,6 +390,39 @@ export function MapContainer({ flightProvider, isGolden = false }: MapContainerP
           "circle-stroke-color": "#1c1917",
           "circle-stroke-width": 2,
           "circle-opacity": 0.95,
+        },
+      });
+
+      map.addLayer({
+        id: "moon-path-line",
+        type: "line",
+        source: MOON_PATH_SOURCE,
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#ffffff",
+          "line-width": 2.5,
+          "line-opacity": 0.9,
+          "line-dasharray": [1.2, 1.8],
+        },
+      });
+      map.addLayer({
+        id: "moon-path-labels",
+        type: "symbol",
+        source: MOON_PATH_LABELS_SOURCE,
+        layout: {
+          "text-field": ["get", "label"],
+          "text-size": 15,
+          "text-font": [
+            "Open Sans Semibold",
+            "Arial Unicode MS Bold",
+          ],
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+        },
+        paint: {
+          "text-color": "#fbbf24",
+          "text-halo-color": "#18181b",
+          "text-halo-width": 1.1,
         },
       });
       settled();
@@ -441,6 +541,23 @@ export function MapContainer({ flightProvider, isGolden = false }: MapContainerP
       });
     }
   }, [intersectionFeatures, moonAzFeature, optimalGroundFeatures]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map?.getSource(MOON_PATH_SOURCE)) {
+      return;
+    }
+    (map.getSource(MOON_PATH_SOURCE) as mapboxgl.GeoJSONSource).setData({
+      type: "FeatureCollection",
+      features: moonPathPack.lineFeature ? [moonPathPack.lineFeature] : [],
+    });
+    (map.getSource(MOON_PATH_LABELS_SOURCE) as mapboxgl.GeoJSONSource).setData(
+      {
+        type: "FeatureCollection",
+        features: moonPathPack.labelFeatures,
+      }
+    );
+  }, [moonPathPack, mapReadyTick]);
 
   useEffect(() => {
     const map = mapRef.current;

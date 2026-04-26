@@ -8,13 +8,15 @@ Web app for planning and visualizing **aircraft transits in front of the Moon**:
 
 ## Documentation (start here)
 
-| Document | Purpose |
-|----------|---------|
-| [documentation/architecture.md](./documentation/architecture.md) | System design, data flow, major modules, extension points |
+
+| Document                                                                         | Purpose                                                       |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| [documentation/architecture.md](./documentation/architecture.md)                 | System design, data flow, major modules, extension points     |
 | [documentation/technicalconventions.md](./documentation/technicalconventions.md) | Code style, patterns, environment, how to add features safely |
-| [documentation/changelog.md](./documentation/changelog.md) | Version history and notable changes |
-| [documentation/README.md](./documentation/README.md) | Index of this folder |
-| [AGENTS.md](./AGENTS.md) | Note on Next.js 16 in this repo (read before deep Next work) |
+| [documentation/changelog.md](./documentation/changelog.md)                       | Version history and notable changes                           |
+| [documentation/README.md](./documentation/README.md)                             | Index of this folder                                          |
+| [AGENTS.md](./AGENTS.md)                                                         | Note on Next.js 16 in this repo (read before deep Next work)  |
+
 
 ## Quick start
 
@@ -29,9 +31,11 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### Environment variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
+
+| Variable                   | Required          | Description                                                     |
+| -------------------------- | ----------------- | --------------------------------------------------------------- |
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | **Yes** (for map) | Mapbox access token. Without it, the map shows a setup message. |
+
 
 Example `.env.local`:
 
@@ -43,13 +47,15 @@ NEXT_PUBLIC_MAPBOX_TOKEN=pk.your_mapbox_token
 
 ## Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Development server (Turbopack) |
-| `npm run build` | Production build |
-| `npm start` | Run production build |
-| `npm run lint` | ESLint |
-| `npx tsc --noEmit` | Typecheck only |
+
+| Command            | Description                    |
+| ------------------ | ------------------------------ |
+| `npm run dev`      | Development server (Turbopack) |
+| `npm run build`    | Production build               |
+| `npm start`        | Run production build           |
+| `npm run lint`     | ESLint                         |
+| `npx tsc --noEmit` | Typecheck only                 |
+
 
 ## Flight data modes
 
