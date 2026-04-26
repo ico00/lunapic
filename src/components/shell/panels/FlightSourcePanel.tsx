@@ -52,6 +52,14 @@ export function FlightSourcePanel({
       </label>
       {flightProviderId === "opensky" && (
         <div className="mt-2 rounded border border-sky-900/50 bg-sky-950/25 px-2 py-1.5 text-xs leading-relaxed text-sky-100/90">
+          <p className="text-[0.65rem] text-sky-200/70">
+            Heavy use hits OpenSky anonymous limits (429). A{" "}
+            <span className="text-sky-100/90">free</span> OpenSky account in
+            server <code className="font-mono text-sky-300/80">.env.local</code>{" "}
+            (<code className="font-mono text-sky-300/80">OPENSKY_API_*</code>,
+            see <code className="font-mono text-sky-300/80">.env.local.example</code>
+            ) raises limits — no paid tier required for basic sign-up.
+          </p>
           {routeCorridor && routeCorridor.sampleCount > 0 ? (
             <p>
               Average speed in the route region (map viewport; aircraft in the

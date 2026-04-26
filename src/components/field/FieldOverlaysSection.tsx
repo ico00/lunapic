@@ -13,15 +13,11 @@ import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useObserverStore } from "@/stores/observer-store";
 import { useCallback, useMemo, useState } from "react";
 
-type FieldOverlaysSectionProps = {
-  photoShutter: string | null;
-};
-
 function num(n: number, d = 2): string {
   return n.toFixed(d);
 }
 
-export function FieldOverlaysSection({ photoShutter }: FieldOverlaysSectionProps) {
+export function FieldOverlaysSection() {
   const latencySkewMs = useMoonTransitStore((s) => s.openSkyLatencySkewMs);
   const addSkew = useMoonTransitStore((s) => s.addOpenSkyLatencySkewMs);
   const setSkew = useMoonTransitStore((s) => s.setOpenSkyLatencySkewMs);
@@ -56,7 +52,6 @@ export function FieldOverlaysSection({ photoShutter }: FieldOverlaysSectionProps
         toImpactSec: pack?.timeToAlignmentSec ?? null,
         transitMs: pack?.transitDurationMs ?? null,
         omegaDps: pack?.kin.absAzimuthRateDegPerSec ?? null,
-        shutter: photoShutter ?? pack?.shutterText ?? null,
       },
     };
   }, [
@@ -68,7 +63,6 @@ export function FieldOverlaysSection({ photoShutter }: FieldOverlaysSectionProps
     obs,
     moon,
     pack,
-    photoShutter,
   ]);
 
   const onExportText = useCallback(() => {

@@ -29,6 +29,19 @@ export interface FlightState {
   readonly trackDeg: number | null;
   /** Unix epoch ms when this state was valid. */
   readonly timestamp: number;
+  /**
+   * OpenSky `origin_country` — zemlja registracije / operatora u izvoru
+   * (nisu uvijek ime avioprijevoznika).
+   */
+  readonly originCountry?: string | null;
+  /** Prva tri znaka callsigna (ICAO airline designator), ako su slova. */
+  readonly airlineIcao?: string | null;
+  /** ADS-B emitter category iz OpenSky state vektora (npr. indeks 17), ako postoji. */
+  readonly adsbEmitterCategory?: number | null;
+  /** Tip zrakoplova kad ga izvor navodi (npr. statična ruta, budući metadata). */
+  readonly aircraftType?: string | null;
+  /** Ime avioprijevoznika kad ga izvor navodi. */
+  readonly airlineName?: string | null;
 }
 
 export interface FlightQuery {

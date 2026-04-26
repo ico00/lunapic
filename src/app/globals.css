@@ -43,3 +43,18 @@ html, body {
   z-index: 200;
   animation: golden-ui-flash 0.55s ease-out 1;
 }
+
+/* Mapbox popup za odabrani zrakoplov: bez bijelog "kartonskog" okvira i strelice. */
+.moon-transit-aircraft-popup {
+  z-index: 20;
+}
+
+.moon-transit-aircraft-popup .mapboxgl-popup-content {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.moon-transit-aircraft-popup .mapboxgl-popup-tip {
+  display: none;
+}

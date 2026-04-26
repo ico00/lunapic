@@ -5,7 +5,6 @@ import type { MoonState } from "@/types";
 import {
   angularSizeDegFromObjectLengthMeters,
   lineOfSightKinematics,
-  minExposureTimeSecondsForAircraftSize,
   moonAngularDiameterDeg,
   type LineOfSightKinematics,
   signedAzimuthGapDeg,
@@ -60,9 +59,8 @@ export function photographerPack(
   moon: MoonState,
   at: Date,
   extra: {
-    /** Tipičan Airbus A320; za blur & prosječna kutna veličina. */
+    /** Tipičan Airbus A320; prosječna kutna veličina u tranzitu. */
     readonly airlinerLengthMeters?: number;
-    readonly blurOfAircraftLength?: number;
   } = {}
 ): {
   kin: LineOfSightKinematics;
@@ -73,8 +71,6 @@ export function photographerPack(
   moAzRateDegS: number;
   timeToAlignmentSec: number | null;
   transitDurationMs: number | null;
-  minExposureSec: number | null;
-  shutterText: string | null;
 } | null {
   const kin = aircraftLineOfSightKinematics(observer, flight);
   if (!kin) {
@@ -106,7 +102,6 @@ export function photographerPack(
     moAzRateDegS
   );
   const L = extra.airlinerLengthMeters ?? 40;
-  const blur = extra.blurOfAircraftLength ?? 0.02;
   const dMoonFull = moonAngularDiameterDeg(moon.apparentRadius.degrees);
   const dAc = angularSizeDegFromObjectLengthMeters(
     L,
@@ -117,12 +112,6 @@ export function photographerPack(
     dMoonFull,
     dAc
   );
-  const minExp = minExposureTimeSecondsForAircraftSize(
-    kin.azimuthRateRadPerSec,
-    kin.slantRangeMeters,
-    L,
-    blur
-  );
   return {
     kin,
     acAz,
@@ -132,10 +121,5 @@ export function photographerPack(
     moAzRateDegS,
     timeToAlignmentSec,
     transitDurationMs,
-    minExposureSec: minExp,
-    shutterText:
-      minExp != null && minExp > 0
-        ? `Suggest: 1/${Math.max(1, Math.round(1 / minExp))} s (blur < ${(blur * 100).toFixed(0)}% of span, L=${L} m)`
-        : null,
   };
 }

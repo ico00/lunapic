@@ -1,14 +1,17 @@
 "use client";
 
 import { MapObserverControlStrip } from "@/components/map/MapObserverControlStrip";
+import { SelectedAircraftMapPopup } from "@/components/map/SelectedAircraftMapPopup";
 import { FieldPerfOverlay } from "@/components/perf/FieldPerfOverlay";
-import { WeatherOverlay } from "@/components/weather/WeatherOverlay";
 import { useExtrapolatedFlightsForMap } from "@/hooks/useExtrapolatedFlightsForMap";
+import { useMapFlightPick } from "@/hooks/useMapFlightPick";
 import { useMapGeoJsonSync } from "@/hooks/useMapGeoJsonSync";
+import { useMapMoonHorizonDeemphasis } from "@/hooks/useMapMoonHorizonDeemphasis";
 import { useMapMoonOverlayFeatures } from "@/hooks/useMapMoonOverlayFeatures";
 import { useMoonTransitMap } from "@/hooks/useMoonTransitMap";
+import { useSelectedAircraftStandCorridorFeatures } from "@/hooks/useSelectedAircraftStandCorridorFeatures";
 import { useMoonStateComputed } from "@/hooks/useTransitCandidates";
-import { useWeatherSync } from "@/hooks/useWeatherSync";
+import { isMoonVisibleFromMoonState } from "@/lib/domain/astro/moonVisibility";
 import { fieldPerfRecord, isFieldPerfEnabled } from "@/lib/perf/fieldPerf";
 import type { IFlightProvider } from "@/types";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
@@ -27,7 +30,7 @@ export function MapContainer({ flightProvider, isGolden = false }: MapContainerP
   const observer = useObserverStore((s) => s.observer);
   const moon = useMoonStateComputed();
   const referenceEpochMs = useMoonTransitStore((s) => s.referenceEpochMs);
-  useWeatherSync();
+  const selectedFlightId = useMoonTransitStore((s) => s.selectedFlightId);
 
   const { moonPathPack, moonAzFeature, intersectionFeatures, optimalGroundFeatures } =
     useMapMoonOverlayFeatures(
@@ -50,6 +53,13 @@ export function MapContainer({ flightProvider, isGolden = false }: MapContainerP
     (s) => s.observerLocationLocked
   );
 
+  const { fillFeatures: standCorridorFeatures, spineFeature: standSpineFeature } =
+    useSelectedAircraftStandCorridorFeatures({
+      selectedFlightId,
+      extrapolatedFlights: flights,
+      observer,
+    });
+
   useMapGeoJsonSync({
     mapRef,
     mapReadyTick,
@@ -58,8 +68,16 @@ export function MapContainer({ flightProvider, isGolden = false }: MapContainerP
     optimalGroundFeatures,
     moonPathPack,
     flights,
+    selectedFlightId,
+    standCorridorFeatures,
+    standSpineFeature,
     flightProvider,
   });
+
+  useMapFlightPick(mapRef, mapReadyTick);
+
+  const moonBelowHorizon = !isMoonVisibleFromMoonState(moon);
+  useMapMoonHorizonDeemphasis(mapRef, mapReadyTick, moonBelowHorizon);
 
   if (!hasMapboxToken) {
     return (
@@ -77,12 +95,12 @@ export function MapContainer({ flightProvider, isGolden = false }: MapContainerP
     <div className="relative h-full w-full" data-testid="map-surface">
       <div ref={elRef} className="h-full w-full" />
       <FieldPerfOverlay />
-      <WeatherOverlay />
       <MapObserverControlStrip
         observerLocationLocked={observerLocationLocked}
         onSetLocationHere={placeObserverHere}
         onFocusMapOnObserver={focusMapOnObserver}
       />
+      <SelectedAircraftMapPopup mapRef={mapRef} mapReadyTick={mapReadyTick} />
     </div>
   );
 

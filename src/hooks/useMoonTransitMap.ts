@@ -70,31 +70,55 @@ export function useMoonTransitMap(
   const elRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const [mapReadyTick, setMapReadyTick] = useState(0);
+  const boundsRefreshDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   const onBoundsRefresh = useCallback(() => {
-    fieldPerfTime("map:boundsRefresh", () => {
-    const m = mapRef.current;
-    if (!m) {
-      return;
-    }
-    const b = m.getBounds();
-    if (!b) {
-      return;
-    }
-    const bounds = geoBoundsFromMapbox(b);
-    void loadFlights.current(bounds);
+    const run = () => {
+      fieldPerfTime("map:boundsRefresh", () => {
+        const m = mapRef.current;
+        if (!m) {
+          return;
+        }
+        const b = m.getBounds();
+        if (!b) {
+          return;
+        }
+        const bounds = geoBoundsFromMapbox(b);
+        void loadFlights.current(bounds);
 
-    const routeSrc = m.getSource(ROUTES_SOURCE) as
-      | mapboxgl.GeoJSONSource
-      | undefined;
-    if (routeSrc) {
-      const lines = providerRef.current.getRouteLineFeatures?.(bounds) ?? [];
-      routeSrc.setData({
-        type: "FeatureCollection",
-        features: [...lines],
+        const routeSrc = m.getSource(ROUTES_SOURCE) as
+          | mapboxgl.GeoJSONSource
+          | undefined;
+        if (routeSrc) {
+          const lines = providerRef.current.getRouteLineFeatures?.(bounds) ?? [];
+          routeSrc.setData({
+            type: "FeatureCollection",
+            features: [...lines],
+          });
+        }
       });
+    };
+
+    if (useMoonTransitStore.getState().flightProvider !== "opensky") {
+      run();
+      return;
     }
-    });
+    if (boundsRefreshDebounceRef.current != null) {
+      clearTimeout(boundsRefreshDebounceRef.current);
+    }
+    const delayMs = (() => {
+      const st = useMoonTransitStore.getState();
+      if (st.flightProvider !== "opensky") {
+        return 0;
+      }
+      return st.selectedFlightId != null ? 1200 : 800;
+    })();
+    boundsRefreshDebounceRef.current = setTimeout(() => {
+      boundsRefreshDebounceRef.current = null;
+      run();
+    }, delayMs);
   }, []);
 
   const onMoveSettled = useCallback(
@@ -157,9 +181,10 @@ export function useMoonTransitMap(
     const settled = () => onMoveSettled(map);
 
     map.on("load", () => {
-      registerMoonTransitLayers(map);
-      settled();
-      setMapReadyTick((n) => n + 1);
+      registerMoonTransitLayers(map, () => {
+        settled();
+        setMapReadyTick((n) => n + 1);
+      });
     });
     map.on("moveend", () => {
       onMoveSettled(map);
@@ -171,6 +196,10 @@ export function useMoonTransitMap(
       }
     });
     return () => {
+      if (boundsRefreshDebounceRef.current != null) {
+        clearTimeout(boundsRefreshDebounceRef.current);
+        boundsRefreshDebounceRef.current = null;
+      }
       markerRef.current = null;
       mark.remove();
       mapRef.current = null;

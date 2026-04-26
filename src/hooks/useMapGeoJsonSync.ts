@@ -8,6 +8,8 @@ import {
   MOON_PATH_LABELS_SOURCE,
   MOON_PATH_SOURCE,
   ROUTES_SOURCE,
+  SELECTED_STAND_SPINE_SOURCE,
+  SELECTED_STAND_SOURCE,
 } from "@/lib/map/mapSourceIds";
 import type { IFlightProvider } from "@/types";
 import type { FlightState } from "@/types/flight";
@@ -24,13 +26,14 @@ type UseMapGeoJsonSyncArgs = {
   optimalGroundFeatures: readonly Feature[];
   moonPathPack: MoonPathPack;
   flights: readonly FlightState[];
+  /** Kad je postavljen, na karti se crta samo taj zrakoplov (ostali ADS-B markeri skriveni). */
+  selectedFlightId: string | null;
+  /** Poligoni trake (jedan, T=0) uz odabran zrakoplov. */
+  standCorridorFeatures: readonly Feature[];
+  /** Središnja nulta-linija trake (3D LoS). */
+  standSpineFeature: Feature | null;
   flightProvider: IFlightProvider;
 };
-
-/**
- * Push GeoJSON u Mapbox izvore kad se promijene podaci ili se karta tek učitala
- * (`mapReadyTick` nakon `registerMoonTransitLayers`).
- */
 export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
   const {
     mapRef,
@@ -40,6 +43,9 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
     optimalGroundFeatures,
     moonPathPack,
     flights,
+    selectedFlightId,
+    standCorridorFeatures,
+    standSpineFeature,
     flightProvider,
   } = a;
 
@@ -75,6 +81,38 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
   ]);
 
   useEffect(() => {
+    fieldPerfTime("geojson:standCorridor", () => {
+      const map = mapRef.current;
+      const src = map?.getSource(SELECTED_STAND_SOURCE) as
+        | mapboxgl.GeoJSONSource
+        | undefined;
+      if (!src) {
+        return;
+      }
+      src.setData({
+        type: "FeatureCollection",
+        features: [...standCorridorFeatures],
+      });
+    });
+  }, [standCorridorFeatures, mapReadyTick, mapRef]);
+
+  useEffect(() => {
+    fieldPerfTime("geojson:standSpine", () => {
+      const map = mapRef.current;
+      const s = map?.getSource(SELECTED_STAND_SPINE_SOURCE) as
+        | mapboxgl.GeoJSONSource
+        | undefined;
+      if (!s) {
+        return;
+      }
+      s.setData({
+        type: "FeatureCollection",
+        features: standSpineFeature ? [standSpineFeature] : [],
+      });
+    });
+  }, [standSpineFeature, mapReadyTick, mapRef]);
+
+  useEffect(() => {
     fieldPerfTime("geojson:moonPath", () => {
     const map = mapRef.current;
     if (!map?.getSource(MOON_PATH_SOURCE)) {
@@ -100,19 +138,36 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
       return;
     }
     const src = map.getSource(FLIGHTS_SOURCE) as mapboxgl.GeoJSONSource;
+    const idForFilter =
+      selectedFlightId == null
+        ? null
+        : flights.some((f) => f.id === selectedFlightId)
+          ? selectedFlightId
+          : null;
+    const visibleFlights =
+      idForFilter == null
+        ? flights
+        : flights.filter((f) => f.id === idForFilter);
     src.setData({
       type: "FeatureCollection",
-      features: flights.map((f) => ({
+      features: visibleFlights.map((f) => ({
         type: "Feature" as const,
         geometry: {
           type: "Point" as const,
           coordinates: [f.position.lng, f.position.lat],
         },
-        properties: { id: f.id, name: f.callSign ?? f.id },
+        properties: {
+          id: f.id,
+          name: f.callSign ?? f.id,
+          track:
+            typeof f.trackDeg === "number" && Number.isFinite(f.trackDeg)
+              ? ((f.trackDeg % 360) + 360) % 360
+              : 0,
+        },
       })),
     });
     });
-  }, [flights, mapRef, mapReadyTick]);
+  }, [flights, mapRef, mapReadyTick, selectedFlightId]);
 
   useEffect(() => {
     fieldPerfTime("geojson:routes", () => {

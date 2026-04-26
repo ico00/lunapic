@@ -19,4 +19,13 @@ export type MoonPathSample = {
   readonly epochMs: number;
   readonly azimuthDeg: number;
   readonly altitudeDeg: number;
-}
+};
+
+/** Polarni i rubni slučajevi (suncalc) kada izlaz/zlaz u jednom dana ne postoje. */
+export type MoonRiseSetKind = "normal" | "alwaysUp" | "alwaysDown";
+
+export type MoonRiseSetTimes = {
+  readonly rise: Date | null;
+  readonly set: Date | null;
+  readonly kind: MoonRiseSetKind;
+};

@@ -1,10 +1,7 @@
-import { AstroService } from "@/lib/domain/astro/astroService";
+import { AstroService, getTimeSliderWindowMs } from "@/lib/domain/astro/astroService";
 import { azimuthDeltaDeg } from "@/hooks/useActiveTransits";
 import { horizontalToPoint } from "@/lib/domain/geometry/horizontal";
-import {
-  TIME_SLIDER_WINDOW_MS,
-  useMoonTransitStore,
-} from "@/stores/moon-transit-store";
+import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useObserverStore } from "@/stores/observer-store";
 import type { FlightState } from "@/types/flight";
 import type { GroundObserver } from "@/types";
@@ -43,14 +40,18 @@ function minAzimuthForFlights(
 }
 
 /**
- * Tijekom pomicanja vremena: aproks. najbolji pomicaj (unutar ±6 h) za
- * najbližu mjesin-zrakoplovusku alineaciju (Mjesec se mijenja, letovi fiksirani
- * u snapshotu učitavača).
+ * Tijekom pomicanja vremena: aproks. najbolji pomicaj unutar **trenutnog**
+ * vremenskog prozora klizača (moonrise→moonset, circumpolar 24h, ili ±6h)
+ * za najbližu mjesin–zrakoplovusku alineaciju.
  */
 export function useNearestTransitWindow(stepMs: number = DEFAULT_STEP_MS) {
   const observer = useObserverStore((s) => s.observer);
   const timeAnchorMs = useMoonTransitStore((s) => s.timeAnchorMs);
   const timeOffsetMs = useMoonTransitStore((s) => s.timeOffsetMs);
+  const referenceEpochMs = useMoonTransitStore((s) => s.referenceEpochMs);
+  const moonRise = useMoonTransitStore((s) => s.moonRise);
+  const moonSet = useMoonTransitStore((s) => s.moonSet);
+  const moonRiseSetKind = useMoonTransitStore((s) => s.moonRiseSetKind);
   const flights = useMoonTransitStore((s) => s.flights);
 
   return useMemo(() => {
@@ -62,43 +63,54 @@ export function useNearestTransitWindow(stepMs: number = DEFAULT_STEP_MS) {
         label: "No flights in the data — pan the map.",
       };
     }
+    const win = getTimeSliderWindowMs(referenceEpochMs, timeAnchorMs, {
+      rise: moonRise,
+      set: moonSet,
+      kind: moonRiseSetKind,
+    });
+    const width = win.t1 - win.t0;
     let bestOffset = 0;
     let minAtBest = 180;
-    for (
-      let o = -TIME_SLIDER_WINDOW_MS;
-      o <= TIME_SLIDER_WINDOW_MS;
-      o += stepMs
-    ) {
-      const ep = timeAnchorMs + o;
+    for (let o = 0; o <= width; o += stepMs) {
+      const ep = win.t0 + o;
       const m = minAzimuthForFlights(ep, observer, flights);
       if (m < minAtBest) {
         minAtBest = m;
         bestOffset = o;
       }
     }
-    const currentEp = timeAnchorMs + timeOffsetMs;
+    const currentEp = win.t0 + timeOffsetMs;
     const currentMin = minAzimuthForFlights(currentEp, observer, flights);
     const toward = bestOffset - timeOffsetMs;
     const mins = Math.max(0, Math.round(Math.abs(toward) / 60_000));
-    const label =
-      (() => {
-        if (currentMin < 0.1 && Math.abs(toward) < stepMs) {
-          return "You are very close to a transit window for this offset.";
-        }
-        if (Math.abs(toward) < stepMs / 2) {
-          return `Nearest window: essentially at this offset (min. great-circle Δ ≈ ${minAtBest.toFixed(2)}°).`;
-        }
-        if (mins === 0) {
-          return `Nearest window: time shift under a minute (min. great-circle Δ ≈ ${minAtBest.toFixed(2)}°).`;
-        }
-        const dir = toward < 0 ? "earlier" : "later";
-        return `Nearest window: move the slider toward the ${dir} value (≈ ${mins} min; at that moment min. great-circle Δ ≈ ${minAtBest.toFixed(2)}°).`;
-      })();
+    const label = (() => {
+      if (currentMin < 0.1 && Math.abs(toward) < stepMs) {
+        return "You are very close to a transit window for this offset.";
+      }
+      if (Math.abs(toward) < stepMs / 2) {
+        return `Nearest window: essentially at this offset (min. great-circle Δ ≈ ${minAtBest.toFixed(2)}°).`;
+      }
+      if (mins === 0) {
+        return `Nearest window: time shift under a minute (min. great-circle Δ ≈ ${minAtBest.toFixed(2)}°).`;
+      }
+      const dir = toward < 0 ? "earlier" : "later";
+      return `Nearest window: move the slider toward the ${dir} end (≈ ${mins} min; at that moment min. great-circle Δ ≈ ${minAtBest.toFixed(2)}°).`;
+    })();
     return {
       bestOffsetMs: bestOffset,
       minDeltaAtBest: minAtBest,
       currentMinDelta: currentMin,
       label,
     };
-  }, [observer, timeAnchorMs, timeOffsetMs, flights, stepMs]);
+  }, [
+    observer,
+    timeAnchorMs,
+    timeOffsetMs,
+    referenceEpochMs,
+    moonRise,
+    moonSet,
+    moonRiseSetKind,
+    flights,
+    stepMs,
+  ]);
 }

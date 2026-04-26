@@ -5,10 +5,10 @@ This document explains how the application is structured, how data moves through
 ## Goals (domain)
 
 1. **Observer** — a fixed point on the ground (lat, lng, optional ground height). The moon’s apparent position and all geometry are computed for this point.
-2. **Time** — a wall-clock anchor with an optional **simulated** offset (±6 h) to explore future/past transits; ephemeris uses `referenceEpochMs = timeAnchorMs + timeOffsetMs`.
+2. **Time** — a wall-clock anchor with a **simulated** offset on a **time-slider window**: after moonrise / moonset are known, the window is **visible-arc** (roughly rise→set) or 24h for circumpolar; otherwise a 12h **fallback**; `referenceEpochMs = timeAnchorMs + timeOffsetMs` is the “current simulation time”. Initial load and the **Sync** action clamp time and bump ephemeris refresh.
 3. **Flights** — `FlightState[]` from a pluggable **flight provider** (Strategy pattern), loaded for the current map bounds.
 4. **Transit / alignment** — compare moon azimuth with aircraft position (from altitude) to find “candidates” and “active” alignments within tolerance, plus photographer tools (line-of-sight rate, duration, suggested shutter).
-5. **Map** — Mapbox GL: routes, **moon path** (12 h / 30 min, dashed line + hour labels), moon azimuth ray, static-route intersections, flights as symbols, observer marker, optional “golden” UI when alignment is within a critical angle.
+5. **Map** — Mapbox GL: routes, **moon path** (visible window on map, dashed line + labels), moon azimuth ray, static-route intersections, flights as symbols, observer marker, **selected-aircraft stand** (cyan trapezoid + zero-offset spine for 3D line-of-sight at `referenceEpochMs`), optional “golden” UI when alignment is within a critical angle.
 
 ## High-level layout
 
@@ -61,12 +61,16 @@ flowchart TB
 
 | Field / action                                     | Role                                                                             |
 | -------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `timeAnchorMs`, `timeOffsetMs`, `referenceEpochMs` | Ephemeris and screening use `referenceEpochMs` as the “current simulation time”. |
+| `timeAnchorMs`, `timeOffsetMs`, `referenceEpochMs` | Ephemeris and screening use `referenceEpochMs` as the “current simulation time”. The slider is clamped to `getTimeSliderWindowMs(…, moonRise, moonSet, …)` when rise/set are known. |
+| `moonRise`, `moonSet`, `moonRiseSetKind`            | Suncalc window for the time slider and moon-path clipping; from `AstroService.getMoonTimes` via `useAstronomySync`. |
+| `ephemerisRefetchKey`                              | Bumped in `syncTimeToNow` so `useAstronomySync` re-fetches `getMoonTimes` for the UTC day of the **current** `referenceEpochMs` without re-running on every slider tick (avoids UTC-midnight desync on the path). |
+| `setMoonRiseSet`                                   | Writes rise/set; may re-clamp `timeAnchorMs` / `referenceEpochMs` to the new window. |
 | `mapView`                                          | Center, zoom, pitch, bearing — updated when the user pans the map.               |
-| `flightProvider`                                   | `mock`                                                                           |
+| `flightProvider`                                   | `mock` / `static` / `openSky` (see `FlightProviderId`).                            |
 | `flights`                                          | Last loaded snapshot; **not** real-time until next bounds load.                  |
-| `selectedFlightId`                                 | Drives photographer tools and list highlighting.                                 |
+| `selectedFlightId`                                 | Drives photographer tools, list highlighting, and the **stand** overlay on the map. |
 | `openSkyLatencySkewMs`                             | Manual time skew for display extrapolation (field section).                      |
+| `syncTimeToNow`                                    | “Sync” and initial shell layout: reset simulated time to now (clamped), bump `ephemerisRefetchKey`. |
 | `loadFlightsInBounds`                              | Invokes the active `IFlightProvider` and sets `flights` / `error` / `isLoading`. |
 
 
@@ -97,8 +101,8 @@ Adding a new source: implement `IFlightProvider`, register in the registry, add 
 
 ## Domain layer
 
-- `**lib/domain/astro/`** — `AstroService.getMoonState` wraps moon ephemeris (suncalc-based helpers in `moon.ts`) → `MoonState` (azimuth, altitude, apparent radius, …). `**getMoonPathSamples`** — 24 točke u idućih 12 h od `referenceEpochMs` (30 min; `MoonPathSample` u `src/types/moon.ts`).
-- `**lib/domain/geometry/**` — WGS84 helpers, ENU, horizontal line-of-sight, moon azimuth line vs static routes, `**buildMoonPathLineCoordinates**` (ground points along a fixed-length ray per sample azimuth) for a moon-path `LineString`, **photographer** pack (angular rate, slant range, alignment time) in `GeometryEngine` / `lineOfSightKinematics` / `alignmentHint`.
+- `**lib/domain/astro/**` — `AstroService.getMoonState` wraps moon ephemeris (suncalc-based helpers in `moon.ts`) → `MoonState` (azimuth, altitude, apparent radius, …). `**getMoonTimes**` (suncalc) → `moonRise` / `moonSet` / circumpolar kind in the store, updated by **`useAstronomySync`** (re-fetch on observer change and when `ephemerisRefetchKey` bumps in `syncTimeToNow` — *not* on every slider change; avoids swapping the suncalc UTC day at UTC midnight and desyncing the time-slider / moon path). `**getMoonPathSamples**` and `**getMoonPathMapSpec**` use the **visible** time window (see `getTimeSliderWindowMs`, `useMapMoonOverlayFeatures`). `**MoonPathSample**` in `src/types/moon.ts`.
+- `**lib/domain/geometry/**` — WGS84 helpers, ENU, horizontal line-of-sight (`horizontalToPoint` for 3D azimuth to the aircraft with altitude), moon azimuth line vs static routes, `**buildMoonPathLineCoordinates**` (ground points along a fixed-length ray per sample azimuth) for a moon-path `LineString`, **stand corridor** in `standCorridorQuads.ts` (trapezoid + spine; axis = back-azimuth of horizontal LoS from sub-aircraft point), **photographer** pack (angular rate, slant range, alignment time) in `GeometryEngine` / `lineOfSightKinematics` / `alignmentHint`.
 - `**lib/domain/transit/screening.ts`** — Narrows which flights are worth listing as “candidates”.
 
 Keep **pure functions** in `lib/domain` (no React, no `window` except where a module is explicitly “browser”).
@@ -114,8 +118,8 @@ Keep **pure functions** in `lib/domain` (no React, no `window` except where a mo
 
 ## Map rendering (Mapbox)
 
-- **Sources:** `routes-geo`, `flights-geo`, `moon-azimuth-geo`, `moon-path-geo`, `moon-path-labels-geo`, `moon-intersections-geo`, `optimal-ground-geo` (source ids: `src/lib/map/mapSourceIds.ts`; registration: `registerMoonTransitLayers` in `src/lib/map/registerMoonTransitLayers.ts`; GeoJSON updates: `useMapGeoJsonSync`). **Moon path** — dashed line through 24 ground sample points; separate symbol layer for 2-hourly labels. **Ray length for the path** is shorter than the long moon–route intersection azimuth so the curve stays in a useful map scale. Data follows `referenceEpochMs` and `observer` (same as the simulated time controls).
-- **Flights** — Symbol layer with a rasterized aircraft icon; rotation from `trackDeg` in feature properties. Fallback circle layer if icon creation fails.
+- **Sources** — `routes-geo`, `flights-geo`, `moon-azimuth-geo`, `moon-path-geo`, `moon-path-labels-geo`, `moon-intersections-geo`, `optimal-ground-geo`, `selected-stand-geo`, `selected-stand-spine-geo` (source ids: `src/lib/map/mapSourceIds.ts`; registration: `registerMoonTransitLayers` in `src/lib/map/registerMoonTransitLayers.ts`; GeoJSON updates: `useMapGeoJsonSync`). **Moon path** — dashed `LineString` in the **visible** ephemeris window; symbol layer for time labels. **Selected aircraft** — when `selectedFlightId` is set, one **stand** trapezoid (current simulated instant, extrapolated position) and a **spine** `LineString` on `selected-stand-spine-geo` (3D line-of-sight–based axis, high-contrast); see `useSelectedAircraftStandCorridorFeatures` and `standCorridorQuads`. **Ray length for the path** is shorter than the long moon–route intersection azimuth so the curve stays in a useful map scale. Data follows `referenceEpochMs` and `observer` (same as the simulated time controls).
+- **Flights** — Symbol layer with an SVG **plane** icon; rotation from `trackDeg` in feature properties. Fallback circle layer if icon creation fails; layer is `moveLayer`d to the top so it stays **above** stand and other GeoJSON overlays.
 - **Observer** — `mapboxgl.Marker` with a custom DOM (camera), not a GeoJSON point.
 
 **Performance:** `loadFlightsInBounds` runs on map move end; don’t add synchronous heavy work in the main map thread without debounce.
@@ -141,7 +145,7 @@ Keep **pure functions** in `lib/domain` (no React, no `window` except where a mo
 ## Known limitations (intentional or technical)
 
 - **Flights** are a **snapshot** per bounds load, not a streaming socket.
-- **Time slider** does not re-fetch history from OpenSky; it shifts ephemeris and uses the same flight snapshot (documented in UI for OpenSky use).
+- **Time slider** does not re-fetch history from OpenSky; it updates `referenceEpochMs` in the current rise/set (or fallback) window and uses the same flight snapshot (documented in UI for OpenSky use). **Suncalc** `moonRise` / `moonSet` re-fetch in **`useAstronomySync`** is tied to **Sync** and **observer** changes (`ephemerisRefetchKey`), not to every move of the slider, so a UTC day boundary during scrubbing does not replace rise/set and break the moon path window.
 - **Compass** uses device orientation where available; accuracy varies by device and environment.
 
 ## Related files

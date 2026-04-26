@@ -9,6 +9,8 @@ import {
   useMoonStateComputed,
   useTransitCandidates,
 } from "@/hooks/useTransitCandidates";
+import { isMoonVisibleFromMoonState } from "@/lib/domain/astro/moonVisibility";
+import { getTimeSliderWindowMs } from "@/lib/domain/astro/astroService";
 import { getFlightProvider } from "@/lib/flight/flightProviderRegistry";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useObserverStore } from "@/stores/observer-store";
@@ -25,22 +27,66 @@ export function useHomeShellOrchestration() {
     [flightProviderId]
   );
 
-  const moon = useMoonStateComputed();
-  const candidates = useTransitCandidates();
+  const moonRise = useMoonTransitStore((s) => s.moonRise);
+  const moonSet = useMoonTransitStore((s) => s.moonSet);
+  const moonRiseSetKind = useMoonTransitStore((s) => s.moonRiseSetKind);
   const isLoading = useMoonTransitStore((s) => s.isLoading);
   const setSelectedFlightId = useMoonTransitStore(
     (s) => s.setSelectedFlightId
   );
   const selectedFlightId = useMoonTransitStore((s) => s.selectedFlightId);
+  const moon = useMoonStateComputed();
+  const isMoonBelowHorizon = useMemo(
+    () => !isMoonVisibleFromMoonState(moon),
+    [moon]
+  );
+  const candidates = useTransitCandidates();
   const { pack: photoPack } = usePhotographerTools();
   const [beepOnTransit, setBeepOnTransit] = useState(false);
   useTransitBeep(photoPack?.timeToAlignmentSec ?? null, beepOnTransit);
   const routeCorridor =
     flightProvider.getRouteCorridorStats?.() ?? null;
   const error = useMoonTransitStore((s) => s.error);
+  const timeAnchorMs = useMoonTransitStore((s) => s.timeAnchorMs);
   const setTimeOffsetMs = useMoonTransitStore((s) => s.setTimeOffsetMs);
   const timeOffsetMs = useMoonTransitStore((s) => s.timeOffsetMs);
   const referenceEpochMs = useMoonTransitStore((s) => s.referenceEpochMs);
+  const timeSliderWindow = useMemo(
+    () =>
+      getTimeSliderWindowMs(referenceEpochMs, timeAnchorMs, {
+        rise: moonRise,
+        set: moonSet,
+        kind: moonRiseSetKind,
+      }),
+    [referenceEpochMs, timeAnchorMs, moonRise, moonSet, moonRiseSetKind]
+  );
+  const timeSliderStartLabel = useMemo(
+    () =>
+      new Date(timeSliderWindow.t0).toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }),
+    [timeSliderWindow.t0]
+  );
+  const timeSliderEndLabel = useMemo(
+    () =>
+      new Date(timeSliderWindow.t1).toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }),
+    [timeSliderWindow.t1]
+  );
+  const sliderWidthHours = useMemo(
+    () => (timeSliderWindow.t1 - timeSliderWindow.t0) / 3_600_000,
+    [timeSliderWindow.t0, timeSliderWindow.t1]
+  );
+  const timeSliderMode =
+    (moonRiseSetKind === "normal" && moonRise && moonSet) ||
+    moonRiseSetKind === "alwaysUp"
+      ? ("moonriseToSet" as const)
+      : ("fallback" as const);
   const syncTimeToNow = useMoonTransitStore((s) => s.syncTimeToNow);
   const activeTransits = useActiveTransits(0.5);
   const isGolden = useMemo(
@@ -125,5 +171,13 @@ export function useHomeShellOrchestration() {
     moonDisplay,
     candidatesDisplay,
     showEmptyCandidates,
+    moonRise,
+    moonSet,
+    moonRiseSetKind,
+    timeSliderStartLabel,
+    timeSliderEndLabel,
+    sliderWidthHours,
+    timeSliderMode,
+    isMoonBelowHorizon,
   };
 }

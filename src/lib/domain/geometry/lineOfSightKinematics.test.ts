@@ -4,7 +4,6 @@ import {
   angularSizeDegFromObjectLengthMeters,
   horizontalAzimuthRateRadPerSec,
   lineOfSightKinematics,
-  minExposureTimeSecondsForAircraftSize,
   moonAngularDiameterDeg,
   signedAzimuthGapDeg,
   timeToAzimuthAlignmentSeconds,
@@ -67,12 +66,5 @@ describe("lineOfSightKinematics", () => {
     expect(timeToAzimuthAlignmentSeconds(10, 0.05, 0.05)).toBeNull();
     expect(timeToAzimuthAlignmentSeconds(-100, 1, 0)).toBeCloseTo(100);
     expect(timeToAzimuthAlignmentSeconds(10, 0, 0)).toBeNull();
-  });
-
-  it("minExposureTimeSecondsForAircraftSize", () => {
-    expect(minExposureTimeSecondsForAircraftSize(0, 1000, 40, 0.1)).toBeNull();
-    const t = minExposureTimeSecondsForAircraftSize(0.001, 20_000, 40, 0.1);
-    expect(t).not.toBeNull();
-    expect(t!).toBeGreaterThan(0);
   });
 });

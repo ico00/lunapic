@@ -5,6 +5,8 @@
     {
       "id": "ldza-eddf",
       "label": "LDZA → EDDF",
+      "airline": "Croatia Airlines",
+      "aircraftType": "Airbus A319",
       "altitudeMeters": 10000,
       "waypoints": [
         [15.8269, 45.7356],
@@ -19,6 +21,8 @@
     {
       "id": "ldza-lddu",
       "label": "LDZA → LDDU",
+      "airline": "Croatia Airlines",
+      "aircraftType": "Airbus A320",
       "altitudeMeters": 10000,
       "waypoints": [
         [15.8269, 45.7356],
@@ -32,6 +36,8 @@
     {
       "id": "ldsp-lkpr",
       "label": "LDSP → LKPR",
+      "airline": "Croatia Airlines",
+      "aircraftType": "Airbus A220",
       "altitudeMeters": 10000,
       "waypoints": [
         [16.298, 43.5396],
@@ -46,6 +52,8 @@
     {
       "id": "eddh-ldza",
       "label": "EDDH → LDZA",
+      "airline": "Eurowings",
+      "aircraftType": "Airbus A320",
       "altitudeMeters": 10000,
       "waypoints": [
         [9.9882, 53.6304],
@@ -59,6 +67,8 @@
     {
       "id": "loww-ldza",
       "label": "LOWW → LDZA",
+      "airline": "Austrian Airlines",
+      "aircraftType": "Embraer E195",
       "altitudeMeters": 10000,
       "waypoints": [
         [16.5697, 48.1103],

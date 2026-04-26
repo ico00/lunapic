@@ -19,8 +19,25 @@ function inBounds(
   );
 }
 
+function parseOpenSkyCategory(
+  raw: string | number | boolean | null | undefined
+): number | null {
+  if (raw == null || typeof raw === "boolean") {
+    return null;
+  }
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return Math.round(raw);
+  }
+  if (typeof raw === "string") {
+    const n = Number.parseInt(raw, 10);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
 /**
  * OpenSky — polja u istom redoslijedu kao u REST odgovoru.
+ * Za indeks 17 (`category`) potrebno je `extended=1` na zahtjevu (proxy to šalje).
  * @see https://openskynetwork.github.io/opensky-api/rest.html
  */
 export function stateToFlightState(
@@ -41,12 +58,22 @@ export function stateToFlightState(
   }
   const callsign =
     typeof row[1] === "string" ? row[1].trim() || null : null;
+  const originCountry =
+    typeof row[2] === "string" ? row[2].trim() || null : null;
+  let airlineIcao: string | null = null;
+  if (callsign && callsign.length >= 3) {
+    const rawPrefix = callsign.slice(0, 3);
+    if (/^[A-Za-z]{3}$/.test(rawPrefix)) {
+      airlineIcao = rawPrefix.toUpperCase();
+    }
+  }
   const baro = row[7];
   const vel = row[9];
   const track = row[10];
   const timePos = row[3];
   const lastContact = row[4];
   const geoAlt = row[13];
+  const adsbEmitterCategory = parseOpenSkyCategory(row[17]);
   const tsSec =
     typeof timePos === "number"
       ? timePos
@@ -57,6 +84,9 @@ export function stateToFlightState(
     id: icao,
     icao24: icao,
     callSign: callsign,
+    originCountry,
+    airlineIcao,
+    adsbEmitterCategory,
     position: { lat, lng: lon },
     baroAltitudeMeters: typeof baro === "number" ? baro : null,
     geoAltitudeMeters: typeof geoAlt === "number" ? geoAlt : null,
