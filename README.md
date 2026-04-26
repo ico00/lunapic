@@ -2,6 +2,8 @@
 
 Web app for planning and visualizing **aircraft transits in front of the Moon**: map, moon ephemeris, ADS-B–backed (or static) flight data, and photographer-oriented tools (countdown, suggested shutter, compass aim, field export).
 
+**Source:** [github.com/ico00/lunapic](https://github.com/ico00/lunapic)
+
 **Stack:** Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, Mapbox GL JS, Zustand, suncalc (moon position).
 
 ## Documentation (start here)
