@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Moon Transit
 
-## Getting Started
+Web app for planning and visualizing **aircraft transits in front of the Moon**: map, moon ephemeris, ADS-B–backed (or static) flight data, and photographer-oriented tools (countdown, suggested shutter, compass aim, field export).
 
-First, run the development server:
+**Stack:** Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, Mapbox GL JS, Zustand, suncalc (moon position).
+
+## Documentation (start here)
+
+| Document | Purpose |
+|----------|---------|
+| [documentation/architecture.md](./documentation/architecture.md) | System design, data flow, major modules, extension points |
+| [documentation/technicalconventions.md](./documentation/technicalconventions.md) | Code style, patterns, environment, how to add features safely |
+| [documentation/changelog.md](./documentation/changelog.md) | Version history and notable changes |
+| [documentation/README.md](./documentation/README.md) | Index of this folder |
+| [AGENTS.md](./AGENTS.md) | Note on Next.js 16 in this repo (read before deep Next work) |
+
+## Quick start
 
 ```bash
+npm install
+cp .env.local.example .env.local
+# set NEXT_PUBLIC_MAPBOX_TOKEN=pk.…
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_MAPBOX_TOKEN` | **Yes** (for map) | Mapbox access token. Without it, the map shows a setup message. |
 
-## Learn More
+Example `.env.local`:
 
-To learn more about Next.js, take a look at the following resources:
+```env
+NEXT_PUBLIC_MAPBOX_TOKEN=pk.your_mapbox_token
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**OpenSky:** the browser does not call OpenSky directly. The app uses the Next.js route `GET /api/opensky/states` as a CORS-free proxy. No key is required for basic OpenSky public usage.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Scripts
 
-## Deploy on Vercel
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Development server (Turbopack) |
+| `npm run build` | Production build |
+| `npm start` | Run production build |
+| `npm run lint` | ESLint |
+| `npx tsc --noEmit` | Typecheck only |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Flight data modes
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **static** — Positions on routes from `src/data/routes.json`; route polylines; track from the active route segment near the view center.
+- **opensky** — Live (best-effort) ADS-B via OpenSky, bounded by the map view.
+- **mock** — Hard-coded test aircraft.
+
+Select in the sidebar (“Provider”).
+
+## License / package meta
+
+- `"private": true` in `package.json` (app not published as a library).
+- Fonts: Geist (via `next/font`).
+
+## Contributing
+
+Read [documentation/technicalconventions.md](./documentation/technicalconventions.md) before large refactors. Record notable changes in [documentation/changelog.md](./documentation/changelog.md).

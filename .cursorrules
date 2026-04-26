@@ -1,0 +1,36 @@
+# MOON TRANSIT — Cursor Rules & Project Guidelines
+
+You are an expert developer working on the **Moon Transit** application. This is a high-precision tool for photographers to plan aircraft transits across the Moon.
+
+## 1. CORE PRINCIPLES & ARCHITECTURE
+- **Observer-Centric:** All geometry and ephemeris calculations MUST use the fixed `observer` location from `useObserverStore`, NOT the map's current center.
+- **SOLID & Strategy Pattern:** Flight data sources must implement the `IFlightProvider` interface. Never hardcode data fetching logic outside of providers.
+- **Domain Purity:** Keep pure mathematical and astronomical functions in `lib/domain`. These modules must remain framework-agnostic (no React hooks or Zustand stores inside).
+- **Coordinate Standard:** Use WGS84. GeoJSON format is `[longitude, latitude]`, while application types use `{ lat, lng }`.
+
+## 2. MANDATORY DOCUMENTATION REFERENCE
+Before starting any significant task, review these files:
+- `documentation/architecture.md`: System design, data flow, and state management rules.
+- `documentation/technicalconventions.md`: Code style, TypeScript strictness, and naming conventions.
+- `documentation/changelog.md`: Current feature set and recent architectural shifts.
+
+## 3. KEY CALCULATIONS & PHYSICS
+- **Parallax:** Always account for aircraft altitude (approx. 10km) vs. observer position. Use `GeometryEngine` for intersections.
+- **Kinematics:** Transit duration and shutter recommendations are based on **angular velocity (ω)** from the photographer's perspective, not just ground speed.
+- **Time Handling:** - `referenceEpochMs` = `timeAnchorMs` + `timeOffsetMs` (for simulation).
+    - `openSkyLatencySkewMs` applies only to real-time flight extrapolation, not ephemeris.
+
+## 4. UI & STYLE GUIDELINES
+- **User-Facing Language:** UI copy MUST be in **English**.
+- **Styling:** Use **Tailwind CSS 4**. Follow the existing color palette (zinc, emerald, amber, sky).
+- **Mapbox:** All layers and sources must be managed within `MapContainer.tsx` to maintain sync.
+
+## 5. PHOTOGRAPHER TOOLS
+- **Golden State:** UI should trigger a "Golden" alert/flash when alignment is within 0.1°.
+- **Field Use:** Prioritize mobile-friendly controls in the sidebar and ensure the compass/HUD logic remains performant.
+- **Audio Alerts:** Use `AudioContext` for transit beeps as defined in the photographer tools.
+
+## 6. DEVELOPMENT WORKFLOW
+- **Check before coding:** "Does this change break the parallax math or desync simulated time?"
+- **Pre-PR:** Ensure `npm run build` and `npx tsc --noEmit` pass.
+- **Documentation:** Every feature change must be logged in `documentation/changelog.md`.
