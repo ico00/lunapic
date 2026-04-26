@@ -36,6 +36,8 @@ export class StaticFlightProvider implements IFlightProvider {
       out.push({
         id: `static-${r.id}`,
         callSign: r.label,
+        airlineName: r.airline ?? null,
+        aircraftType: r.aircraftType ?? null,
         position: p,
         baroAltitudeMeters: r.altitudeMeters,
         geoAltitudeMeters: r.altitudeMeters,

@@ -1,5 +1,15 @@
 import type { Map } from "mapbox-gl";
 import {
+  FLIGHT_PLANE_ICON_IMAGE_ID,
+  FLIGHT_PLANE_ICON_SIZE,
+  FLIGHT_PLANE_ICON_URL,
+  SELECTED_STAND_MAP_FILL_OPACITY,
+  SELECTED_STAND_MAP_LINE_OPACITY,
+  SELECTED_STAND_SPINE_LINE_OPACITY,
+  SELECTED_STAND_SPINE_LINE_WIDTH,
+} from "@/lib/map/mapOverlayConstants";
+import {
+  FLIGHTS_LAYER_ID,
   FLIGHTS_SOURCE,
   GROUND_OPTIMAL_SOURCE,
   MOON_AZ_SOURCE,
@@ -7,13 +17,140 @@ import {
   MOON_PATH_LABELS_SOURCE,
   MOON_PATH_SOURCE,
   ROUTES_SOURCE,
+  SELECTED_STAND_SPINE_SOURCE,
+  SELECTED_STAND_SOURCE,
 } from "@/lib/map/mapSourceIds";
+
+const MOON_INT_LAYER_ID = "moon-intersections";
+
+function addFlightsCircleFallback(map: Map): void {
+  if (map.getLayer(FLIGHTS_LAYER_ID)) {
+    return;
+  }
+  map.addLayer({
+    id: FLIGHTS_LAYER_ID,
+    type: "circle",
+    source: FLIGHTS_SOURCE,
+    paint: {
+      "circle-radius": 6,
+      "circle-color": "#38bdf8",
+      "circle-stroke-color": "#0f172a",
+      "circle-stroke-width": 1,
+    },
+  });
+}
+
+function addFlightsPlaneSymbolLayer(map: Map): void {
+  if (map.getLayer(FLIGHTS_LAYER_ID)) {
+    return;
+  }
+  /**
+   * Bez `beforeId` — na vrh trenutnog stila, iznad naših mjesečinih / trak overlaya
+   * (s `beforeId: moon-int` kružnice i cijan traka prekriju zrakoplove).
+   */
+  map.addLayer({
+    id: FLIGHTS_LAYER_ID,
+    type: "symbol",
+    source: FLIGHTS_SOURCE,
+    layout: {
+      "icon-image": FLIGHT_PLANE_ICON_IMAGE_ID,
+      "icon-size": FLIGHT_PLANE_ICON_SIZE,
+      "icon-allow-overlap": true,
+      "icon-ignore-placement": true,
+      "icon-rotate": ["coalesce", ["to-number", ["get", "track"]], 0],
+      "icon-rotation-alignment": "map",
+      "icon-pitch-alignment": "map",
+    },
+  });
+}
+
+/**
+ * Pokuša zamijeniti kružni fallback simbolom s ikonom (ili ostaviti kružni ako ne uspije).
+ * Sloj s `FLIGHTS_SOURCE` MORA već postojati (vidi kraj `registerMoonTransitLayers`).
+ */
+function scheduleFlightLayerWithPlaneIcon(map: Map): void {
+  const url =
+    typeof window !== "undefined"
+      ? new URL(FLIGHT_PLANE_ICON_URL, window.location.origin).href
+      : FLIGHT_PLANE_ICON_URL;
+
+  /**
+   * Mapbox `loadImage` na SVG + kratki `setTimeout` fallback ranije su stvarali
+   * plavi krug prije nego SVG stigne; kasniji uspjeh nije zamijenio sloj.
+   * `Image` + `addImage(HTMLImageElement)` pouzdanije za isti SVG.
+   */
+  const img = new Image();
+  const runUpgrade = () => {
+    if (!map.isStyleLoaded()) {
+      return;
+    }
+    try {
+      if (!map.hasImage(FLIGHT_PLANE_ICON_IMAGE_ID)) {
+        map.addImage(FLIGHT_PLANE_ICON_IMAGE_ID, img);
+      }
+      const existing = map.getLayer(FLIGHTS_LAYER_ID) as
+        | { type?: string }
+        | undefined;
+      if (existing?.type === "circle") {
+        map.removeLayer(FLIGHTS_LAYER_ID);
+      }
+      if (!map.getLayer(FLIGHTS_LAYER_ID)) {
+        addFlightsPlaneSymbolLayer(map);
+      }
+    } catch {
+      if (!map.getLayer(FLIGHTS_LAYER_ID)) {
+        addFlightsCircleFallback(map);
+      }
+    }
+    if (map.getLayer(FLIGHTS_LAYER_ID)) {
+      map.moveLayer(FLIGHTS_LAYER_ID);
+    }
+  };
+
+  const scheduleWhenStyleReady = (fn: () => void) => {
+    if (map.isStyleLoaded()) {
+      fn();
+    } else {
+      map.once("idle", () => {
+        if (map.isStyleLoaded()) {
+          fn();
+        }
+      });
+    }
+  };
+
+  img.onload = () => {
+    scheduleWhenStyleReady(() => {
+      runUpgrade();
+    });
+  };
+  img.onerror = () => {
+    scheduleWhenStyleReady(() => {
+      if (!map.getLayer(FLIGHTS_LAYER_ID)) {
+        addFlightsCircleFallback(map);
+      }
+      if (map.getLayer(FLIGHTS_LAYER_ID)) {
+        map.moveLayer(FLIGHTS_LAYER_ID);
+      }
+    });
+  };
+  img.src = url;
+}
 
 /**
  * Registrira sve GeoJSON izvore i stilove slojeva za Moon Transit (pozvati nakon
  * `map` događaja "load" / kad je stil spreman).
+ *
+ * * Simbol: asinkrano u `scheduleFlightLayerWithPlaneIcon` (nakon učitavanja SVG);
+ *   dok se ne učita, vidljiv je kružni fallback na istom izvoru.
+ * * `onLayersReady` odmah nakon dodanog kružnog sloja (mapa, izvor `flights-geo` i
+ *   `setData` mogu ući u sink pri prvom povećanju `mapReadyTick` — async ikona
+ *   samo nadograđuje prikaz).
  */
-export function registerMoonTransitLayers(map: Map): void {
+export function registerMoonTransitLayers(
+  map: Map,
+  onLayersReady?: () => void
+): void {
   map.addSource(ROUTES_SOURCE, {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },
@@ -49,6 +186,15 @@ export function registerMoonTransitLayers(map: Map): void {
     },
   });
 
+  map.addSource(SELECTED_STAND_SOURCE, {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] },
+  });
+
+  map.addSource(SELECTED_STAND_SPINE_SOURCE, {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] },
+  });
   map.addSource(MOON_PATH_SOURCE, {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },
@@ -91,24 +237,13 @@ export function registerMoonTransitLayers(map: Map): void {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },
   });
-  map.addLayer({
-    id: "flights-layer",
-    type: "circle",
-    source: FLIGHTS_SOURCE,
-    paint: {
-      "circle-radius": 6,
-      "circle-color": "#38bdf8",
-      "circle-stroke-color": "#0f172a",
-      "circle-stroke-width": 1,
-    },
-  });
 
   map.addSource(MOON_INT_SOURCE, {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },
   });
   map.addLayer({
-    id: "moon-intersections",
+    id: MOON_INT_LAYER_ID,
     type: "circle",
     source: MOON_INT_SOURCE,
     paint: {
@@ -152,4 +287,54 @@ export function registerMoonTransitLayers(map: Map): void {
       "text-halo-width": 1.1,
     },
   });
+
+  map.addLayer({
+    id: "selected-aircraft-stand-fill",
+    type: "fill",
+    source: SELECTED_STAND_SOURCE,
+    paint: {
+      "fill-color": "#38bdf8",
+      "fill-opacity": SELECTED_STAND_MAP_FILL_OPACITY,
+    },
+  });
+  map.addLayer({
+    id: "selected-aircraft-stand-outline",
+    type: "line",
+    source: SELECTED_STAND_SOURCE,
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: {
+      "line-color": "#38bdf8",
+      "line-width": 2,
+      "line-opacity": SELECTED_STAND_MAP_LINE_OPACITY,
+    },
+  });
+  map.addLayer({
+    id: "selected-stand-spine-backing",
+    type: "line",
+    source: SELECTED_STAND_SPINE_SOURCE,
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: {
+      "line-color": "#0b1220",
+      "line-width": SELECTED_STAND_SPINE_LINE_WIDTH + 3.2,
+      "line-opacity": 0.9,
+    },
+  });
+  map.addLayer({
+    id: "selected-stand-spine",
+    type: "line",
+    source: SELECTED_STAND_SPINE_SOURCE,
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: {
+      "line-color": "#fffcf0",
+      "line-width": SELECTED_STAND_SPINE_LINE_WIDTH,
+      "line-opacity": SELECTED_STAND_SPINE_LINE_OPACITY,
+    },
+  });
+
+  addFlightsCircleFallback(map);
+  if (map.getLayer(FLIGHTS_LAYER_ID)) {
+    map.moveLayer(FLIGHTS_LAYER_ID);
+  }
+  scheduleFlightLayerWithPlaneIcon(map);
+  onLayersReady?.();
 }

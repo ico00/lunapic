@@ -28,14 +28,6 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full min-h-0 flex-col">
-        <header className="shrink-0 border-b border-zinc-800 bg-zinc-950 px-4 py-3">
-          <h1 className="text-lg font-semibold tracking-tight text-zinc-100">
-            Moon Transit
-          </h1>
-          <p className="text-sm text-zinc-500">
-            Moon, aircraft, and crossing angle
-          </p>
-        </header>
         <main className="flex min-h-0 flex-1 flex-col">{children}</main>
       </body>
     </html>

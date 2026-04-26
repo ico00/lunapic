@@ -1,4 +1,5 @@
 import { AstroService } from "@/lib/domain/astro/astroService";
+import { isMoonVisibleFromMoonState } from "@/lib/domain/astro/moonVisibility";
 import {
   nudgeNorthSouthMeters,
   signedAzimuthDiffFromMoonToAcDeg,
@@ -51,6 +52,9 @@ export function useActiveTransits(
   return useMemo(() => {
     const at = new Date(referenceEpochMs);
     const moon = AstroService.getMoonState(at, observer.lat, observer.lng);
+    if (!isMoonVisibleFromMoonState(moon)) {
+      return [];
+    }
     const rows: ActiveTransitRow[] = [];
     for (const f of flights) {
       const h = f.geoAltitudeMeters ?? f.baroAltitudeMeters;

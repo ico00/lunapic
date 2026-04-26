@@ -1,5 +1,11 @@
 export { getMoonState } from "./astro/moon";
 export { AstroService } from "./astro/astroService";
+export {
+  isMoonAboveHorizonFromAltitude,
+  isMoonVisibleByRiseSet,
+  isMoonVisibleForEpoch,
+  isMoonVisibleFromMoonState,
+} from "./astro/moonVisibility";
 export { horizontalToPoint } from "./geometry/horizontal";
 export { angularSeparationDeg } from "./geometry/sky-separation";
 export { GeometryEngine } from "./geometry/geometryEngine";

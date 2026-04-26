@@ -1,4 +1,5 @@
 import { AstroService } from "@/lib/domain/astro/astroService";
+import { isMoonVisibleFromMoonState } from "@/lib/domain/astro/moonVisibility";
 import { screenTransitCandidates } from "@/lib/domain/transit/screening";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useObserverStore } from "@/stores/observer-store";
@@ -14,6 +15,9 @@ export function useTransitCandidates() {
   return useMemo(() => {
     const at = new Date(referenceEpochMs);
     const moon = AstroService.getMoonState(at, observer.lat, observer.lng);
+    if (!isMoonVisibleFromMoonState(moon)) {
+      return [];
+    }
     return screenTransitCandidates(observer, moon, flights);
   }, [observer, referenceEpochMs, flights]);
 }

@@ -1,3 +1,8 @@
+import {
+  getTimeSliderWindowMs,
+  TIME_SLIDER_6H_HALF_MS,
+} from "@/lib/domain/astro/astroService";
+import { mergeStickyFlightMetadata } from "@/lib/flight/mergeStickyFlightMetadata";
 import { getFlightProvider } from "@/lib/flight/flightProviderRegistry";
 import type { GeoBounds, MapViewState } from "@/types";
 import type { FlightState } from "@/types/flight";
@@ -5,14 +10,19 @@ import type { FlightProviderId } from "@/types/flight-provider";
 import { defaultMapViewState } from "@/types/map";
 import { create } from "zustand";
 
-/** ±6 h oko sidra vremena. */
-export const TIME_SLIDER_WINDOW_MS = 6 * 60 * 60 * 1000;
+/**
+ * Polovina starog klizača (±6 h od središta). Isto kao `TIME_SLIDER_6H_HALF_MS`.
+ * @deprecated Prefer `TIME_SLIDER_6H_HALF_MS` from `astroService`.
+ */
+export const TIME_SLIDER_WINDOW_MS = TIME_SLIDER_6H_HALF_MS;
 
 type MoonTransitState = {
   /**
-   * Sidro za klizač: „sada“ pri sinkronizaciji, pomak unutar ±TIME_SLIDER_WINDOW_MS.
+   * Lijevi rub vremenskog prozora klizača (ms). Nakon synca u fallbacku ≈ `now-6h`;
+   * kad su rise/set poznati, odgovara moonrise (početak vidljivog luka).
    */
   timeAnchorMs: number;
+  /** Pomak u ms od `timeAnchorMs` (lijevo do desno unutar [t0, t1]). */
   timeOffsetMs: number;
   referenceEpochMs: number;
   mapView: MapViewState;
@@ -30,8 +40,25 @@ type MoonTransitState = {
   openSkyLatencySkewMs: number;
   setOpenSkyLatencySkewMs: (ms: number) => void;
   addOpenSkyLatencySkewMs: (deltaMs: number) => void;
-  /** Pomak u ms od timeAnchor; klamper se na ±6 h i ažurira referenceEpochMs. */
+  /**
+   * Suncalc: izlaz / zlaz (UTC kalendaru dan u syncu) i polarna stanja
+   * (`alwaysUp` / `alwaysDown` imaju `rise` / `set` = null).
+   */
+  moonRise: Date | null;
+  moonSet: Date | null;
+  moonRiseSetKind: "normal" | "alwaysUp" | "alwaysDown";
+  setMoonRiseSet: (p: {
+    moonRise: Date | null;
+    moonSet: Date | null;
+    moonRiseSetKind: "normal" | "alwaysUp" | "alwaysDown";
+  }) => void;
+  /** Pomak u ms od lijevog ruba vremenskog prozora (moonrise→moonset ili ±6h fallback). */
   setTimeOffsetMs: (offsetMs: number) => void;
+  /**
+   * Broj povećava se u `syncTimeToNow` kako bi `useAstronomySync` ponovno učitao
+   * suncalc za UTC dan trenutnog `referenceEpochMs` (ne pri svakom pomicanju klizača).
+   */
+  ephemerisRefetchKey: number;
   /**
    * Sidro = sada, pomak = 0. Koristi nakon učitavanja i gumb „Sinkroniziraj“.
    */
@@ -44,13 +71,6 @@ type MoonTransitState = {
 };
 
 const MAX_LATENCY_SKEW_MS = 120_000;
-
-function clampOffset(ms: number): number {
-  return Math.max(
-    -TIME_SLIDER_WINDOW_MS,
-    Math.min(TIME_SLIDER_WINDOW_MS, ms)
-  );
-}
 
 function clampLatencySkew(ms: number): number {
   return Math.max(
@@ -70,6 +90,10 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   error: null,
   selectedFlightId: null,
   openSkyLatencySkewMs: 0,
+  ephemerisRefetchKey: 0,
+  moonRise: null,
+  moonSet: null,
+  moonRiseSetKind: "normal",
   setOpenSkyLatencySkewMs: (ms) =>
     set({ openSkyLatencySkewMs: clampLatencySkew(ms) }),
   addOpenSkyLatencySkewMs: (deltaMs) =>
@@ -79,23 +103,71 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
       ),
     })),
   setTimeOffsetMs: (offsetMs) => {
-    const o = clampOffset(offsetMs);
+    const s = get();
+    const win = getTimeSliderWindowMs(
+      s.referenceEpochMs,
+      s.timeAnchorMs,
+      {
+        rise: s.moonRise,
+        set: s.moonSet,
+        kind: s.moonRiseSetKind,
+      }
+    );
+    const maxO = win.t1 - win.t0;
+    const o = Math.max(0, Math.min(maxO, offsetMs));
     set({
+      timeAnchorMs: win.t0,
       timeOffsetMs: o,
-      referenceEpochMs: get().timeAnchorMs + o,
+      referenceEpochMs: win.t0 + o,
     });
   },
+  setMoonRiseSet: (p) =>
+    set((s) => {
+      const riseSet = {
+        rise: p.moonRise,
+        set: p.moonSet,
+        kind: p.moonRiseSetKind,
+      };
+      const win = getTimeSliderWindowMs(
+        s.referenceEpochMs,
+        s.timeAnchorMs,
+        riseSet
+      );
+      const c = Math.min(Math.max(s.referenceEpochMs, win.t0), win.t1);
+      return {
+        moonRise: p.moonRise,
+        moonSet: p.moonSet,
+        moonRiseSetKind: p.moonRiseSetKind,
+        timeAnchorMs: win.t0,
+        timeOffsetMs: c - win.t0,
+        referenceEpochMs: c,
+      };
+    }),
   syncTimeToNow: () => {
     const now = Date.now();
+    const s = get();
+    const left = now - TIME_SLIDER_6H_HALF_MS;
+    const win = getTimeSliderWindowMs(s.referenceEpochMs, left, {
+      rise: s.moonRise,
+      set: s.moonSet,
+      kind: s.moonRiseSetKind,
+    });
+    const ref = Math.min(Math.max(now, win.t0), win.t1);
     set({
-      timeAnchorMs: now,
-      timeOffsetMs: 0,
-      referenceEpochMs: now,
+      timeAnchorMs: win.t0,
+      timeOffsetMs: ref - win.t0,
+      referenceEpochMs: ref,
+      ephemerisRefetchKey: s.ephemerisRefetchKey + 1,
     });
   },
   setMapView: (next) =>
     set((s) => ({ mapView: { ...s.mapView, ...next } })),
-  setFlightProvider: (id) => set({ flightProvider: id }),
+  setFlightProvider: (id) =>
+    set((s) =>
+      s.flightProvider === id
+        ? {}
+        : { flightProvider: id, selectedFlightId: null }
+    ),
   setSelectedFlightId: (id) => set({ selectedFlightId: id }),
   setFlights: (f) => set({ flights: f }),
   resetError: () => set({ error: null }),
@@ -103,8 +175,17 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const p = getFlightProvider(get().flightProvider);
+      const previousFlights = get().flights;
       const flights = await p.getFlightsInBounds({ bounds });
-      set({ flights, isLoading: false });
+      const merged = mergeStickyFlightMetadata(flights, previousFlights);
+      const sel = get().selectedFlightId;
+      const keepSel =
+        sel != null && merged.some((f) => f.id === sel);
+      set({
+        flights: merged,
+        isLoading: false,
+        ...(keepSel ? {} : { selectedFlightId: null }),
+      });
     } catch (e) {
       set({
         error: e instanceof Error ? e.message : "Error while loading",

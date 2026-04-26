@@ -6,6 +6,10 @@ export type StaticRouteDefinition = {
   readonly id: string;
   readonly label: string;
   readonly altitudeMeters: number;
+  /** Ime avioprijevoznika (UI, engleski). */
+  readonly airline?: string;
+  /** Tip zrakoplova (UI, engleski). */
+  readonly aircraftType?: string;
   /** [lng, lat] po GeoJSON konvenciji */
   readonly waypoints: readonly [number, number][];
 };

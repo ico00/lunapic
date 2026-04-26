@@ -6,7 +6,7 @@ Conventions for anyone extending this codebase: patterns, tooling, and safe-chan
 
 - **User-facing UI copy is English** (see `layout`, `HomePageClient`, field components, map overlay strings).
 - **Comments** in code may be Croatian or English; prefer **English** for public APIs and `architecture.md` / this file. Inline comments that explain a tricky formula can stay in the author’s language.
-- **Locale for dates/numbers in UI** — e.g. `toLocaleString("en-US", …)` for consistency.
+- **Locale for dates/numbers in UI** — datetime shown to the user (e.g. simulated anchor in `TimeSliderPanel`) uses **`en-GB`** so the calendar reads **dd/mm/yyyy** with **`hour12: false`** (24-hour clock). Use the same pattern elsewhere for consistency.
 
 ## TypeScript
 
@@ -30,7 +30,7 @@ Before relying on “classic” Next 12 patterns, read `**AGENTS.md`** (Next 16 
 
 ## State (Zustand)
 
-- **Two stores** — `useMoonTransitStore` (flights, time, map view, provider) and `useObserverStore` (observer, map focus, lock). Don’t merge without a design discussion. **Deeper rationale:** `src/stores/README.md` (intentional single aggregate for the moon-transit slice; optional future split is documented in `documentation/architecture.md`).
+- **Two stores** — `useMoonTransitStore` (flights, time, map view, provider, suncalc rise/set + `ephemerisRefetchKey` for `useAstronomySync`, selected flight) and `useObserverStore` (observer, map focus, lock). Don’t merge without a design discussion. **Deeper rationale:** `src/stores/README.md` (intentional single aggregate for the moon-transit slice; optional future split is documented in `documentation/architecture.md`). **Astronomy:** do not key `useAstronomySync` only on `referenceEpochMs` — use `ephemerisRefetchKey` + observer so UTC midnight while scrubbing does not replace `getMoonTimes` for the wrong day.
 - **Selectors** — Prefer `useStore(s => s.field)` to limit re-renders.
 - **Side effects** — Put in `useEffect` in components or in explicit hooks (`src/hooks`), not inside store setters, unless the effect is a single sync update.
 
@@ -68,7 +68,7 @@ Before relying on “classic” Next 12 patterns, read `**AGENTS.md`** (Next 16 
 
 ## Testing and quality
 
-- **Unit tests (domain)** — [Vitest](https://vitest.dev/) 3. Co-located `src/lib/domain/**/*.test.ts` (WGS84/ENU, `horizontal`, line-of-sight, sky separation, `screening`, `getMoonState`, `geometryEngineMoonRay` / `geometryEnginePhotographer`, `AstroService` moon path). Run once: `npm run test:run`. Watch: `npm test`.
+- **Unit tests (domain)** — [Vitest](https://vitest.dev/) 3. Co-located `src/lib/domain/**/*.test.ts` (WGS84/ENU, `horizontal`, line-of-sight, sky separation, `screening`, `getMoonState`, `standCorridorQuads`, `geometryEngineMoonRay` / `geometryEnginePhotographer`, `AstroService` moon path). Run once: `npm run test:run`. Watch: `npm test`.
 - **E2E smoke** — [Playwright](https://playwright.dev/) 1, Chromium. `e2e/smoke.spec.ts` (shell + map column), `e2e/flight-source.spec.ts` (provider `<select>`). Run: `npm run build` then `npx playwright test` (or `npm run test:e2e`). First time: `npx playwright install chromium`. `webServer` in `playwright.config.ts` starts `npm run start` on `127.0.0.1:3000` and does not reuse a stale process. Optional: repo secret `NEXT_PUBLIC_MAPBOX_TOKEN` in GitHub Actions so the build can embed a token for a full map in E2E.
 - **Field / runtime performance** — `documentation/performance.md` — enable `NEXT_PUBLIC_FIELD_PERF=1` or `localStorage.moonTransitFieldPerf`; in-map violet overlay and hook labels (`useMapMoonOverlayFeatures`, `useMapGeoJsonSync`, `useExtrapolatedFlightsForMap`, Mapbox `moveend`→`idle`, React `Profiler` on the map block). Complement with Chrome Performance tab.
 - **CI** — [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): on push/PR to `main` or `master`, after `npm ci` runs `npm audit`, `npm run lint`, `npx tsc --noEmit`, `npm run test:run`, `npm run build`, and Playwright (`npx playwright install` + `npx playwright test` on the runner). Optional: GitHub secret `NEXT_PUBLIC_MAPBOX_TOKEN` for an E2E build that inlines a token.

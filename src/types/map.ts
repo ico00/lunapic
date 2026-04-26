@@ -1,3 +1,5 @@
+import { DEFAULT_OBSERVER_LOCATION } from "@/lib/defaultObserverLocation";
+
 /**
  * View state for Mapbox (or any map) — kept serializable for Zustand.
  */
@@ -9,7 +11,10 @@ export interface MapViewState {
 }
 
 export const defaultMapViewState: MapViewState = {
-  center: { lng: 15.98, lat: 45.81 },
+  center: {
+    lng: DEFAULT_OBSERVER_LOCATION.lng,
+    lat: DEFAULT_OBSERVER_LOCATION.lat,
+  },
   zoom: 6,
   pitch: 0,
   bearing: 0,

@@ -142,23 +142,3 @@ export function timeToAzimuthAlignmentSeconds(
   }
   return t;
 }
-
-/**
- * T_exp ≤ blurFraction * (θ_ac / |ω|), θ_ac i ω u radianima.
- */
-export function minExposureTimeSecondsForAircraftSize(
-  absAzimuthRateRadPerSec: number,
-  slantMeters: number,
-  objectLengthMeters: number,
-  blurFraction: number
-): number | null {
-  if (objectLengthMeters < 0.1 || slantMeters < 1) {
-    return null;
-  }
-  const w = Math.abs(absAzimuthRateRadPerSec);
-  if (w < 1e-9) {
-    return null;
-  }
-  const thetaAircraftRad = objectLengthMeters / slantMeters;
-  return (blurFraction * thetaAircraftRad) / w;
-}

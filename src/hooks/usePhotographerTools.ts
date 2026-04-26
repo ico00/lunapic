@@ -1,4 +1,5 @@
 import { GeometryEngine } from "@/lib/domain/geometry/geometryEngine";
+import { isMoonVisibleFromMoonState } from "@/lib/domain/astro/moonVisibility";
 import { extrapolateFlightForDisplay } from "@/lib/flight/extrapolateFlightPosition";
 import { useMoonStateComputed } from "@/hooks/useTransitCandidates";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
@@ -52,6 +53,9 @@ export function usePhotographerTools() {
 
   const pack = useMemo(() => {
     if (!selectedId) {
+      return null;
+    }
+    if (!isMoonVisibleFromMoonState(moon)) {
       return null;
     }
     const raw = flights.find((x) => x.id === selectedId) ?? null;

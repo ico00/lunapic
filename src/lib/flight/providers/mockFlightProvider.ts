@@ -23,6 +23,8 @@ export class MockFlightProvider implements IFlightProvider {
       {
         id: randomId("M1"),
         callSign: "DEMO-1",
+        airlineName: "Demo Airways",
+        aircraftType: "B737-800",
         position: { lat: midLat + dLat, lng: midLng - dLng },
         baroAltitudeMeters: h,
         geoAltitudeMeters: h,
@@ -33,6 +35,8 @@ export class MockFlightProvider implements IFlightProvider {
       {
         id: randomId("M2"),
         callSign: "DEMO-2",
+        airlineName: "Demo Airways",
+        aircraftType: "A320neo",
         position: { lat: midLat, lng: midLng + dLng * 0.3 },
         baroAltitudeMeters: 8_200,
         geoAltitudeMeters: 8_200,

@@ -7,8 +7,18 @@ import {
   OPTIMAL_GROUND_HALF_M,
 } from "@/lib/map/mapOverlayConstants";
 import { fieldPerfTime } from "@/lib/perf/fieldPerf";
-import type { MoonState } from "@/types/moon";
+import { getMoonPathLabelInstants } from "@/lib/map/moonPathLabelInstants";
+import { useMoonTransitStore } from "@/stores/moon-transit-store";
+import type { MoonRiseSetTimes, MoonState } from "@/types/moon";
 import { useMemo } from "react";
+
+function formatMoonPathClockLabel(tMs: number): string {
+  return new Date(tMs).toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
 
 export type MoonPathPack = {
   lineFeature: {
@@ -32,17 +42,27 @@ export function useMapMoonOverlayFeatures(
   referenceEpochMs: number,
   moon: MoonState
 ) {
+  const moonRise = useMoonTransitStore((s) => s.moonRise);
+  const moonSet = useMoonTransitStore((s) => s.moonSet);
+  const moonRiseSetKind = useMoonTransitStore((s) => s.moonRiseSetKind);
+
   const moonPathPack = useMemo(() => {
     return fieldPerfTime("overlay:moonPathPack", () => {
     const obs = { lat: observerLat, lng: observerLng };
-    const samples = AstroService.getMoonPathSamples(
+    const riseSet: MoonRiseSetTimes = {
+      rise: moonRise,
+      set: moonSet,
+      kind: moonRiseSetKind,
+    };
+    const spec = AstroService.getMoonPathMapSpec(
       referenceEpochMs,
       obs.lat,
-      obs.lng
+      obs.lng,
+      riseSet
     );
     const lineCoords = GeometryEngine.buildMoonPathLineCoordinates(
       obs,
-      samples,
+      spec.samples,
       MOON_PATH_RAY_LENGTH_M
     );
     const lineFeature =
@@ -57,29 +77,40 @@ export function useMapMoonOverlayFeatures(
           }
         : null;
 
-    const labelHours = [0, 2, 4, 6, 8, 10, 12] as const;
-    const labelFeatures = labelHours.map((h) => {
-      const t = referenceEpochMs + h * 3_600_000;
-      const m = AstroService.getMoonState(new Date(t), obs.lat, obs.lng);
-      const [, end] = GeometryEngine.buildMoonAzimuthLine(
-        obs,
-        m,
-        MOON_PATH_RAY_LENGTH_M
-      );
-      const label = `${new Date(t).getHours().toString().padStart(2, "0")}h`;
-      return {
-        type: "Feature" as const,
-        properties: { label, key: `mph-${h}` },
-        geometry: {
-          type: "Point" as const,
-          coordinates: [end.lng, end.lat],
-        },
-      };
-    });
+    const labelEveryMs = 2 * 3_600_000;
+    const labelFeatures: MoonPathPack["labelFeatures"] = [];
+    if (spec.labelWindowMs) {
+      const { t0, t1 } = spec.labelWindowMs;
+      const instants = getMoonPathLabelInstants(t0, t1, labelEveryMs);
+      for (const t of instants) {
+        const m = AstroService.getMoonState(new Date(t), obs.lat, obs.lng);
+        const [, end] = GeometryEngine.buildMoonAzimuthLine(
+          obs,
+          m,
+          MOON_PATH_RAY_LENGTH_M
+        );
+        const label = formatMoonPathClockLabel(t);
+        labelFeatures.push({
+          type: "Feature" as const,
+          properties: { label, key: `mph-${t}` },
+          geometry: {
+            type: "Point" as const,
+            coordinates: [end.lng, end.lat],
+          },
+        });
+      }
+    }
 
     return { lineFeature, labelFeatures };
     });
-  }, [referenceEpochMs, observerLat, observerLng]);
+  }, [
+    referenceEpochMs,
+    observerLat,
+    observerLng,
+    moonRise,
+    moonSet,
+    moonRiseSetKind,
+  ]);
 
   const moonAzFeature = useMemo(
     () =>

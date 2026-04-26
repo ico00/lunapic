@@ -1,11 +1,8 @@
-import type { GroundObserver } from "@/types/geo";
 import { create } from "zustand";
+import { DEFAULT_OBSERVER_LOCATION } from "@/lib/defaultObserverLocation";
+import type { GroundObserver } from "@/types/geo";
 
-const DEFAULT_OBSERVER: GroundObserver = {
-  lat: 45.81,
-  lng: 15.98,
-  groundHeightMeters: 0,
-};
+const DEFAULT_OBSERVER: GroundObserver = DEFAULT_OBSERVER_LOCATION;
 
 type ObserverState = {
   /**

@@ -67,14 +67,6 @@ export function PhotographerToolsPanel({
                   : "—"}
               </dd>
             </div>
-            <div className="min-w-0 flex flex-col gap-0.5 pt-1 text-[0.65rem] text-zinc-500">
-              <dt className="text-zinc-500">
-                Shutter (≈ blur &lt; 2% of span, 40 m)
-              </dt>
-              <dd className="min-w-0 break-words text-pretty text-emerald-200/80">
-                {photoPack.shutterText ?? "—"}
-              </dd>
-            </div>
           </dl>
           <div className="flex items-center justify-between gap-2 border-t border-zinc-800/80 pt-2">
             <span className="text-xs text-zinc-500">Sound on transit</span>
