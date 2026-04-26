@@ -35,14 +35,10 @@ function headingFromEvent(e: DeviceOrientationEvent): number | null {
 
 export function useDeviceCompass() {
   const [headingDeg, setHeadingDeg] = useState<number | null>(null);
-  const [listening, setListening] = useState(false);
+  const [listening, setListening] = useState(
+    () => !isIosRequestPermissionDevice()
+  );
   const needPerm = isIosRequestPermissionDevice();
-
-  useEffect(() => {
-    if (!isIosRequestPermissionDevice()) {
-      setListening(true);
-    }
-  }, []);
 
   const onOrient = useCallback((e: DeviceOrientationEvent) => {
     setHeadingDeg(headingFromEvent(e));

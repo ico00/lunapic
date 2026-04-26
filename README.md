@@ -35,6 +35,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | Variable                   | Required          | Description                                                     |
 | -------------------------- | ----------------- | --------------------------------------------------------------- |
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | **Yes** (for map) | Mapbox access token. Without it, the map shows a setup message. |
+| `NEXT_PUBLIC_FIELD_PERF`  | No | If `1`, enables the in-map **field performance** panel (dev / field tuning). See [documentation/performance.md](./documentation/performance.md). |
 
 
 Example `.env.local`:
@@ -51,6 +52,9 @@ NEXT_PUBLIC_MAPBOX_TOKEN=pk.your_mapbox_token
 | Command            | Description                    |
 | ------------------ | ------------------------------ |
 | `npm run dev`      | Development server (Turbopack) |
+| `npm test`         | Unit tests (Vitest, watch)     |
+| `npm run test:run` | Unit tests (single run)        |
+| `npm run test:e2e` | E2E (`playwright test`; run `npm run build` first) |
 | `npm run build`    | Production build               |
 | `npm start`        | Run production build           |
 | `npm run lint`     | ESLint                         |
@@ -64,6 +68,10 @@ NEXT_PUBLIC_MAPBOX_TOKEN=pk.your_mapbox_token
 - **mock** — Hard-coded test aircraft.
 
 Select in the sidebar (“Provider”).
+
+## Continuous integration
+
+On push and pull requests to `main` or `master`, [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs ESLint, Typecheck, `npm run test:run`, `npm run build`, and a Playwright smoke test. Set repository secret `NEXT_PUBLIC_MAPBOX_TOKEN` (optional) if you want the E2E run to use a real Mapbox token in the build.
 
 ## License / package meta
 
