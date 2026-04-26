@@ -70,6 +70,8 @@ flowchart TB
 | `loadFlightsInBounds`                              | Invokes the active `IFlightProvider` and sets `flights` / `error` / `isLoading`. |
 
 
+**Design note (bounded context):** The store combines **simulated time**, **map view state**, and **flight loading + selection** in one Zustand slice. This is an **intentional aggregate** for a small app: a single `loadFlightsInBounds` can depend on time and provider without cross-store sync. A future split into `timeStore` / `flightsStore` / `mapViewStore` is optional; see `src/stores/README.md` (Croatian summary), `documentation/optimization-and-refactoring.md`, and `documentation/technicalconventions.md` (State + feature checklist) for the refactor log, trade-offs, and where to add new behavior.
+
 ### `useObserverStore` (`src/stores/observer-store.ts`)
 
 
@@ -112,7 +114,7 @@ Keep **pure functions** in `lib/domain` (no React, no `window` except where a mo
 
 ## Map rendering (Mapbox)
 
-- **Sources:** `routes-geo`, `flights-geo`, `moon-azimuth-geo`, `moon-path-geo`, `moon-path-labels-geo`, `moon-intersections-geo`, `optimal-ground-geo` (names in `MapContainer.tsx`). **Moon path** — dashed line through 24 ground sample points; separate symbol layer for 2-hourly labels. **Ray length for the path** is shorter than the long moon–route intersection azimuth so the curve stays in a useful map scale. Data follows `referenceEpochMs` and `observer` (same as the simulated time controls).
+- **Sources:** `routes-geo`, `flights-geo`, `moon-azimuth-geo`, `moon-path-geo`, `moon-path-labels-geo`, `moon-intersections-geo`, `optimal-ground-geo` (source ids: `src/lib/map/mapSourceIds.ts`; registration: `registerMoonTransitLayers` in `src/lib/map/registerMoonTransitLayers.ts`; GeoJSON updates: `useMapGeoJsonSync`). **Moon path** — dashed line through 24 ground sample points; separate symbol layer for 2-hourly labels. **Ray length for the path** is shorter than the long moon–route intersection azimuth so the curve stays in a useful map scale. Data follows `referenceEpochMs` and `observer` (same as the simulated time controls).
 - **Flights** — Symbol layer with a rasterized aircraft icon; rotation from `trackDeg` in feature properties. Fallback circle layer if icon creation fails.
 - **Observer** — `mapboxgl.Marker` with a custom DOM (camera), not a GeoJSON point.
 
@@ -126,8 +128,15 @@ Keep **pure functions** in `lib/domain` (no React, no `window` except where a mo
 
 1. **New flight source** — New `IFlightProvider` + registry + `FLIGHT_PROVIDER_IDS`.
 2. **New geometry** — Prefer `lib/domain/geometry` + types in `src/types`.
-3. **New UI in sidebar** — `HomePageClient.tsx` or a child under `src/components/`; read/write stores; keep English copy for user-facing strings unless product says otherwise.
-4. **Map layers** — Only in `MapContainer.tsx` (or split subcomponents) so layer order and `useEffect` data wiring stay in one place.
+3. **New UI in sidebar** — `HomePageClient.tsx` composes panel components under `src/components/shell/panels/`; orchestration is in `useHomeShellOrchestration`.
+4. **Map layers** — `registerMoonTransitLayers` + `MapContainer` / `useMoonTransitMap` / `useMapGeoJsonSync` so layer setup and `setData` wiring stay explicit and testable in isolation from JSX.
+
+## Quality assurance (tests, CI, field profiling)
+
+- **Unit tests** — [Vitest](https://vitest.dev/) 3, `src/lib/domain/**/*.test.ts` and `src/lib/perf/fieldPerf.test.ts`. See `documentation/technicalconventions.md` (Testing) for commands.
+- **E2E** — Playwright: `e2e/smoke.spec.ts`, `e2e/flight-source.spec.ts`. Requires `npm run build` before `npx playwright test` (see `playwright.config.ts` `webServer`).
+- **CI** — [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): `npm ci` → `npm audit` → `lint` → `tsc` → Vitest → `build` → Playwright (Chromium install on the runner). Full detail: `documentation/technicalconventions.md`.
+- **Field / map profiling** (optional) — `documentation/performance.md`, `src/lib/perf/fieldPerf.ts`, in-map `FieldPerfOverlay` when `NEXT_PUBLIC_FIELD_PERF=1` or `localStorage` key `moonTransitFieldPerf`.
 
 ## Known limitations (intentional or technical)
 
@@ -138,7 +147,7 @@ Keep **pure functions** in `lib/domain` (no React, no `window` except where a mo
 ## Related files
 
 - App entry: `src/app/page.tsx`, `src/app/layout.tsx`
-- Human docs: `README.md` (root), `documentation/README.md` (index of architecture / conventions / changelog)
+- Human docs: `README.md` (root), `documentation/README.md` (index), `documentation/performance.md` (field runtime perf)
 - Map token: `NEXT_PUBLIC_MAPBOX_TOKEN`
 - Route data: `src/data/routes.json`, `src/data/staticRouteUtils.ts`
 

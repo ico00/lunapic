@@ -5,6 +5,10 @@ import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useObserverStore } from "@/stores/observer-store";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+export type PhotographerToolPack = NonNullable<
+  ReturnType<typeof GeometryEngine.photographerPack>
+>;
+
 export function formatCountdown(totalSec: number | null): string {
   if (totalSec == null || !Number.isFinite(totalSec)) {
     return "—";

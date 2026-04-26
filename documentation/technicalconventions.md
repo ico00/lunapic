@@ -30,21 +30,29 @@ Before relying on “classic” Next 12 patterns, read `**AGENTS.md`** (Next 16 
 
 ## State (Zustand)
 
-- **Two stores** — `useMoonTransitStore` (flights, time, map view, provider) and `useObserverStore` (observer, map focus, lock). Don’t merge without a design discussion.
+- **Two stores** — `useMoonTransitStore` (flights, time, map view, provider) and `useObserverStore` (observer, map focus, lock). Don’t merge without a design discussion. **Deeper rationale:** `src/stores/README.md` (intentional single aggregate for the moon-transit slice; optional future split is documented in `documentation/architecture.md`).
 - **Selectors** — Prefer `useStore(s => s.field)` to limit re-renders.
 - **Side effects** — Put in `useEffect` in components or in explicit hooks (`src/hooks`), not inside store setters, unless the effect is a single sync update.
+
+## Adding a new feature (checklist)
+
+1. **Domain / math** — New pure logic → `lib/domain/…` (new file or subfolder), no React or Zustand. Export types from `src/types` when shared.
+2. **External data** — New flight or weather-like source → implement `IFlightProvider` (or a small service module) and wire via registry; avoid ad-hoc fetches in components.
+3. **Orchestration** — Connect stores + services in a **hook** under `src/hooks/` (e.g. `use…Sync`, `use…Orchestration`), not inside presentational components.
+4. **UI** — New sidebar content → a **panel** under `src/components/shell/panels/` (or `components/<feature>/`) with **props**; keep `HomePageClient` as composition only, not 200+ lines of inline JSX and logic.
+5. **Map** — New Mapbox behavior → extend `lib/map/` (`registerMoonTransitLayers` / new helper), `useMapGeoJsonSync` or a dedicated hook; **do not** add business rules inside `MapContainer` — keep it a thin shell.
 
 ## Data and geometry
 
 - **WGS84** — Lat/lng order matches GeoJSON: `[lng, lat]` in coordinates; `{ lat, lng }` in app types.
 - **Angles** — Track/azimuth: **degrees**, clockwise from true north, range normalized per function contract (see `wgs84`, `useActiveTransits`, etc.).
-- **Domain code** under `lib/domain` should stay **testable and framework-agnostic** (no `useMoonTransitStore` inside pure geometry).
+- **Domain code** under `lib/domain` should stay **testable and framework-agnostic** (no `useMoonTransitStore` inside pure geometry). **`GeometryEngine`** is a thin façade; implementations live in `geometryEngineMoonRay.ts` and `geometryEnginePhotographer.ts` next to the façade.
 
 ## Mapbox
 
 - **Token** — `process.env.NEXT_PUBLIC_MAPBOX_TOKEN` only on the client for `mapboxgl.Map`. Never commit real tokens; document in `README` only the variable name.
 - **Transpile** — `mapbox-gl` is listed in `next.config.ts` `transpilePackages` for the bundler.
-- **New layers** — Add source + layer in `MapContainer`; keep a single place responsible for `setData` / `addImage` to avoid desync.
+- **New layers** — Add sources and layers in `lib/map/registerMoonTransitLayers` (or a dedicated init module); keep `useMapGeoJsonSync` as the place that calls `setData` for GeoJSON, so the map does not desync. `MapContainer` + `useMoonTransitMap` stay thin.
 - **Icon pipeline** — Prefer **canvas → PNG** for custom icons if SVG `data:` URLs fail in the wild.
 
 ## Flight provider contract
@@ -60,8 +68,11 @@ Before relying on “classic” Next 12 patterns, read `**AGENTS.md`** (Next 16 
 
 ## Testing and quality
 
-- **No test runner is configured in `package.json` by default** — if you add Vitest/Playwright, document commands here and in `README`.
-- Before PR: `npm run build`, `npx tsc --noEmit`, and `npm run lint`.
+- **Unit tests (domain)** — [Vitest](https://vitest.dev/) 3. Co-located `src/lib/domain/**/*.test.ts` (WGS84/ENU, `horizontal`, line-of-sight, sky separation, `screening`, `getMoonState`, `geometryEngineMoonRay` / `geometryEnginePhotographer`, `AstroService` moon path). Run once: `npm run test:run`. Watch: `npm test`.
+- **E2E smoke** — [Playwright](https://playwright.dev/) 1, Chromium. `e2e/smoke.spec.ts` (shell + map column), `e2e/flight-source.spec.ts` (provider `<select>`). Run: `npm run build` then `npx playwright test` (or `npm run test:e2e`). First time: `npx playwright install chromium`. `webServer` in `playwright.config.ts` starts `npm run start` on `127.0.0.1:3000` and does not reuse a stale process. Optional: repo secret `NEXT_PUBLIC_MAPBOX_TOKEN` in GitHub Actions so the build can embed a token for a full map in E2E.
+- **Field / runtime performance** — `documentation/performance.md` — enable `NEXT_PUBLIC_FIELD_PERF=1` or `localStorage.moonTransitFieldPerf`; in-map violet overlay and hook labels (`useMapMoonOverlayFeatures`, `useMapGeoJsonSync`, `useExtrapolatedFlightsForMap`, Mapbox `moveend`→`idle`, React `Profiler` on the map block). Complement with Chrome Performance tab.
+- **CI** — [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): on push/PR to `main` or `master`, after `npm ci` runs `npm audit`, `npm run lint`, `npx tsc --noEmit`, `npm run test:run`, `npm run build`, and Playwright (`npx playwright install` + `npx playwright test` on the runner). Optional: GitHub secret `NEXT_PUBLIC_MAPBOX_TOKEN` for an E2E build that inlines a token.
+- Before PR: same as CI locally, or at minimum `npm run lint`, `npm run test:run`, `npx tsc --noEmit`, `npm run build`, `npm audit` (all green), and `npx playwright test` with a prior `npm run build`.
 
 ## Git and changelog
 
@@ -72,6 +83,7 @@ Before relying on “classic” Next 12 patterns, read `**AGENTS.md`** (Next 16 
 
 - **No secrets in client** except public Mapbox token (`NEXT_PUBLIC_`*).
 - **Geolocation** — Only in secure context (`https`); the app already guards with `isSecureContext` where relevant.
+- **Dependencies** — After changing `package.json`, run `npm install` and `npm audit`. The repo uses an **`overrides.postcss` pin** (≥8.5.10) to patch nested PostCSS that Next’s tree may lock behind an older range; do not remove it without re-checking the audit. Keep `@playwright/test` in the range that passes `npm audit` (browser install SSL). CI runs `npm audit` on every build.
 
 ## File naming
 
