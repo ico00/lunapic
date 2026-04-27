@@ -1,4 +1,6 @@
 import { formatFixed } from "@/lib/format/numbers";
+import { ShellSectionCard } from "@/components/shell/ShellSectionCard";
+import { SectionIconObserver } from "@/components/shell/sectionCategoryIcons";
 import type { GroundObserver } from "@/types";
 
 type ObserverLocationPanelProps = {
@@ -6,7 +8,6 @@ type ObserverLocationPanelProps = {
   onUseGps: () => void;
   gpsBusy: boolean;
   gpsError: string | null;
-  onFocusMapOnObserver: () => void;
   locationActionsDisabled: boolean;
 };
 
@@ -15,17 +16,19 @@ export function ObserverLocationPanel({
   onUseGps,
   gpsBusy,
   gpsError,
-  onFocusMapOnObserver,
   locationActionsDisabled,
 }: ObserverLocationPanelProps) {
   return (
-    <>
-      <h2 className="mt-6 text-xs font-medium uppercase tracking-wide text-zinc-500">
-        Observer
-      </h2>
-      <p className="mt-0.5 text-xs leading-relaxed text-zinc-500">
+    <ShellSectionCard
+      className="mt-3"
+      title="Observer"
+      accent="rose"
+      icon={<SectionIconObserver />}
+    >
+      <p className="text-xs leading-relaxed text-zinc-500">
         Fixed point (does not follow pan) — all ephemeris and intersection math
-        use this.
+        use this. On first open, the app also asks for your device location once
+        if you are still on the built-in default (browser permission).
       </p>
       <dl className="mt-2 space-y-0.5 font-mono text-xs tabular-nums text-zinc-300">
         <div className="flex justify-between gap-2">
@@ -46,19 +49,12 @@ export function ObserverLocationPanel({
           type="button"
           onClick={onUseGps}
           disabled={gpsBusy || locationActionsDisabled}
-          className="rounded border border-sky-800/50 bg-sky-950/30 px-2 py-1.5 text-sm text-sky-200/90 transition hover:border-sky-500/50 disabled:opacity-50"
+          className="rounded-lg border border-sky-800/50 bg-sky-950/30 px-2 py-1.5 text-sm text-sky-200/90 transition hover:border-sky-500/50 disabled:opacity-50"
         >
           {gpsBusy ? "GPS…" : "Use my GPS"}
         </button>
         {gpsError && <p className="text-xs text-red-400/90">{gpsError}</p>}
-        <button
-          type="button"
-          onClick={onFocusMapOnObserver}
-          className="rounded border border-zinc-600 bg-zinc-800/50 px-2 py-1.5 text-sm text-zinc-200 transition hover:border-amber-500/40 hover:text-white"
-        >
-          Focus on me
-        </button>
       </div>
-    </>
+    </ShellSectionCard>
   );
 }

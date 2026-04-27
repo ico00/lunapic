@@ -23,6 +23,9 @@ export default defineConfig({
   use: {
     baseURL: appOrigin,
     trace: "on-first-retry",
+    /** Auto-GPS on load uses `navigator.geolocation`; grant so E2E does not hang on prompts. */
+    permissions: ["geolocation"],
+    geolocation: { latitude: 45.8297, longitude: 16.0636 },
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {

@@ -14,7 +14,7 @@ test.describe("smoke", () => {
     expect(response?.ok(), "HTTP OK").toBeTruthy();
 
     await expect(
-      page.getByRole("heading", { name: "Moon Transit" })
+      page.getByRole("heading", { name: "LunaPic" })
     ).toBeVisible();
 
     await expect(page.getByText("Flight source", { exact: true })).toBeVisible();

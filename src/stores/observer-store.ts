@@ -14,6 +14,11 @@ type ObserverState = {
    */
   mapFocusNonce: number;
   /**
+   * Povećava se kad UI traži `setObserverFromMapView` iz trenutnog centra karte
+   * (`useMoonTransitMap` čita `getCenter` i postavlja promatrača).
+   */
+  placeObserverFromViewNonce: number;
+  /**
    * Spriječi slučajne dodire / GPS s pomakom promatrača (teren).
    */
   observerLocationLocked: boolean;
@@ -24,12 +29,15 @@ type ObserverState = {
   setObserverFromMapView: (center: { lat: number; lng: number }) => void;
   /** Traži centriranje karte na promatraču (samo view, ne mijenja koordinate). */
   requestFocusOnObserver: () => void;
+  /** Centar trenutnog Mapbox viewa → `observer` (kroz `useMoonTransitMap`). */
+  requestPlaceObserverFromView: () => void;
   setObserverLocationLocked: (locked: boolean) => void;
 };
 
 export const useObserverStore = create<ObserverState>((set) => ({
   observer: DEFAULT_OBSERVER,
   mapFocusNonce: 0,
+  placeObserverFromViewNonce: 0,
   observerLocationLocked: false,
   setObserver: (next) =>
     set((s) => {
@@ -50,4 +58,8 @@ export const useObserverStore = create<ObserverState>((set) => ({
   setObserverLocationLocked: (locked) => set({ observerLocationLocked: locked }),
   requestFocusOnObserver: () =>
     set((s) => ({ mapFocusNonce: s.mapFocusNonce + 1 })),
+  requestPlaceObserverFromView: () =>
+    set((s) => ({
+      placeObserverFromViewNonce: s.placeObserverFromViewNonce + 1,
+    })),
 }));

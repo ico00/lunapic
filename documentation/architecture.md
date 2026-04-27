@@ -51,7 +51,7 @@ flowchart TB
 
 
 
-- **UI shell** — `src/components/shell/HomePageClient.tsx` — sidebar controls, time slider, flight lists, photographer block, field export; map is a second column (desktop) or below (mobile).
+- **UI shell** — `src/components/shell/HomePageClient.tsx` — sidebar (izvori, Mjesec, kandidati, tranziti) i alati (fotograf, kompas, polje); ispod `md` karta s `h-dvh` ispunjava srednji segment, kontrole u donjem „decku” s dva taba, jedna instanca mape. Na desktopu tri stupca kao prije. Map u drugom stupcu; map mora ostat **jedna** `MapContainer` instanca.
 - **Map** — `src/components/map/MapContainer.tsx` — Mapbox, GeoJSON sources, **must** match store updates via effects (`loadFlightsInBounds` on move, etc.).
 
 ## State stores

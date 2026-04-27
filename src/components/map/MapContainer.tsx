@@ -1,6 +1,5 @@
 "use client";
 
-import { MapObserverControlStrip } from "@/components/map/MapObserverControlStrip";
 import { SelectedAircraftMapPopup } from "@/components/map/SelectedAircraftMapPopup";
 import { FieldPerfOverlay } from "@/components/perf/FieldPerfOverlay";
 import { useExtrapolatedFlightsForMap } from "@/hooks/useExtrapolatedFlightsForMap";
@@ -45,13 +44,7 @@ export function MapContainer({ flightProvider, isGolden = false }: MapContainerP
     elRef,
     mapRef,
     mapReadyTick,
-    placeObserverHere,
-    focusMapOnObserver,
   } = useMoonTransitMap({ flightProvider, isGolden });
-
-  const observerLocationLocked = useObserverStore(
-    (s) => s.observerLocationLocked
-  );
 
   const { fillFeatures: standCorridorFeatures, spineFeature: standSpineFeature } =
     useSelectedAircraftStandCorridorFeatures({
@@ -83,7 +76,7 @@ export function MapContainer({ flightProvider, isGolden = false }: MapContainerP
     return (
       <div
         data-testid="map-missing-token"
-        className="flex h-full items-center justify-center bg-zinc-900 px-4 text-center text-sm text-amber-200"
+        className="flex h-full items-center justify-center bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-950 px-4 text-center text-sm text-amber-200/95 ring-1 ring-inset ring-amber-500/10"
       >
         Set <code className="mx-1 rounded bg-zinc-800 px-1.5 py-0.5">NEXT_PUBLIC_MAPBOX_TOKEN</code> in
         .env.local
@@ -95,11 +88,6 @@ export function MapContainer({ flightProvider, isGolden = false }: MapContainerP
     <div className="relative h-full w-full" data-testid="map-surface">
       <div ref={elRef} className="h-full w-full" />
       <FieldPerfOverlay />
-      <MapObserverControlStrip
-        observerLocationLocked={observerLocationLocked}
-        onSetLocationHere={placeObserverHere}
-        onFocusMapOnObserver={focusMapOnObserver}
-      />
       <SelectedAircraftMapPopup mapRef={mapRef} mapReadyTick={mapReadyTick} />
     </div>
   );

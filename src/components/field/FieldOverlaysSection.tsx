@@ -1,5 +1,7 @@
 "use client";
 
+import { ShellSectionCard } from "@/components/shell/ShellSectionCard";
+import { SectionIconField } from "@/components/shell/sectionCategoryIcons";
 import { usePhotographerTools } from "@/hooks/usePhotographerTools";
 import { useMoonStateComputed } from "@/hooks/useTransitCandidates";
 import {
@@ -82,10 +84,12 @@ export function FieldOverlaysSection() {
   }, [planSnapshot]);
 
   return (
-    <div className="relative z-0 mt-0 min-w-0 space-y-3 overflow-hidden rounded-2xl border border-zinc-700/60 bg-zinc-950/40 p-3">
-      <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-        Field: manual correction & export
-      </h2>
+    <ShellSectionCard
+      className="mt-3"
+      title="Field: manual correction & export"
+      accent="violet"
+      icon={<SectionIconField />}
+    >
       <div>
         <p className="text-[0.65rem] text-zinc-500">
           Fine-tune for OpenSky latency: offset from “now” for track
@@ -180,6 +184,6 @@ export function FieldOverlaysSection() {
           </button>
         </div>
       </div>
-    </div>
+    </ShellSectionCard>
   );
 }
