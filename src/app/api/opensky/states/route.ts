@@ -3,12 +3,12 @@ import { NextResponse } from "next/server";
 const OPENSKY_BASE = "https://opensky-network.org/api/states/all";
 /**
  * Cjelokupni proračun (TTFB + `text()`). Na **Vercel Hobby** cijela funkcija ima
- * ~**10 s** strop — gornja granica enva mora ostati ispod toga. **`preferredRegion:
- * "fra1"`** (EU) u praksi rešava spor US→EU RTT — **ne treba** Pro.
+ * ~**10 s** strop — env je ograničen na **MAX** ispod. **`preferredRegion` + `vercel.json`
+ * `regions: [fra1]`** drže izvršavanje u EU. **`OPENSKY_STATES_EXTENDED=0`** smanjuje odgovor.
  */
-const DEFAULT_UPSTREAM_FETCH_TIMEOUT_MS = 8_500;
-/** Hobby: ispod 10s stropa funkcije. (Na Prou ručno povećaj i `export const maxDuration` u ovoj ruti.) */
-const MAX_UPSTREAM_FETCH_TIMEOUT_MS = 9_500;
+const DEFAULT_UPSTREAM_FETCH_TIMEOUT_MS = 9_200;
+/** Hobby: ostavi ~0,4–0,8s za ostatak handlira ispod 10s stropa. */
+const MAX_UPSTREAM_FETCH_TIMEOUT_MS = 9_600;
 const parsedTimeout = Number(process.env.OPENSKY_UPSTREAM_TIMEOUT_MS);
 const UPSTREAM_FETCH_TIMEOUT_MS =
   Number.isFinite(parsedTimeout) &&
@@ -36,10 +36,11 @@ function bboxCacheKey(
   lamin: string,
   lomin: string,
   lamax: string,
-  lomax: string
+  lomax: string,
+  extended: boolean
 ): string {
   const r = (x: string) => Number(x).toFixed(2);
-  return `${r(lamin)}|${r(lomin)}|${r(lamax)}|${r(lomax)}`;
+  return `${r(lamin)}|${r(lomin)}|${r(lamax)}|${r(lomax)}|${extended ? "1" : "0"}`;
 }
 
 function pruneCache(): void {
@@ -140,7 +141,7 @@ async function fetchOpenSkyWithinBudget(
 
 /**
  * Proxy prema OpenSky (izbjegava CORS; klijent zove samo ovu rutu).
- * `extended=1` — uključuje polje `category` (tip/klasa zrakoplova) u state vektoru.
+ * `extended=1` (zadano) — polje `category`; isključi s `OPENSKY_STATES_EXTENDED=0` za brži manji odgovor.
  *
  * Kratkotrajna predmemorija po grubom bbox-u smanjuje 429 kada klijent šalje više
  * zahtjeva u kratkom roku (pan, više komponenti, dev Strict Mode).
@@ -162,7 +163,10 @@ export async function GET(req: Request) {
   const apiPass = process.env.OPENSKY_API_PASSWORD?.trim();
   const withCred = Boolean(apiUser && apiPass);
 
-  const cKey = bboxCacheKey(lamin, lomin, lamax, lomax);
+  const useExtended =
+    process.env.OPENSKY_STATES_EXTENDED?.trim() !== "0";
+
+  const cKey = bboxCacheKey(lamin, lomin, lamax, lomax, useExtended);
   const cached = bboxCache.get(cKey);
   if (cached && cached.expiresAt > Date.now()) {
     return new NextResponse(cached.body, {
@@ -171,7 +175,7 @@ export async function GET(req: Request) {
     });
   }
 
-  const url = `${OPENSKY_BASE}?lamin=${encodeURIComponent(lamin)}&lomin=${encodeURIComponent(lomin)}&lamax=${encodeURIComponent(lamax)}&lomax=${encodeURIComponent(lomax)}&extended=1`;
+  const url = `${OPENSKY_BASE}?lamin=${encodeURIComponent(lamin)}&lomin=${encodeURIComponent(lomin)}&lamax=${encodeURIComponent(lamax)}&lomax=${encodeURIComponent(lomax)}${useExtended ? "&extended=1" : ""}`;
   const headers: Record<string, string> = { Accept: "application/json" };
   if (apiUser && apiPass) {
     headers.Authorization = `Basic ${Buffer.from(`${apiUser}:${apiPass}`, "utf8").toString("base64")}`;
@@ -251,7 +255,12 @@ export async function GET(req: Request) {
     if (isAbort) {
       console.error(
         `[MoonTransit OpenSky] upstream timeout or abort (limit ${UPSTREAM_FETCH_TIMEOUT_MS}ms)`,
-        { timeoutMs: UPSTREAM_FETCH_TIMEOUT_MS, withCred }
+        {
+          timeoutMs: UPSTREAM_FETCH_TIMEOUT_MS,
+          withCred,
+          hint:
+            "Set OPENSKY_STATES_EXTENDED=0 for a smaller/faster upstream response (no ADS-B category). Ensure Vercel deployment uses region fra1 (see vercel.json).",
+        }
       );
     } else if (isBodyOrBudget) {
       console.error(

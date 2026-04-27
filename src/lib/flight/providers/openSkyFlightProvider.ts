@@ -19,6 +19,11 @@ import type { GeoBounds } from "@/types/geo";
 const ROUTES_MARGIN_DEG = 0.25;
 /** OpenSky bbox oko promatrača (polumjer, promjer 200 km). */
 const OPENSKY_OBSERVER_RADIUS_KM = 100;
+/** Kad je fallback preko cijelog viewporta, OpenSky je spor — ograniči na ~90 km oko središta tog okvira. */
+const FALLBACK_FETCH_CAP_RADIUS_KM = 90;
+/** „Širok” viewport (stupnjevi) — iznad toga primjenjuje se cap. */
+const FALLBACK_WIDE_LAT_SPAN = 0.85;
+const FALLBACK_WIDE_LNG_SPAN = 1.0;
 /** Usklađeno s proxy predmemorijom (~30s); smanjuje ponovne pozive istog bbox-a. */
 const CACHE_MS = 32_000;
 
@@ -62,12 +67,30 @@ export class OpenSkyFlightProvider implements IFlightProvider {
       obs.lng,
       OPENSKY_OBSERVER_RADIUS_KM
     );
-    // Primarno: mali box oko promatrača (brz OpenSky). Ako nema presjeka s rutes.json
-    // (promatrač daleko od našeg koridora), fallback na stari presjek s viewportom.
-    const region =
-      intersectBounds(routesHull, aroundObserver) ??
-      intersectBounds(routesHull, q.bounds) ??
-      null;
+    const primary = intersectBounds(routesHull, aroundObserver);
+    let region: GeoBounds | null;
+    if (primary) {
+      region = primary;
+    } else {
+      const fallback = intersectBounds(routesHull, q.bounds);
+      if (!fallback) {
+        region = null;
+      } else {
+        const latSpan = fallback.north - fallback.south;
+        const lngSpan = fallback.east - fallback.west;
+        if (latSpan > FALLBACK_WIDE_LAT_SPAN || lngSpan > FALLBACK_WIDE_LNG_SPAN) {
+          const c = centerOfBounds(fallback);
+          const cap = geoBoundsAroundPointKm(
+            c.lat,
+            c.lng,
+            FALLBACK_FETCH_CAP_RADIUS_KM
+          );
+          region = intersectBounds(routesHull, cap) ?? fallback;
+        } else {
+          region = fallback;
+        }
+      }
+    }
     if (!region) {
       this.lastStats = null;
       return [];
