@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { E2E_BASE } from "./basePath";
 
 test.describe("flight source", () => {
   test("Provider select switches mock, static, and opensky without errors", async ({
@@ -9,7 +10,7 @@ test.describe("flight source", () => {
       pageErrors.push(err.message);
     });
 
-    await page.goto("/");
+    await page.goto(`${E2E_BASE}/`);
 
     const mapSurface = page.getByTestId("map-surface");
     const mapMissingToken = page.getByTestId("map-missing-token");

@@ -7,6 +7,7 @@
 
 | Document                                                                 | Purpose                                                                                                    |
 | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| **[deployment-cpanel.md](./deployment-cpanel.md)**                         | **Self-host / cPanel:** `cpanelBasePath.cjs`, `server.js`, `NEXT_PUBLIC_BASE_PATH`, deploy set vs dev tree, `appPath` |
 | **[user-guide.md](./user-guide.md)**                                     | **End-user** walkthrough: workflow, map legend, what is calculated in plain language                       |
 | **[architecture.md](./architecture.md)**                                 | System design, data flow, Zustand, providers, map, extension points; **QA** (tests, CI, field perf)        |
 | **[performance.md](./performance.md)**                                   | In-browser field perf: labels, `NEXT_PUBLIC_FIELD_PERF` / `localStorage`, DevTools                         |

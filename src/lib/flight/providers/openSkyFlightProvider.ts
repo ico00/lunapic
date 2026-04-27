@@ -6,6 +6,7 @@ import {
   unionBBoxOfAllStaticRoutes,
 } from "@/data/staticRouteUtils";
 import { geoBoundsAroundPointKm } from "@/lib/domain/geo/boundsAroundPointKm";
+import { appPath } from "@/lib/paths/appPath";
 import {
   averageVelocityMpsInRegion,
   flightsFromOpenSkyResponse,
@@ -119,7 +120,9 @@ export class OpenSkyFlightProvider implements IFlightProvider {
         return flightsFromOpenSkyResponse(this.cache.data, q.bounds);
       }
 
-      const url = `/api/opensky/states?lamin=${region.south}&lomin=${region.west}&lamax=${region.north}&lomax=${region.east}`;
+      const url = appPath(
+        `/api/opensky/states?lamin=${region.south}&lomin=${region.west}&lamax=${region.north}&lomax=${region.east}`
+      );
       const res = await fetch(url);
       if (
         res.ok &&

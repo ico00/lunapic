@@ -30,8 +30,10 @@ export const SELECTED_STAND_SPINE_LINE_WIDTH = 3.4;
 export const SELECTED_STAND_SPINE_LINE_OPACITY = 0.95;
 export const SELECTED_STAND_SPINE_LINE_OPACITY_DIM = 0.22;
 
-/** Javni URL SVG ikone zrakoplova na karti (`public/plane_5367346.svg`). */
-export const FLIGHT_PLANE_ICON_URL = "/plane_5367346.svg";
+import { appPath } from "@/lib/paths/appPath";
+
+/** Javni URL SVG ikone zrakoplova na karti (`public/plane_5367346.svg`); s `basePath` uključuje prefiks. */
+export const FLIGHT_PLANE_ICON_URL = appPath("/plane_5367346.svg");
 
 /** ID teksture u Mapbox `addImage` (symbol `icon-image`). */
 export const FLIGHT_PLANE_ICON_IMAGE_ID = "flight-plane-icon";

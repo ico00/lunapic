@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { E2E_BASE } from "./basePath";
 
 test.describe("smoke", () => {
   test("home shell loads; map or Mapbox setup placeholder", async ({
@@ -9,7 +10,7 @@ test.describe("smoke", () => {
       pageErrors.push(err.message);
     });
 
-    const response = await page.goto("/");
+    const response = await page.goto(`${E2E_BASE}/`);
     expect(response?.ok(), "HTTP OK").toBeTruthy();
 
     await expect(

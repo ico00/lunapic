@@ -15,7 +15,8 @@ Web app for planning and visualizing **aircraft transits in front of the Moon**:
 | -------------------------------------------------------------------------------- | --------------------- | ------------------------------------------------------------------------------ |
 | **[documentation/user-guide.md](./documentation/user-guide.md)**                 | **Using the app**     | Workflow, what each map layer means, how time and the observer work (no code). |
 | [documentation/architecture.md](./documentation/architecture.md)                 | Developers            | System design, data flow, major modules, extension points                      |
-| [documentation/technicalconventions.md](./documentation/technicalconventions.md) | Developers            | Code style, patterns, environment, how to add features safely                  |
+| [documentation/technicalconventions.md](./documentation/technicalconventions.md) | Developers            | Code style, **basePath** / `appPath` for sub-URL deploys, environment, how to add features safely |
+| [documentation/deployment-cpanel.md](./documentation/deployment-cpanel.md)      | **Self-host / cPanel** | `cpanelBasePath.cjs`, `server.js`, what to deploy, `NEXT_PUBLIC_BASE_PATH` |
 | [documentation/changelog.md](./documentation/changelog.md)                       | All                   | Version history and notable changes                                            |
 | [documentation/README.md](./documentation/README.md)                             | Developers            | **Index** of the `documentation/` folder                                       |
 | [src/stores/README.md](./src/stores/README.md)                                   | Developers (HR)       | Short note: why the moon–transit Zustand slice is one store                    |
@@ -31,15 +32,19 @@ cp .env.local.example .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open the app with the subpath in the path (e.g. [http://localhost:3000/LunaPic](http://localhost:3000/LunaPic) when [cpanelBasePath.cjs](cpanelBasePath.cjs) is `/LunaPic`). If you work without a subpath, use [http://localhost:3000](http://localhost:3000) — see [documentation/deployment-cpanel.md](./documentation/deployment-cpanel.md).
 
 ### Environment variables
 
 
 | Variable                   | Required          | Description                                                                                                                                      |
 | -------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `NEXT_PUBLIC_BASE_PATH`    | Inlined from `cpanelBasePath.cjs` via `next.config` | **Sub-URL** deploy: must match `basePath` for `fetch`/`appPath` (do not set by hand; change `cpanelBasePath.cjs` only). |
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | **Yes** (for map) | Mapbox access token. Without it, the map shows a setup message.                                                                                  |
 | `NEXT_PUBLIC_FIELD_PERF`   | No                | If `1`, enables the in-map **field performance** panel (dev / field tuning). See [documentation/performance.md](./documentation/performance.md). |
+
+
+Dev URL: when [cpanelBasePath.cjs](cpanelBasePath.cjs) is non-empty, use `http://localhost:3000` + that path (see [deployment-cpanel](documentation/deployment-cpanel.md)). Do **not** set `NEXT_PUBLIC_BASE_PATH` manually; it is derived from the same file at build time.
 
 
 Example `.env.local`:
@@ -48,7 +53,7 @@ Example `.env.local`:
 NEXT_PUBLIC_MAPBOX_TOKEN=pk.your_mapbox_token
 ```
 
-**OpenSky:** the browser does not call OpenSky directly. The app uses the Next.js route `GET /api/opensky/states` as a CORS-free proxy. No key is required for basic OpenSky public usage.
+**OpenSky:** the browser does not call OpenSky directly. The app uses the Next.js route `GET /api/opensky/states` as a CORS-free proxy; with a sub-URL, the **client** uses `appPath("/api/…")` so the request matches `basePath`. No OpenSky key is required for basic public usage.
 
 ## Scripts
 
@@ -60,7 +65,8 @@ NEXT_PUBLIC_MAPBOX_TOKEN=pk.your_mapbox_token
 | `npm run test:run` | Unit tests (single run)                            |
 | `npm run test:e2e` | E2E (`playwright test`; run `npm run build` first) |
 | `npm run build`    | Production build                                   |
-| `npm start`        | Run production build                               |
+| `npm start`        | `next start` (production)                          |
+| `npm run start:cpanel` | `node server.js` for **cPanel** / custom server — [deployment-cpanel](documentation/deployment-cpanel.md) |
 | `npm run lint`     | ESLint                                             |
 | `npx tsc --noEmit` | Typecheck only                                     |
 

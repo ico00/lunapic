@@ -63,8 +63,15 @@ Before relying on “classic” Next 12 patterns, read `**AGENTS.md`** (Next 16 
 
 ## API / network
 
-- **OpenSky** — Only through the Next.js route `GET /api/opensky/states` (CORS proxy). No direct browser calls to `opensky-network.org`.
+- **OpenSky** — Only through the Next.js route `GET /api/opensky/states` (CORS proxy). No direct browser calls to `opensky-network.org`. The client must call this route with **`appPath("/api/opensky/states?…")`** in [`src/lib/paths/appPath.ts`](../src/lib/paths/appPath.ts) whenever `basePath` is set (inlined via `NEXT_PUBLIC_BASE_PATH` from [cpanelBasePath.cjs](../cpanelBasePath.cjs)). Plain `fetch("/api/…")` hits the domain root and fails behind a sub-URL.
 - **Caching** — Route handler uses `cache: "no-store"`; adjust if you add rate limits or SWR on the client.
+
+## Sub-URL (self-host / `basePath`)
+
+- **Config** — See [documentation/deployment-cpanel.md](./deployment-cpanel.md). One value in `cpanelBasePath.cjs` sets Next `basePath` and `NEXT_PUBLIC_BASE_PATH`.
+- **New client `fetch` to this app** — Always use `appPath("/api/…")` (or a helper that includes the same prefix).
+- **New asset under `public/`** (Mapbox `Image`, `<img>`, etc.) — Use `appPath("/file.ext")` or the constant in `mapOverlayConstants.ts` that already does.
+- **Next `Link` / `next/router`** — `basePath` is applied automatically; no `appPath` for those.
 
 ## Testing and quality
 

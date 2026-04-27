@@ -114,7 +114,7 @@ Keep **pure functions** in `lib/domain` (no React, no `window` except where a mo
 
 ## API routes (Next.js)
 
-- `**/api/opensky/states`** — Server-side `fetch` to `opensky-network.org` with `lamin, lomin, lamax, lomax` query params. Avoids CORS; returns JSON or 502 on upstream error.
+- `**/api/opensky/states`** — Server-side `fetch` to `opensky-network.org` with `lamin, lomin, lamax, lomax` query params. Avoids CORS; returns JSON or 502 on upstream error. The **browser** must request this route with the app’s `basePath` prefix (via `appPath` in `OpenSkyFlightProvider`) when not hosted at `/`.
 
 ## Map rendering (Mapbox)
 
@@ -135,6 +135,10 @@ Keep **pure functions** in `lib/domain` (no React, no `window` except where a mo
 3. **New UI in sidebar** — `HomePageClient.tsx` composes panel components under `src/components/shell/panels/`; orchestration is in `useHomeShellOrchestration`.
 4. **Map layers** — `registerMoonTransitLayers` + `MapContainer` / `useMoonTransitMap` / `useMapGeoJsonSync` so layer setup and `setData` wiring stay explicit and testable in isolation from JSX.
 
+## Deployment and `basePath` (self-host)
+
+- When the app is served under a subpath (e.g. cPanel: `https://host/LunaPic`), a single `cpanelBasePath.cjs` + `server.js` and `appPath` for client fetches and `public` URLs apply; see [deployment-cpanel.md](deployment-cpanel.md). The OpenSky client uses `appPath` so `GET` hits `/LunaPic/api/opensky/…` instead of the domain root.
+
 ## Quality assurance (tests, CI, field profiling)
 
 - **Unit tests** — [Vitest](https://vitest.dev/) 3, `src/lib/domain/**/*.test.ts` and `src/lib/perf/fieldPerf.test.ts`. See `documentation/technicalconventions.md` (Testing) for commands.
@@ -151,7 +155,7 @@ Keep **pure functions** in `lib/domain` (no React, no `window` except where a mo
 ## Related files
 
 - App entry: `src/app/page.tsx`, `src/app/layout.tsx`
-- Human docs: `README.md` (root), `documentation/README.md` (index), `documentation/performance.md` (field runtime perf)
+- Human docs: `README.md` (root), `documentation/README.md` (index), `documentation/deployment-cpanel.md` (cPanel / sub-URL), `documentation/performance.md` (field runtime perf)
 - Map token: `NEXT_PUBLIC_MAPBOX_TOKEN`
 - Route data: `src/data/routes.json`, `src/data/staticRouteUtils.ts`
 
