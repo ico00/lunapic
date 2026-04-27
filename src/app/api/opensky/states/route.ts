@@ -1,17 +1,28 @@
 import { NextResponse } from "next/server";
 
 const OPENSKY_BASE = "https://opensky-network.org/api/states/all";
-/** Ispod cca 10s (Vercel Hobby `maxDuration`) — ostavljena margina za `text()` + JSON. */
-const DEFAULT_UPSTREAM_FETCH_TIMEOUT_MS = 9_500;
+/**
+ * Cjelokupni proračun (TTFB + `text()`). Na **Vercel Hobby** cijela funkcija ima
+ * ~**10 s** strop — gornja granica enva mora ostati ispod toga. **`preferredRegion:
+ * "fra1"`** (EU) u praksi rešava spor US→EU RTT — **ne treba** Pro.
+ */
+const DEFAULT_UPSTREAM_FETCH_TIMEOUT_MS = 8_500;
+/** Hobby: ispod 10s stropa funkcije. (Na Prou ručno povećaj i `export const maxDuration` u ovoj ruti.) */
+const MAX_UPSTREAM_FETCH_TIMEOUT_MS = 9_500;
 const parsedTimeout = Number(process.env.OPENSKY_UPSTREAM_TIMEOUT_MS);
 const UPSTREAM_FETCH_TIMEOUT_MS =
-  Number.isFinite(parsedTimeout) && parsedTimeout >= 2_000 && parsedTimeout <= 9_500
+  Number.isFinite(parsedTimeout) &&
+  parsedTimeout >= 2_000 &&
+  parsedTimeout <= MAX_UPSTREAM_FETCH_TIMEOUT_MS
     ? Math.floor(parsedTimeout)
     : DEFAULT_UPSTREAM_FETCH_TIMEOUT_MS;
 const CDN_CACHE_CONTROL =
   "s-maxage=15, stale-while-revalidate=30";
 
+/** Odgovara Vercel Hobby (~10s); na Pro/Enterprise možeš povećati ovdje i max env. */
 export const maxDuration = 10;
+/** Izvodi Node serverless u Frankfurtu (bliže OpenSky EU nego default US). Besplatno. */
+export const preferredRegion = "fra1";
 
 /** Koliko dugo isti (grub) bbox dijeli jedan upstream odgovor bez novog poziva. */
 const PROXY_CACHE_TTL_MS = 30_000;
@@ -88,6 +99,46 @@ function emptyOkResponse(
 }
 
 /**
+ * Cijelo čitanje u okviru jednog proračuna (TTFB + JSON tijelo) — inače bi samo
+ * `fetch()` bio ograničen, a `text()` zna kasniti.
+ */
+async function fetchOpenSkyWithinBudget(
+  url: string,
+  reqHeaders: Record<string, string>,
+  budgetMs: number
+): Promise<{ r: Response; bodyText: string }> {
+  const t0 = Date.now();
+  const ac = new AbortController();
+  const tid = setTimeout(() => ac.abort(), budgetMs);
+  let r: Response;
+  try {
+    r = await fetch(url, {
+      cache: "no-store",
+      headers: reqHeaders,
+      signal: ac.signal,
+    });
+  } catch (e) {
+    clearTimeout(tid);
+    throw e;
+  }
+  clearTimeout(tid);
+  const forBody = Math.max(0, budgetMs - (Date.now() - t0));
+  if (forBody < 1) {
+    throw new Error("OpenSky: no budget left for response body (slow TTFB)");
+  }
+  const bodyText = await Promise.race([
+    r.text(),
+    new Promise<never>((_, rej) => {
+      setTimeout(
+        () => rej(new Error("OpenSky: response body read timeout")),
+        forBody
+      );
+    }),
+  ]);
+  return { r, bodyText };
+}
+
+/**
  * Proxy prema OpenSky (izbjegava CORS; klijent zove samo ovu rutu).
  * `extended=1` — uključuje polje `category` (tip/klasa zrakoplova) u state vektoru.
  *
@@ -126,17 +177,12 @@ export async function GET(req: Request) {
     headers.Authorization = `Basic ${Buffer.from(`${apiUser}:${apiPass}`, "utf8").toString("base64")}`;
   }
 
-  const ac = new AbortController();
-  const timeoutId = setTimeout(() => ac.abort(), UPSTREAM_FETCH_TIMEOUT_MS);
-
   try {
-    const r = await fetch(url, {
-      cache: "no-store",
+    const { r, bodyText } = await fetchOpenSkyWithinBudget(
+      url,
       headers,
-      signal: ac.signal,
-    });
-    clearTimeout(timeoutId);
-    const bodyText = await r.text();
+      UPSTREAM_FETCH_TIMEOUT_MS
+    );
     if (!r.ok) {
       const likelyAuth = r.status === 401 || r.status === 403;
       const missingCred = !withCred;
@@ -192,18 +238,25 @@ export async function GET(req: Request) {
       headers: jsonHeaders(withCred, "miss"),
     });
   } catch (err: unknown) {
-    clearTimeout(timeoutId);
     const isAbort =
       err instanceof Error && err.name === "AbortError";
     const isNetwork =
       err instanceof TypeError &&
       typeof err.message === "string" &&
       /fetch|network|Load failed|Failed to fetch/i.test(err.message);
+    const isBodyOrBudget =
+      err instanceof Error &&
+      /OpenSky: (no budget|response body)/.test(err.message);
 
     if (isAbort) {
       console.error(
         `[MoonTransit OpenSky] upstream timeout or abort (limit ${UPSTREAM_FETCH_TIMEOUT_MS}ms)`,
         { timeoutMs: UPSTREAM_FETCH_TIMEOUT_MS, withCred }
+      );
+    } else if (isBodyOrBudget) {
+      console.error(
+        "[MoonTransit OpenSky] slow TTFB or body read within budget",
+        { message: err instanceof Error ? err.message : String(err), withCred }
       );
     } else if (isNetwork) {
       console.error(
