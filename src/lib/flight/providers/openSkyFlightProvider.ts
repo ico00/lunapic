@@ -62,7 +62,12 @@ export class OpenSkyFlightProvider implements IFlightProvider {
       obs.lng,
       OPENSKY_OBSERVER_RADIUS_KM
     );
-    const region = intersectBounds(routesHull, aroundObserver);
+    // Primarno: mali box oko promatrača (brz OpenSky). Ako nema presjeka s rutes.json
+    // (promatrač daleko od našeg koridora), fallback na stari presjek s viewportom.
+    const region =
+      intersectBounds(routesHull, aroundObserver) ??
+      intersectBounds(routesHull, q.bounds) ??
+      null;
     if (!region) {
       this.lastStats = null;
       return [];
@@ -93,6 +98,14 @@ export class OpenSkyFlightProvider implements IFlightProvider {
 
       const url = `/api/opensky/states?lamin=${region.south}&lomin=${region.west}&lamax=${region.north}&lomax=${region.east}`;
       const res = await fetch(url);
+      if (
+        res.ok &&
+        res.headers.get("X-MoonTransit-OpenSky-Source") === "timeout-fallback"
+      ) {
+        console.warn(
+          "[OpenSky] Server returned an empty result (proxy timeout or network). OpenSky or Vercel may be slow — try again, or see Vercel function logs for [MoonTransit OpenSky]."
+        );
+      }
       if (!res.ok) {
         const text = await res.text();
         let message = text.slice(0, 240);

@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 
 const OPENSKY_BASE = "https://opensky-network.org/api/states/all";
-const UPSTREAM_FETCH_TIMEOUT_MS = 5000;
+/** Ostavi margenu unutar Vercel serverless ograničenja (~10s na Hobby). Hladan start + OpenSky mogu lako premašiti 5s. */
+const UPSTREAM_FETCH_TIMEOUT_MS = 8_000;
 const CDN_CACHE_CONTROL =
   "s-maxage=15, stale-while-revalidate=30";
+
+export const maxDuration = 10;
 
 /** Koliko dugo isti (grub) bbox dijeli jedan upstream odgovor bez novog poziva. */
 const PROXY_CACHE_TTL_MS = 30_000;
