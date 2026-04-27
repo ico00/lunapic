@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 
 const OPENSKY_BASE = "https://opensky-network.org/api/states/all";
-/** Ostavi margenu unutar Vercel serverless ograničenja (~10s na Hobby). Hladan start + OpenSky mogu lako premašiti 5s. */
-const UPSTREAM_FETCH_TIMEOUT_MS = 8_000;
+/** Ispod cca 10s (Vercel Hobby `maxDuration`) — ostavljena margina za `text()` + JSON. */
+const DEFAULT_UPSTREAM_FETCH_TIMEOUT_MS = 9_500;
+const parsedTimeout = Number(process.env.OPENSKY_UPSTREAM_TIMEOUT_MS);
+const UPSTREAM_FETCH_TIMEOUT_MS =
+  Number.isFinite(parsedTimeout) && parsedTimeout >= 2_000 && parsedTimeout <= 9_500
+    ? Math.floor(parsedTimeout)
+    : DEFAULT_UPSTREAM_FETCH_TIMEOUT_MS;
 const CDN_CACHE_CONTROL =
   "s-maxage=15, stale-while-revalidate=30";
 
@@ -197,7 +202,7 @@ export async function GET(req: Request) {
 
     if (isAbort) {
       console.error(
-        "[MoonTransit OpenSky] upstream timeout or abort (client 5s limit)",
+        `[MoonTransit OpenSky] upstream timeout or abort (limit ${UPSTREAM_FETCH_TIMEOUT_MS}ms)`,
         { timeoutMs: UPSTREAM_FETCH_TIMEOUT_MS, withCred }
       );
     } else if (isNetwork) {
