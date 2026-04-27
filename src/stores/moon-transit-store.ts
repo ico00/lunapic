@@ -4,6 +4,7 @@ import {
 } from "@/lib/domain/astro/astroService";
 import { mergeStickyFlightMetadata } from "@/lib/flight/mergeStickyFlightMetadata";
 import { getFlightProvider } from "@/lib/flight/flightProviderRegistry";
+import { useObserverStore } from "@/stores/observer-store";
 import type { GeoBounds, MapViewState } from "@/types";
 import type { FlightState } from "@/types/flight";
 import type { FlightProviderId } from "@/types/flight-provider";
@@ -176,7 +177,8 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
     try {
       const p = getFlightProvider(get().flightProvider);
       const previousFlights = get().flights;
-      const flights = await p.getFlightsInBounds({ bounds });
+      const observer = useObserverStore.getState().observer;
+      const flights = await p.getFlightsInBounds({ bounds, observer });
       const merged = mergeStickyFlightMetadata(flights, previousFlights);
       const sel = get().selectedFlightId;
       const keepSel =

@@ -1,9 +1,11 @@
 import {
+  centerOfBounds,
   expandBounds,
   getStaticRouteLineFeatures,
   intersectBounds,
   unionBBoxOfAllStaticRoutes,
 } from "@/data/staticRouteUtils";
+import { geoBoundsAroundPointKm } from "@/lib/domain/geo/boundsAroundPointKm";
 import {
   averageVelocityMpsInRegion,
   flightsFromOpenSkyResponse,
@@ -15,6 +17,8 @@ import type { FlightProviderId } from "@/types/flight-provider";
 import type { GeoBounds } from "@/types/geo";
 
 const ROUTES_MARGIN_DEG = 0.25;
+/** OpenSky bbox oko promatrača (polumjer, promjer 200 km). */
+const OPENSKY_OBSERVER_RADIUS_KM = 100;
 /** Usklađeno s proxy predmemorijom (~30s); smanjuje ponovne pozive istog bbox-a. */
 const CACHE_MS = 32_000;
 
@@ -52,7 +56,13 @@ export class OpenSkyFlightProvider implements IFlightProvider {
       ROUTES_MARGIN_DEG,
       ROUTES_MARGIN_DEG
     );
-    const region = intersectBounds(routesHull, q.bounds);
+    const obs = q.observer ?? centerOfBounds(q.bounds);
+    const aroundObserver = geoBoundsAroundPointKm(
+      obs.lat,
+      obs.lng,
+      OPENSKY_OBSERVER_RADIUS_KM
+    );
+    const region = intersectBounds(routesHull, aroundObserver);
     if (!region) {
       this.lastStats = null;
       return [];

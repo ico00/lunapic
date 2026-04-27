@@ -1,11 +1,15 @@
+"use client";
+
+import { useHasMounted } from "@/hooks/useHasMounted";
 import { formatFixed } from "@/lib/format/numbers";
 import type { MoonRiseSetKind, MoonState } from "@/types/moon";
 
 function timeDisplay(
   t: Date | null,
-  show: boolean
+  show: boolean,
+  hasMounted: boolean
 ): string {
-  if (t == null || !show) {
+  if (t == null || !show || !hasMounted) {
     return "—";
   }
   return t.toLocaleTimeString("en-GB", {
@@ -36,6 +40,7 @@ export function MoonEphemerisPanel({
   showEphemeris,
   isMoonBelowHorizon,
 }: MoonEphemerisPanelProps) {
+  const hasMounted = useHasMounted();
   return (
     <>
       <h2 className="mt-6 text-xs font-medium uppercase tracking-wide text-zinc-500">
@@ -70,7 +75,7 @@ export function MoonEphemerisPanel({
               ? "Circumpolar (up)"
               : moonRiseSetKind === "alwaysDown"
                 ? "Circumpolar (down)"
-                : timeDisplay(moonRise, showEphemeris)}
+                : timeDisplay(moonRise, showEphemeris, hasMounted)}
           </dd>
         </div>
         <div className="flex justify-between gap-4">
@@ -78,7 +83,7 @@ export function MoonEphemerisPanel({
           <dd className="font-mono tabular-nums" suppressHydrationWarning>
             {moonRiseSetKind === "alwaysUp" || moonRiseSetKind === "alwaysDown"
               ? "—"
-              : timeDisplay(moonSet, showEphemeris)}
+              : timeDisplay(moonSet, showEphemeris, hasMounted)}
           </dd>
         </div>
       </dl>

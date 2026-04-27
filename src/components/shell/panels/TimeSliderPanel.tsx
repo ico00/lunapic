@@ -1,3 +1,7 @@
+"use client";
+
+import { useHasMounted } from "@/hooks/useHasMounted";
+
 type TimeSliderPanelProps = {
   referenceEpochMs: number;
   offsetHours: number;
@@ -34,6 +38,7 @@ export function TimeSliderPanel({
   variant = "panel",
   className = "",
 }: TimeSliderPanelProps) {
+  const hasMounted = useHasMounted();
   const isChip = variant === "mapChip";
   const heading =
     timeSliderMode === "moonriseToSet"
@@ -51,17 +56,21 @@ export function TimeSliderPanel({
     ? `rounded-lg border border-zinc-800/70 bg-zinc-950/70 px-2 py-1.5 shadow-md backdrop-blur-sm${horizonClass}${className ? ` ${className}` : ""}`
     : `mt-5 rounded border border-zinc-800/80 bg-zinc-900/30 p-3${horizonClass}${className ? ` ${className}` : ""}`;
 
-  const dateTimeStr = showEphemeris
-    ? new Date(referenceEpochMs).toLocaleString("en-GB", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: false,
-      })
-    : "—";
+  const startLabel = hasMounted ? timeSliderStartLabel : "—";
+  const endLabel = hasMounted ? timeSliderEndLabel : "—";
+
+  const dateTimeStr =
+    hasMounted && showEphemeris
+      ? new Date(referenceEpochMs).toLocaleString("en-GB", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        })
+      : "—";
 
   if (isChip) {
     return (
@@ -89,14 +98,22 @@ export function TimeSliderPanel({
               aria-label="Time within visibility window, hours from start"
             />
             <div className="mt-0 flex justify-between gap-1 px-px text-[0.48rem] leading-none text-zinc-600">
-              <span className="max-w-[3rem] shrink-0 truncate" title="Window start">
-                {timeSliderStartLabel}
+              <span
+                className="max-w-[3rem] shrink-0 truncate"
+                title="Window start"
+                suppressHydrationWarning
+              >
+                {startLabel}
               </span>
               <span className="text-zinc-500" aria-hidden>
                 ·
               </span>
-              <span className="max-w-[3rem] shrink-0 truncate text-right" title="Window end">
-                {timeSliderEndLabel}
+              <span
+                className="max-w-[3rem] shrink-0 truncate text-right"
+                title="Window end"
+                suppressHydrationWarning
+              >
+                {endLabel}
               </span>
             </div>
           </div>
@@ -128,12 +145,20 @@ export function TimeSliderPanel({
         {dateTimeStr}
       </p>
       <div className="mt-2 flex items-center justify-between gap-1 text-xs text-zinc-500">
-        <span className="max-w-[4rem] shrink truncate" title="Window start">
-          {timeSliderStartLabel}
+        <span
+          className="max-w-[4rem] shrink truncate"
+          title="Window start"
+          suppressHydrationWarning
+        >
+          {startLabel}
         </span>
         <span>→</span>
-        <span className="max-w-[4rem] shrink truncate text-right" title="Window end">
-          {timeSliderEndLabel}
+        <span
+          className="max-w-[4rem] shrink truncate text-right"
+          title="Window end"
+          suppressHydrationWarning
+        >
+          {endLabel}
         </span>
       </div>
       <input

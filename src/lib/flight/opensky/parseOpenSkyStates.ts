@@ -4,6 +4,8 @@ import type { GeoBounds } from "@/types/geo";
 export type OpenSkyStatesResponse = {
   readonly time: number;
   readonly states: readonly (readonly (string | number | boolean | null)[])[] | null;
+  /** Postavljeno od našeg proxyja pri praznom odgovoru (npr. timeout). */
+  readonly source?: string;
 };
 
 function inBounds(

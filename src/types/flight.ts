@@ -46,6 +46,11 @@ export interface FlightState {
 
 export interface FlightQuery {
   readonly bounds: GeoBounds;
+  /**
+   * OpenSky: središte ograničenog bbox-a (redovito `observer` iz trgovine) —
+   * nije puna površina karte.
+   */
+  readonly observer?: LatLng;
   /** Optional: filter or rank by near this point. */
   readonly near?: LatLng;
   readonly minAltitudeMeters?: number;

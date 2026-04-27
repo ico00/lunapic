@@ -5,6 +5,7 @@ import {
   flightAirlineDisplayLine,
 } from "@/lib/flight/flightDisplayLabels";
 import { formatFixed, mpsToKnots } from "@/lib/format/numbers";
+import { useHasMounted } from "@/hooks/useHasMounted";
 import type { FlightState } from "@/types/flight";
 
 function fmtDataTimestamp(ms: number): string {
@@ -45,6 +46,7 @@ export function SelectedAircraftPopupContent({
   flight,
   onDismiss,
 }: SelectedAircraftPopupContentProps) {
+  const hasMounted = useHasMounted();
   return (
     <div
       className="pointer-events-auto max-w-[min(18rem,calc(100vw-2.25rem))] rounded-2xl border border-sky-800/50 bg-sky-950/95 p-3 text-zinc-200 shadow-xl shadow-black/40 backdrop-blur"
@@ -135,8 +137,11 @@ export function SelectedAircraftPopupContent({
           </div>
           <div className="border-t border-zinc-800/80 pt-2">
             <dt className="text-[0.65rem] text-zinc-500">State time</dt>
-            <dd className="mt-0.5 font-mono text-[0.7rem] tabular-nums text-zinc-400">
-              {fmtDataTimestamp(flight.timestamp)}
+            <dd
+              className="mt-0.5 font-mono text-[0.7rem] tabular-nums text-zinc-400"
+              suppressHydrationWarning
+            >
+              {hasMounted ? fmtDataTimestamp(flight.timestamp) : "—"}
             </dd>
           </div>
         </dl>

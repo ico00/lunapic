@@ -59,19 +59,19 @@ flowchart TB
 ### `useMoonTransitStore` (`src/stores/moon-transit-store.ts`)
 
 
-| Field / action                                     | Role                                                                             |
-| -------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `timeAnchorMs`, `timeOffsetMs`, `referenceEpochMs` | Ephemeris and screening use `referenceEpochMs` as the “current simulation time”. The slider is clamped to `getTimeSliderWindowMs(…, moonRise, moonSet, …)` when rise/set are known. |
-| `moonRise`, `moonSet`, `moonRiseSetKind`            | Suncalc window for the time slider and moon-path clipping; from `AstroService.getMoonTimes` via `useAstronomySync`. |
+| Field / action                                     | Role                                                                                                                                                                                                              |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `timeAnchorMs`, `timeOffsetMs`, `referenceEpochMs` | Ephemeris and screening use `referenceEpochMs` as the “current simulation time”. The slider is clamped to `getTimeSliderWindowMs(…, moonRise, moonSet, …)` when rise/set are known.                               |
+| `moonRise`, `moonSet`, `moonRiseSetKind`           | Suncalc window for the time slider and moon-path clipping; from `AstroService.getMoonTimes` via `useAstronomySync`.                                                                                               |
 | `ephemerisRefetchKey`                              | Bumped in `syncTimeToNow` so `useAstronomySync` re-fetches `getMoonTimes` for the UTC day of the **current** `referenceEpochMs` without re-running on every slider tick (avoids UTC-midnight desync on the path). |
-| `setMoonRiseSet`                                   | Writes rise/set; may re-clamp `timeAnchorMs` / `referenceEpochMs` to the new window. |
-| `mapView`                                          | Center, zoom, pitch, bearing — updated when the user pans the map.               |
-| `flightProvider`                                   | `mock` / `static` / `openSky` (see `FlightProviderId`).                            |
-| `flights`                                          | Last loaded snapshot; **not** real-time until next bounds load.                  |
-| `selectedFlightId`                                 | Drives photographer tools, list highlighting, and the **stand** overlay on the map. |
-| `openSkyLatencySkewMs`                             | Manual time skew for display extrapolation (field section).                      |
-| `syncTimeToNow`                                    | “Sync” and initial shell layout: reset simulated time to now (clamped), bump `ephemerisRefetchKey`. |
-| `loadFlightsInBounds`                              | Invokes the active `IFlightProvider` and sets `flights` / `error` / `isLoading`. |
+| `setMoonRiseSet`                                   | Writes rise/set; may re-clamp `timeAnchorMs` / `referenceEpochMs` to the new window.                                                                                                                              |
+| `mapView`                                          | Center, zoom, pitch, bearing — updated when the user pans the map.                                                                                                                                                |
+| `flightProvider`                                   | `mock` / `static` / `openSky` (see `FlightProviderId`).                                                                                                                                                           |
+| `flights`                                          | Last loaded snapshot; **not** real-time until next bounds load.                                                                                                                                                   |
+| `selectedFlightId`                                 | Drives photographer tools, list highlighting, and the **stand** overlay on the map.                                                                                                                               |
+| `openSkyLatencySkewMs`                             | Manual time skew for display extrapolation (field section).                                                                                                                                                       |
+| `syncTimeToNow`                                    | “Sync” and initial shell layout: reset simulated time to now (clamped), bump `ephemerisRefetchKey`.                                                                                                               |
+| `loadFlightsInBounds`                              | Invokes the active `IFlightProvider` and sets `flights` / `error` / `isLoading`.                                                                                                                                  |
 
 
 **Design note (bounded context):** The store combines **simulated time**, **map view state**, and **flight loading + selection** in one Zustand slice. This is an **intentional aggregate** for a small app: a single `loadFlightsInBounds` can depend on time and provider without cross-store sync. A future split into `timeStore` / `flightsStore` / `mapViewStore` is optional; see `src/stores/README.md` (Croatian summary), `documentation/optimization-and-refactoring.md`, and `documentation/technicalconventions.md` (State + feature checklist) for the refactor log, trade-offs, and where to add new behavior.
@@ -101,7 +101,7 @@ Adding a new source: implement `IFlightProvider`, register in the registry, add 
 
 ## Domain layer
 
-- `**lib/domain/astro/**` — `AstroService.getMoonState` wraps moon ephemeris (suncalc-based helpers in `moon.ts`) → `MoonState` (azimuth, altitude, apparent radius, …). `**getMoonTimes**` (suncalc) → `moonRise` / `moonSet` / circumpolar kind in the store, updated by **`useAstronomySync`** (re-fetch on observer change and when `ephemerisRefetchKey` bumps in `syncTimeToNow` — *not* on every slider change; avoids swapping the suncalc UTC day at UTC midnight and desyncing the time-slider / moon path). `**getMoonPathSamples**` and `**getMoonPathMapSpec**` use the **visible** time window (see `getTimeSliderWindowMs`, `useMapMoonOverlayFeatures`). `**MoonPathSample**` in `src/types/moon.ts`.
+- `**lib/domain/astro/`** — `AstroService.getMoonState` wraps moon ephemeris (suncalc-based helpers in `moon.ts`) → `MoonState` (azimuth, altitude, apparent radius, …). `**getMoonTimes**` (suncalc) → `moonRise` / `moonSet` / circumpolar kind in the store, updated by `**useAstronomySync**` (re-fetch on observer change and when `ephemerisRefetchKey` bumps in `syncTimeToNow` — *not* on every slider change; avoids swapping the suncalc UTC day at UTC midnight and desyncing the time-slider / moon path). `**getMoonPathSamples*`* and `**getMoonPathMapSpec**` use the **visible** time window (see `getTimeSliderWindowMs`, `useMapMoonOverlayFeatures`). `**MoonPathSample`** in `src/types/moon.ts`.
 - `**lib/domain/geometry/**` — WGS84 helpers, ENU, horizontal line-of-sight (`horizontalToPoint` for 3D azimuth to the aircraft with altitude), moon azimuth line vs static routes, `**buildMoonPathLineCoordinates**` (ground points along a fixed-length ray per sample azimuth) for a moon-path `LineString`, **stand corridor** in `standCorridorQuads.ts` (trapezoid + spine; axis = back-azimuth of horizontal LoS from sub-aircraft point), **photographer** pack (angular rate, slant range, alignment time) in `GeometryEngine` / `lineOfSightKinematics` / `alignmentHint`.
 - `**lib/domain/transit/screening.ts`** — Narrows which flights are worth listing as “candidates”.
 
@@ -139,13 +139,13 @@ Keep **pure functions** in `lib/domain` (no React, no `window` except where a mo
 
 - **Unit tests** — [Vitest](https://vitest.dev/) 3, `src/lib/domain/**/*.test.ts` and `src/lib/perf/fieldPerf.test.ts`. See `documentation/technicalconventions.md` (Testing) for commands.
 - **E2E** — Playwright: `e2e/smoke.spec.ts`, `e2e/flight-source.spec.ts`. Requires `npm run build` before `npx playwright test` (see `playwright.config.ts` `webServer`).
-- **CI** — [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): `npm ci` → `npm audit` → `lint` → `tsc` → Vitest → `build` → Playwright (Chromium install on the runner). Full detail: `documentation/technicalconventions.md`.
+- **CI** — `[.github/workflows/ci.yml](../.github/workflows/ci.yml)`: `npm ci` → `npm audit` → `lint` → `tsc` → Vitest → `build` → Playwright (Chromium install on the runner). Full detail: `documentation/technicalconventions.md`.
 - **Field / map profiling** (optional) — `documentation/performance.md`, `src/lib/perf/fieldPerf.ts`, in-map `FieldPerfOverlay` when `NEXT_PUBLIC_FIELD_PERF=1` or `localStorage` key `moonTransitFieldPerf`.
 
 ## Known limitations (intentional or technical)
 
 - **Flights** are a **snapshot** per bounds load, not a streaming socket.
-- **Time slider** does not re-fetch history from OpenSky; it updates `referenceEpochMs` in the current rise/set (or fallback) window and uses the same flight snapshot (documented in UI for OpenSky use). **Suncalc** `moonRise` / `moonSet` re-fetch in **`useAstronomySync`** is tied to **Sync** and **observer** changes (`ephemerisRefetchKey`), not to every move of the slider, so a UTC day boundary during scrubbing does not replace rise/set and break the moon path window.
+- **Time slider** does not re-fetch history from OpenSky; it updates `referenceEpochMs` in the current rise/set (or fallback) window and uses the same flight snapshot (documented in UI for OpenSky use). **Suncalc** `moonRise` / `moonSet` re-fetch in `**useAstronomySync`** is tied to **Sync** and **observer** changes (`ephemerisRefetchKey`), not to every move of the slider, so a UTC day boundary during scrubbing does not replace rise/set and break the moon path window.
 - **Compass** uses device orientation where available; accuracy varies by device and environment.
 
 ## Related files
