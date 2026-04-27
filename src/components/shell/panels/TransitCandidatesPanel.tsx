@@ -1,4 +1,6 @@
 import { formatFixed } from "@/lib/format/numbers";
+import { ShellSectionCard } from "@/components/shell/ShellSectionCard";
+import { SectionIconTarget } from "@/components/shell/sectionCategoryIcons";
 import type { TransitCandidate } from "@/types";
 
 type TransitCandidatesPanelProps = {
@@ -21,15 +23,19 @@ export function TransitCandidatesPanel({
   onSelectFlight,
 }: TransitCandidatesPanelProps) {
   return (
-    <>
-      <h2 className="mt-5 text-xs font-medium uppercase tracking-wide text-zinc-500">
-        Transit candidates
-      </h2>
-      {showEphemeris && isLoading && (
-        <p className="mt-2 text-sm text-zinc-500">Loading…</p>
-      )}
-      {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
-      <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto text-sm">
+    <ShellSectionCard
+      className="mt-3"
+      title="Transit candidates"
+      accent="emerald"
+      icon={<SectionIconTarget />}
+    >
+      <div className="space-y-2">
+        {showEphemeris && isLoading && (
+          <p className="text-sm text-zinc-500">Loading…</p>
+        )}
+        {error && <p className="text-sm text-red-400">{error}</p>}
+      </div>
+      <ul className="mt-2 max-h-48 space-y-1.5 overflow-y-auto text-sm">
         {showEmpty && <li className="text-zinc-500">No visible tracks.</li>}
         {candidates.map((c) => (
           <li key={c.flight.id}>
@@ -38,7 +44,7 @@ export function TransitCandidatesPanel({
               onClick={() => {
                 onSelectFlight(c.flight.id);
               }}
-              className={`flex w-full justify-between gap-2 rounded border px-2 py-1 text-left transition ${
+              className={`flex w-full justify-between gap-2 rounded-lg border px-2 py-1.5 text-left transition ${
                 selectedFlightId === c.flight.id
                   ? "border-sky-400/60 bg-sky-950/40"
                   : "border-zinc-800/80 bg-zinc-900/50 hover:border-zinc-600"
@@ -55,6 +61,6 @@ export function TransitCandidatesPanel({
           </li>
         ))}
       </ul>
-    </>
+    </ShellSectionCard>
   );
 }

@@ -1,8 +1,11 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #050508;
+  --foreground: #e4e4e7;
+  --mt-glow-a: rgba(16, 185, 129, 0.11);
+  --mt-glow-b: rgba(56, 189, 248, 0.08);
+  --mt-glow-c: rgba(251, 191, 36, 0.06);
 }
 
 @theme inline {
@@ -12,15 +15,126 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+html {
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+/* Celestial / instrument panel atmosphere */
+.mt-app-bg {
+  position: relative;
+  background-color: #050508;
+  background-image:
+    radial-gradient(ellipse 100% 90% at 50% -25%, var(--mt-glow-a), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 100% 30%, var(--mt-glow-b), transparent 50%),
+    radial-gradient(ellipse 55% 45% at 0% 85%, var(--mt-glow-c), transparent 50%),
+    linear-gradient(180deg, rgba(9, 9, 12, 0.97) 0%, #050508 32%, #050508 100%);
+}
+
+.mt-app-bg-main {
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  .mt-glass-elevated {
+    background: linear-gradient(
+      165deg,
+      rgba(24, 24, 30, 0.82) 0%,
+      rgba(12, 12, 16, 0.92) 100%
+    );
+    backdrop-filter: blur(20px) saturate(1.2);
+    box-shadow:
+      0 1px 0 0 rgba(255, 255, 255, 0.06) inset,
+      0 12px 40px -8px rgba(0, 0, 0, 0.45);
   }
 }
 
-html, body {
-  height: 100%;
+@layer components {
+  .mt-title {
+    font-family: var(--font-outfit), var(--font-geist-sans), system-ui, sans-serif;
+    @apply font-semibold tracking-tight text-balance;
+    background: linear-gradient(
+      120deg,
+      #fafafa 0%,
+      #a7f3d0 42%,
+      #7dd3fc 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .mt-subtitle {
+    @apply text-pretty text-zinc-500;
+  }
+
+  .mt-chrome-bar {
+    @apply border-b border-white/[0.07] bg-zinc-950/75 shadow-[0_1px_0_0_rgba(255,255,255,0.04)] backdrop-blur-2xl;
+  }
+
+  .mt-side-rail {
+    @apply border-white/[0.06] bg-zinc-950/55 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] backdrop-blur-2xl;
+  }
+
+  .mt-toolbar-btn {
+    @apply flex h-9 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-zinc-900/40 text-zinc-200 shadow-sm backdrop-blur-sm transition duration-200 will-change-transform;
+  }
+
+  .mt-toolbar-btn:hover {
+    @apply border-white/20 bg-zinc-800/50 shadow-md;
+  }
+
+  .mt-toolbar-btn:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mt-toolbar-btn:active:not(:disabled) {
+      transform: none;
+    }
+  }
+
+  .mt-toolbar-btn:focus-visible {
+    @apply z-10 outline-none ring-2 ring-emerald-500/50 ring-offset-2 ring-offset-zinc-950;
+  }
+
+  .mt-toolbar-btn:disabled {
+    @apply cursor-not-allowed opacity-40;
+  }
+
+  .mt-toolbar-btn-primary {
+    @apply border-emerald-500/30 text-amber-300/90 shadow-emerald-950/20;
+  }
+
+  .mt-toolbar-btn-primary:hover {
+    @apply border-emerald-400/50 bg-emerald-950/30 shadow-lg;
+  }
+
+  .mt-section-label {
+    font-family: var(--font-outfit), var(--font-geist-sans), system-ui, sans-serif;
+    @apply text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-zinc-400/95;
+  }
+
+  .mt-section-label-emerald {
+    font-family: var(--font-outfit), var(--font-geist-sans), system-ui, sans-serif;
+    @apply text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-emerald-400/85;
+  }
+
+  .mt-app-root aside select,
+  .mt-app-root [data-testid="mobile-deck-content"] select {
+    @apply rounded-lg border border-white/10 bg-zinc-900/50 py-1.5 pl-2 pr-2 text-sm text-zinc-200 shadow-inner backdrop-blur-sm transition;
+  }
+
+  .mt-app-root aside select:focus,
+  .mt-app-root [data-testid="mobile-deck-content"] select:focus {
+    @apply border-emerald-500/40 outline-none ring-2 ring-emerald-500/20;
+  }
 }
 
 /* Jednokratni, diskretan zeleni bljesak cijelog ekrana pri 0,1° alinmentu. */
@@ -29,7 +143,7 @@ html, body {
     background-color: transparent;
   }
   45% {
-    background-color: rgba(34, 197, 94, 0.14);
+    background-color: rgba(34, 197, 94, 0.16);
   }
   100% {
     background-color: transparent;
@@ -44,7 +158,13 @@ html, body {
   animation: golden-ui-flash 0.55s ease-out 1;
 }
 
-/* Mapbox popup za odabrani zrakoplov: bez bijelog "kartonskog" okvira i strelice. */
+@media (prefers-reduced-motion: reduce) {
+  .golden-ui-flash-overlay {
+    animation: none;
+  }
+}
+
+/* Mapbox popup za odabrani zrakoplov */
 .moon-transit-aircraft-popup {
   z-index: 20;
 }
@@ -57,4 +177,51 @@ html, body {
 
 .moon-transit-aircraft-popup .mapboxgl-popup-tip {
   display: none;
+}
+
+/* Map učitavanje — blagi “scanline” odsjaj */
+@keyframes mt-map-breathe {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.mt-map-loading {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(145deg, #09090b 0%, #0c0c0f 50%, #18181b 100%);
+}
+
+.mt-map-loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(16, 185, 129, 0.07) 45%,
+    rgba(56, 189, 248, 0.06) 55%,
+    transparent 100%
+  );
+  background-size: 200% 200%;
+  animation: mt-shimmer 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mt-map-loading::after {
+    animation: none;
+  }
+}
+
+@keyframes mt-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
 }

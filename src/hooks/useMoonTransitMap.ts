@@ -29,8 +29,6 @@ export type UseMoonTransitMapResult = {
   elRef: RefObject<HTMLDivElement | null>;
   mapRef: RefObject<mapboxgl.Map | null>;
   mapReadyTick: number;
-  placeObserverHere: () => void;
-  focusMapOnObserver: () => void;
 };
 
 /**
@@ -46,11 +44,11 @@ export function useMoonTransitMap(
     (s) => s.observerLocationLocked
   );
   const mapFocusNonce = useObserverStore((s) => s.mapFocusNonce);
+  const placeObserverFromViewNonce = useObserverStore(
+    (s) => s.placeObserverFromViewNonce
+  );
   const setObserverFromMapView = useObserverStore(
     (s) => s.setObserverFromMapView
-  );
-  const requestFocusOnObserver = useObserverStore(
-    (s) => s.requestFocusOnObserver
   );
 
   const loadFlights = useRef(useMoonTransitStore.getState().loadFlightsInBounds);
@@ -140,7 +138,7 @@ export function useMoonTransitMap(
     onBoundsRefresh();
   }, [flightProviderId, onBoundsRefresh, mapReadyTick]);
 
-  const placeObserverHere = useCallback(() => {
+  const applyPlaceObserverFromMapCenter = useCallback(() => {
     const m = mapRef.current;
     if (!m) {
       return;
@@ -149,9 +147,12 @@ export function useMoonTransitMap(
     setObserverFromMapView({ lat: c.lat, lng: c.lng });
   }, [setObserverFromMapView]);
 
-  const focusMapOnObserver = useCallback(() => {
-    requestFocusOnObserver();
-  }, [requestFocusOnObserver]);
+  useEffect(() => {
+    if (placeObserverFromViewNonce === 0) {
+      return;
+    }
+    applyPlaceObserverFromMapCenter();
+  }, [placeObserverFromViewNonce, mapReadyTick, applyPlaceObserverFromMapCenter]);
 
   useEffect(() => {
     if (!elRef.current || !MAPBOX_TOKEN) {
@@ -294,7 +295,5 @@ export function useMoonTransitMap(
     elRef,
     mapRef,
     mapReadyTick,
-    placeObserverHere,
-    focusMapOnObserver,
   };
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { ShellSectionCard } from "@/components/shell/ShellSectionCard";
+import { SectionIconMoon } from "@/components/shell/sectionCategoryIcons";
 import { useHasMounted } from "@/hooks/useHasMounted";
 import { formatFixed } from "@/lib/format/numbers";
 import type { MoonRiseSetKind, MoonState } from "@/types/moon";
@@ -42,14 +44,16 @@ export function MoonEphemerisPanel({
 }: MoonEphemerisPanelProps) {
   const hasMounted = useHasMounted();
   return (
-    <>
-      <h2 className="mt-6 text-xs font-medium uppercase tracking-wide text-zinc-500">
-        Moon (nowcast)
-      </h2>
+    <ShellSectionCard
+      className="mt-3"
+      title="Moon (nowcast)"
+      accent="amber"
+      icon={<SectionIconMoon />}
+    >
       {isMoonBelowHorizon && showEphemeris ? (
-        <p className="mt-1.5 text-[0.7rem] text-zinc-500/90">Moon below horizon</p>
+        <p className="mb-2 text-[0.7rem] text-zinc-500/90">Moon below horizon</p>
       ) : null}
-      <dl className="mt-2 space-y-1 text-sm">
+      <dl className="space-y-1 text-sm">
         <div className="flex justify-between gap-4">
           <dt>Altitude</dt>
           <dd className="font-mono tabular-nums">
@@ -87,6 +91,6 @@ export function MoonEphemerisPanel({
           </dd>
         </div>
       </dl>
-    </>
+    </ShellSectionCard>
   );
 }

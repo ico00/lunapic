@@ -46,6 +46,7 @@ export function useGpsObserver(): UseGpsObserverResult {
               ? pos.coords.altitude
               : 0,
         });
+        useObserverStore.getState().requestFocusOnObserver();
         setBusy(false);
       },
       (err) => {

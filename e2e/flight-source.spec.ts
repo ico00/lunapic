@@ -20,15 +20,15 @@ test.describe("flight source", () => {
 
     const provider = page.getByTestId("flight-provider-select");
     await expect(provider).toBeVisible();
+    await expect(provider).toHaveAttribute("data-value", "static");
 
-    await provider.selectOption("static");
-    await expect(provider).toHaveValue("static");
+    await provider.click();
+    await page.getByRole("option", { name: "Mock" }).click();
+    await expect(provider).toHaveAttribute("data-value", "mock");
 
-    await provider.selectOption("mock");
-    await expect(provider).toHaveValue("mock");
-
-    await provider.selectOption("opensky");
-    await expect(provider).toHaveValue("opensky");
+    await provider.click();
+    await page.getByRole("option", { name: "OpenSky (ADS-B)" }).click();
+    await expect(provider).toHaveAttribute("data-value", "opensky");
 
     expect(pageErrors, pageErrors.join("\n")).toEqual([]);
   });

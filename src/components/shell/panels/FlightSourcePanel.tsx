@@ -1,9 +1,8 @@
 import { formatFixed, mpsToKnots } from "@/lib/format/numbers";
-import {
-  FLIGHT_PROVIDER_IDS,
-  type FlightProviderId,
-  type RouteCorridorStats,
-} from "@/types/flight-provider";
+import { FlightProviderSelect } from "@/components/shell/FlightProviderSelect";
+import { ShellSectionCard } from "@/components/shell/ShellSectionCard";
+import { SectionIconFlightSource } from "@/components/shell/sectionCategoryIcons";
+import { type FlightProviderId, type RouteCorridorStats } from "@/types/flight-provider";
 
 type FlightSourcePanelProps = {
   flightProviderId: FlightProviderId;
@@ -19,39 +18,27 @@ export function FlightSourcePanel({
   isLoading,
 }: FlightSourcePanelProps) {
   return (
-    <>
-      <h2 className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-        Flight source
-      </h2>
-      <p className="mt-0.5 text-xs leading-relaxed text-zinc-500">
+    <ShellSectionCard
+      title="Flight source"
+      accent="sky"
+      icon={<SectionIconFlightSource />}
+    >
+      <p className="text-xs leading-relaxed text-zinc-500">
         OpenSky: real ADS-B where the viewport intersects{" "}
         <code className="font-mono text-zinc-500">routes.json</code> flight
         corridors and the map. Static: simulated points along routes.
       </p>
       <label className="mt-2 block text-xs text-zinc-500">
         Provider
-        <select
-          data-testid="flight-provider-select"
-          aria-label="Flight data provider"
-          className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900/80 px-2 py-1.5 text-sm text-zinc-200"
-          value={flightProviderId}
-          onChange={(e) =>
-            onFlightProviderIdChange(e.target.value as FlightProviderId)
-          }
-        >
-          {FLIGHT_PROVIDER_IDS.map((id) => (
-            <option key={id} value={id}>
-              {id === "mock"
-                ? "Mock"
-                : id === "static"
-                  ? "Routes (static)"
-                  : "OpenSky (ADS-B)"}
-            </option>
-          ))}
-        </select>
+        <div className="mt-1 min-w-0">
+          <FlightProviderSelect
+            value={flightProviderId}
+            onChange={onFlightProviderIdChange}
+          />
+        </div>
       </label>
       {flightProviderId === "opensky" && (
-        <div className="mt-2 rounded border border-sky-900/50 bg-sky-950/25 px-2 py-1.5 text-xs leading-relaxed text-sky-100/90">
+        <div className="mt-2 rounded-lg border border-sky-900/50 bg-sky-950/25 px-2 py-1.5 text-xs leading-relaxed text-sky-100/90">
           <p className="text-[0.65rem] text-sky-200/70">
             Heavy use hits OpenSky anonymous limits (429). A{" "}
             <span className="text-sky-100/90">free</span> OpenSky account in
@@ -83,6 +70,6 @@ export function FlightSourcePanel({
           )}
         </div>
       )}
-    </>
+    </ShellSectionCard>
   );
 }

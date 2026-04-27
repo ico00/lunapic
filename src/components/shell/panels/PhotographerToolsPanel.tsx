@@ -1,3 +1,5 @@
+import { ShellSectionCard } from "@/components/shell/ShellSectionCard";
+import { SectionIconCamera } from "@/components/shell/sectionCategoryIcons";
 import {
   formatCountdown,
   type PhotographerToolPack,
@@ -18,11 +20,13 @@ export function PhotographerToolsPanel({
   onToggleBeep,
 }: PhotographerToolsPanelProps) {
   return (
-    <div className="mt-5 min-w-0 overflow-hidden rounded-2xl border border-emerald-900/50 bg-zinc-900/50 p-3">
-      <h2 className="text-xs font-medium uppercase tracking-wide text-emerald-500/80">
-        Photographer — tools
-      </h2>
-      <p className="mt-1 text-[0.65rem] leading-relaxed text-zinc-500">
+    <ShellSectionCard
+      title="Photographer — tools"
+      accent="emerald"
+      titleTone="emerald"
+      icon={<SectionIconCamera />}
+    >
+      <p className="text-[0.65rem] leading-relaxed text-zinc-500">
         Select an aircraft from the list (candidate or active). Moon: simulated
         time from the slider. Flight is extrapolated 30 s along track; OpenSky:
         real speed / track.
@@ -38,7 +42,7 @@ export function PhotographerToolsPanel({
       {photoPack && (
         <div className="mt-3 space-y-3">
           <div
-            className="rounded-lg border border-emerald-800/50 bg-zinc-950/80 py-3 text-center"
+            className="rounded-xl border border-emerald-800/50 bg-zinc-950/80 py-3 text-center"
             aria-live="polite"
           >
             <p className="text-[0.6rem] uppercase tracking-wider text-zinc-500">
@@ -73,7 +77,7 @@ export function PhotographerToolsPanel({
             <button
               type="button"
               onClick={onToggleBeep}
-              className={`rounded px-2.5 py-1 text-xs ${
+              className={`rounded-lg px-2.5 py-1 text-xs ${
                 beepOnTransit
                   ? "bg-emerald-800/50 text-emerald-100"
                   : "bg-zinc-800 text-zinc-300"
@@ -84,6 +88,6 @@ export function PhotographerToolsPanel({
           </div>
         </div>
       )}
-    </div>
+    </ShellSectionCard>
   );
 }

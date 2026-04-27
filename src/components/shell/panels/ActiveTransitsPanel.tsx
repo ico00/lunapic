@@ -1,4 +1,6 @@
 import { formatFixed } from "@/lib/format/numbers";
+import { ShellSectionCard } from "@/components/shell/ShellSectionCard";
+import { SectionIconTransitsList } from "@/components/shell/sectionCategoryIcons";
 import type { ActiveTransitRow } from "@/hooks/useActiveTransits";
 
 type ActiveTransitsPanelProps = {
@@ -15,16 +17,18 @@ export function ActiveTransitsPanel({
   onSelectFlight,
 }: ActiveTransitsPanelProps) {
   return (
-    <>
-      <h2 className="mt-5 text-xs font-medium uppercase tracking-wide text-zinc-500">
-        Active transits
-      </h2>
-      <p className="mt-1 text-xs leading-snug text-zinc-500">
+    <ShellSectionCard
+      className="mt-3"
+      title="Active transits"
+      accent="amber"
+      icon={<SectionIconTransitsList />}
+    >
+      <p className="text-xs leading-snug text-zinc-500">
         Moon and aircraft azimuth (from altitude) within{" "}
         <span className="font-mono">0.5°</span> — on the “yellow ray.”
       </p>
       {showEphemeris && (
-        <ul className="mt-2 max-h-36 space-y-1 overflow-y-auto text-sm">
+        <ul className="mt-2 max-h-36 space-y-1.5 overflow-y-auto text-sm">
           {rows.length === 0 && (
             <li className="text-zinc-500">Nobody on the ray.</li>
           )}
@@ -35,7 +39,7 @@ export function ActiveTransitsPanel({
                 onClick={() => {
                   onSelectFlight(row.flight.id);
                 }}
-                className={`w-full space-y-1.5 rounded border px-2 py-1.5 text-left transition ${
+                className={`w-full space-y-1.5 rounded-lg border px-2 py-1.5 text-left transition ${
                   selectedFlightId === row.flight.id
                     ? "border-amber-300/50 bg-amber-950/35"
                     : "border-amber-900/40 bg-amber-950/20 hover:border-amber-700/50"
@@ -57,6 +61,6 @@ export function ActiveTransitsPanel({
           ))}
         </ul>
       )}
-    </>
+    </ShellSectionCard>
   );
 }

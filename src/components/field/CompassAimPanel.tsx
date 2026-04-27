@@ -1,5 +1,7 @@
 "use client";
 
+import { ShellSectionCard } from "@/components/shell/ShellSectionCard";
+import { SectionIconCompass } from "@/components/shell/sectionCategoryIcons";
 import { useDeviceCompass } from "@/hooks/useDeviceCompass";
 import { useMoonStateComputed } from "@/hooks/useTransitCandidates";
 import { useCallback, useState } from "react";
@@ -28,9 +30,13 @@ export function CompassAimPanel() {
       : 0;
 
   return (
-    <div className="relative z-0 mt-0 min-w-0 overflow-hidden rounded-xl border border-lime-900/50 bg-lime-950/20 p-3">
-      <p className="text-xs font-medium text-lime-200/80">Compass → Moon</p>
-      <p className="mt-0.5 text-[0.6rem] leading-relaxed text-zinc-500">
+    <ShellSectionCard
+      className="mt-3"
+      title="Compass → Moon"
+      accent="lime"
+      icon={<SectionIconCompass />}
+    >
+      <p className="text-[0.6rem] leading-relaxed text-zinc-500">
         Phone, est. gyro — open air, magnetic interference. Goal: arrow straight
         up = lens on plan-view moon azimuth (N=0).
       </p>
@@ -38,7 +44,7 @@ export function CompassAimPanel() {
         <button
           type="button"
           onClick={onEnable}
-          className="mt-2 w-full rounded border border-lime-700/50 bg-lime-950/40 py-1.5 text-sm text-lime-100/90"
+          className="mt-2 w-full rounded-lg border border-lime-700/50 bg-lime-950/40 py-1.5 text-sm text-lime-100/90"
         >
           Allow orientation (iOS)
         </button>
@@ -72,6 +78,6 @@ export function CompassAimPanel() {
           </p>
         </div>
       )}
-    </div>
+    </ShellSectionCard>
   );
 }
