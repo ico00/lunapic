@@ -13,12 +13,18 @@ import {
   FLIGHTS_SOURCE,
   GROUND_OPTIMAL_SOURCE,
   MOON_AZ_SOURCE,
+  MOON_AZ_NOW_SOURCE,
+  MOON_AZ_NOW_LABEL_SOURCE,
   MOON_INT_SOURCE,
   MOON_PATH_LABELS_SOURCE,
   MOON_PATH_SOURCE,
+  MOON_PATH_FULL_DAY_SOURCE,
+  MOON_PATH_CURRENT_SOURCE,
   ROUTES_SOURCE,
+  SELECTED_FLIGHT_TRAJECTORY_LABEL_SOURCE,
   SELECTED_STAND_SPINE_SOURCE,
   SELECTED_STAND_SOURCE,
+  SELECTED_FLIGHT_TRAJECTORY_SOURCE,
 } from "@/lib/map/mapSourceIds";
 
 const MOON_INT_LAYER_ID = "moon-intersections";
@@ -195,12 +201,36 @@ export function registerMoonTransitLayers(
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },
   });
+  map.addSource(SELECTED_FLIGHT_TRAJECTORY_SOURCE, {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] },
+  });
+  map.addSource(SELECTED_FLIGHT_TRAJECTORY_LABEL_SOURCE, {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] },
+  });
   map.addSource(MOON_PATH_SOURCE, {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] },
+  });
+  map.addSource(MOON_PATH_FULL_DAY_SOURCE, {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] },
+  });
+  map.addSource(MOON_PATH_CURRENT_SOURCE, {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },
   });
 
   map.addSource(MOON_AZ_SOURCE, {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] },
+  });
+  map.addSource(MOON_AZ_NOW_SOURCE, {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] },
+  });
+  map.addSource(MOON_AZ_NOW_LABEL_SOURCE, {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },
   });
@@ -225,6 +255,49 @@ export function registerMoonTransitLayers(
       "line-color": "#fffbeb",
       "line-width": 1.4,
       "line-opacity": 0.95,
+    },
+  });
+  map.addLayer({
+    id: "moon-az-now-glow",
+    type: "line",
+    source: MOON_AZ_NOW_SOURCE,
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: {
+      "line-color": "#22d3ee",
+      "line-width": 7.5,
+      "line-blur": 2.8,
+      "line-opacity": 0.24,
+    },
+  });
+  map.addLayer({
+    id: "moon-az-now-core",
+    type: "line",
+    source: MOON_AZ_NOW_SOURCE,
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: {
+      "line-color": "#67e8f9",
+      "line-width": 1.5,
+      "line-opacity": 0.95,
+      "line-dasharray": [0.9, 1.2],
+    },
+  });
+  map.addLayer({
+    id: "moon-az-now-label",
+    type: "symbol",
+    source: MOON_AZ_NOW_LABEL_SOURCE,
+    layout: {
+      "text-field": ["get", "label"],
+      "text-size": 12,
+      "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+      "text-offset": [0, -1.05],
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
+      "symbol-placement": "point",
+    },
+    paint: {
+      "text-color": "#cffafe",
+      "text-halo-color": "#083344",
+      "text-halo-width": 1.2,
     },
   });
 
@@ -256,6 +329,18 @@ export function registerMoonTransitLayers(
   });
 
   map.addLayer({
+    id: "moon-path-full-day-line",
+    type: "line",
+    source: MOON_PATH_FULL_DAY_SOURCE,
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: {
+      "line-color": "#e2e8f0",
+      "line-width": 1.6,
+      "line-opacity": 0.24,
+      "line-dasharray": [0.75, 1.6],
+    },
+  });
+  map.addLayer({
     id: "moon-path-line",
     type: "line",
     source: MOON_PATH_SOURCE,
@@ -285,6 +370,37 @@ export function registerMoonTransitLayers(
       "text-color": "#fbbf24",
       "text-halo-color": "#18181b",
       "text-halo-width": 1.1,
+    },
+  });
+  map.addLayer({
+    id: "moon-path-current-dot",
+    type: "circle",
+    source: MOON_PATH_CURRENT_SOURCE,
+    paint: {
+      "circle-radius": 5,
+      "circle-color": "#fef3c7",
+      "circle-stroke-color": "#f59e0b",
+      "circle-stroke-width": 2,
+      "circle-opacity": 0.96,
+    },
+  });
+  map.addLayer({
+    id: "moon-path-current-label",
+    type: "symbol",
+    source: MOON_PATH_CURRENT_SOURCE,
+    layout: {
+      "text-field": ["get", "label"],
+      "text-size": 12,
+      "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+      "text-offset": [0, 1.1],
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
+    },
+    paint: {
+      "text-color": "#fef3c7",
+      "text-halo-color": "#422006",
+      "text-halo-width": 1.2,
+      "text-opacity": 0.98,
     },
   });
 
@@ -328,6 +444,49 @@ export function registerMoonTransitLayers(
       "line-color": "#fffcf0",
       "line-width": SELECTED_STAND_SPINE_LINE_WIDTH,
       "line-opacity": SELECTED_STAND_SPINE_LINE_OPACITY,
+    },
+  });
+  map.addLayer({
+    id: "selected-flight-trajectory-glow",
+    type: "line",
+    source: SELECTED_FLIGHT_TRAJECTORY_SOURCE,
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: {
+      "line-color": "#f59e0b",
+      "line-width": 9,
+      "line-blur": 2.4,
+      "line-opacity": 0.38,
+    },
+  });
+  map.addLayer({
+    id: "selected-flight-trajectory",
+    type: "line",
+    source: SELECTED_FLIGHT_TRAJECTORY_SOURCE,
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: {
+      "line-color": "#fde68a",
+      "line-width": 3,
+      "line-opacity": 1,
+      "line-dasharray": [0.9, 1.25],
+    },
+  });
+  map.addLayer({
+    id: "selected-flight-trajectory-label",
+    type: "symbol",
+    source: SELECTED_FLIGHT_TRAJECTORY_LABEL_SOURCE,
+    layout: {
+      "text-field": ["get", "label"],
+      "text-size": 13,
+      "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+      "text-offset": [0, -1.1],
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
+      "symbol-placement": "point",
+    },
+    paint: {
+      "text-color": "#fef3c7",
+      "text-halo-color": "#451a03",
+      "text-halo-width": 1.3,
     },
   });
 

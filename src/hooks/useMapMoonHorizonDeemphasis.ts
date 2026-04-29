@@ -17,12 +17,30 @@ const MOON_LAYER_PAINT: readonly {
 }[] = [
   { id: "moon-az-glow", prop: "line-opacity", bright: 0.24, dim: 0.1 },
   { id: "moon-az-core", prop: "line-opacity", bright: 0.95, dim: 0.12 },
+  {
+    id: "moon-path-full-day-line",
+    prop: "line-opacity",
+    bright: 0.24,
+    dim: 0.08,
+  },
   { id: "moon-path-line", prop: "line-opacity", bright: 0.9, dim: 0.1 },
   {
     id: "moon-path-labels",
     prop: "text-opacity",
     bright: 1,
     dim: 0.18,
+  },
+  {
+    id: "moon-path-current-dot",
+    prop: "circle-opacity",
+    bright: 0.96,
+    dim: 0.2,
+  },
+  {
+    id: "moon-path-current-label",
+    prop: "text-opacity",
+    bright: 0.98,
+    dim: 0.26,
   },
   {
     id: "moon-intersections",

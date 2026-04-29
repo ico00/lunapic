@@ -53,7 +53,7 @@ type MoonTransitState = {
     moonSet: Date | null;
     moonRiseSetKind: "normal" | "alwaysUp" | "alwaysDown";
   }) => void;
-  /** Pomak u ms od lijevog ruba vremenskog prozora (moonrise→moonset ili ±6h fallback). */
+  /** Pomak u ms od lijevog ruba vremenskog prozora (puni UTC dan). */
   setTimeOffsetMs: (offsetMs: number) => void;
   /**
    * Broj povećava se u `syncTimeToNow` kako bi `useAstronomySync` ponovno učitao

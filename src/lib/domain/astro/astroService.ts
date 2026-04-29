@@ -12,6 +12,7 @@ export const MOON_PATH_STEP_MS = 30 * 60 * 1000;
  * `t1 - t0 = 2 * TIME_SLIDER_6H_HALF_MS`.
  */
 export const TIME_SLIDER_6H_HALF_MS = 6 * 60 * 60 * 1000;
+export const UTC_DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Geometrijski prozor za luk na karti (rise→set, circumpolar 24h UTC, 12h naprijed
@@ -51,34 +52,37 @@ export function getMoonPathVisibilityWindowMs(
 }
 
 /**
- * Prozor za vremenski klizač: [moonrise, moonset] (ili 24h za circumpolar) kad
- * su podaci spremni; inače 12h (`±6h` od središta) oko lijevog ruba `timeAnchorLeftMs`
- * (npr. nakon `sync` = `now-6h` … `now+6h`). `timeAnchorLeftMs` nije korišten
- * za rise/set, samo u fallbacku.
+ * Prozor za vremenski klizač: puni UTC dan (00:00–23:59:59.999) oko referentnog
+ * trenutka. `riseSet` ostaje u potpisu radi kompatibilnosti poziva, ali ne utječe
+ * na prozor klizača.
  */
 export function getTimeSliderWindowMs(
   referenceEpochMs: number,
   timeAnchorLeftMs: number,
   riseSet: MoonRiseSetTimes
 ): { t0: number; t1: number } {
-  if (
-    riseSet.kind === "alwaysDown" ||
-    (riseSet.kind === "normal" &&
-      (riseSet.rise == null || riseSet.set == null))
-  ) {
-    return {
-      t0: timeAnchorLeftMs,
-      t1: timeAnchorLeftMs + 2 * TIME_SLIDER_6H_HALF_MS,
-    };
-  }
-  const w = getMoonPathVisibilityWindowMs(referenceEpochMs, riseSet);
-  if (w) {
-    return w;
-  }
-  return {
-    t0: timeAnchorLeftMs,
-    t1: timeAnchorLeftMs + 2 * TIME_SLIDER_6H_HALF_MS,
-  };
+  void riseSet;
+  const anchorBasisMs =
+    Number.isFinite(timeAnchorLeftMs) && timeAnchorLeftMs > 0
+      ? timeAnchorLeftMs + TIME_SLIDER_6H_HALF_MS
+      : Number.NaN;
+  const basisMs =
+    Number.isFinite(anchorBasisMs)
+      ? anchorBasisMs
+      : Number.isFinite(referenceEpochMs) && referenceEpochMs > 0
+        ? referenceEpochMs
+        : Date.now();
+  const d = new Date(basisMs);
+  const t0 = Date.UTC(
+    d.getUTCFullYear(),
+    d.getUTCMonth(),
+    d.getUTCDate(),
+    0,
+    0,
+    0,
+    0
+  );
+  return { t0, t1: t0 + UTC_DAY_MS };
 }
 
 /** Izlaz: uzorci luka, te [t0,t1] za satne oznake; null = nema luka (Mjesec cijeli dan ispod). */

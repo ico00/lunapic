@@ -1,4 +1,8 @@
-import { AstroService } from "@/lib/domain/astro/astroService";
+import {
+  AstroService,
+  buildMoonPathSamplesInTimeRange,
+  MOON_PATH_STEP_MS,
+} from "@/lib/domain/astro/astroService";
 import { GeometryEngine } from "@/lib/domain/geometry/geometryEngine";
 import {
   CRUISE_FL_M,
@@ -31,6 +35,16 @@ export type MoonPathPack = {
     properties: { label: string; key: string };
     geometry: { type: "Point"; coordinates: number[] };
   }>;
+  fullDayLineFeature: {
+    type: "Feature";
+    properties: { kind: string };
+    geometry: { type: "LineString"; coordinates: number[][] };
+  } | null;
+  currentPointFeature: {
+    type: "Feature";
+    properties: { kind: string; label: string };
+    geometry: { type: "Point"; coordinates: number[] };
+  };
 };
 
 /**
@@ -77,6 +91,54 @@ export function useMapMoonOverlayFeatures(
           }
         : null;
 
+    const d = new Date(referenceEpochMs);
+    const fullDayStartUtcMs = Date.UTC(
+      d.getUTCFullYear(),
+      d.getUTCMonth(),
+      d.getUTCDate(),
+      0,
+      0,
+      0,
+      0
+    );
+    const fullDayEndUtcMs = fullDayStartUtcMs + 24 * 60 * 60 * 1000 - 1;
+    const fullDaySamples = buildMoonPathSamplesInTimeRange(
+      fullDayStartUtcMs,
+      fullDayEndUtcMs,
+      MOON_PATH_STEP_MS,
+      obs.lat,
+      obs.lng
+    );
+    const fullDayCoords = GeometryEngine.buildMoonPathLineCoordinates(
+      obs,
+      fullDaySamples,
+      MOON_PATH_RAY_LENGTH_M
+    );
+    const fullDayLineFeature =
+      fullDayCoords.length >= 2
+        ? {
+            type: "Feature" as const,
+            properties: { kind: "moon-path-full-day" },
+            geometry: {
+              type: "LineString" as const,
+              coordinates: fullDayCoords,
+            },
+          }
+        : null;
+    const [, currentMoonEnd] = GeometryEngine.buildMoonAzimuthLine(
+      obs,
+      moon,
+      MOON_PATH_RAY_LENGTH_M
+    );
+    const currentPointFeature = {
+      type: "Feature" as const,
+      properties: { kind: "moon-path-current", label: formatMoonPathClockLabel(referenceEpochMs) },
+      geometry: {
+        type: "Point" as const,
+        coordinates: [currentMoonEnd.lng, currentMoonEnd.lat],
+      },
+    };
+
     const labelEveryMs = 2 * 3_600_000;
     const labelFeatures: MoonPathPack["labelFeatures"] = [];
     if (spec.labelWindowMs) {
@@ -101,12 +163,13 @@ export function useMapMoonOverlayFeatures(
       }
     }
 
-    return { lineFeature, labelFeatures };
+    return { lineFeature, labelFeatures, fullDayLineFeature, currentPointFeature };
     });
   }, [
     referenceEpochMs,
     observerLat,
     observerLng,
+    moon,
     moonRise,
     moonSet,
     moonRiseSetKind,

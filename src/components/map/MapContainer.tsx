@@ -1,6 +1,7 @@
 "use client";
 
 import { SelectedAircraftMapPopup } from "@/components/map/SelectedAircraftMapPopup";
+import { useCurrentMoonAzimuthFeature } from "@/hooks/useCurrentMoonAzimuthFeature";
 import { FieldPerfOverlay } from "@/components/perf/FieldPerfOverlay";
 import { useExtrapolatedFlightsForMap } from "@/hooks/useExtrapolatedFlightsForMap";
 import { useMapFlightPick } from "@/hooks/useMapFlightPick";
@@ -8,6 +9,7 @@ import { useMapGeoJsonSync } from "@/hooks/useMapGeoJsonSync";
 import { useMapMoonHorizonDeemphasis } from "@/hooks/useMapMoonHorizonDeemphasis";
 import { useMapMoonOverlayFeatures } from "@/hooks/useMapMoonOverlayFeatures";
 import { useMoonTransitMap } from "@/hooks/useMoonTransitMap";
+import { useSelectedFlightTrajectoryFeature } from "@/hooks/useSelectedFlightTrajectoryFeature";
 import { useSelectedAircraftStandCorridorFeatures } from "@/hooks/useSelectedAircraftStandCorridorFeatures";
 import { useMoonStateComputed } from "@/hooks/useTransitCandidates";
 import { isMoonVisibleFromMoonState } from "@/lib/domain/astro/moonVisibility";
@@ -38,6 +40,8 @@ export function MapContainer({ flightProvider, isGolden = false }: MapContainerP
       referenceEpochMs,
       moon
     );
+  const { lineFeature: moonAzNowFeature, labelFeature: moonAzNowLabelFeature } =
+    useCurrentMoonAzimuthFeature(observer.lat, observer.lng);
 
   const {
     hasMapboxToken,
@@ -52,11 +56,18 @@ export function MapContainer({ flightProvider, isGolden = false }: MapContainerP
       extrapolatedFlights: flights,
       observer,
     });
+  const { lineFeature: selectedFlightTrajectoryFeature, labelFeature: selectedFlightTrajectoryLabelFeature } =
+    useSelectedFlightTrajectoryFeature({
+    selectedFlightId,
+    flights,
+  });
 
   useMapGeoJsonSync({
     mapRef,
     mapReadyTick,
     moonAzFeature,
+    moonAzNowFeature,
+    moonAzNowLabelFeature,
     intersectionFeatures,
     optimalGroundFeatures,
     moonPathPack,
@@ -64,6 +75,8 @@ export function MapContainer({ flightProvider, isGolden = false }: MapContainerP
     selectedFlightId,
     standCorridorFeatures,
     standSpineFeature,
+    selectedFlightTrajectoryFeature,
+    selectedFlightTrajectoryLabelFeature,
     flightProvider,
   });
 

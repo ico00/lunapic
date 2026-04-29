@@ -41,7 +41,7 @@ function minAzimuthForFlights(
 
 /**
  * Tijekom pomicanja vremena: aproks. najbolji pomicaj unutar **trenutnog**
- * vremenskog prozora klizača (moonrise→moonset, circumpolar 24h, ili ±6h)
+ * vremenskog prozora klizača (puni UTC dan)
  * za najbližu mjesin–zrakoplovusku alineaciju.
  */
 export function useNearestTransitWindow(stepMs: number = DEFAULT_STEP_MS) {

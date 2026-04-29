@@ -86,11 +86,7 @@ export function useHomeShellOrchestration() {
     () => (timeSliderWindow.t1 - timeSliderWindow.t0) / 3_600_000,
     [timeSliderWindow.t0, timeSliderWindow.t1]
   );
-  const timeSliderMode =
-    (moonRiseSetKind === "normal" && moonRise && moonSet) ||
-    moonRiseSetKind === "alwaysUp"
-      ? ("moonriseToSet" as const)
-      : ("fallback" as const);
+  const timeSliderMode = "fullDay" as const;
   const syncTimeToNow = useMoonTransitStore((s) => s.syncTimeToNow);
   const activeTransits = useActiveTransits(0.5);
   const isGolden = useMemo(
