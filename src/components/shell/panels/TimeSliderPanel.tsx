@@ -6,6 +6,8 @@ import { SectionCardSurface } from "@/components/shell/ShellSectionCard";
 import { SectionIconTime } from "@/components/shell/sectionCategoryIcons";
 import { useHasMounted } from "@/hooks/useHasMounted";
 
+const SLIDER_STEP_HOURS = 1 / 60; // 1 minute
+
 type TimeSliderPanelProps = {
   referenceEpochMs: number;
   offsetHours: number;
@@ -18,8 +20,8 @@ type TimeSliderPanelProps = {
   /** en-GB HH:MM at window start and end. */
   timeSliderStartLabel: string;
   timeSliderEndLabel: string;
-  /** "moonriseToSet" | circumpolar vs ±6h fallback. */
-  timeSliderMode: "moonriseToSet" | "fallback";
+  /** Full UTC-day time mode. */
+  timeSliderMode: "fullDay";
   /**
    * `mapChip` — kompaktno uz weather (isti omot kao `ShellSectionCard`, accent amber).
    * `panel` — veća kartica (npr. sidebar).
@@ -45,14 +47,11 @@ export function TimeSliderPanel({
   const hasMounted = useHasMounted();
   const headingId = useId();
   const isChip = variant === "mapChip";
-  const heading =
-    timeSliderMode === "moonriseToSet"
-      ? "Time (moonrise → set)"
-      : "Time (±6 h fallback)";
+  const heading = timeSliderMode === "fullDay" ? "Time (full day)" : "Time";
   const rangeTitle =
-    timeSliderMode === "moonriseToSet"
-      ? "Simulated time from moonrise to moonset (UTC day)"
-      : "Simulated time · 12h window (±6h) until rise/set load";
+    timeSliderMode === "fullDay"
+      ? "Simulated time across full UTC day (00:00–24:00)"
+      : "Simulated time";
   const horizonClass =
     isMoonBelowHorizon && showEphemeris
       ? " opacity-60 saturate-[0.65]"
@@ -106,7 +105,7 @@ export function TimeSliderPanel({
                 type="range"
                 min={0}
                 max={Math.max(0, sliderMaxHours)}
-                step={0.1}
+                step={SLIDER_STEP_HOURS}
                 value={Math.min(offsetHours, Math.max(0, sliderMaxHours))}
                 onChange={onOffsetHoursChange}
                 disabled={!showEphemeris}
@@ -192,7 +191,7 @@ export function TimeSliderPanel({
         type="range"
         min={0}
         max={Math.max(0, sliderMaxHours)}
-        step={0.1}
+        step={SLIDER_STEP_HOURS}
         value={Math.min(offsetHours, Math.max(0, sliderMaxHours))}
         onChange={onOffsetHoursChange}
         disabled={!showEphemeris}
