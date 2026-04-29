@@ -85,7 +85,7 @@ For day-to-day architecture rules, see `documentation/architecture.md`. For the 
 
 ## 7. State: `useMoonTransitStore` (design decision)
 
-`moon-transit-store` currently holds **time simulation**, **suncalc window** (`moonRise` / `moonSet` / `kind`, refresh via `ephemerisRefetchKey` + `useAstronomySync`), **map view** (`mapView`), **flight provider + flights + loading/error**, **selected flight**, and **OpenSky display skew** in a **single** Zustand store.
+`moon-transit-store` currently holds **time simulation** (full **UTC-day** slider window via `getTimeSliderWindowMs`, anchored with `timeAnchorMs`), **suncalc rise/set metadata** (`moonRise` / `moonSet` / `kind` for ephemeris and the **visible** moon-path arc — refresh via `ephemerisRefetchKey` + `useAstronomySync`), **map view** (`mapView`), **flight provider + flights + loading/error**, **selected flight**, and **OpenSky display skew** in a **single** Zustand store.
 
 **Decision:** Treated as an **intentional aggregate** for the current app size: one place to `loadFlightsInBounds` after the map moves, and `referenceEpochMs` is co-located with the data that the slider and ephemeris already depend on.
 
