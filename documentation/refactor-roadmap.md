@@ -5,7 +5,7 @@ Plan usklađen s pravilom: orkestracija u hookovima, UI tanak, domena u `lib/dom
 ## Faza A — dovršeno
 
 - **Map overlay orkestracija** — `useMapMoonOverlayFeatures` (GeoJSON iz `AstroService` + `GeometryEngine` + konstante zraka).
-- **Letovi na karti** — `useExtrapolatedFlightsForMap` (wall clock + OpenSky skew + `extrapolateFlightForDisplay`).
+- **Letovi na karti** — `useExtrapolatedFlightsForMap` (wall clock ~400 ms + OpenSky skew + `extrapolateFlightForDisplay`); `useMapGeoJsonSync` throttles `flights-geo` `setData`; store koristi `mergeFlightsWithOpenSkyRetention`.
 - **Konstante karte** — `lib/map/mapOverlayConstants.ts`, `lib/map/mapSourceIds.ts` (jedan izvor imena izvora).
 - **Format / jedinice** — `lib/format/numbers.ts` (`formatFixed`, `mpsToKnots`) umjesto lokalnih funkcija u shellu.
 - **GPS** — `useGpsObserver` (geolocation I/O izvan `HomePageClient`).

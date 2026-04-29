@@ -138,6 +138,10 @@ export function useMoonTransitMap(
     onBoundsRefresh();
   }, [flightProviderId, onBoundsRefresh, mapReadyTick]);
 
+  useEffect(() => {
+    onBoundsRefresh();
+  }, [observer.lat, observer.lng, onBoundsRefresh, mapReadyTick]);
+
   const applyPlaceObserverFromMapCenter = useCallback(() => {
     const m = mapRef.current;
     if (!m) {

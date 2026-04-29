@@ -2,7 +2,8 @@ import type { GeoBounds } from "./geo";
 import type { FlightQuery, FlightState } from "./flight";
 import type { RouteLineFeature } from "./map-overlays";
 
-export const FLIGHT_PROVIDER_IDS = ["mock", "static", "opensky"] as const;
+/** Redoslijed u UI: OpenSky prvi (zadani izvor pri učitavanju). */
+export const FLIGHT_PROVIDER_IDS = ["opensky", "static", "mock"] as const;
 export type FlightProviderId = (typeof FLIGHT_PROVIDER_IDS)[number];
 
 /**

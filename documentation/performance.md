@@ -12,7 +12,7 @@ When enabled, a **violet panel** (top-right on the map) shows rolling last / ave
 | `map:boundsRefresh` | Synchronous work in the map move callback (load bounds, set route source) |
 | `overlay:*` | `useMapMoonOverlayFeatures` `useMemo` blocks (moon path, azimuth, intersections, optimal ground) |
 | `geojson:*` | `setData` passes in `useMapGeoJsonSync` |
-| `extrap:flights` | Extrapolating stored flights for the map tick (every ~200 ms when perf is on) |
+| `extrap:flights` | Extrapolating stored flights for the map tick (about every **400 ms** when perf is on; flight GeoJSON `setData` is also **throttled** in `useMapGeoJsonSync`) |
 | `react:MapBlock:*` | `Profiler` on the map column (`mount` / `update` commit time) |
 
 **Enable without rebuild (good for a quick field check):**

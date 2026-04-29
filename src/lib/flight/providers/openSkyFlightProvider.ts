@@ -20,11 +20,6 @@ import type { GeoBounds } from "@/types/geo";
 const ROUTES_MARGIN_DEG = 0.25;
 /** OpenSky bbox oko promatrača (polumjer, promjer 200 km). */
 const OPENSKY_OBSERVER_RADIUS_KM = 100;
-/** Kad je fallback preko cijelog viewporta, OpenSky je spor — ograniči na ~90 km oko središta tog okvira. */
-const FALLBACK_FETCH_CAP_RADIUS_KM = 90;
-/** „Širok” viewport (stupnjevi) — iznad toga primjenjuje se cap. */
-const FALLBACK_WIDE_LAT_SPAN = 0.85;
-const FALLBACK_WIDE_LNG_SPAN = 1.0;
 /** Usklađeno s proxy predmemorijom (~30s); smanjuje ponovne pozive istog bbox-a. */
 const CACHE_MS = 32_000;
 
@@ -35,8 +30,10 @@ type CacheEntry = {
 };
 
 /**
- * OpenSky ADS-B: stvarni zrakoplovi u presjeku zaslona i „corridora” iz
- * `routes.json`, plus prosječna horizontna brzina u toj regiji.
+ * OpenSky ADS-B: bounded query box + client-side filter. Inside the static
+ * `routes.json` hull we intersect with the observer disk to keep requests small;
+ * outside that hull we query a ~200 km disk around the observer so relocation
+ * (e.g. Amsterdam) still returns local traffic even if the map view was last in Croatia.
  */
 export class OpenSkyFlightProvider implements IFlightProvider {
   readonly id: FlightProviderId = "opensky";
@@ -68,34 +65,19 @@ export class OpenSkyFlightProvider implements IFlightProvider {
       obs.lng,
       OPENSKY_OBSERVER_RADIUS_KM
     );
+    /**
+     * In the static-route “corridor” (demo data), keep the tight intersection so
+     * OpenSky bbox stays small. Outside that hull (e.g. observer in Amsterdam),
+     * fall back to a bounded box around the observer — otherwise we would keep
+     * intersecting the hull with the map viewport and never leave Croatia.
+     */
     const primary = intersectBounds(routesHull, aroundObserver);
-    let region: GeoBounds | null;
-    if (primary) {
-      region = primary;
-    } else {
-      const fallback = intersectBounds(routesHull, q.bounds);
-      if (!fallback) {
-        region = null;
-      } else {
-        const latSpan = fallback.north - fallback.south;
-        const lngSpan = fallback.east - fallback.west;
-        if (latSpan > FALLBACK_WIDE_LAT_SPAN || lngSpan > FALLBACK_WIDE_LNG_SPAN) {
-          const c = centerOfBounds(fallback);
-          const cap = geoBoundsAroundPointKm(
-            c.lat,
-            c.lng,
-            FALLBACK_FETCH_CAP_RADIUS_KM
-          );
-          region = intersectBounds(routesHull, cap) ?? fallback;
-        } else {
-          region = fallback;
-        }
-      }
-    }
-    if (!region) {
-      this.lastStats = null;
-      return [];
-    }
+    const region: GeoBounds = primary ?? aroundObserver;
+    /**
+     * Uvijek uključi disk oko promatrača uz viewport — čisti `q.bounds` su premali
+     * kad se karta malo pomakne ili ADS-B „treperi”, pa zrakoplovi nestaju na rubu.
+     */
+    const filterBounds = unionGeoBounds(q.bounds, aroundObserver);
 
     const tail = async (): Promise<readonly FlightState[]> => {
       const now = Date.now();
@@ -104,7 +86,7 @@ export class OpenSkyFlightProvider implements IFlightProvider {
         this.cache
       ) {
         this.applyStats(this.cache.data, region);
-        return flightsFromOpenSkyResponse(this.cache.data, q.bounds);
+        return flightsFromOpenSkyResponse(this.cache.data, filterBounds);
       }
       if (now < this.fetchNotBeforeMs) {
         throw new Error(
@@ -117,7 +99,7 @@ export class OpenSkyFlightProvider implements IFlightProvider {
         boxesCloseEnough(this.cache.queryBox, region)
       ) {
         this.applyStats(this.cache.data, region);
-        return flightsFromOpenSkyResponse(this.cache.data, q.bounds);
+        return flightsFromOpenSkyResponse(this.cache.data, filterBounds);
       }
 
       const url = appPath(
@@ -163,7 +145,7 @@ export class OpenSkyFlightProvider implements IFlightProvider {
       const at = Date.now();
       this.cache = { at, data, queryBox: region };
       this.applyStats(data, region);
-      return flightsFromOpenSkyResponse(data, q.bounds);
+      return flightsFromOpenSkyResponse(data, filterBounds);
     };
 
     const next = this.loadChain.then(tail, tail);
@@ -192,4 +174,13 @@ function boxesCloseEnough(a: GeoBounds, b: GeoBounds): boolean {
     Math.abs(a.west - b.west) < 0.0015 &&
     Math.abs(a.east - b.east) < 0.0015
   );
+}
+
+function unionGeoBounds(a: GeoBounds, b: GeoBounds): GeoBounds {
+  return {
+    south: Math.min(a.south, b.south),
+    north: Math.max(a.north, b.north),
+    west: Math.min(a.west, b.west),
+    east: Math.max(a.east, b.east),
+  };
 }

@@ -47,17 +47,17 @@ For day-to-day architecture rules, see `documentation/architecture.md`. For the 
 
 | File                                                | Role                                                                                                                                                                              |
 | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `hooks/useExtrapolatedFlightsForMap.ts`             | Wall clock tick + `extrapolateFlightForDisplay` + OpenSky skew; output for the map.                                                                                               |
+| `hooks/useExtrapolatedFlightsForMap.ts`             | Wall clock tick (**~400 ms**) + `extrapolateFlightForDisplay` + OpenSky skew; output for the map.                                                                                 |
 | `hooks/useMapMoonOverlayFeatures.ts`                | Builds moon path, azimuth line, route intersections, optimal ground as GeoJSON-ready objects from `AstroService` + `GeometryEngine`.                                              |
-| `hooks/useMapGeoJsonSync.ts`                        | Pushes GeoJSON to Mapbox when data or `mapReadyTick` changes (separate **effects** for moon layers, stand + stand spine, moon path, flights, routes) so `setData` stays targeted. |
+| `hooks/useMapGeoJsonSync.ts`                        | Pushes GeoJSON to Mapbox when data or `mapReadyTick` changes (separate **effects** for moon layers, stand + stand spine, moon path, flights, routes) so `setData` stays targeted. **Flights** effect **throttles** `flights-geo` `setData` (~**300 ms** min interval) and **flushes immediately** when **`selectedFlightId`** changes. |
 | `hooks/useAstronomySync.ts`                         | Suncalc `getMoonTimes` → store; re-fetch on observer and `ephemerisRefetchKey` (after `syncTimeToNow`), not on every `referenceEpochMs` tick.                                     |
 | `hooks/useSelectedAircraftStandCorridorFeatures.ts` | One stand trapezoid (T=0) + spine `LineString`; strip axis from `horizontalToPoint` (aircraft at altitude) via `standCorridorQuads`.                                              |
-| `hooks/useMoonTransitMap.ts`                        | Mapbox `Map` instance, `moveend` / bounds refresh / flight load, observer marker DOM (golden crosshair, lock ring, `setLngLat`, `flyTo` on focus nonce).                          |
+| `hooks/useMoonTransitMap.ts`                        | Mapbox `Map` instance, `moveend` / bounds refresh / flight load (**debounced** for OpenSky), **refetch when observer `lat`/`lng` or `flightProvider` change**, observer marker DOM (golden crosshair, lock ring, `setLngLat`, `flyTo` on focus nonce). |
 | `components/map/MapObserverControlStrip.tsx`        | Bottom-left “Set my location here” / “Focus on me” controls.                                                                                                                      |
 | `components/map/MapContainer.tsx`                   | Composes hooks, `WeatherOverlay`, `MapObserverControlStrip`; shows missing-token message if env is unset.                                                                         |
 
 
-**Optimization note:** GeoJSON `setData` is split by concern (moon vs path vs stand vs stand spine vs flights vs routes) to avoid re-pushing the entire world when only one input changes.
+**Optimization note:** GeoJSON `setData` is split by concern (moon vs path vs stand vs stand spine vs flights vs routes) to avoid re-pushing the entire world when only one input changes. The **flights** layer additionally avoids **re-pushing symbols** on every extrapolation tick by **throttling** updates to the Mapbox source.
 
 ---
 
@@ -85,7 +85,7 @@ For day-to-day architecture rules, see `documentation/architecture.md`. For the 
 
 ## 7. State: `useMoonTransitStore` (design decision)
 
-`moon-transit-store` currently holds **time simulation** (full **UTC-day** slider window via `getTimeSliderWindowMs`, anchored with `timeAnchorMs`), **suncalc rise/set metadata** (`moonRise` / `moonSet` / `kind` for ephemeris and the **visible** moon-path arc — refresh via `ephemerisRefetchKey` + `useAstronomySync`), **map view** (`mapView`), **flight provider + flights + loading/error**, **selected flight**, and **OpenSky display skew** in a **single** Zustand store.
+`moon-transit-store` currently holds **time simulation** (full **UTC-day** slider window via `getTimeSliderWindowMs`, anchored with `timeAnchorMs`), **suncalc rise/set metadata** (`moonRise` / `moonSet` / `kind` for ephemeris and the **visible** moon-path arc — refresh via `ephemerisRefetchKey` + `useAstronomySync`), **map view** (`mapView`), **flight provider** (**default `opensky`**), **flights + loading/error** (ingest path uses **`mergeFlightsWithOpenSkyRetention`** + **`mergeStickyFlightMetadata`** for OpenSky UX), **selected flight**, and **OpenSky display skew** in a **single** Zustand store.
 
 **Decision:** Treated as an **intentional aggregate** for the current app size: one place to `loadFlightsInBounds` after the map moves, and `referenceEpochMs` is co-located with the data that the slider and ephemeris already depend on.
 

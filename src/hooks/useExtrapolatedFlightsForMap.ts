@@ -4,7 +4,8 @@ import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import type { FlightState } from "@/types/flight";
 import { useEffect, useMemo, useState } from "react";
 
-const WALL_CLOCK_TICK_MS = 200;
+/** Manji broj punih `setData` ciklusa na karti (iOS / Safari). */
+const WALL_CLOCK_TICK_MS = 400;
 
 /**
  * Letovi iz storea ekstrapolirani za prikaz na karti (wall clock + OpenSky skew).

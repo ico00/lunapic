@@ -2,7 +2,10 @@ import {
   getTimeSliderWindowMs,
   TIME_SLIDER_6H_HALF_MS,
 } from "@/lib/domain/astro/astroService";
-import { mergeStickyFlightMetadata } from "@/lib/flight/mergeStickyFlightMetadata";
+import {
+  clearOpenSkyFlightRetention,
+  mergeFlightsWithOpenSkyRetention,
+} from "@/lib/flight/mergeFlightsWithOpenSkyRetention";
 import { getFlightProvider } from "@/lib/flight/flightProviderRegistry";
 import { useObserverStore } from "@/stores/observer-store";
 import type { GeoBounds, MapViewState } from "@/types";
@@ -85,7 +88,7 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   timeOffsetMs: 0,
   referenceEpochMs: 0,
   mapView: defaultMapViewState,
-  flightProvider: "static",
+  flightProvider: "opensky",
   flights: [],
   isLoading: false,
   error: null,
@@ -164,11 +167,13 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   setMapView: (next) =>
     set((s) => ({ mapView: { ...s.mapView, ...next } })),
   setFlightProvider: (id) =>
-    set((s) =>
-      s.flightProvider === id
-        ? {}
-        : { flightProvider: id, selectedFlightId: null }
-    ),
+    set((s) => {
+      if (s.flightProvider === id) {
+        return {};
+      }
+      clearOpenSkyFlightRetention();
+      return { flightProvider: id, selectedFlightId: null };
+    }),
   setSelectedFlightId: (id) => set({ selectedFlightId: id }),
   setFlights: (f) => set({ flights: f }),
   resetError: () => set({ error: null }),
@@ -179,7 +184,12 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
       const previousFlights = get().flights;
       const observer = useObserverStore.getState().observer;
       const flights = await p.getFlightsInBounds({ bounds, observer });
-      const merged = mergeStickyFlightMetadata(flights, previousFlights);
+      const merged = mergeFlightsWithOpenSkyRetention(flights, previousFlights, {
+        providerId: get().flightProvider,
+        mapBounds: bounds,
+        nowMs: Date.now(),
+        openSkyLatencySkewMs: get().openSkyLatencySkewMs,
+      });
       const sel = get().selectedFlightId;
       const keepSel =
         sel != null && merged.some((f) => f.id === sel);

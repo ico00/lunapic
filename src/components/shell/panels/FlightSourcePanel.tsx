@@ -24,9 +24,10 @@ export function FlightSourcePanel({
       icon={<SectionIconFlightSource />}
     >
       <p className="text-xs leading-relaxed text-zinc-500">
-        OpenSky: real ADS-B where the viewport intersects{" "}
-        <code className="font-mono text-zinc-500">routes.json</code> flight
-        corridors and the map. Static: simulated points along routes.
+        OpenSky: real ADS-B for a bounded area around your observer and the map
+        (demo corridor rules apply near static routes). Symbols are smoothed
+        between refreshes on slow devices. Static: simulated points along{" "}
+        <code className="font-mono text-zinc-500">routes.json</code>.
       </p>
       <label className="mt-2 block text-xs text-zinc-500">
         Provider
