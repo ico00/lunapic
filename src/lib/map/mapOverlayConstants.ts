@@ -36,7 +36,8 @@ import { appPath } from "@/lib/paths/appPath";
 export const FLIGHT_PLANE_ICON_URL = appPath("/plane_5367346.svg");
 
 /** ID teksture u Mapbox `addImage` (symbol `icon-image`). */
-export const FLIGHT_PLANE_ICON_IMAGE_ID = "flight-plane-icon";
+export const FLIGHT_PLANE_ICON_IMAGE_ID = "flight-plane-icon-blue";
+export const FLIGHT_PLANE_ICON_IMAGE_ID_FEASIBLE = "flight-plane-icon-green";
 
 /** Relativna veličina ikone (izvorna slika je velika; ~0.06–0.12 je čitko). */
 export const FLIGHT_PLANE_ICON_SIZE = 0.09;

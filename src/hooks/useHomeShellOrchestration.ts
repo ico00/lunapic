@@ -42,7 +42,11 @@ export function useHomeShellOrchestration() {
     [moon]
   );
   const candidates = useTransitCandidates();
-  const { pack: photoPack } = usePhotographerTools();
+  const {
+    pack: photoPack,
+    shot: photoShotFeasibility,
+    reason: photoUnavailableReason,
+  } = usePhotographerTools();
   const [beepOnTransit, setBeepOnTransit] = useState(false);
   useTransitBeep(photoPack?.timeToAlignmentSec ?? null, beepOnTransit);
   const routeCorridor =
@@ -164,6 +168,8 @@ export function useHomeShellOrchestration() {
     setSelectedFlightId,
     selectedFlightId,
     photoPack,
+    photoShotFeasibility,
+    photoUnavailableReason,
     beepOnTransit,
     setBeepOnTransit,
     routeCorridor,

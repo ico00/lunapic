@@ -47,6 +47,7 @@ type UseMapGeoJsonSyncArgs = {
   selectedFlightTrajectoryFeature: Feature | null;
   /** Label (npr. +90s) na vrhu predikcije putanje. */
   selectedFlightTrajectoryLabelFeature: Feature | null;
+  shotFeasibleFlightIds?: ReadonlySet<string>;
   flightProvider: IFlightProvider;
 };
 export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
@@ -65,6 +66,7 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
     standSpineFeature,
     selectedFlightTrajectoryFeature,
     selectedFlightTrajectoryLabelFeature,
+    shotFeasibleFlightIds,
     flightProvider,
   } = a;
 
@@ -251,11 +253,20 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
             type: "Feature" as const,
             geometry: {
               type: "Point" as const,
-              coordinates: [f.position.lng, f.position.lat],
+              coordinates: [
+                f.position.lng,
+                f.position.lat,
+                Math.max(0, f.geoAltitudeMeters ?? f.baroAltitudeMeters ?? 0),
+              ],
             },
             properties: {
               id: f.id,
               name: f.callSign ?? f.id,
+              isShotFeasible: shotFeasibleFlightIds?.has(f.id) ?? false,
+              altitudeMeters: Math.max(
+                0,
+                f.geoAltitudeMeters ?? f.baroAltitudeMeters ?? 0
+              ),
               track:
                 typeof f.trackDeg === "number" && Number.isFinite(f.trackDeg)
                   ? ((f.trackDeg % 360) + 360) % 360
@@ -299,7 +310,7 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
         clearTimeout(timeoutId);
       }
     };
-  }, [flights, mapRef, mapReadyTick, selectedFlightId]);
+  }, [flights, mapRef, mapReadyTick, selectedFlightId, shotFeasibleFlightIds]);
 
   useEffect(() => {
     fieldPerfTime("geojson:routes", () => {

@@ -18,7 +18,7 @@ const outfit = Outfit({
 });
 
 export const metadata = {
-  title: "Moon Transit",
+  title: "LunaPic",
   description:
     "Track aircraft transits in front of the Moon — map, ephemeris, ADS-B strategies.",
 };

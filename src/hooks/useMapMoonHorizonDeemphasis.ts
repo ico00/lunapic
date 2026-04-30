@@ -11,7 +11,12 @@ import { useEffect, type RefObject } from "react";
 
 const MOON_LAYER_PAINT: readonly {
   id: string;
-  prop: "line-opacity" | "fill-opacity" | "text-opacity" | "circle-opacity";
+  prop:
+    | "line-opacity"
+    | "fill-opacity"
+    | "fill-extrusion-opacity"
+    | "text-opacity"
+    | "circle-opacity";
   bright: number;
   dim: number;
 }[] = [

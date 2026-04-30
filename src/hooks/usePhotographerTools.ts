@@ -1,6 +1,10 @@
 import { GeometryEngine } from "@/lib/domain/geometry/geometryEngine";
 import { isMoonVisibleFromMoonState } from "@/lib/domain/astro/moonVisibility";
 import { extrapolateFlightForDisplay } from "@/lib/flight/extrapolateFlightPosition";
+import {
+  evaluateShotFeasibility,
+  type ShotFeasibility,
+} from "@/lib/domain/geometry/shotFeasibility";
 import { useMoonStateComputed } from "@/hooks/useTransitCandidates";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useObserverStore } from "@/stores/observer-store";
@@ -9,6 +13,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 export type PhotographerToolPack = NonNullable<
   ReturnType<typeof GeometryEngine.photographerPack>
 >;
+export type PhotographerShotFeasibility = ShotFeasibility;
+export type PhotographerToolsUnavailableReason =
+  | "noSelection"
+  | "moonBelowHorizon"
+  | "flightNotFound"
+  | "missingInputs";
 
 export function formatCountdown(totalSec: number | null): string {
   if (totalSec == null || !Number.isFinite(totalSec)) {
@@ -35,6 +45,8 @@ export function usePhotographerTools() {
   const flights = useMoonTransitStore((s) => s.flights);
   const refEpoch = useMoonTransitStore((s) => s.referenceEpochMs);
   const latencySkewMs = useMoonTransitStore((s) => s.openSkyLatencySkewMs);
+  const cameraFocalLengthMm = useMoonTransitStore((s) => s.cameraFocalLengthMm);
+  const cameraSensorType = useMoonTransitStore((s) => s.cameraSensorType);
   const moon = useMoonStateComputed();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -51,21 +63,59 @@ export function usePhotographerTools() {
     [refEpoch]
   );
 
-  const pack = useMemo(() => {
+  const result = useMemo(() => {
     if (!selectedId) {
-      return null;
+      return {
+        pack: null,
+        shot: null,
+        reason: "noSelection" as const,
+      };
     }
     if (!isMoonVisibleFromMoonState(moon)) {
-      return null;
+      return {
+        pack: null,
+        shot: null,
+        reason: "moonBelowHorizon" as const,
+      };
     }
     const raw = flights.find((x) => x.id === selectedId) ?? null;
     if (!raw) {
-      return null;
+      return {
+        pack: null,
+        shot: null,
+        reason: "flightNotFound" as const,
+      };
     }
     const flight = extrapolateFlightForDisplay(raw, now, latencySkewMs);
-    return GeometryEngine.photographerPack(observer, flight, moon, at, {});
-  }, [at, flights, latencySkewMs, moon, now, observer, selectedId]);
-  return { pack, now };
+    const pack = GeometryEngine.photographerPack(observer, flight, moon, at, {});
+    const shot = evaluateShotFeasibility(observer, flight, {
+      focalLengthMm: cameraFocalLengthMm,
+      sensorType: cameraSensorType,
+    });
+    if (!pack) {
+      return {
+        pack: null,
+        shot,
+        reason: "missingInputs" as const,
+      };
+    }
+    return {
+      pack,
+      shot,
+      reason: null,
+    };
+  }, [
+    at,
+    cameraFocalLengthMm,
+    cameraSensorType,
+    flights,
+    latencySkewMs,
+    moon,
+    now,
+    observer,
+    selectedId,
+  ]);
+  return { ...result, now };
 }
 
 function playBeep(frequency: number) {

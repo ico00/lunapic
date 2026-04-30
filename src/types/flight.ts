@@ -42,6 +42,8 @@ export interface FlightState {
   readonly aircraftType?: string | null;
   /** Ime avioprijevoznika kad ga izvor navodi. */
   readonly airlineName?: string | null;
+  /** Wingspan in meters when available; fallback heuristics are used otherwise. */
+  readonly wingspanMeters?: number | null;
 }
 
 export interface FlightQuery {

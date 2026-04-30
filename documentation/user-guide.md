@@ -1,10 +1,10 @@
-# Using Moon Transit (product walkthrough)
+# Using LunaPic (product walkthrough)
 
 **Audience:** photographers and planners (not the codebase). **UI** is in English; this document matches the app’s terminology.
 
 ## What the app is for
 
-Moon Transit helps you **line up a real (or static) aircraft** with the **Moon** in the sky from a **fixed place on the ground** (the **observer**). The map, time control, and side panels work together to show **when and where** the moon is, **where flights are**, and how close you are to a good **lunar transit** frame.
+LunaPic helps you **line up a real (or static) aircraft** with the **Moon** in the sky from a **fixed place on the ground** (the **observer**). The map, time control, and side panels work together to show **when and where** the moon is, **where flights are**, and how close you are to a good **lunar transit** frame.
 
 ## What you do (typical flow)
 
@@ -44,6 +44,7 @@ Moon Transit helps you **line up a real (or static) aircraft** with the **Moon**
 | **Yellow dots**                                              | Intersections of route geometry with the moon-azimuth idea (for static route analysis).                                                                                       |
 | **Aircraft symbol**                                          | Extrapolated position for the **simulated** time (and OpenSky display skew if you use it in the field tools).                                                                 |
 | **Cyan band + pale center line** (when a flight is selected) | **Stand corridor** for framing: a ground strip derived from 3D line of sight to the plane at the selected time; the **pale line** is the “zero offset” axis along that strip. |
+| **Green corridor + nested green volumes**                    | **Transit opportunity corridor** for your fixed observer position and current camera setup. LOW/MEDIUM/HIGH shades are confidence bands; shown only when moon visibility is **Optimal**. |
 | **Weather overlay** (if enabled)                             | Cloud layer from forecast — for context only.                                                                                                                                 |
 
 
@@ -53,6 +54,7 @@ Moon Transit helps you **line up a real (or static) aircraft** with the **Moon**
 
 - **Observer-centric:** the Moon’s position, rise/set, and the comparison with an aircraft are always from **your observer point** and the **simulated** `reference` time, not from an arbitrary map center.  
 - **Aircraft in 3D:** the app uses the aircraft’s **height** and your position to get a realistic **line of sight** (azimuth, elevation, slant range) for tools and the stand band — not a flat “shadow on the map only” for those parts.  
+- **Opportunity corridor:** the green confidence corridor is **observer-centric** (your fixed camera point), derived from moon geometry + camera setup. It helps rank where transit timing is strongest, but it is not a hard guarantee for a specific live aircraft.
 - **Flights in OpenSky mode:** the server returns a **snapshot** for a bounded area; the app **extrapolates** along track for display and applies a **light retention** between refreshes so symbols do not constantly vanish on patchy mobile networks — still not a full 4D radar simulation.  
 - **Moon ephemeris:** rise/set and path use standard astronomical models (suncalc family) for the observer location. The **slider** uses a full UTC day; rise/set still drive the **primary** path highlight and ephemeris text. **Suncalc** refresh is tied to **Sync** and observer moves, not every slider tick, so metadata stays stable when you scrub (see [changelog.md](./changelog.md) if you care why).
 

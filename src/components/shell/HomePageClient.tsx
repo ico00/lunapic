@@ -179,6 +179,14 @@ function TimeAndWeatherBlock(props: ShellControls) {
                 />
               </svg>
             </button>
+            <a
+              href={appPath("/about")}
+              className="mt-toolbar-btn px-3 text-xs font-medium text-zinc-200 hover:border-emerald-500/35"
+              title="About and usage guide"
+              aria-label="Open about and usage guide page"
+            >
+              About
+            </a>
           </div>
         </div>
         <div className="pointer-events-auto flex max-h-44 min-h-0 min-w-0 flex-1 flex-col self-start sm:max-h-52 md:max-h-56">
@@ -376,6 +384,8 @@ export function HomePageClient() {
       <PhotographerToolsPanel
         selectedFlightId={s.selectedFlightId}
         photoPack={s.photoPack}
+        photoShotFeasibility={s.photoShotFeasibility}
+        photoUnavailableReason={s.photoUnavailableReason}
         beepOnTransit={s.beepOnTransit}
         onToggleBeep={() => {
           s.setBeepOnTransit((b) => !b);
@@ -573,6 +583,8 @@ export function HomePageClient() {
                     <PhotographerToolsPanel
                       selectedFlightId={s.selectedFlightId}
                       photoPack={s.photoPack}
+                      photoShotFeasibility={s.photoShotFeasibility}
+                      photoUnavailableReason={s.photoUnavailableReason}
                       beepOnTransit={s.beepOnTransit}
                       onToggleBeep={() => {
                         s.setBeepOnTransit((b) => !b);

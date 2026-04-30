@@ -1,5 +1,5 @@
 /**
- * Izvori GeoJSON slojeva u Moon Transit karti (Mapbox).
+ * Izvori GeoJSON slojeva u LunaPic karti (Mapbox).
  * Jedan izvor istine — u skladu s `documentation/architecture.md`.
  */
 export const FLIGHTS_SOURCE = "flights-geo";

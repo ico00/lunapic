@@ -1,4 +1,4 @@
-# Moon Transit
+# LunaPic
 
 Web app for planning and visualizing **aircraft transits in front of the Moon**: map, moon ephemeris, ADS-B–backed (or static) flight data, and photographer-oriented tools (countdown, suggested shutter, compass aim, field export).
 

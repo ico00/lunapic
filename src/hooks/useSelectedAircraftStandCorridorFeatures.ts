@@ -1,4 +1,5 @@
 import {
+  buildStandCorridorObserverVolumeFeature,
   buildStandCorridorSpineLineFeature,
   buildStandCorridorStripFeatures,
   normBearing360,
@@ -18,6 +19,7 @@ type Args = {
   selectedFlightId: string | null;
   extrapolatedFlights: readonly FlightState[];
   observer: GroundObserver;
+  moonAltitudeDeg: number;
 };
 
 export type SelectedStandCorridorPack = {
@@ -35,7 +37,12 @@ export type SelectedStandCorridorPack = {
 export function useSelectedAircraftStandCorridorFeatures(
   a: Args
 ): SelectedStandCorridorPack {
-  const { selectedFlightId, extrapolatedFlights, observer } = a;
+  const {
+    selectedFlightId,
+    extrapolatedFlights,
+    observer,
+    moonAltitudeDeg,
+  } = a;
 
   return useMemo(() => {
     if (selectedFlightId == null) {
@@ -71,8 +78,28 @@ export function useSelectedAircraftStandCorridorFeatures(
       farAlongM: SELECTED_STAND_FAR_M,
       halfWidthM: SELECTED_STAND_HALF_WIDTH_M,
     };
-    const fillFeatures = buildStandCorridorStripFeatures([sample], p);
+    const stripFeatures = buildStandCorridorStripFeatures([sample], p);
+    const moonAltClamped = Math.max(2, Math.min(70, moonAltitudeDeg));
+    const volumeHeightMeters = Math.min(
+      30_000,
+      Math.max(
+        250,
+        Math.tan((moonAltClamped * Math.PI) / 180) * SELECTED_STAND_FAR_M
+      )
+    );
+    const volumeFeature = buildStandCorridorObserverVolumeFeature(
+      observer,
+      sample,
+      p,
+      volumeHeightMeters
+    );
+    const fillFeatures = [...stripFeatures, volumeFeature];
     const spineFeature = buildStandCorridorSpineLineFeature(sample, p);
     return { fillFeatures, spineFeature };
-  }, [selectedFlightId, extrapolatedFlights, observer]);
+  }, [
+    selectedFlightId,
+    extrapolatedFlights,
+    observer,
+    moonAltitudeDeg,
+  ]);
 }

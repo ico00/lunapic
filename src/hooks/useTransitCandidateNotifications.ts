@@ -111,7 +111,7 @@ export function useTransitCandidateNotifications({
       const callSign = row.flight.callSign?.trim() || id;
       const separation =
         c != null ? `${c.separationDeg.toFixed(3)}°` : `${row.deltaAzDeg.toFixed(3)}°`;
-      const n = new Notification("Moon Transit candidate update", {
+      const n = new Notification("LunaPic candidate update", {
         body: `${callSign} is near alignment now (${separation}).`,
         tag: `moon-transit-candidate-${id}`,
       });

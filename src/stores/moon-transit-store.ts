@@ -2,6 +2,7 @@ import {
   getTimeSliderWindowMs,
   TIME_SLIDER_6H_HALF_MS,
 } from "@/lib/domain/astro/astroService";
+import type { CameraSensorType } from "@/lib/domain/geometry/shotFeasibility";
 import {
   clearOpenSkyFlightRetention,
   mergeFlightsWithOpenSkyRetention,
@@ -44,6 +45,10 @@ type MoonTransitState = {
   openSkyLatencySkewMs: number;
   setOpenSkyLatencySkewMs: (ms: number) => void;
   addOpenSkyLatencySkewMs: (deltaMs: number) => void;
+  cameraFocalLengthMm: number;
+  cameraSensorType: CameraSensorType;
+  setCameraFocalLengthMm: (mm: number) => void;
+  setCameraSensorType: (sensor: CameraSensorType) => void;
   /**
    * Suncalc: izlaz / zlaz (UTC kalendaru dan u syncu) i polarna stanja
    * (`alwaysUp` / `alwaysDown` imaju `rise` / `set` = null).
@@ -94,6 +99,8 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   error: null,
   selectedFlightId: null,
   openSkyLatencySkewMs: 0,
+  cameraFocalLengthMm: 600,
+  cameraSensorType: "fullFrame",
   ephemerisRefetchKey: 0,
   moonRise: null,
   moonSet: null,
@@ -106,6 +113,11 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
         s.openSkyLatencySkewMs + deltaMs
       ),
     })),
+  setCameraFocalLengthMm: (mm) =>
+    set({
+      cameraFocalLengthMm: Math.max(50, Math.min(2400, Math.round(mm))),
+    }),
+  setCameraSensorType: (sensor) => set({ cameraSensorType: sensor }),
   setTimeOffsetMs: (offsetMs) => {
     const s = get();
     const win = getTimeSliderWindowMs(

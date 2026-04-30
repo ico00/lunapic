@@ -1,4 +1,4 @@
-# Technical conventions — Moon Transit
+# Technical conventions — LunaPic
 
 Conventions for anyone extending this codebase: patterns, tooling, and safe-change guidelines.
 

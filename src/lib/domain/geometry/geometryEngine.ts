@@ -3,6 +3,14 @@ import {
   photographerPack,
 } from "./geometryEnginePhotographer";
 import {
+  aircraftAngularSizeDeg,
+  classifyShotFeasibility,
+  effectiveFocalLengthMm,
+  evaluateShotFeasibility,
+  maxShotRangeMetersForCamera,
+  moonCoveragePercent,
+} from "./shotFeasibility";
+import {
   buildMoonAzimuthLine,
   buildMoonPathLineCoordinates,
   buildOptimalGroundPathFeatures,
@@ -22,4 +30,10 @@ export class GeometryEngine {
   static buildOptimalGroundPathFeatures = buildOptimalGroundPathFeatures;
   static aircraftLineOfSightKinematics = aircraftLineOfSightKinematics;
   static photographerPack = photographerPack;
+  static aircraftAngularSizeDeg = aircraftAngularSizeDeg;
+  static moonCoveragePercent = moonCoveragePercent;
+  static effectiveFocalLengthMm = effectiveFocalLengthMm;
+  static maxShotRangeMetersForCamera = maxShotRangeMetersForCamera;
+  static classifyShotFeasibility = classifyShotFeasibility;
+  static evaluateShotFeasibility = evaluateShotFeasibility;
 }

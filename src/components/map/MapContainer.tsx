@@ -11,13 +11,20 @@ import { useMapMoonOverlayFeatures } from "@/hooks/useMapMoonOverlayFeatures";
 import { useMoonTransitMap } from "@/hooks/useMoonTransitMap";
 import { useSelectedFlightTrajectoryFeature } from "@/hooks/useSelectedFlightTrajectoryFeature";
 import { useSelectedAircraftStandCorridorFeatures } from "@/hooks/useSelectedAircraftStandCorridorFeatures";
+import { useTransitOpportunityCorridorFeatures } from "@/hooks/useTransitOpportunityCorridorFeatures";
 import { useMoonStateComputed } from "@/hooks/useTransitCandidates";
+import {
+  maxShotRangeMetersForCamera,
+  type CameraSensorType,
+} from "@/lib/domain/geometry/shotFeasibility";
 import { isMoonVisibleFromMoonState } from "@/lib/domain/astro/moonVisibility";
+import { screenTransitCandidates } from "@/lib/domain/transit/screening";
+import { GeometryEngine } from "@/lib/domain/geometry/geometryEngine";
 import { fieldPerfRecord, isFieldPerfEnabled } from "@/lib/perf/fieldPerf";
 import type { IFlightProvider } from "@/types";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useObserverStore } from "@/stores/observer-store";
-import { Profiler } from "react";
+import { Profiler, useMemo } from "react";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 export type MapContainerProps = {
@@ -32,6 +39,8 @@ export function MapContainer({ flightProvider, isGolden = false }: MapContainerP
   const moon = useMoonStateComputed();
   const referenceEpochMs = useMoonTransitStore((s) => s.referenceEpochMs);
   const selectedFlightId = useMoonTransitStore((s) => s.selectedFlightId);
+  const cameraFocalLengthMm = useMoonTransitStore((s) => s.cameraFocalLengthMm);
+  const cameraSensorType = useMoonTransitStore((s) => s.cameraSensorType);
 
   const { moonPathPack, moonAzFeature, intersectionFeatures, optimalGroundFeatures } =
     useMapMoonOverlayFeatures(
@@ -49,18 +58,51 @@ export function MapContainer({ flightProvider, isGolden = false }: MapContainerP
     mapRef,
     mapReadyTick,
   } = useMoonTransitMap({ flightProvider, isGolden });
-
+  const shotFeasibleFlightIds = useMemo(() => {
+    const out = new Set<string>();
+    if (!isMoonVisibleFromMoonState(moon)) {
+      return out;
+    }
+    const candidates = screenTransitCandidates(observer, moon, flights);
+    const candidateIds = new Set(
+      candidates.filter((x) => x.isPossibleTransit).map((x) => x.flight.id)
+    );
+    if (candidateIds.size === 0) {
+      return out;
+    }
+    const maxRangeM = maxShotRangeMetersForCamera(
+      cameraFocalLengthMm,
+      cameraSensorType as CameraSensorType
+    );
+    for (const f of flights) {
+      if (!candidateIds.has(f.id)) {
+        continue;
+      }
+      const kin = GeometryEngine.aircraftLineOfSightKinematics(observer, f);
+      if (kin && kin.slantRangeMeters <= maxRangeM) {
+        out.add(f.id);
+      }
+    }
+    return out;
+  }, [cameraFocalLengthMm, cameraSensorType, flights, moon, observer]);
   const { fillFeatures: standCorridorFeatures, spineFeature: standSpineFeature } =
     useSelectedAircraftStandCorridorFeatures({
       selectedFlightId,
       extrapolatedFlights: flights,
       observer,
+      moonAltitudeDeg: moon.altitudeDeg,
     });
+  const transitOpportunityCorridorFeatures = useTransitOpportunityCorridorFeatures({
+    observer,
+    moon,
+    cameraFocalLengthMm,
+    cameraSensorType: cameraSensorType as CameraSensorType,
+  });
   const { lineFeature: selectedFlightTrajectoryFeature, labelFeature: selectedFlightTrajectoryLabelFeature } =
     useSelectedFlightTrajectoryFeature({
-    selectedFlightId,
-    flights,
-  });
+      selectedFlightId,
+      flights,
+    });
 
   useMapGeoJsonSync({
     mapRef,
@@ -73,10 +115,14 @@ export function MapContainer({ flightProvider, isGolden = false }: MapContainerP
     moonPathPack,
     flights,
     selectedFlightId,
-    standCorridorFeatures,
+    standCorridorFeatures: [
+      ...standCorridorFeatures,
+      ...transitOpportunityCorridorFeatures,
+    ],
     standSpineFeature,
     selectedFlightTrajectoryFeature,
     selectedFlightTrajectoryLabelFeature,
+    shotFeasibleFlightIds,
     flightProvider,
   });
 

@@ -1,6 +1,6 @@
 # MOON TRANSIT — Cursor Rules & Project Guidelines
 
-You are an expert developer working on the **Moon Transit** application. This is a high-precision tool for photographers to plan aircraft transits across the Moon.
+You are an expert developer working on the **LunaPic** application. This is a high-precision tool for photographers to plan aircraft transits across the Moon.
 
 ## 1. CORE PRINCIPLES & ARCHITECTURE
 - **Observer-Centric:** All geometry and ephemeris calculations MUST use the fixed `observer` location from `useObserverStore`, NOT the map's current center.

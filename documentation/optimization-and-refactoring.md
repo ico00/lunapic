@@ -1,4 +1,4 @@
-# Optimization and refactoring log — Moon Transit
+# Optimization and refactoring log — LunaPic
 
 This document records the architectural refactors, file splits, and design decisions made to improve **separation of concerns** (UI vs orchestration vs domain), **SRP**, and **maintainability**, without changing product behavior unless noted.
 
@@ -37,7 +37,7 @@ For day-to-day architecture rules, see `documentation/architecture.md`. For the 
 | `mapOverlayConstants.ts`       | Ray lengths (azimuth / moon path), cruise altitude, stand strip (`SELECTED_STAND_*`), spine line paint.            |
 | `geoBoundsFromMapbox.ts`       | `LngLatBounds` → app `GeoBounds`.                                                                                  |
 | `observerMarkerElement.ts`     | DOM for the Mapbox `Marker` (camera icon).                                                                         |
-| `registerMoonTransitLayers.ts` | All `addSource` / `addLayer` for the Moon Transit map after style `load`.                                          |
+| `registerMoonTransitLayers.ts` | All `addSource` / `addLayer` for the LunaPic map after style `load`.                                          |
 
 
 ---

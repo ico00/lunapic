@@ -171,6 +171,9 @@ export function useMoonTransitMap(
       zoom: initial.zoom,
       pitch: initial.pitch,
       bearing: initial.bearing,
+      pitchWithRotate: true,
+      touchPitch: true,
+      maxPitch: 78,
     });
     map.addControl(new mapboxgl.NavigationControl(), "top-right");
     mapRef.current = map;

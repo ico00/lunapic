@@ -25,13 +25,15 @@ export function buildShortFlightTrajectoryFeature(
   }
 
   const normalizedTrack = ((trackDeg % 360) + 360) % 360;
+  const altitudeMeters = flight.geoAltitudeMeters ?? flight.baroAltitudeMeters ?? 0;
   const steps = Math.max(
     1,
     Math.floor(SHORT_TRAJECTORY_HORIZON_SEC / SHORT_TRAJECTORY_STEP_SEC)
   );
-  const coordinates: [number, number][] = [[
+  const coordinates: [number, number, number][] = [[
     flight.position.lng,
     flight.position.lat,
+    0,
   ]];
 
   for (let i = 1; i <= steps; i += 1) {
@@ -42,7 +44,7 @@ export function buildShortFlightTrajectoryFeature(
       normalizedTrack,
       speedMps * dtSec
     );
-    coordinates.push([projected.lng, projected.lat]);
+    coordinates.push([projected.lng, projected.lat, altitudeMeters]);
   }
 
   return {
@@ -55,6 +57,7 @@ export function buildShortFlightTrajectoryFeature(
       id: flight.id,
       horizonSec: SHORT_TRAJECTORY_HORIZON_SEC,
       stepSec: SHORT_TRAJECTORY_STEP_SEC,
+      zOffsetMeters: altitudeMeters,
     },
   };
 }
