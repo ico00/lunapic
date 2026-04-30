@@ -17,9 +17,6 @@ import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useObserverStore } from "@/stores/observer-store";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-/** Jednom po učitavanju modula (preživi React Strict dev double-mount). */
-let autoGpsBootstrapDone = false;
-
 /**
  * Sav state, store subscriptioni i pomoćni hookovi za `HomePageClient` (jedan izvor orkestracije).
  */
@@ -45,7 +42,11 @@ export function useHomeShellOrchestration() {
     [moon]
   );
   const candidates = useTransitCandidates();
-  const { pack: photoPack } = usePhotographerTools();
+  const {
+    pack: photoPack,
+    shot: photoShotFeasibility,
+    reason: photoUnavailableReason,
+  } = usePhotographerTools();
   const [beepOnTransit, setBeepOnTransit] = useState(false);
   useTransitBeep(photoPack?.timeToAlignmentSec ?? null, beepOnTransit);
   const routeCorridor =
@@ -114,9 +115,6 @@ export function useHomeShellOrchestration() {
   const { requestFix: onUseGps, busy: gpsBusy, error: gpsError } =
     useGpsObserver();
   useEffect(() => {
-    if (autoGpsBootstrapDone) {
-      return;
-    }
     if (observerLocationLocked) {
       return;
     }
@@ -129,15 +127,13 @@ export function useHomeShellOrchestration() {
     if (!("geolocation" in globalThis.navigator)) {
       return;
     }
-    const obs = useObserverStore.getState().observer;
     if (!isDefaultObserverLocation(obs)) {
       return;
     }
-    autoGpsBootstrapDone = true;
     queueMicrotask(() => {
       onUseGps();
     });
-  }, [observerLocationLocked, onUseGps]);
+  }, [observerLocationLocked, onUseGps, obs]);
   useLayoutEffect(() => {
     syncTimeToNow();
     queueMicrotask(() => {
@@ -172,6 +168,8 @@ export function useHomeShellOrchestration() {
     setSelectedFlightId,
     selectedFlightId,
     photoPack,
+    photoShotFeasibility,
+    photoUnavailableReason,
     beepOnTransit,
     setBeepOnTransit,
     routeCorridor,

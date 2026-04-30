@@ -1,6 +1,7 @@
 import type { Map } from "mapbox-gl";
 import {
   FLIGHT_PLANE_ICON_IMAGE_ID,
+  FLIGHT_PLANE_ICON_IMAGE_ID_FEASIBLE,
   FLIGHT_PLANE_ICON_SIZE,
   FLIGHT_PLANE_ICON_URL,
   SELECTED_STAND_MAP_FILL_OPACITY,
@@ -28,8 +29,28 @@ import {
 } from "@/lib/map/mapSourceIds";
 
 const MOON_INT_LAYER_ID = "moon-intersections";
+const FLIGHTS_SHADOW_LAYER_ID = "flights-shadow-layer";
+
+function addFlightsShadowLayer(map: Map): void {
+  if (map.getLayer(FLIGHTS_SHADOW_LAYER_ID)) {
+    return;
+  }
+  map.addLayer({
+    id: FLIGHTS_SHADOW_LAYER_ID,
+    type: "circle",
+    source: FLIGHTS_SOURCE,
+    paint: {
+      "circle-radius": 4.5,
+      "circle-color": "#000000",
+      "circle-opacity": 0.32,
+      "circle-blur": 0.6,
+      "circle-stroke-width": 0,
+    },
+  });
+}
 
 function addFlightsCircleFallback(map: Map): void {
+  addFlightsShadowLayer(map);
   if (map.getLayer(FLIGHTS_LAYER_ID)) {
     return;
   }
@@ -39,7 +60,12 @@ function addFlightsCircleFallback(map: Map): void {
     source: FLIGHTS_SOURCE,
     paint: {
       "circle-radius": 6,
-      "circle-color": "#38bdf8",
+      "circle-color": [
+        "case",
+        ["boolean", ["get", "isShotFeasible"], false],
+        "#22c55e",
+        "#38bdf8",
+      ],
       "circle-stroke-color": "#0f172a",
       "circle-stroke-width": 1,
     },
@@ -47,6 +73,7 @@ function addFlightsCircleFallback(map: Map): void {
 }
 
 function addFlightsPlaneSymbolLayer(map: Map): void {
+  addFlightsShadowLayer(map);
   if (map.getLayer(FLIGHTS_LAYER_ID)) {
     return;
   }
@@ -59,15 +86,58 @@ function addFlightsPlaneSymbolLayer(map: Map): void {
     type: "symbol",
     source: FLIGHTS_SOURCE,
     layout: {
-      "icon-image": FLIGHT_PLANE_ICON_IMAGE_ID,
+      "icon-image": [
+        "case",
+        ["boolean", ["get", "isShotFeasible"], false],
+        FLIGHT_PLANE_ICON_IMAGE_ID_FEASIBLE,
+        FLIGHT_PLANE_ICON_IMAGE_ID,
+      ],
       "icon-size": FLIGHT_PLANE_ICON_SIZE,
       "icon-allow-overlap": true,
       "icon-ignore-placement": true,
       "icon-rotate": ["coalesce", ["to-number", ["get", "track"]], 0],
       "icon-rotation-alignment": "map",
       "icon-pitch-alignment": "map",
+      // 3D lift based on flight altitude from GeoJSON properties.
+      "symbol-z-elevate": true,
+      "symbol-sort-key": ["coalesce", ["to-number", ["get", "altitudeMeters"]], 0],
+      "symbol-elevation-reference": "ground",
     },
+    paint: {
+      // Keep icon above terrain/buildings using ADS-B altitude.
+      "symbol-z-offset": [
+        "coalesce",
+        ["to-number", ["get", "altitudeMeters"]],
+        0,
+      ],
+      "icon-occlusion-opacity": 0.9,
+    } as unknown as Record<string, unknown>,
   });
+}
+
+function tintImageData(base: CanvasImageSource, color: string): ImageData | null {
+  const c = document.createElement("canvas");
+  const w =
+    base instanceof HTMLImageElement && base.naturalWidth > 0
+      ? base.naturalWidth
+      : 128;
+  const h =
+    base instanceof HTMLImageElement && base.naturalHeight > 0
+      ? base.naturalHeight
+      : 128;
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext("2d");
+  if (!ctx) {
+    return null;
+  }
+  ctx.clearRect(0, 0, c.width, c.height);
+  ctx.drawImage(base, 0, 0, c.width, c.height);
+  ctx.globalCompositeOperation = "source-in";
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.globalCompositeOperation = "source-over";
+  return ctx.getImageData(0, 0, c.width, c.height);
 }
 
 /**
@@ -91,8 +161,13 @@ function scheduleFlightLayerWithPlaneIcon(map: Map): void {
       return;
     }
     try {
+      const blueIcon = tintImageData(img, "#38bdf8");
+      const greenIcon = tintImageData(img, "#22c55e");
       if (!map.hasImage(FLIGHT_PLANE_ICON_IMAGE_ID)) {
-        map.addImage(FLIGHT_PLANE_ICON_IMAGE_ID, img);
+        map.addImage(FLIGHT_PLANE_ICON_IMAGE_ID, blueIcon ?? img);
+      }
+      if (!map.hasImage(FLIGHT_PLANE_ICON_IMAGE_ID_FEASIBLE)) {
+        map.addImage(FLIGHT_PLANE_ICON_IMAGE_ID_FEASIBLE, greenIcon ?? img);
       }
       const existing = map.getLayer(FLIGHTS_LAYER_ID) as
         | { type?: string }
@@ -110,6 +185,9 @@ function scheduleFlightLayerWithPlaneIcon(map: Map): void {
     }
     if (map.getLayer(FLIGHTS_LAYER_ID)) {
       map.moveLayer(FLIGHTS_LAYER_ID);
+    }
+    if (map.getLayer(FLIGHTS_SHADOW_LAYER_ID)) {
+      map.moveLayer(FLIGHTS_SHADOW_LAYER_ID, FLIGHTS_LAYER_ID);
     }
   };
 
@@ -138,13 +216,16 @@ function scheduleFlightLayerWithPlaneIcon(map: Map): void {
       if (map.getLayer(FLIGHTS_LAYER_ID)) {
         map.moveLayer(FLIGHTS_LAYER_ID);
       }
+      if (map.getLayer(FLIGHTS_SHADOW_LAYER_ID) && map.getLayer(FLIGHTS_LAYER_ID)) {
+        map.moveLayer(FLIGHTS_SHADOW_LAYER_ID, FLIGHTS_LAYER_ID);
+      }
     });
   };
   img.src = url;
 }
 
 /**
- * Registrira sve GeoJSON izvore i stilove slojeva za Moon Transit (pozvati nakon
+ * Registrira sve GeoJSON izvore i stilove slojeva za LunaPic (pozvati nakon
  * `map` događaja "load" / kad je stil spreman).
  *
  * * Simbol: asinkrano u `scheduleFlightLayerWithPlaneIcon` (nakon učitavanja SVG);
@@ -405,18 +486,132 @@ export function registerMoonTransitLayers(
   });
 
   map.addLayer({
+    id: "transit-opportunity-corridor",
+    type: "fill",
+    source: SELECTED_STAND_SOURCE,
+    filter: ["==", ["get", "kind"], "transitOpportunityCorridor"],
+    paint: {
+      "fill-color": [
+        "match",
+        ["get", "confidence"],
+        "high",
+        "#22c55e",
+        "medium",
+        "#4ade80",
+        "#86efac",
+      ],
+      "fill-opacity": [
+        "match",
+        ["get", "confidence"],
+        "high",
+        0.24,
+        "medium",
+        0.18,
+        0.12,
+      ],
+    },
+  });
+  map.addLayer({
+    id: "transit-opportunity-corridor-volume-low",
+    type: "fill-extrusion",
+    source: SELECTED_STAND_SOURCE,
+    filter: [
+      "all",
+      ["==", ["get", "kind"], "transitOpportunityCorridorVolume"],
+      ["==", ["get", "confidence"], "low"],
+    ],
+    paint: {
+      "fill-extrusion-color": "#86efac",
+      "fill-extrusion-opacity": 0.08,
+      "fill-extrusion-height": [
+        "coalesce",
+        ["to-number", ["get", "volumeHeightMeters"]],
+        0,
+      ],
+      "fill-extrusion-base": 0,
+    },
+  });
+  map.addLayer({
+    id: "transit-opportunity-corridor-volume-medium",
+    type: "fill-extrusion",
+    source: SELECTED_STAND_SOURCE,
+    filter: [
+      "all",
+      ["==", ["get", "kind"], "transitOpportunityCorridorVolume"],
+      ["==", ["get", "confidence"], "medium"],
+    ],
+    paint: {
+      "fill-extrusion-color": "#4ade80",
+      "fill-extrusion-opacity": 0.14,
+      "fill-extrusion-height": [
+        "coalesce",
+        ["to-number", ["get", "volumeHeightMeters"]],
+        0,
+      ],
+      "fill-extrusion-base": 0,
+    },
+  });
+  map.addLayer({
+    id: "transit-opportunity-corridor-volume-high",
+    type: "fill-extrusion",
+    source: SELECTED_STAND_SOURCE,
+    filter: [
+      "all",
+      ["==", ["get", "kind"], "transitOpportunityCorridorVolume"],
+      ["==", ["get", "confidence"], "high"],
+    ],
+    paint: {
+      "fill-extrusion-color": "#22c55e",
+      "fill-extrusion-opacity": 0.2,
+      "fill-extrusion-height": [
+        "coalesce",
+        ["to-number", ["get", "volumeHeightMeters"]],
+        0,
+      ],
+      "fill-extrusion-base": 0,
+    },
+  });
+  map.addLayer({
     id: "selected-aircraft-stand-fill",
     type: "fill",
     source: SELECTED_STAND_SOURCE,
+    filter: ["==", ["get", "kind"], "strip"],
     paint: {
       "fill-color": "#38bdf8",
       "fill-opacity": SELECTED_STAND_MAP_FILL_OPACITY,
     },
   });
   map.addLayer({
+    id: "selected-aircraft-stand-confirmed-zone",
+    type: "fill",
+    source: SELECTED_STAND_SOURCE,
+    filter: ["==", ["get", "kind"], "confirmedZone"],
+    paint: {
+      "fill-color": "#22c55e",
+      "fill-opacity": 0.2,
+    },
+  });
+  map.addLayer({
+    id: "selected-aircraft-stand-volume",
+    type: "fill-extrusion",
+    source: SELECTED_STAND_SOURCE,
+    filter: ["==", ["get", "kind"], "volume"],
+    paint: {
+      "fill-extrusion-color": "#38bdf8",
+      "fill-extrusion-opacity": 0.2,
+      "fill-extrusion-height": [
+        "coalesce",
+        ["to-number", ["get", "volumeHeightMeters"]],
+        0,
+      ],
+      "fill-extrusion-base": 0,
+    },
+  });
+  map.addLayer({
     id: "selected-aircraft-stand-outline",
     type: "line",
     source: SELECTED_STAND_SOURCE,
+    filter: ["==", ["get", "kind"], "strip"],
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
       "line-color": "#38bdf8",
@@ -468,7 +663,12 @@ export function registerMoonTransitLayers(
       "line-width": 3,
       "line-opacity": 1,
       "line-dasharray": [0.9, 1.25],
-    },
+      "line-z-offset": [
+        "coalesce",
+        ["to-number", ["get", "zOffsetMeters"]],
+        0,
+      ],
+    } as unknown as Record<string, unknown>,
   });
   map.addLayer({
     id: "selected-flight-trajectory-label",
@@ -491,6 +691,9 @@ export function registerMoonTransitLayers(
   });
 
   addFlightsCircleFallback(map);
+  if (map.getLayer(FLIGHTS_SHADOW_LAYER_ID) && map.getLayer(FLIGHTS_LAYER_ID)) {
+    map.moveLayer(FLIGHTS_SHADOW_LAYER_ID, FLIGHTS_LAYER_ID);
+  }
   if (map.getLayer(FLIGHTS_LAYER_ID)) {
     map.moveLayer(FLIGHTS_LAYER_ID);
   }

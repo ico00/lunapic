@@ -1,4 +1,4 @@
-# Technical conventions — Moon Transit
+# Technical conventions — LunaPic
 
 Conventions for anyone extending this codebase: patterns, tooling, and safe-change guidelines.
 
@@ -60,6 +60,7 @@ Before relying on “classic” Next 12 patterns, read `**AGENTS.md`** (Next 16 
 - Implement `**getFlightsInBounds({ bounds, … })`** to return a **readonly** array of `FlightState`.
 - **Track** — Provide `trackDeg` when known; it drives map symbol rotation and extrapolation. Null is allowed; extrapolation will not guess direction.
 - **Optional** — `getRouteLineFeatures` for polylines; `getRouteCorridorStats` for OpenSky region stats in the UI.
+- **Store ingest (OpenSky UX)** — After the provider returns, `moon-transit-store` applies **`mergeFlightsWithOpenSkyRetention`** (see `src/lib/flight/mergeFlightsWithOpenSkyRetention.ts`); do not duplicate that logic inside a provider unless you have a strong reason.
 
 ## API / network
 
@@ -76,7 +77,7 @@ Before relying on “classic” Next 12 patterns, read `**AGENTS.md`** (Next 16 
 ## Testing and quality
 
 - **Unit tests (domain)** — [Vitest](https://vitest.dev/) 3. Co-located `src/lib/domain/**/*.test.ts` (WGS84/ENU, `horizontal`, line-of-sight, sky separation, `screening`, `getMoonState`, `standCorridorQuads`, `geometryEngineMoonRay` / `geometryEnginePhotographer`, `AstroService` moon path). Run once: `npm run test:run`. Watch: `npm test`.
-- **E2E smoke** — [Playwright](https://playwright.dev/) 1, Chromium. `e2e/smoke.spec.ts` (shell + map column), `e2e/flight-source.spec.ts` (provider `<select>`). Run: `npm run build` then `npx playwright test` (or `npm run test:e2e`). First time: `npx playwright install chromium`. `webServer` in `playwright.config.ts` starts `npm run start` on `127.0.0.1:3000` and does not reuse a stale process. Optional: repo secret `NEXT_PUBLIC_MAPBOX_TOKEN` in GitHub Actions so the build can embed a token for a full map in E2E.
+- **E2E smoke** — [Playwright](https://playwright.dev/) 1, Chromium. `e2e/smoke.spec.ts` (shell + map column), `e2e/flight-source.spec.ts` (flight provider **combobox** — `data-testid="flight-provider-select"` / `data-value`, role `option`). Run: `npm run build` then `npx playwright test` (or `npm run test:e2e`). First time: `npx playwright install chromium`. `webServer` in `playwright.config.ts` starts `npm run start` on `127.0.0.1:3000` and does not reuse a stale process. Optional: repo secret `NEXT_PUBLIC_MAPBOX_TOKEN` in GitHub Actions so the build can embed a token for a full map in E2E.
 - **Field / runtime performance** — `documentation/performance.md` — enable `NEXT_PUBLIC_FIELD_PERF=1` or `localStorage.moonTransitFieldPerf`; in-map violet overlay and hook labels (`useMapMoonOverlayFeatures`, `useMapGeoJsonSync`, `useExtrapolatedFlightsForMap`, Mapbox `moveend`→`idle`, React `Profiler` on the map block). Complement with Chrome Performance tab.
 - **CI** — [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): on push/PR to `main` or `master`, after `npm ci` runs `npm audit`, `npm run lint`, `npx tsc --noEmit`, `npm run test:run`, `npm run build`, and Playwright (`npx playwright install` + `npx playwright test` on the runner). Optional: GitHub secret `NEXT_PUBLIC_MAPBOX_TOKEN` for an E2E build that inlines a token.
 - Before PR: same as CI locally, or at minimum `npm run lint`, `npm run test:run`, `npx tsc --noEmit`, `npm run build`, `npm audit` (all green), and `npx playwright test` with a prior `npm run build`.

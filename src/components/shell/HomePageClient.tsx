@@ -2,6 +2,7 @@
 
 import { CompassAimPanel } from "@/components/field/CompassAimPanel";
 import { FieldOverlaysSection } from "@/components/field/FieldOverlaysSection";
+import { AddToHomeScreenPrompt } from "@/components/shell/AddToHomeScreenPrompt";
 import { GoldenAlignmentFlash } from "@/components/shell/GoldenAlignmentFlash";
 import { ActiveTransitsPanel } from "@/components/shell/panels/ActiveTransitsPanel";
 import { FlightSourcePanel } from "@/components/shell/panels/FlightSourcePanel";
@@ -14,12 +15,13 @@ import { TransitCandidatesPanel } from "@/components/shell/panels/TransitCandida
 import { WeatherOverlay } from "@/components/weather/WeatherOverlay";
 import { useHomeShellOrchestration } from "@/hooks/useHomeShellOrchestration";
 import { useIsMdUp } from "@/hooks/useMediaQuery";
+import { useTransitCandidateNotifications } from "@/hooks/useTransitCandidateNotifications";
 import { useAstronomySync } from "@/hooks/useAstronomySync";
 import { useWeatherSync } from "@/hooks/useWeatherSync";
 import { appPath } from "@/lib/paths/appPath";
 import { useObserverStore } from "@/stores/observer-store";
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 /**
  * Lijevo: logo (ograničen max visinom/širinom — PNG može biti ogroman).
@@ -70,7 +72,8 @@ const MapContainer = dynamic(
   }
 );
 
-type MobileTab = "mission" | "field";
+type MobileTab = "mission" | "time" | "observer" | "field";
+type SheetSnap = "peek" | "half" | "full";
 
 type ShellControls = {
   referenceEpochMs: number;
@@ -176,6 +179,14 @@ function TimeAndWeatherBlock(props: ShellControls) {
                 />
               </svg>
             </button>
+            <a
+              href={appPath("/about")}
+              className="mt-toolbar-btn px-3 text-xs font-medium text-zinc-200 hover:border-emerald-500/35"
+              title="About and usage guide"
+              aria-label="Open about and usage guide page"
+            >
+              About
+            </a>
           </div>
         </div>
         <div className="pointer-events-auto flex max-h-44 min-h-0 min-w-0 flex-1 flex-col self-start sm:max-h-52 md:max-h-56">
@@ -201,7 +212,14 @@ function TimeAndWeatherBlock(props: ShellControls) {
 export function HomePageClient() {
   const s = useHomeShellOrchestration();
   const isWide = useIsMdUp();
-  const [mobileTab, setMobileTab] = useState<MobileTab>("mission");
+  const [mobileTab, setMobileTab] = useState<MobileTab | null>(null);
+  const [pulseTab, setPulseTab] = useState<MobileTab | null>(null);
+  const [sheetSnap, setSheetSnap] = useState<SheetSnap>("peek");
+  const [sheetDragOffsetPx, setSheetDragOffsetPx] = useState(0);
+  const touchStartYRef = useRef<number | null>(null);
+  const pulseTimeoutRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(
+    null
+  );
   const requestPlaceObserverFromView = useObserverStore(
     (st) => st.requestPlaceObserverFromView
   );
@@ -229,6 +247,90 @@ export function HomePageClient() {
     onPlaceObserverFromView: requestPlaceObserverFromView,
     onFocusMapOnObserver: requestFocusOnObserver,
   };
+
+  const mobileTabTitle = useMemo(() => {
+    if (mobileTab === "mission") return "Mission";
+    if (mobileTab === "time") return "Time & weather";
+    if (mobileTab === "observer") return "Observer";
+    if (mobileTab === "field") return "Photo & field";
+    return "";
+  }, [mobileTab]);
+  const candidateNotifications = useTransitCandidateNotifications({
+    candidates: s.candidatesDisplay,
+    activeTransits: s.activeTransits,
+  });
+  const sheetHeightClass = useMemo(() => {
+    if (sheetSnap === "full") return "h-[76dvh]";
+    if (sheetSnap === "half") return "h-[58dvh]";
+    return "h-[42dvh]";
+  }, [sheetSnap]);
+
+  const openMobileTab = useCallback((tab: MobileTab) => {
+    let nextTab: MobileTab | null = null;
+    setMobileTab((prev) => {
+      nextTab = prev === tab ? null : tab;
+      return nextTab;
+    });
+    if (pulseTimeoutRef.current !== null) {
+      globalThis.clearTimeout(pulseTimeoutRef.current);
+      pulseTimeoutRef.current = null;
+    }
+    if (nextTab) {
+      setPulseTab(nextTab);
+      pulseTimeoutRef.current = globalThis.setTimeout(() => {
+        setPulseTab((current) => (current === nextTab ? null : current));
+        pulseTimeoutRef.current = null;
+      }, 260);
+    } else {
+      setPulseTab(null);
+    }
+    setSheetSnap("peek");
+    setSheetDragOffsetPx(0);
+  }, []);
+
+  const handleSheetTouchStart = useCallback(
+    (event: React.TouchEvent<HTMLElement>) => {
+      touchStartYRef.current = event.touches[0]?.clientY ?? null;
+      setSheetDragOffsetPx(0);
+    },
+    []
+  );
+
+  const handleSheetTouchMove = useCallback(
+    (event: React.TouchEvent<HTMLElement>) => {
+      if (touchStartYRef.current === null) return;
+      const currentY = event.touches[0]?.clientY ?? touchStartYRef.current;
+      setSheetDragOffsetPx(currentY - touchStartYRef.current);
+    },
+    []
+  );
+
+  const handleSheetTouchEnd = useCallback(() => {
+    const delta = sheetDragOffsetPx;
+    if (delta > 120) {
+      if (sheetSnap === "peek") {
+        setMobileTab(null);
+      } else if (sheetSnap === "half") {
+        setSheetSnap("peek");
+      } else {
+        setSheetSnap("half");
+      }
+    } else if (delta > 65) {
+      if (sheetSnap === "full") {
+        setSheetSnap("half");
+      } else if (sheetSnap === "half") {
+        setSheetSnap("peek");
+      }
+    } else if (delta < -90) {
+      if (sheetSnap === "peek") {
+        setSheetSnap("half");
+      } else if (sheetSnap === "half") {
+        setSheetSnap("full");
+      }
+    }
+    touchStartYRef.current = null;
+    setSheetDragOffsetPx(0);
+  }, [sheetDragOffsetPx, sheetSnap]);
 
   const missionPanels = (
     <>
@@ -261,7 +363,11 @@ export function HomePageClient() {
         showEmpty={s.showEmptyCandidates}
         showEphemeris={s.showEphemeris}
         selectedFlightId={s.selectedFlightId}
+        notificationsSupported={candidateNotifications.notificationsSupported}
+        notificationPermission={candidateNotifications.permission}
+        watchedFlightIds={candidateNotifications.watchedFlightIds}
         onSelectFlight={s.setSelectedFlightId}
+        onToggleWatchFlight={candidateNotifications.toggleWatchForFlight}
       />
       <ActiveTransitsPanel
         rows={s.activeTransits}
@@ -278,6 +384,8 @@ export function HomePageClient() {
       <PhotographerToolsPanel
         selectedFlightId={s.selectedFlightId}
         photoPack={s.photoPack}
+        photoShotFeasibility={s.photoShotFeasibility}
+        photoUnavailableReason={s.photoUnavailableReason}
         beepOnTransit={s.beepOnTransit}
         onToggleBeep={() => {
           s.setBeepOnTransit((b) => !b);
@@ -298,6 +406,7 @@ export function HomePageClient() {
           s.setGoldenFlashToken(null);
         }}
       />
+      <AddToHomeScreenPrompt />
       {isWide ? (
         <div className="grid min-h-0 min-w-0 flex-1 auto-rows-[auto_minmax(0,1fr)] grid-cols-1 md:grid-cols-[20rem_minmax(0,1fr)_20rem]">
           <header className="mt-chrome-bar w-full min-w-0 shrink-0 self-start overflow-hidden px-4 py-2.5 pt-[max(0.5rem,env(safe-area-inset-top))] shadow-[0_1px_0_0_rgba(0,0,0,0.35)] md:col-start-1 md:row-start-1">
@@ -320,71 +429,290 @@ export function HomePageClient() {
           </aside>
         </div>
       ) : (
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <header className="mt-chrome-bar w-full min-w-0 shrink-0 self-start overflow-hidden px-3 py-1.5 pt-[max(0.35rem,env(safe-area-inset-top))]">
-            <div className="flex w-full min-w-0 flex-nowrap items-center justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <AppHeaderBrand compact />
-              </div>
-              <span className="hidden text-[0.6rem] font-medium uppercase tracking-[0.2em] text-zinc-600 sm:inline">
-                field ops
-              </span>
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-zinc-950">
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-40 px-2.5 pt-[max(0.4rem,env(safe-area-inset-top))]">
+            <div className="pointer-events-auto inline-flex max-w-[min(76vw,14rem)] items-center rounded-2xl border border-white/10 bg-zinc-950/80 px-2.5 py-1.5 shadow-lg shadow-black/40 backdrop-blur-xl">
+              <AppHeaderBrand compact />
             </div>
-          </header>
-          <TimeAndWeatherBlock {...timeBlockProps} />
-          <div className="relative min-h-0 w-full min-w-0 flex-1 touch-pan-x touch-pan-y">
+          </div>
+          <div className="relative min-h-0 w-full min-w-0 flex-1 touch-pan-x touch-pan-y pb-[max(4.5rem,calc(3.6rem+env(safe-area-inset-bottom)))]">
             <MapContainer
               flightProvider={s.flightProvider}
               isGolden={s.isGolden}
             />
           </div>
-          <div
-            className="grid min-h-0 max-h-[min(42dvh,22rem)] shrink-0 grid-rows-[auto_minmax(0,1fr)] border-t border-white/10 bg-zinc-950/90 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-8px_40px_-4px_rgba(0,0,0,0.55),inset_0_1px_0_0_rgba(255,255,255,0.05)] backdrop-blur-2xl"
-            data-testid="mobile-control-deck"
-          >
-            <div
-              className="flex gap-1 p-1.5"
-              role="tablist"
-              aria-label="Control sections"
+          {mobileTab ? (
+            <section
+              className={`absolute inset-x-0 bottom-[calc(3.8rem+env(safe-area-inset-bottom))] z-50 max-h-[78dvh] min-h-[42dvh] overflow-hidden rounded-t-3xl border border-white/10 bg-zinc-950/95 shadow-[0_-12px_60px_-12px_rgba(0,0,0,0.7)] backdrop-blur-2xl transition-[height,transform,box-shadow] duration-300 motion-reduce:transition-none ${sheetHeightClass}`}
+              aria-label={`${mobileTabTitle} controls`}
+              style={{
+                transform: `translateY(${Math.max(0, sheetDragOffsetPx)}px)`,
+                transitionTimingFunction: "cubic-bezier(0.2, 0.9, 0.2, 1.06)",
+              }}
             >
+              <header
+                className="flex items-center justify-between border-b border-white/10 px-4 py-2.5"
+                onTouchStart={handleSheetTouchStart}
+                onTouchMove={handleSheetTouchMove}
+                onTouchEnd={handleSheetTouchEnd}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSheetSnap((prev) =>
+                      prev === "peek" ? "half" : prev === "half" ? "full" : "peek"
+                    );
+                  }}
+                  className="absolute left-1/2 top-1.5 h-1.5 w-12 -translate-x-1/2 rounded-full bg-zinc-600/90 transition-transform duration-150 active:scale-x-110 active:scale-y-125 motion-reduce:transition-none"
+                  aria-label="Adjust panel height"
+                  title="Adjust panel height"
+                />
+                <h2 className="text-sm font-semibold tracking-wide text-zinc-100">
+                  {mobileTabTitle}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileTab(null);
+                  }}
+                  className="rounded-lg border border-white/10 bg-zinc-900/80 px-2 py-1 text-xs text-zinc-300"
+                  aria-label="Close controls"
+                >
+                  Close
+                </button>
+              </header>
+              <div className="h-[calc(100%-3rem)] overflow-y-auto px-3 py-2 text-zinc-200 [scrollbar-gutter:stable]">
+                {mobileTab === "mission" ? (
+                  <>
+                    <FlightSourcePanel
+                      flightProviderId={s.flightProviderId}
+                      onFlightProviderIdChange={s.setFlightProvider}
+                      routeCorridor={s.routeCorridor}
+                      isLoading={s.isLoading}
+                    />
+                    <MoonEphemerisPanel
+                      moon={s.moon}
+                      display={s.moonDisplay}
+                      moonRise={s.moonRise}
+                      moonSet={s.moonSet}
+                      moonRiseSetKind={s.moonRiseSetKind}
+                      showEphemeris={s.showEphemeris}
+                      isMoonBelowHorizon={s.isMoonBelowHorizon}
+                    />
+                    <TransitCandidatesPanel
+                      candidates={s.candidatesDisplay}
+                      isLoading={s.isLoading}
+                      error={s.error}
+                      showEmpty={s.showEmptyCandidates}
+                      showEphemeris={s.showEphemeris}
+                      selectedFlightId={s.selectedFlightId}
+                      notificationsSupported={
+                        candidateNotifications.notificationsSupported
+                      }
+                      notificationPermission={candidateNotifications.permission}
+                      watchedFlightIds={candidateNotifications.watchedFlightIds}
+                      onSelectFlight={s.setSelectedFlightId}
+                      onToggleWatchFlight={
+                        candidateNotifications.toggleWatchForFlight
+                      }
+                    />
+                    <ActiveTransitsPanel
+                      rows={s.activeTransits}
+                      showEphemeris={s.showEphemeris}
+                      selectedFlightId={s.selectedFlightId}
+                      onSelectFlight={s.setSelectedFlightId}
+                    />
+                  </>
+                ) : null}
+                {mobileTab === "time" ? (
+                  <div className="space-y-3">
+                    <div className="rounded-2xl border border-white/10 bg-zinc-900/60 px-2.5 py-2">
+                      <WeatherOverlay />
+                    </div>
+                    <TimeSliderPanel
+                      variant="panel"
+                      referenceEpochMs={s.referenceEpochMs}
+                      offsetHours={s.offsetHours}
+                      onOffsetHoursChange={s.onSlider}
+                      showEphemeris={s.showEphemeris}
+                      isMoonBelowHorizon={s.isMoonBelowHorizon}
+                      sliderMaxHours={s.sliderWidthHours}
+                      timeSliderStartLabel={s.timeSliderStartLabel}
+                      timeSliderEndLabel={s.timeSliderEndLabel}
+                      timeSliderMode={s.timeSliderMode}
+                    />
+                    <button
+                      type="button"
+                      onClick={s.syncTime}
+                      className="w-full rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-3 py-2.5 text-sm font-medium text-emerald-100"
+                    >
+                      Sync time to now
+                    </button>
+                  </div>
+                ) : null}
+                {mobileTab === "observer" ? (
+                  <div className="space-y-3">
+                    <ObserverLocationPanel
+                      observer={s.obs}
+                      onUseGps={s.onUseGps}
+                      gpsBusy={s.gpsBusy}
+                      gpsError={s.gpsError}
+                      locationActionsDisabled={s.observerLocationLocked}
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={requestPlaceObserverFromView}
+                        disabled={observerLocationLocked}
+                        className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-2.5 py-2.5 text-xs font-medium text-amber-100 disabled:opacity-40"
+                      >
+                        Set my location here
+                      </button>
+                      <button
+                        type="button"
+                        onClick={requestFocusOnObserver}
+                        className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-2.5 py-2.5 text-xs font-medium text-sky-100"
+                      >
+                        Focus on me
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+                {mobileTab === "field" ? (
+                  <>
+                    <PhotographerToolsPanel
+                      selectedFlightId={s.selectedFlightId}
+                      photoPack={s.photoPack}
+                      photoShotFeasibility={s.photoShotFeasibility}
+                      photoUnavailableReason={s.photoUnavailableReason}
+                      beepOnTransit={s.beepOnTransit}
+                      onToggleBeep={() => {
+                        s.setBeepOnTransit((b) => !b);
+                      }}
+                    />
+                    <CompassAimPanel />
+                    <FieldOverlaysSection />
+                  </>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
+          <nav
+            className="absolute inset-x-0 bottom-0 z-[60] border-t border-white/10 bg-zinc-950/92 px-2 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-2xl"
+            aria-label="Primary mobile navigation"
+            role="tablist"
+          >
+            <div className="grid grid-cols-4 gap-1.5">
               <button
                 type="button"
                 role="tab"
                 aria-selected={mobileTab === "mission"}
                 onClick={() => {
-                  setMobileTab("mission");
+                  openMobileTab("mission");
                 }}
-                className={`flex-1 rounded-xl px-2 py-2 text-center text-sm font-medium transition duration-200 ${
+                className={`flex min-h-12 flex-col items-center justify-center rounded-xl px-2 py-1.5 text-center text-[0.68rem] font-medium transition duration-150 active:scale-[0.96] motion-reduce:transition-none ${
                   mobileTab === "mission"
-                    ? "bg-gradient-to-b from-zinc-700/90 to-zinc-800/95 text-zinc-50 shadow-lg shadow-black/30 ring-1 ring-emerald-500/50"
-                    : "text-zinc-500 hover:bg-zinc-800/50 hover:text-zinc-200"
-                }`}
+                    ? "bg-zinc-800/95 text-zinc-50 ring-1 ring-emerald-500/55"
+                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
+                } ${pulseTab === "mission" ? "scale-[1.03]" : ""}`}
               >
-                Map & transits
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  className="mb-0.5 h-4.5 w-4.5"
+                  aria-hidden
+                >
+                  <path d="M3 10.5 12 4l9 6.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z" />
+                  <path d="M9.5 20v-5.5a2.5 2.5 0 0 1 5 0V20" />
+                </svg>
+                Mission
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mobileTab === "time"}
+                onClick={() => {
+                  openMobileTab("time");
+                }}
+                className={`flex min-h-12 flex-col items-center justify-center rounded-xl px-2 py-1.5 text-center text-[0.68rem] font-medium transition duration-150 active:scale-[0.96] motion-reduce:transition-none ${
+                  mobileTab === "time"
+                    ? "bg-zinc-800/95 text-zinc-50 ring-1 ring-amber-500/55"
+                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
+                } ${pulseTab === "time" ? "scale-[1.03]" : ""}`}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  className="mb-0.5 h-4.5 w-4.5"
+                  aria-hidden
+                >
+                  <circle cx="12" cy="12" r="8.5" />
+                  <path d="M12 7.75v4.5l3 2" />
+                </svg>
+                Time
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mobileTab === "observer"}
+                onClick={() => {
+                  openMobileTab("observer");
+                }}
+                className={`flex min-h-12 flex-col items-center justify-center rounded-xl px-2 py-1.5 text-center text-[0.68rem] font-medium transition duration-150 active:scale-[0.96] motion-reduce:transition-none ${
+                  mobileTab === "observer"
+                    ? "bg-zinc-800/95 text-zinc-50 ring-1 ring-sky-500/55"
+                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
+                } ${pulseTab === "observer" ? "scale-[1.03]" : ""}`}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  className="mb-0.5 h-4.5 w-4.5"
+                  aria-hidden
+                >
+                  <path d="M12 20s6-3.6 6-9a6 6 0 1 0-12 0c0 5.4 6 9 6 9Z" />
+                  <circle cx="12" cy="11" r="2.5" />
+                </svg>
+                Observer
               </button>
               <button
                 type="button"
                 role="tab"
                 aria-selected={mobileTab === "field"}
                 onClick={() => {
-                  setMobileTab("field");
+                  openMobileTab("field");
                 }}
-                className={`flex-1 rounded-xl px-2 py-2 text-center text-sm font-medium transition duration-200 ${
+                className={`flex min-h-12 flex-col items-center justify-center rounded-xl px-2 py-1.5 text-center text-[0.68rem] font-medium transition duration-150 active:scale-[0.96] motion-reduce:transition-none ${
                   mobileTab === "field"
-                    ? "bg-gradient-to-b from-zinc-700/90 to-zinc-800/95 text-zinc-50 shadow-lg shadow-black/30 ring-1 ring-sky-500/50"
-                    : "text-zinc-500 hover:bg-zinc-800/50 hover:text-zinc-200"
-                }`}
+                    ? "bg-zinc-800/95 text-zinc-50 ring-1 ring-violet-500/55"
+                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
+                } ${pulseTab === "field" ? "scale-[1.03]" : ""}`}
               >
-                Photo & field
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  className="mb-0.5 h-4.5 w-4.5"
+                  aria-hidden
+                >
+                  <path d="M12 3v3m0 12v3M4.2 7.2l2.1 2.1m11.4 0 2.1-2.1M3 12h3m12 0h3M6.3 14.7l-2.1 2.1m13.5-2.1 2.1 2.1" />
+                  <circle cx="12" cy="12" r="4.25" />
+                </svg>
+                Field
               </button>
             </div>
-            <div
-              className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain px-3 py-2 text-zinc-200 [scrollbar-gutter:stable]"
-              data-testid="mobile-deck-content"
-            >
-              {mobileTab === "mission" ? missionPanels : fieldPanels}
-            </div>
-          </div>
+          </nav>
         </div>
       )}
     </div>

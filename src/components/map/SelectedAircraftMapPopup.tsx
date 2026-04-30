@@ -22,10 +22,47 @@ function schedulePopupTeardown(args: {
   queueMicrotask(() => {
     if (map) {
       map.off("move", onMapMove);
+      map.off("resize", onMapMove);
     }
     root?.unmount();
     popup?.remove();
   });
+}
+
+const MOBILE_POPUP_EDGE_PX = 12;
+
+/** Match Tailwind `md:` breakpoint used by the shell. */
+function isMobileMapWidth(map: Map): boolean {
+  return map.getContainer().getBoundingClientRect().width < 768;
+}
+
+/**
+ * Screen pixel anchor for `map.unproject` (origin top-left of the map container).
+ * Mobile: dock like Flightradar24 — full-width card centered above the bottom tab bar
+ * (`anchor: bottom`). Desktop: HUD under header (`anchor: top-left`).
+ */
+function popupScreenAnchor(map: Map): {
+  x: number;
+  y: number;
+  anchor: "top-left" | "bottom";
+} {
+  const rect = map.getContainer().getBoundingClientRect();
+  const mobile = isMobileMapWidth(map);
+  if (mobile) {
+    return {
+      x: rect.width / 2,
+      y: Math.max(
+        MOBILE_POPUP_EDGE_PX + 1,
+        rect.height - MOBILE_POPUP_EDGE_PX
+      ),
+      anchor: "bottom",
+    };
+  }
+  return {
+    x: SELECTED_AIRCRAFT_POPUP_SCREEN_X,
+    y: SELECTED_AIRCRAFT_POPUP_SCREEN_Y,
+    anchor: "top-left",
+  };
 }
 
 type SelectedAircraftMapPopupProps = {
@@ -65,12 +102,8 @@ export function SelectedAircraftMapPopup({
     if (!map?.getStyle() || !popup) {
       return;
     }
-    popup.setLngLat(
-      map.unproject([
-        SELECTED_AIRCRAFT_POPUP_SCREEN_X,
-        SELECTED_AIRCRAFT_POPUP_SCREEN_Y,
-      ])
-    );
+    const anchor = popupScreenAnchor(map);
+    popup.setLngLat(map.unproject([anchor.x, anchor.y]));
   }, [mapRef]);
 
   const repositionLatest = useRef(reposition);
@@ -108,17 +141,19 @@ export function SelectedAircraftMapPopup({
 
     if (!popupRef.current) {
       const el = document.createElement("div");
+      const anchor = popupScreenAnchor(map);
       popupRef.current = new mapboxgl.Popup({
         closeButton: false,
         closeOnClick: false,
         maxWidth: "none",
         className: "moon-transit-aircraft-popup",
-        anchor: "top-left",
+        anchor: anchor.anchor,
       })
         .setDOMContent(el)
         .addTo(map);
       rootRef.current = createRoot(el);
       map.on("move", onMapMove);
+      map.on("resize", onMapMove);
       moveListenerMapRef.current = map;
     }
 

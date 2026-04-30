@@ -138,6 +138,10 @@ export function useMoonTransitMap(
     onBoundsRefresh();
   }, [flightProviderId, onBoundsRefresh, mapReadyTick]);
 
+  useEffect(() => {
+    onBoundsRefresh();
+  }, [observer.lat, observer.lng, onBoundsRefresh, mapReadyTick]);
+
   const applyPlaceObserverFromMapCenter = useCallback(() => {
     const m = mapRef.current;
     if (!m) {
@@ -167,6 +171,9 @@ export function useMoonTransitMap(
       zoom: initial.zoom,
       pitch: initial.pitch,
       bearing: initial.bearing,
+      pitchWithRotate: true,
+      touchPitch: true,
+      maxPitch: 78,
     });
     map.addControl(new mapboxgl.NavigationControl(), "top-right");
     mapRef.current = map;

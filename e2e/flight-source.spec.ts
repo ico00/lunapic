@@ -20,6 +20,10 @@ test.describe("flight source", () => {
 
     const provider = page.getByTestId("flight-provider-select");
     await expect(provider).toBeVisible();
+    await expect(provider).toHaveAttribute("data-value", "opensky");
+
+    await provider.click();
+    await page.getByRole("option", { name: "Routes (static)" }).click();
     await expect(provider).toHaveAttribute("data-value", "static");
 
     await provider.click();

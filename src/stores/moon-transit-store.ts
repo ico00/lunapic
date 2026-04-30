@@ -2,7 +2,11 @@ import {
   getTimeSliderWindowMs,
   TIME_SLIDER_6H_HALF_MS,
 } from "@/lib/domain/astro/astroService";
-import { mergeStickyFlightMetadata } from "@/lib/flight/mergeStickyFlightMetadata";
+import type { CameraSensorType } from "@/lib/domain/geometry/shotFeasibility";
+import {
+  clearOpenSkyFlightRetention,
+  mergeFlightsWithOpenSkyRetention,
+} from "@/lib/flight/mergeFlightsWithOpenSkyRetention";
 import { getFlightProvider } from "@/lib/flight/flightProviderRegistry";
 import { useObserverStore } from "@/stores/observer-store";
 import type { GeoBounds, MapViewState } from "@/types";
@@ -41,6 +45,10 @@ type MoonTransitState = {
   openSkyLatencySkewMs: number;
   setOpenSkyLatencySkewMs: (ms: number) => void;
   addOpenSkyLatencySkewMs: (deltaMs: number) => void;
+  cameraFocalLengthMm: number;
+  cameraSensorType: CameraSensorType;
+  setCameraFocalLengthMm: (mm: number) => void;
+  setCameraSensorType: (sensor: CameraSensorType) => void;
   /**
    * Suncalc: izlaz / zlaz (UTC kalendaru dan u syncu) i polarna stanja
    * (`alwaysUp` / `alwaysDown` imaju `rise` / `set` = null).
@@ -85,12 +93,14 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   timeOffsetMs: 0,
   referenceEpochMs: 0,
   mapView: defaultMapViewState,
-  flightProvider: "static",
+  flightProvider: "opensky",
   flights: [],
   isLoading: false,
   error: null,
   selectedFlightId: null,
   openSkyLatencySkewMs: 0,
+  cameraFocalLengthMm: 600,
+  cameraSensorType: "fullFrame",
   ephemerisRefetchKey: 0,
   moonRise: null,
   moonSet: null,
@@ -103,6 +113,11 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
         s.openSkyLatencySkewMs + deltaMs
       ),
     })),
+  setCameraFocalLengthMm: (mm) =>
+    set({
+      cameraFocalLengthMm: Math.max(50, Math.min(2400, Math.round(mm))),
+    }),
+  setCameraSensorType: (sensor) => set({ cameraSensorType: sensor }),
   setTimeOffsetMs: (offsetMs) => {
     const s = get();
     const win = getTimeSliderWindowMs(
@@ -164,11 +179,13 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   setMapView: (next) =>
     set((s) => ({ mapView: { ...s.mapView, ...next } })),
   setFlightProvider: (id) =>
-    set((s) =>
-      s.flightProvider === id
-        ? {}
-        : { flightProvider: id, selectedFlightId: null }
-    ),
+    set((s) => {
+      if (s.flightProvider === id) {
+        return {};
+      }
+      clearOpenSkyFlightRetention();
+      return { flightProvider: id, selectedFlightId: null };
+    }),
   setSelectedFlightId: (id) => set({ selectedFlightId: id }),
   setFlights: (f) => set({ flights: f }),
   resetError: () => set({ error: null }),
@@ -179,7 +196,12 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
       const previousFlights = get().flights;
       const observer = useObserverStore.getState().observer;
       const flights = await p.getFlightsInBounds({ bounds, observer });
-      const merged = mergeStickyFlightMetadata(flights, previousFlights);
+      const merged = mergeFlightsWithOpenSkyRetention(flights, previousFlights, {
+        providerId: get().flightProvider,
+        mapBounds: bounds,
+        nowMs: Date.now(),
+        openSkyLatencySkewMs: get().openSkyLatencySkewMs,
+      });
       const sel = get().selectedFlightId;
       const keepSel =
         sel != null && merged.some((f) => f.id === sel);

@@ -3,8 +3,32 @@
 import { ShellSectionCard } from "@/components/shell/ShellSectionCard";
 import { SectionIconMoon } from "@/components/shell/sectionCategoryIcons";
 import { useHasMounted } from "@/hooks/useHasMounted";
+import {
+  moonFieldVisibilityAdvice,
+  type MoonFieldVisibilityTier,
+} from "@/lib/domain/astro/moonFieldVisibilityAdvice";
 import { formatFixed } from "@/lib/format/numbers";
 import type { MoonRiseSetKind, MoonState } from "@/types/moon";
+
+function tierDotClass(tier: MoonFieldVisibilityTier): string {
+  if (tier === "critical") {
+    return "bg-rose-500 shadow-[0_0_0_1px_rgba(255,255,255,0.12)]";
+  }
+  if (tier === "caution") {
+    return "bg-amber-500 shadow-[0_0_0_1px_rgba(255,255,255,0.12)]";
+  }
+  return "bg-emerald-500 shadow-[0_0_0_1px_rgba(255,255,255,0.12)]";
+}
+
+function tierLabelClass(tier: MoonFieldVisibilityTier): string {
+  if (tier === "critical") {
+    return "text-rose-200/95";
+  }
+  if (tier === "caution") {
+    return "text-amber-200/95";
+  }
+  return "text-emerald-200/95";
+}
 
 function timeDisplay(
   t: Date | null,
@@ -43,6 +67,9 @@ export function MoonEphemerisPanel({
   isMoonBelowHorizon,
 }: MoonEphemerisPanelProps) {
   const hasMounted = useHasMounted();
+  const visibilityAdvice = showEphemeris
+    ? moonFieldVisibilityAdvice(moon.altitudeDeg)
+    : null;
   return (
     <ShellSectionCard
       className="mt-3"
@@ -56,8 +83,17 @@ export function MoonEphemerisPanel({
       <dl className="space-y-1 text-sm">
         <div className="flex justify-between gap-4">
           <dt>Altitude</dt>
-          <dd className="font-mono tabular-nums">
-            {display(formatFixed(moon.altitudeDeg))}°
+          <dd className="flex items-center justify-end gap-2 font-mono tabular-nums">
+            {visibilityAdvice ? (
+              <span
+                className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${tierDotClass(
+                  visibilityAdvice.tier
+                )}`}
+                title={visibilityAdvice.message}
+                aria-label={visibilityAdvice.label}
+              />
+            ) : null}
+            <span>{display(formatFixed(moon.altitudeDeg))}°</span>
           </dd>
         </div>
         <div className="flex justify-between gap-4">
@@ -91,6 +127,26 @@ export function MoonEphemerisPanel({
           </dd>
         </div>
       </dl>
+      {visibilityAdvice ? (
+        <div
+          className="mt-3 border-t border-zinc-800/70 pt-2.5"
+          aria-live="polite"
+        >
+          <p className="text-[0.65rem] font-medium uppercase tracking-wide text-zinc-500">
+            Visibility advice
+          </p>
+          <p
+            className={`mt-1 text-xs font-semibold tracking-tight ${tierLabelClass(
+              visibilityAdvice.tier
+            )}`}
+          >
+            {visibilityAdvice.label}
+          </p>
+          <p className="mt-1 text-[0.7rem] leading-relaxed text-zinc-400">
+            {visibilityAdvice.message}
+          </p>
+        </div>
+      ) : null}
     </ShellSectionCard>
   );
 }

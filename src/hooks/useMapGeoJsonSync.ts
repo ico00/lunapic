@@ -22,7 +22,10 @@ import type { FlightState } from "@/types/flight";
 import type mapboxgl from "mapbox-gl";
 import type { Feature } from "geojson";
 import { fieldPerfTime } from "@/lib/perf/fieldPerf";
-import { useEffect, type RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
+
+/** Smanjuje broj punih GeoJSON zamjena pri ekstrapolaciji (mobilni Safari). */
+const FLIGHTS_GEOJSON_MIN_INTERVAL_MS = 300;
 
 type UseMapGeoJsonSyncArgs = {
   mapRef: RefObject<mapboxgl.Map | null>;
@@ -44,6 +47,7 @@ type UseMapGeoJsonSyncArgs = {
   selectedFlightTrajectoryFeature: Feature | null;
   /** Label (npr. +90s) na vrhu predikcije putanje. */
   selectedFlightTrajectoryLabelFeature: Feature | null;
+  shotFeasibleFlightIds?: ReadonlySet<string>;
   flightProvider: IFlightProvider;
 };
 export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
@@ -62,8 +66,16 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
     standSpineFeature,
     selectedFlightTrajectoryFeature,
     selectedFlightTrajectoryLabelFeature,
+    shotFeasibleFlightIds,
     flightProvider,
   } = a;
+
+  const flightsRef = useRef(flights);
+  const selectedFlightIdRef = useRef(selectedFlightId);
+  const lastFlightGeoJsonFlushRef = useRef(0);
+  const prevSelectedFlightIdForGeoRef = useRef<string | null | undefined>(
+    undefined
+  );
 
   useEffect(() => {
     fieldPerfTime("geojson:moonLayers", () => {
@@ -210,42 +222,95 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
   }, [moonPathPack, mapReadyTick, mapRef]);
 
   useEffect(() => {
-    fieldPerfTime("geojson:flights", () => {
+    flightsRef.current = flights;
+    selectedFlightIdRef.current = selectedFlightId;
+
     const map = mapRef.current;
     if (!map || !map.getSource(FLIGHTS_SOURCE)) {
       return;
     }
-    const src = map.getSource(FLIGHTS_SOURCE) as mapboxgl.GeoJSONSource;
-    const idForFilter =
-      selectedFlightId == null
-        ? null
-        : flights.some((f) => f.id === selectedFlightId)
-          ? selectedFlightId
-          : null;
-    const visibleFlights =
-      idForFilter == null
-        ? flights
-        : flights.filter((f) => f.id === idForFilter);
-    src.setData({
-      type: "FeatureCollection",
-      features: visibleFlights.map((f) => ({
-        type: "Feature" as const,
-        geometry: {
-          type: "Point" as const,
-          coordinates: [f.position.lng, f.position.lat],
-        },
-        properties: {
-          id: f.id,
-          name: f.callSign ?? f.id,
-          track:
-            typeof f.trackDeg === "number" && Number.isFinite(f.trackDeg)
-              ? ((f.trackDeg % 360) + 360) % 360
-              : 0,
-        },
-      })),
-    });
-    });
-  }, [flights, mapRef, mapReadyTick, selectedFlightId]);
+
+    const flush = () => {
+      fieldPerfTime("geojson:flights", () => {
+        const m = mapRef.current;
+        if (!m || !m.getSource(FLIGHTS_SOURCE)) {
+          return;
+        }
+        const src = m.getSource(FLIGHTS_SOURCE) as mapboxgl.GeoJSONSource;
+        const fList = flightsRef.current;
+        const sel = selectedFlightIdRef.current;
+        const idForFilter =
+          sel == null
+            ? null
+            : fList.some((f) => f.id === sel)
+              ? sel
+              : null;
+        const visibleFlights =
+          idForFilter == null ? fList : fList.filter((f) => f.id === idForFilter);
+        src.setData({
+          type: "FeatureCollection",
+          features: visibleFlights.map((f) => ({
+            type: "Feature" as const,
+            geometry: {
+              type: "Point" as const,
+              coordinates: [
+                f.position.lng,
+                f.position.lat,
+                Math.max(0, f.geoAltitudeMeters ?? f.baroAltitudeMeters ?? 0),
+              ],
+            },
+            properties: {
+              id: f.id,
+              name: f.callSign ?? f.id,
+              isShotFeasible: shotFeasibleFlightIds?.has(f.id) ?? false,
+              altitudeMeters: Math.max(
+                0,
+                f.geoAltitudeMeters ?? f.baroAltitudeMeters ?? 0
+              ),
+              track:
+                typeof f.trackDeg === "number" && Number.isFinite(f.trackDeg)
+                  ? ((f.trackDeg % 360) + 360) % 360
+                  : 0,
+            },
+          })),
+        });
+      });
+    };
+
+    const selectionChanged =
+      prevSelectedFlightIdForGeoRef.current !== undefined &&
+      prevSelectedFlightIdForGeoRef.current !== selectedFlightId;
+    prevSelectedFlightIdForGeoRef.current = selectedFlightId;
+
+    if (selectionChanged) {
+      lastFlightGeoJsonFlushRef.current = Date.now();
+      flush();
+      return;
+    }
+
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const now = Date.now();
+    const dt = now - lastFlightGeoJsonFlushRef.current;
+    if (
+      lastFlightGeoJsonFlushRef.current === 0 ||
+      dt >= FLIGHTS_GEOJSON_MIN_INTERVAL_MS
+    ) {
+      lastFlightGeoJsonFlushRef.current = now;
+      flush();
+    } else {
+      timeoutId = setTimeout(() => {
+        timeoutId = null;
+        lastFlightGeoJsonFlushRef.current = Date.now();
+        flush();
+      }, FLIGHTS_GEOJSON_MIN_INTERVAL_MS - dt);
+    }
+
+    return () => {
+      if (timeoutId != null) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [flights, mapRef, mapReadyTick, selectedFlightId, shotFeasibleFlightIds]);
 
   useEffect(() => {
     fieldPerfTime("geojson:routes", () => {

@@ -1,4 +1,5 @@
 import { destinationByAzimuthMeters } from "./wgs84";
+import type { GroundObserver } from "@/types";
 
 const norm360 = (d: number) => ((d % 360) + 360) % 360;
 
@@ -35,12 +36,12 @@ export function buildStandCorridorStripFeatures(
   p: StandCorridorParams
 ): Array<{
   type: "Feature";
-  properties: { tIndex: number };
+  properties: { tIndex: number; kind: "strip"; volumeHeightMeters: 0 };
   geometry: { type: "Polygon"; coordinates: [number, number][][] };
 }> {
   const out: Array<{
     type: "Feature";
-    properties: { tIndex: number };
+    properties: { tIndex: number; kind: "strip"; volumeHeightMeters: 0 };
     geometry: { type: "Polygon"; coordinates: [number, number][][] };
   }> = [];
 
@@ -79,7 +80,7 @@ export function buildStandCorridorStripFeatures(
     ];
     out.push({
       type: "Feature",
-      properties: { tIndex: i },
+      properties: { tIndex: i, kind: "strip", volumeHeightMeters: 0 },
       geometry: {
         type: "Polygon",
         coordinates: [ring],
@@ -88,6 +89,60 @@ export function buildStandCorridorStripFeatures(
   }
 
   return out;
+}
+
+/**
+ * 3D-friendly wedge footprint: observer + strip corners so fill-extrusion creates
+ * a volume that visually links observer toward the moon/aircraft stand direction.
+ */
+export function buildStandCorridorObserverVolumeFeature(
+  observer: GroundObserver,
+  s: StandCorridorSample,
+  p: StandCorridorParams,
+  volumeHeightMeters: number
+): {
+  type: "Feature";
+  properties: { kind: "volume"; volumeHeightMeters: number };
+  geometry: { type: "Polygon"; coordinates: [number, number][][] };
+} {
+  const standBearing = norm360(s.standBearingDeg);
+  const pL = standBearing - 90;
+  const pR = standBearing + 90;
+  const cNear = destinationByAzimuthMeters(
+    s.groundLat,
+    s.groundLng,
+    standBearing,
+    p.nearAlongM
+  );
+  const cFar = destinationByAzimuthMeters(
+    s.groundLat,
+    s.groundLng,
+    standBearing,
+    p.farAlongM
+  );
+  const A = destinationByAzimuthMeters(cNear.lat, cNear.lng, pL, p.halfWidthM);
+  const B = destinationByAzimuthMeters(cNear.lat, cNear.lng, pR, p.halfWidthM);
+  const C = destinationByAzimuthMeters(cFar.lat, cFar.lng, pR, p.halfWidthM);
+  const D = destinationByAzimuthMeters(cFar.lat, cFar.lng, pL, p.halfWidthM);
+  const ring: [number, number][] = [
+    [observer.lng, observer.lat],
+    [B.lng, B.lat],
+    [C.lng, C.lat],
+    [D.lng, D.lat],
+    [A.lng, A.lat],
+    [observer.lng, observer.lat],
+  ];
+  return {
+    type: "Feature",
+    properties: {
+      kind: "volume",
+      volumeHeightMeters: Math.max(0, volumeHeightMeters),
+    },
+    geometry: {
+      type: "Polygon",
+      coordinates: [ring],
+    },
+  };
 }
 
 /**

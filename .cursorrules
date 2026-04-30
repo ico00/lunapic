@@ -1,6 +1,6 @@
 # MOON TRANSIT — Cursor Rules & Project Guidelines
 
-You are an expert developer working on the **Moon Transit** application. This is a high-precision tool for photographers to plan aircraft transits across the Moon.
+You are an expert developer working on the **LunaPic** application. This is a high-precision tool for photographers to plan aircraft transits across the Moon.
 
 ## 1. CORE PRINCIPLES & ARCHITECTURE
 - **Observer-Centric:** All geometry and ephemeris calculations MUST use the fixed `observer` location from `useObserverStore`, NOT the map's current center.
@@ -17,7 +17,7 @@ Before starting any significant task, review these files:
 ## 3. KEY CALCULATIONS & PHYSICS
 - **Parallax:** Always account for aircraft altitude (approx. 10km) vs. observer position. Use `GeometryEngine` for intersections.
 - **Kinematics:** Transit duration and shutter recommendations are based on **angular velocity (ω)** from the photographer's perspective, not just ground speed.
-- **Time Handling:** - `referenceEpochMs` = `timeAnchorMs` + `timeOffsetMs` (for simulation).
+- **Time Handling:** - `referenceEpochMs` = `timeAnchorMs` + `timeOffsetMs` (for simulation). The time **slider** spans a full **UTC calendar day** anchored by `timeAnchorMs` / sync; moonrise/moonset still drive the **visible** moon-path highlight on the map, not the slider extent.
     - `openSkyLatencySkewMs` applies only to real-time flight extrapolation, not ephemeris.
 
 ## 4. UI & STYLE GUIDELINES
