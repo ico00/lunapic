@@ -11,13 +11,13 @@ export type ShellSectionAccent =
   | "zinc";
 
 const ACCENT_LINE: Record<ShellSectionAccent, string> = {
-  sky: "from-sky-500/75 via-sky-400/20 to-transparent",
-  emerald: "from-emerald-500/70 via-emerald-400/22 to-transparent",
-  amber: "from-amber-500/65 via-amber-400/18 to-transparent",
-  rose: "from-rose-500/60 via-rose-400/16 to-transparent",
-  violet: "from-violet-500/60 via-violet-400/16 to-transparent",
-  lime: "from-lime-500/60 via-lime-400/18 to-transparent",
-  zinc: "from-zinc-500/55 to-transparent",
+  sky: "from-blue-500/70 via-blue-400/15 to-transparent",
+  emerald: "from-yellow-500/65 via-yellow-400/12 to-transparent",
+  amber: "from-yellow-500/55 via-yellow-500/10 to-transparent",
+  rose: "from-zinc-500/50 via-zinc-600/12 to-transparent",
+  violet: "from-blue-600/50 via-blue-500/12 to-transparent",
+  lime: "from-yellow-400/55 via-yellow-400/10 to-transparent",
+  zinc: "from-zinc-500/45 to-transparent",
 };
 
 type SectionCardSurfaceProps = {
@@ -38,7 +38,7 @@ export function SectionCardSurface({
 }: SectionCardSurfaceProps) {
   return (
     <section
-      className={`relative overflow-hidden rounded-2xl border border-white/[0.09] bg-gradient-to-b from-zinc-900/55 to-zinc-950/95 p-3.5 shadow-[0_10px_36px_-12px_rgba(0,0,0,0.55)] ring-1 ring-inset ring-white/[0.05] ${className}`}
+      className={`relative overflow-hidden rounded-md border border-zinc-800 bg-gradient-to-b from-zinc-900/90 to-black p-3.5 shadow-[0_10px_36px_-12px_rgba(0,0,0,0.55)] ring-1 ring-inset ring-zinc-800/80 ${className}`}
       {...rest}
     >
       <div
@@ -80,8 +80,7 @@ export function ShellSectionCard({
       ? "mt-section-label-emerald border-b border-white/[0.07] pb-2.5"
       : "mt-section-label border-b border-white/[0.07] pb-2.5";
 
-  const iconClass =
-    titleTone === "emerald" ? "text-emerald-400/80" : "text-zinc-500/85";
+  const iconClass = "text-yellow-400/90";
 
   return (
     <SectionCardSurface
@@ -114,7 +113,7 @@ type ShellFootnoteProps = {
 export function ShellFootnote({ children, className = "" }: ShellFootnoteProps) {
   return (
     <div
-      className={`mt-3 rounded-xl border border-dashed border-zinc-600/40 bg-zinc-950/35 px-3 py-2.5 text-xs leading-relaxed text-zinc-500 ${className}`}
+      className={`mt-3 rounded-md border border-dashed border-zinc-700 bg-zinc-950/50 px-3 py-2.5 font-[family-name:var(--font-jetbrains-mono)] text-xs leading-relaxed text-zinc-500 ${className}`}
     >
       {children}
     </div>

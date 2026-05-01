@@ -52,7 +52,7 @@ flowchart TB
 
 
 - **UI shell** — `src/components/shell/HomePageClient.tsx` — sidebar (izvori, Mjesec, kandidati, tranziti) i alati (fotograf, kompas, polje); ispod `md` karta s `h-dvh` ispunjava srednji segment, kontrole u donjem „decku” s dva taba, jedna instanca mape. Na desktopu tri stupca kao prije. Map u drugom stupcu; map mora ostat **jedna** `MapContainer` instanca.
-- **Map** — `src/components/map/MapContainer.tsx` — Mapbox, GeoJSON sources, **must** match store updates via effects (`loadFlightsInBounds` on move, etc.).
+- **Map** — `src/components/map/MapContainer.tsx` — Mapbox, GeoJSON sources, **must** match store updates via effects (`loadFlightsInBounds` on move, etc.). Receives **`fieldSoundsEnabled`** from the shell when **Field sounds** are on: `useTransitFieldSounds` plays a **chime** when the **selected** aircraft enters the **green** (shot-feasible) set (`computeShotFeasibleFlightIds`, same rules as map tint) and a **soft hold tone** while it stays in the **moon-overlap** disc model (`screenTransitCandidates`); short tones live in `src/lib/audio/fieldAudio.ts`. Countdown **beeps** (≈3 s before alignment and at alignment) remain in `useTransitBeep` (`useHomeShellOrchestration` + `usePhotographerTools`).
 
 ## State stores
 
@@ -82,7 +82,7 @@ flowchart TB
 
 | Field / action                    | Role                                                                                           |
 | --------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `observer`                        | `{ lat, lng, groundHeightMeters }` — default near Zagreb; position from GPS, draggable marker, or “set from map center”. |
+| `observer`                        | `{ lat, lng, groundHeightMeters }` — default **balcony** point in Zagreb (**45.82968°N, 16.06368°E**, 130 m); position from GPS, draggable marker, or “set from map center”. |
 | `observerLocationLocked`          | When true, user cannot accidentally move the observer.                                         |
 | `mapFocusNonce`                   | Incremented to ask `MapContainer` to `flyTo` the observer.                                     |
 | `placeObserverFromViewNonce`      | Bumps when the UI asks to copy the **map viewport center** into `observer` (`useMoonTransitMap`). |
@@ -92,7 +92,7 @@ flowchart TB
 
 **Rule:** All moon/plane relative math should use `observer` from this store, not the map’s internal center, unless the feature explicitly is “set observer from view”.
 
-**Observer ground height (`groundHeightMeters`):** **`registerMoonTransitLayers`** calls **`ensureMapboxTerrain`** (`src/lib/map/mapboxTerrainElevation.ts`) to add **`mapbox://mapbox.mapbox-terrain-dem-v1`** and **`setTerrain`**. **`useMoonTransitMap`** uses **`queryTerrainElevation(..., { exaggerated: false })`** after: first layer registration, **set observer from map center**, **marker drag end**, and when **`terrainGroundHeightSyncNonce`** changes (post-GPS without altitude). That yields a **terrain-model elevation** (Mapbox DEM, ~mean sea level — not identical to WGS84 ellipsoid). When **`navigator.geolocation`** provides **`coords.altitude`**, **`useGpsObserver`** stores it and **does not** request a terrain overwrite. See **`GroundObserver`** in `src/types/geo.ts` and the Observer panel copy in the shell.
+**Observer ground height (`groundHeightMeters`):** **`registerMoonTransitLayers`** calls **`ensureMapboxTerrain`** (`src/lib/map/mapboxTerrainElevation.ts`) to add **`mapbox://mapbox.mapbox-terrain-dem-v1`** and **`setTerrain`**. **`useMoonTransitMap`** uses **`queryTerrainElevation(..., { exaggerated: false })`** after: first layer registration, **set observer from map center**, **marker drag end**, and when **`terrainGroundHeightSyncNonce`** changes (post-GPS without altitude). That yields a **terrain-model elevation** (Mapbox DEM, ~mean sea level — not identical to WGS84 ellipsoid). When **`navigator.geolocation`** provides **`coords.altitude`**, **`useGpsObserver`** stores it and **does not** request a terrain overwrite. See **`GroundObserver`** in `src/types/geo.ts`.
 
 ## Flight providers (Strategy)
 
@@ -122,7 +122,7 @@ Keep **pure functions** in `lib/domain` (no React, no `window` except where a mo
 
 ## Optical feasibility model
 
-- **Camera inputs (store/UI)** — `cameraFocalLengthMm` and `cameraSensorType` (`fullFrame` 1.0x, `apsC` 1.5x, `microFourThirds` 2.0x) are edited in `FieldOverlaysSection`.
+- **Camera inputs (store/UI)** — `cameraFocalLengthMm` and `cameraSensorType` (`fullFrame` 1.0x, `apsC` 1.5x, `microFourThirds` 2.0x) are edited in **`PhotographerToolsPanel`** (store-backed).
 - **Angular size** — `θ = 2 * atan(wingspan / (2 * slantRange))` in degrees; if wingspan is unknown, domain uses **40 m**.
 - **Moon coverage percent** — `(θ / 0.5°) * 100`.
 - **Map visual filter** — A flight marker is painted “feasible” (green icon) only when:
@@ -133,6 +133,11 @@ Keep **pure functions** in `lib/domain` (no React, no `window` except where a mo
   - `FAIR`: everything between poor and excellent
   - `POOR`: range > 150 km or coverage < 3%
 
+## Moon ephemeris (shell) & balcony hint
+
+- **`MoonEphemerisPanel`** — Row icons; **Copy field note** copies an English plain-text block (observer WGS84, ground elevation, simulation instant, altitude/azimuth/angular radius/illumination, rise/set, visibility advice) when the moon is above the horizon.
+- **`isBalconyTransitWatchIdeal`** (`src/lib/domain/astro/balconyTransitWatchIdeal.ts`) — When the current observer is still essentially **`DEFAULT_OBSERVER_LOCATION`** and the simulated `MoonState` matches stored reference bands, the panel shows **Ideal for transit watch** (English callout) as a cue for balcony / stand transit watching.
+
 ## API routes (Next.js)
 
 - `**/api/opensky/states`** — Server-side `fetch` to `opensky-network.org` with `lamin, lomin, lamax, lomax` query params. Avoids CORS; returns JSON or 502 on upstream error. The **browser** must request this route with the app’s `basePath` prefix (via `appPath` in `OpenSkyFlightProvider`) when not hosted at `/`.
@@ -140,7 +145,7 @@ Keep **pure functions** in `lib/domain` (no React, no `window` except where a mo
 ## Map rendering (Mapbox)
 
 - **Sources** — `routes-geo`, `flights-geo`, `moon-azimuth-geo`, `moon-azimuth-now-geo`, `moon-azimuth-now-label-geo`, `moon-path-geo`, `moon-path-full-day-geo`, `moon-path-current-geo`, `moon-path-labels-geo`, `moon-intersections-geo`, `optimal-ground-geo`, `selected-stand-geo`, `selected-stand-spine-geo`, `selected-flight-trajectory-geo`, `selected-flight-trajectory-label-geo` (source ids: `src/lib/map/mapSourceIds.ts`; registration: `registerMoonTransitLayers`; GeoJSON updates: `useMapGeoJsonSync`). **Moon path** — primary dashed `LineString` in the **visible** rise/set window; faint dashed **full-day** guide for the whole UTC day; **circle + label** for the exact simulated instant on the path; **NOW** line + label for wall-clock moon direction. **Selected aircraft** — stand strip + spine plus a **fill-extrusion volume** whose footprint includes the observer and whose height is derived from moon altitude. **Transit opportunity corridor** — observer-centric confidence bands (`transitOpportunityCorridor`: LOW/MEDIUM/HIGH) plus matching 3D volumes (`transitOpportunityCorridorVolume`), shown only when `moonFieldVisibilityAdvice` is `optimal`; it is a planning filter, not a strict per-flight guarantee. **Trajectory** — optional short line + `+90s` label when speed/track exist, with `zOffsetMeters` paint so it lifts in pitched view. **Ray length for the path** is shorter than the long moon–route intersection azimuth so the curve stays in a useful map scale. Data follows `referenceEpochMs` and `observer` (same as the simulated time controls). **Flights source** — `setData` for `flights-geo` is **throttled (~300 ms minimum interval)** with an **immediate** flush when **`selectedFlightId`** changes so selection stays responsive while reducing Mapbox churn on mobile Safari.
-- **Flights** — Mapbox `model` layer with `model-id` loaded via `map.addModel` from `FLIGHT_3D_MODEL_URL` (placeholder airplane `.glb`). Rotation follows feature `track` (with a yaw alignment offset to match model forward-axis), altitude comes from `altitudeMeters` via `model-translation` Z, and `isShotFeasible` drives blue/green tint through `model-color` + `model-color-mix-intensity`. Runtime zoom compensation updates `model-scale` on map `zoom` so aircraft remain readable on wide-area views. Fallback circle layer uses the same color semantics if model setup fails; layer is `moveLayer`d to the top so it stays **above** stand and other GeoJSON overlays.
+- **Flights** — Mapbox `model` layer with `model-id` loaded via `map.addModel` from `FLIGHT_3D_MODEL_URL` (placeholder airplane `.glb`). Rotation follows feature `track` (with a yaw alignment offset to match model forward-axis), altitude comes from `altitudeMeters` via `model-translation` Z, and `isShotFeasible` drives blue/green tint through `model-color` + `model-color-mix-intensity`. Runtime zoom compensation updates `model-scale` on `zoom` **coalesced with `requestAnimationFrame`** (plus `zoomend`) so `setPaintProperty` does not run on every raw zoom event. Fallback circle layer uses the same color semantics if model setup fails; layer is `moveLayer`d to the top so it stays **above** stand and other GeoJSON overlays.
 - **Observer** — `mapboxgl.Marker` with a custom DOM (camera), not a GeoJSON point.
 
 **Performance:** `loadFlightsInBounds` runs on map **`moveend`** (and when **`flightProvider`** or **observer `lat`/`lng`** change). For **OpenSky**, `useMoonTransitMap` **debounces** bounds refresh (~800 ms, slightly longer when a flight is selected) so panning does not hammer the proxy. **Map view** — default **0° pitch** (2D plan) from `defaultMapViewState`; `pitchWithRotate` stays **true** so Mapbox’s usual **right-button drag** (and related rotate/tilt gestures) behave as standard. `NavigationControl` pitch ± and `touchPitch` unchanged. Avoid heavyweight per-frame geometry without throttling.

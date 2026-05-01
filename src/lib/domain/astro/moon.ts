@@ -34,5 +34,6 @@ export function getMoonState(
     distanceKm: distKm,
     apparentRadius: { degrees: apparentRadiusDeg },
     phaseFraction: ill.phase,
+    illuminationFraction: ill.fraction,
   };
 }

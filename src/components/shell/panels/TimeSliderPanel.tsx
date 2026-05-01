@@ -86,7 +86,7 @@ export function TimeSliderPanel({
         aria-labelledby={headingId}
       >
         <div className="flex min-w-0 items-center gap-1.5 border-b border-white/[0.07] pb-2">
-          <span className="text-amber-400/80" aria-hidden>
+          <span className="text-yellow-400/85" aria-hidden>
             <SectionIconTime />
           </span>
           <h2 id={headingId} className="mt-section-label min-w-0 border-0 pb-0">
@@ -110,7 +110,7 @@ export function TimeSliderPanel({
                 value={Math.min(offsetHours, Math.max(0, sliderMaxHours))}
                 onChange={onOffsetHoursChange}
                 disabled={!showEphemeris}
-                className="h-1 w-full min-w-[3.25rem] cursor-pointer accent-amber-500/80 disabled:opacity-40"
+                className="h-1 w-full min-w-[3.25rem] cursor-pointer accent-blue-500 disabled:opacity-40"
                 aria-label="Simulated time, hours forward from last Sync"
               />
               <div className="mt-0 flex justify-between gap-1 px-px text-[0.48rem] leading-none text-zinc-600">
@@ -134,7 +134,7 @@ export function TimeSliderPanel({
               </div>
             </div>
             <p
-              className="shrink-0 font-mono text-[0.6rem] tabular-nums text-amber-400/75"
+              className="shrink-0 font-mono text-[0.6rem] tabular-nums text-yellow-400/85"
               aria-label={`${offsetHours.toFixed(1)} hours forward from last Sync`}
             >
               {offsetHours.toFixed(1)}h
@@ -158,7 +158,7 @@ export function TimeSliderPanel({
       aria-labelledby={headingId}
     >
       <div className="flex min-w-0 items-center gap-2 border-b border-white/[0.07] pb-2.5">
-        <span className="text-amber-400/80" aria-hidden>
+        <span className="text-yellow-400/85" aria-hidden>
           <SectionIconTime />
         </span>
         <h2 id={headingId} className="mt-section-label min-w-0 border-0 pb-0">
@@ -196,12 +196,12 @@ export function TimeSliderPanel({
         value={Math.min(offsetHours, Math.max(0, sliderMaxHours))}
         onChange={onOffsetHoursChange}
         disabled={!showEphemeris}
-        className="mt-1 w-full accent-amber-400 disabled:opacity-40"
+        className="mt-1 w-full accent-blue-500 disabled:opacity-40"
         aria-label="Simulated time, hours forward from last Sync"
       />
       <p className="mt-1.5 text-center text-xs text-zinc-500">
         From Sync:{" "}
-        <span className="font-mono text-amber-200/90">
+        <span className="font-mono text-yellow-400/90">
           {offsetHours.toFixed(1)} h
         </span>
       </p>

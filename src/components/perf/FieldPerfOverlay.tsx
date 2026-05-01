@@ -36,11 +36,11 @@ export function FieldPerfOverlay() {
 
   return (
     <div
-      className="pointer-events-none absolute right-2 top-2 z-20 w-[min(20rem,92vw)] max-h-[40vh] overflow-y-auto rounded-lg border border-violet-900/50 bg-zinc-950/92 px-2 py-1.5 font-mono text-[10px] leading-snug text-violet-100 shadow-lg backdrop-blur"
+      className="pointer-events-none absolute right-2 top-2 z-20 w-[min(20rem,92vw)] max-h-[40vh] overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-950/92 px-2 py-1.5 font-mono text-[10px] leading-snug text-zinc-300 shadow-lg backdrop-blur"
       aria-label="Field performance"
       data-testid="field-perf-overlay"
     >
-      <div className="mb-1 text-[9px] font-sans font-medium tracking-wide text-violet-300/90">
+      <div className="mb-1 text-[9px] font-sans font-medium tracking-wide text-blue-400/90">
         Field performance (dev)
       </div>
       {entries.length === 0 ? (
@@ -49,7 +49,7 @@ export function FieldPerfOverlay() {
         <ul className="space-y-0.5">
           {entries.map((e) => (
             <li key={e.name} className="flex justify-between gap-2">
-              <span className="truncate text-violet-200/80" title={e.name}>
+              <span className="truncate text-yellow-400/80" title={e.name}>
                 {e.name}
               </span>
               <span className="shrink-0 text-zinc-300">

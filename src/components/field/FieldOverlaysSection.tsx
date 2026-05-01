@@ -114,7 +114,7 @@ export function FieldOverlaysSection() {
             onChange={(e) => {
               setSkew(parseFloat(e.target.value) * 1_000);
             }}
-            className="h-1.5 w-full min-w-0 flex-1 accent-amber-500"
+            className="h-1.5 w-full min-w-0 flex-1 accent-blue-500"
             aria-label="Aircraft time offset in seconds"
           />
           <button
@@ -127,7 +127,7 @@ export function FieldOverlaysSection() {
             +1 s
           </button>
         </div>
-        <p className="mt-1 text-center font-mono text-sm text-amber-200/80">
+        <p className="mt-1 text-center font-mono text-sm text-yellow-400/85">
           {skewSec >= 0 ? "+" : ""}
           {num(skewSec, 1)} s
         </p>
@@ -157,8 +157,8 @@ export function FieldOverlaysSection() {
           }}
           className={`rounded px-3 py-1.5 text-sm ${
             locked
-              ? "bg-amber-800/50 text-amber-100"
-              : "bg-zinc-800 text-zinc-300"
+              ? "bg-blue-500/25 text-yellow-400"
+              : "bg-zinc-800 text-zinc-400"
           }`}
         >
           {locked ? "Unlock" : "Lock"}
@@ -170,7 +170,7 @@ export function FieldOverlaysSection() {
           <button
             type="button"
             onClick={onExportText}
-            className="flex-1 rounded border border-sky-800/50 bg-sky-950/30 py-1.5 text-sm text-sky-100/90"
+            className="flex-1 rounded-md border border-blue-500/35 bg-blue-500/10 py-1.5 text-sm text-yellow-400/90"
           >
             Cheat sheet (.txt)
           </button>
@@ -178,7 +178,7 @@ export function FieldOverlaysSection() {
             type="button"
             onClick={onExportPng}
             disabled={exportBusy}
-            className="flex-1 rounded border border-violet-800/50 bg-violet-950/30 py-1.5 text-sm text-violet-100/90 disabled:opacity-50"
+            className="flex-1 rounded-md border border-zinc-600 bg-zinc-800/80 py-1.5 text-sm text-zinc-200 disabled:opacity-50"
           >
             {exportBusy ? "…" : "Snapshot (.png)"}
           </button>

@@ -54,7 +54,7 @@ export function CompassAimPanel() {
         <button
           type="button"
           onClick={onEnable}
-          className="mt-0 w-full rounded-lg border border-lime-700/50 bg-lime-950/40 py-1.5 text-sm text-lime-100/90"
+          className="mt-0 w-full rounded-md border border-blue-500/40 bg-blue-500/10 py-1.5 text-sm text-yellow-400/90"
         >
           Allow orientation (iOS)
         </button>
@@ -64,7 +64,7 @@ export function CompassAimPanel() {
         <div className="mt-3 flex w-full min-w-0 flex-col items-center gap-2">
           <div
             className="relative h-[7.5rem] w-[7.5rem] shrink-0 overflow-visible rounded-full border-2 border-zinc-600 bg-zinc-950/80 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
-            aria-label="Compass rose and moon azimuth error: align amber needle to the top triangle"
+            aria-label="Compass rose and moon azimuth error: align gold needle to the top marker"
           >
             {/* Rotating rose: geographic frame; turns so cardinals track the horizon */}
             <div
@@ -96,7 +96,7 @@ export function CompassAimPanel() {
                   key={label}
                   className={`absolute left-1/2 top-1/2 select-none text-[0.55rem] font-semibold leading-none ${
                     label === "N"
-                      ? "text-rose-300/95"
+                      ? "text-yellow-400/95"
                       : "text-zinc-400/95"
                   }`}
                   style={{
@@ -120,20 +120,20 @@ export function CompassAimPanel() {
             </div>
             {/* Fixed to screen: top of phone / forward in the horizontal plane */}
             <span
-              className="pointer-events-none absolute left-1/2 top-1 z-[12] -translate-x-1/2 text-[0.55rem] leading-none text-lime-400/95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"
-              title="Top of phone — align the amber needle here when aimed at the moon"
+              className="pointer-events-none absolute left-1/2 top-1 z-[12] -translate-x-1/2 text-[0.55rem] leading-none text-blue-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"
+              title="Top of phone — align the gold needle here when aimed at the moon"
             >
               ▲
             </span>
             <div
-              className="absolute left-1/2 top-1/2 z-[11] w-0.5 rounded-full bg-amber-200 shadow shadow-amber-500/20"
+              className="absolute left-1/2 top-1/2 z-[11] w-0.5 rounded-full bg-yellow-400 shadow shadow-blue-500/20"
               style={{
                 height: 40,
                 transform: `translate(-50%, -100%) rotate(${delta}deg)`,
                 transformOrigin: "50% 100%",
               }}
             />
-            <div className="absolute left-1/2 top-1/2 z-[11] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-400 ring-1 ring-zinc-900/80" />
+            <div className="absolute left-1/2 top-1/2 z-[11] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500 ring-1 ring-zinc-950" />
           </div>
           <p className="w-full min-w-0 break-words px-1 text-center text-[0.7rem] leading-snug text-zinc-400">
             {hasHeading

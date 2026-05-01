@@ -29,7 +29,7 @@ Before starting any significant task, review these files:
 ## 5. PHOTOGRAPHER TOOLS
 - **Golden State:** UI should trigger a "Golden" alert/flash when alignment is within 0.1°.
 - **Field Use:** Prioritize mobile-friendly controls in the sidebar and ensure the compass/HUD logic remains performant.
-- **Audio Alerts:** Use `AudioContext` for transit beeps as defined in the photographer tools.
+- **Audio Alerts:** Use `AudioContext` via `src/lib/audio/fieldAudio.ts` — countdown beeps (`useTransitBeep`), green-zone chime + moon-overlap hold tone (`useTransitFieldSounds` in `MapContainer` when Field sounds are on).
 
 ## 6. DEVELOPMENT WORKFLOW
 - **Check before coding:** "Does this change break the parallax math or desync simulated time?"

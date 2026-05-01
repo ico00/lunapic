@@ -1,13 +1,12 @@
 import type { GroundObserver } from "@/types/geo";
 
 /**
- * Zadana lokacija promatrača: **Molvanska ulica 1**, Zagreb, Hrvatska.
- * WGS84 (točne koordinate korisnika).
+ * Zadana lokacija promatrača: **balkon** (Zagreb), WGS84 + nadmorska visina tla (~DEM / ručni unos).
  */
 export const DEFAULT_OBSERVER_LOCATION: GroundObserver = {
-  lat: 45.829732804429874,
-  lng: 16.063579675707125,
-  groundHeightMeters: 0,
+  lat: 45.82968,
+  lng: 16.06368,
+  groundHeightMeters: 130,
 };
 
 /** `true` kad je promatrač još na zadanoj točki (npr. prije prvog uspješnog GPS-a). */

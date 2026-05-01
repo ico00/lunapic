@@ -66,14 +66,38 @@ function applyFlightModelZoomScaleCompensation(map: Map): void {
   );
 }
 
+type FlightModelZoomRegistry = {
+  __lunapicFlightModelZoomHook?: boolean;
+  /** Coalesces `setPaintProperty` during pinch/double-tap zoom (was every raw `zoom` event). */
+  __lunapicFlightModelZoomRaf?: number | null;
+};
+
+function scheduleFlightModelZoomPaint(map: Map): void {
+  const registry = map as unknown as FlightModelZoomRegistry;
+  if (registry.__lunapicFlightModelZoomRaf != null) {
+    return;
+  }
+  registry.__lunapicFlightModelZoomRaf = requestAnimationFrame(() => {
+    registry.__lunapicFlightModelZoomRaf = null;
+    applyFlightModelZoomScaleCompensation(map);
+  });
+}
+
 function ensureFlightModelZoomScaleCompensation(map: Map): void {
-  const registry = (map as unknown as { __lunapicFlightModelZoomHook?: boolean });
+  const registry = map as unknown as FlightModelZoomRegistry;
   if (registry.__lunapicFlightModelZoomHook) {
     applyFlightModelZoomScaleCompensation(map);
     return;
   }
   registry.__lunapicFlightModelZoomHook = true;
   map.on("zoom", () => {
+    scheduleFlightModelZoomPaint(map);
+  });
+  map.on("zoomend", () => {
+    if (registry.__lunapicFlightModelZoomRaf != null) {
+      cancelAnimationFrame(registry.__lunapicFlightModelZoomRaf);
+      registry.__lunapicFlightModelZoomRaf = null;
+    }
     applyFlightModelZoomScaleCompensation(map);
   });
   applyFlightModelZoomScaleCompensation(map);
