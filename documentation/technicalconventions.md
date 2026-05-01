@@ -58,7 +58,7 @@ Before relying on “classic” Next 12 patterns, read `**AGENTS.md`** (Next 16 
 ## Flight provider contract
 
 - Implement `**getFlightsInBounds({ bounds, … })`** to return a **readonly** array of `FlightState`.
-- **Track** — Provide `trackDeg` when known; it drives map symbol rotation and extrapolation. Null is allowed; extrapolation will not guess direction.
+- **Track** — Provide `trackDeg` when known; it drives map aircraft model rotation (yaw) and extrapolation. Null is allowed; extrapolation will not guess direction.
 - **Optional** — `getRouteLineFeatures` for polylines; `getRouteCorridorStats` for OpenSky region stats in the UI.
 - **Store ingest (OpenSky UX)** — After the provider returns, `moon-transit-store` applies **`mergeFlightsWithOpenSkyRetention`** (see `src/lib/flight/mergeFlightsWithOpenSkyRetention.ts`); do not duplicate that logic inside a provider unless you have a strong reason.
 

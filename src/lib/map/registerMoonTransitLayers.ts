@@ -1,9 +1,7 @@
-import type { Map } from "mapbox-gl";
+import type { AnyLayer, Map } from "mapbox-gl";
 import {
-  FLIGHT_PLANE_ICON_IMAGE_ID,
-  FLIGHT_PLANE_ICON_IMAGE_ID_FEASIBLE,
-  FLIGHT_PLANE_ICON_SIZE,
-  FLIGHT_PLANE_ICON_URL,
+  FLIGHT_3D_MODEL_ID,
+  FLIGHT_3D_MODEL_URL,
   SELECTED_STAND_MAP_FILL_OPACITY,
   SELECTED_STAND_MAP_LINE_OPACITY,
   SELECTED_STAND_SPINE_LINE_OPACITY,
@@ -30,6 +28,55 @@ import {
 
 const MOON_INT_LAYER_ID = "moon-intersections";
 const FLIGHTS_SHADOW_LAYER_ID = "flights-shadow-layer";
+const FLIGHT_MODEL_SCREEN_SIZE_REFERENCE_ZOOM = 11;
+const FLIGHT_MODEL_SCREEN_SIZE_MIN_FACTOR = 1.4;
+const FLIGHT_MODEL_SCREEN_SIZE_MAX_FACTOR = 260;
+const FLIGHT_MODEL_YAW_OFFSET_DEG = 90;
+
+function buildFlightModelScaleByAltitudeExpression(zoom: number): unknown[] {
+  // Compensate world-space model size so aircraft keep near-constant on-screen size.
+  const rawFactor = Math.pow(2, FLIGHT_MODEL_SCREEN_SIZE_REFERENCE_ZOOM - zoom);
+  const factor = Math.min(
+    FLIGHT_MODEL_SCREEN_SIZE_MAX_FACTOR,
+    Math.max(FLIGHT_MODEL_SCREEN_SIZE_MIN_FACTOR, rawFactor)
+  );
+  return [
+    "interpolate",
+    ["linear"],
+    ["coalesce", ["to-number", ["get", "altitudeMeters"]], 8000],
+    1500,
+    ["literal", [14 * factor, 14 * factor, 14 * factor]],
+    6000,
+    ["literal", [20 * factor, 20 * factor, 20 * factor]],
+    12000,
+    ["literal", [28 * factor, 28 * factor, 28 * factor]],
+  ];
+}
+
+function applyFlightModelZoomScaleCompensation(map: Map): void {
+  const layer = map.getLayer(FLIGHTS_LAYER_ID) as { type?: string } | undefined;
+  if (layer?.type !== "model") {
+    return;
+  }
+  map.setPaintProperty(
+    FLIGHTS_LAYER_ID,
+    "model-scale",
+    buildFlightModelScaleByAltitudeExpression(map.getZoom()) as never
+  );
+}
+
+function ensureFlightModelZoomScaleCompensation(map: Map): void {
+  const registry = (map as unknown as { __lunapicFlightModelZoomHook?: boolean });
+  if (registry.__lunapicFlightModelZoomHook) {
+    applyFlightModelZoomScaleCompensation(map);
+    return;
+  }
+  registry.__lunapicFlightModelZoomHook = true;
+  map.on("zoom", () => {
+    applyFlightModelZoomScaleCompensation(map);
+  });
+  applyFlightModelZoomScaleCompensation(map);
+}
 
 function addFlightsShadowLayer(map: Map): void {
   if (map.getLayer(FLIGHTS_SHADOW_LAYER_ID)) {
@@ -72,164 +119,118 @@ function addFlightsCircleFallback(map: Map): void {
   });
 }
 
-function addFlightsPlaneSymbolLayer(map: Map): void {
+function addFlightsModelLayer(map: Map): void {
   addFlightsShadowLayer(map);
   if (map.getLayer(FLIGHTS_LAYER_ID)) {
     return;
   }
+  if (!map.hasModel(FLIGHT_3D_MODEL_ID)) {
+    map.addModel(FLIGHT_3D_MODEL_ID, FLIGHT_3D_MODEL_URL);
+  }
   /**
-   * Bez `beforeId` — na vrh trenutnog stila, iznad naših mjesečinih / trak overlaya
-   * (s `beforeId: moon-int` kružnice i cijan traka prekriju zrakoplove).
+   * 3D instanca po značajki: rotacija kao ADS-B `track`, pomak Z = nadmorska visina rute,
+   * skala ovisno o `altitudeMeters` (bez zoom izraza — ograničenje GeoJSON model sloja).
    */
   map.addLayer({
     id: FLIGHTS_LAYER_ID,
-    type: "symbol",
+    type: "model",
     source: FLIGHTS_SOURCE,
     layout: {
-      "icon-image": [
-        "case",
-        ["boolean", ["get", "isShotFeasible"], false],
-        FLIGHT_PLANE_ICON_IMAGE_ID_FEASIBLE,
-        FLIGHT_PLANE_ICON_IMAGE_ID,
-      ],
-      "icon-size": FLIGHT_PLANE_ICON_SIZE,
-      "icon-allow-overlap": true,
-      "icon-ignore-placement": true,
-      "icon-rotate": ["coalesce", ["to-number", ["get", "track"]], 0],
-      "icon-rotation-alignment": "map",
-      "icon-pitch-alignment": "map",
-      // 3D lift based on flight altitude from GeoJSON properties.
-      "symbol-z-elevate": true,
-      "symbol-sort-key": ["coalesce", ["to-number", ["get", "altitudeMeters"]], 0],
-      "symbol-elevation-reference": "ground",
+      "model-id": FLIGHT_3D_MODEL_ID,
     },
     paint: {
-      // Keep icon above terrain/buildings using ADS-B altitude.
-      "symbol-z-offset": [
-        "coalesce",
-        ["to-number", ["get", "altitudeMeters"]],
+      "model-type": "common-3d",
+      "model-scale": buildFlightModelScaleByAltitudeExpression(map.getZoom()),
+      "model-translation": [
         0,
+        0,
+        [
+          "*",
+          ["coalesce", ["to-number", ["get", "altitudeMeters"]], 0],
+          0.08,
+        ],
       ],
-      "icon-occlusion-opacity": 0.9,
-    } as unknown as Record<string, unknown>,
-  });
-}
-
-function tintImageData(base: CanvasImageSource, color: string): ImageData | null {
-  const c = document.createElement("canvas");
-  const w =
-    base instanceof HTMLImageElement && base.naturalWidth > 0
-      ? base.naturalWidth
-      : 128;
-  const h =
-    base instanceof HTMLImageElement && base.naturalHeight > 0
-      ? base.naturalHeight
-      : 128;
-  c.width = w;
-  c.height = h;
-  const ctx = c.getContext("2d");
-  if (!ctx) {
-    return null;
-  }
-  ctx.clearRect(0, 0, c.width, c.height);
-  ctx.drawImage(base, 0, 0, c.width, c.height);
-  ctx.globalCompositeOperation = "source-in";
-  ctx.fillStyle = color;
-  ctx.fillRect(0, 0, c.width, c.height);
-  ctx.globalCompositeOperation = "source-over";
-  return ctx.getImageData(0, 0, c.width, c.height);
+      "model-rotation": [
+        0,
+        0,
+        [
+          "%",
+          [
+            "+",
+            ["coalesce", ["to-number", ["get", "track"]], 0],
+            FLIGHT_MODEL_YAW_OFFSET_DEG,
+            360,
+          ],
+          360,
+        ],
+      ],
+      "model-color": [
+        "case",
+        ["boolean", ["get", "isShotFeasible"], false],
+        "#22c55e",
+        "#38bdf8",
+      ],
+      "model-color-mix-intensity": 0.55,
+    },
+  } as unknown as AnyLayer);
+  ensureFlightModelZoomScaleCompensation(map);
 }
 
 /**
- * Pokuša zamijeniti kružni fallback simbolom s ikonom (ili ostaviti kružni ako ne uspije).
- * Sloj s `FLIGHTS_SOURCE` MORA već postojati (vidi kraj `registerMoonTransitLayers`).
+ * Učitava glTF i zamjenjuje kružni fallback model slojem (ili ostavlja krug ako API baci).
  */
-function scheduleFlightLayerWithPlaneIcon(map: Map): void {
-  const url =
-    typeof window !== "undefined"
-      ? new URL(FLIGHT_PLANE_ICON_URL, window.location.origin).href
-      : FLIGHT_PLANE_ICON_URL;
+function scheduleFlightLayerWith3dModel(map: Map): void {
+  const finishStacking = () => {
+    if (map.getLayer(FLIGHTS_LAYER_ID)) {
+      map.moveLayer(FLIGHTS_LAYER_ID);
+    }
+    if (map.getLayer(FLIGHTS_SHADOW_LAYER_ID) && map.getLayer(FLIGHTS_LAYER_ID)) {
+      map.moveLayer(FLIGHTS_SHADOW_LAYER_ID, FLIGHTS_LAYER_ID);
+    }
+  };
 
-  /**
-   * Mapbox `loadImage` na SVG + kratki `setTimeout` fallback ranije su stvarali
-   * plavi krug prije nego SVG stigne; kasniji uspjeh nije zamijenio sloj.
-   * `Image` + `addImage(HTMLImageElement)` pouzdanije za isti SVG.
-   */
-  const img = new Image();
   const runUpgrade = () => {
     if (!map.isStyleLoaded()) {
       return;
     }
     try {
-      const blueIcon = tintImageData(img, "#38bdf8");
-      const greenIcon = tintImageData(img, "#22c55e");
-      if (!map.hasImage(FLIGHT_PLANE_ICON_IMAGE_ID)) {
-        map.addImage(FLIGHT_PLANE_ICON_IMAGE_ID, blueIcon ?? img);
-      }
-      if (!map.hasImage(FLIGHT_PLANE_ICON_IMAGE_ID_FEASIBLE)) {
-        map.addImage(FLIGHT_PLANE_ICON_IMAGE_ID_FEASIBLE, greenIcon ?? img);
+      if (!map.hasModel(FLIGHT_3D_MODEL_ID)) {
+        map.addModel(FLIGHT_3D_MODEL_ID, FLIGHT_3D_MODEL_URL);
       }
       const existing = map.getLayer(FLIGHTS_LAYER_ID) as
         | { type?: string }
         | undefined;
-      if (existing?.type === "circle") {
+      if (existing?.type === "circle" || existing?.type === "symbol") {
         map.removeLayer(FLIGHTS_LAYER_ID);
       }
       if (!map.getLayer(FLIGHTS_LAYER_ID)) {
-        addFlightsPlaneSymbolLayer(map);
+        addFlightsModelLayer(map);
       }
     } catch {
       if (!map.getLayer(FLIGHTS_LAYER_ID)) {
         addFlightsCircleFallback(map);
       }
     }
-    if (map.getLayer(FLIGHTS_LAYER_ID)) {
-      map.moveLayer(FLIGHTS_LAYER_ID);
-    }
-    if (map.getLayer(FLIGHTS_SHADOW_LAYER_ID)) {
-      map.moveLayer(FLIGHTS_SHADOW_LAYER_ID, FLIGHTS_LAYER_ID);
-    }
+    finishStacking();
   };
 
-  const scheduleWhenStyleReady = (fn: () => void) => {
-    if (map.isStyleLoaded()) {
-      fn();
-    } else {
-      map.once("idle", () => {
-        if (map.isStyleLoaded()) {
-          fn();
-        }
-      });
-    }
-  };
-
-  img.onload = () => {
-    scheduleWhenStyleReady(() => {
-      runUpgrade();
-    });
-  };
-  img.onerror = () => {
-    scheduleWhenStyleReady(() => {
-      if (!map.getLayer(FLIGHTS_LAYER_ID)) {
-        addFlightsCircleFallback(map);
-      }
-      if (map.getLayer(FLIGHTS_LAYER_ID)) {
-        map.moveLayer(FLIGHTS_LAYER_ID);
-      }
-      if (map.getLayer(FLIGHTS_SHADOW_LAYER_ID) && map.getLayer(FLIGHTS_LAYER_ID)) {
-        map.moveLayer(FLIGHTS_SHADOW_LAYER_ID, FLIGHTS_LAYER_ID);
+  if (map.isStyleLoaded()) {
+    runUpgrade();
+  } else {
+    map.once("idle", () => {
+      if (map.isStyleLoaded()) {
+        runUpgrade();
       }
     });
-  };
-  img.src = url;
+  }
 }
 
 /**
  * Registrira sve GeoJSON izvore i stilove slojeva za LunaPic (pozvati nakon
  * `map` događaja "load" / kad je stil spreman).
  *
- * * Simbol: asinkrano u `scheduleFlightLayerWithPlaneIcon` (nakon učitavanja SVG);
- *   dok se ne učita, vidljiv je kružni fallback na istom izvoru.
+ * * 3D model: u `scheduleFlightLayerWith3dModel` (`addModel` + sloj `type: model`);
+ *   dok se ne primijeni, vidljiv je kružni fallback na istom izvoru.
  * * `onLayersReady` odmah nakon dodanog kružnog sloja (mapa, izvor `flights-geo` i
  *   `setData` mogu ući u sink pri prvom povećanju `mapReadyTick` — async ikona
  *   samo nadograđuje prikaz).
@@ -697,6 +698,6 @@ export function registerMoonTransitLayers(
   if (map.getLayer(FLIGHTS_LAYER_ID)) {
     map.moveLayer(FLIGHTS_LAYER_ID);
   }
-  scheduleFlightLayerWithPlaneIcon(map);
+  scheduleFlightLayerWith3dModel(map);
   onLayersReady?.();
 }

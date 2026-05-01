@@ -253,11 +253,9 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
             type: "Feature" as const,
             geometry: {
               type: "Point" as const,
-              coordinates: [
-                f.position.lng,
-                f.position.lat,
-                Math.max(0, f.geoAltitudeMeters ?? f.baroAltitudeMeters ?? 0),
-              ],
+              // 2D anchor: altitude is applied by the flights `model` layer `model-translation` Z
+              // (and was previously by symbol `symbol-z-offset`), not by GeoJSON Z.
+              coordinates: [f.position.lng, f.position.lat],
             },
             properties: {
               id: f.id,
