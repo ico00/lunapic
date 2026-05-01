@@ -94,7 +94,7 @@ export function TransitCandidatesPanel({
     <ShellSectionCard
       className="mt-3"
       title="Transit candidates"
-      accent="emerald"
+      accent="sky"
       icon={<SectionIconTarget />}
     >
       <div className="space-y-2">
@@ -121,13 +121,13 @@ export function TransitCandidatesPanel({
                 onClick={() => {
                   onSelectFlight(c.flight.id);
                 }}
-                className={`flex min-w-0 flex-1 justify-between gap-2 rounded-lg border px-2 py-1.5 text-left transition ${
+                className={`flex min-w-0 flex-1 justify-between gap-2 rounded-md border px-2 py-1.5 text-left transition ${
                   selectedFlightId === c.flight.id
-                    ? "border-sky-400/60 bg-sky-950/40"
-                    : "border-zinc-800/80 bg-zinc-900/50 hover:border-zinc-600"
+                    ? "border-blue-500/45 bg-blue-500/10"
+                    : "border-zinc-800/80 bg-zinc-900/60 hover:border-zinc-600"
                 }`}
               >
-                <span className="truncate font-mono text-xs text-sky-300">
+                <span className="truncate font-mono text-xs text-yellow-400/90">
                   {c.flight.callSign ?? c.flight.id}
                 </span>
                 <span className="shrink-0 font-mono text-xs text-zinc-400">
@@ -145,7 +145,7 @@ export function TransitCandidatesPanel({
                   !notificationsSupported
                     ? "cursor-not-allowed border-zinc-800/70 bg-zinc-900/40 text-zinc-500"
                     : watchedFlightIds.has(c.flight.id)
-                      ? "border-amber-400/70 bg-amber-400/15 text-amber-200"
+                      ? "border-blue-500/45 bg-blue-500/12 text-yellow-400"
                       : "border-zinc-800/80 bg-zinc-900/50 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
                 }`}
                 aria-label={

@@ -12,5 +12,7 @@ describe("getMoonState", () => {
     expect(m.distanceKm).toBeGreaterThan(300_000);
     expect(m.phaseFraction).toBeGreaterThanOrEqual(0);
     expect(m.phaseFraction).toBeLessThanOrEqual(1);
+    expect(m.illuminationFraction).toBeGreaterThanOrEqual(0);
+    expect(m.illuminationFraction).toBeLessThanOrEqual(1);
   });
 });

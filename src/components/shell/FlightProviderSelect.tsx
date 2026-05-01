@@ -109,7 +109,7 @@ export function FlightProviderSelect({
         ref={menuRef}
         id={listboxId}
         role="listbox"
-        className="fixed z-[280] m-0 max-h-60 list-none overflow-y-auto rounded-lg border border-white/10 bg-zinc-900/95 p-1 py-1 shadow-[0_12px_40px_rgba(0,0,0,0.55)] ring-1 ring-inset ring-white/[0.06] backdrop-blur-md"
+        className="fixed z-[280] m-0 max-h-60 list-none overflow-y-auto rounded-md border border-zinc-700 bg-zinc-950/98 p-1 py-1 shadow-[0_12px_40px_rgba(0,0,0,0.55)] ring-1 ring-inset ring-zinc-800 backdrop-blur-md"
         style={{
           top: pos.top,
           left: pos.left,
@@ -126,8 +126,8 @@ export function FlightProviderSelect({
               aria-selected={isSel}
               className={
                 isSel
-                  ? "cursor-pointer select-none rounded-md bg-sky-500/20 px-2.5 py-1.5 text-left text-sm text-sky-100"
-                  : "cursor-pointer select-none rounded-md px-2.5 py-1.5 text-left text-sm text-zinc-200 outline-none hover:bg-sky-950/50 hover:text-zinc-50 focus:bg-sky-950/50"
+                  ? "cursor-pointer select-none rounded-md bg-blue-500/20 px-2.5 py-1.5 text-left text-sm text-yellow-400"
+                  : "cursor-pointer select-none rounded-md px-2.5 py-1.5 text-left text-sm text-zinc-200 outline-none hover:bg-zinc-800 hover:text-zinc-50 focus:bg-zinc-900"
               }
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => onPick(id)}
@@ -157,7 +157,7 @@ export function FlightProviderSelect({
         type="button"
         data-testid="flight-provider-select"
         data-value={value}
-        className="inline-flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-white/10 bg-zinc-900/50 py-1.5 pl-2.5 pr-2 text-left text-sm text-zinc-200 shadow-inner outline-none ring-inset backdrop-blur-sm transition hover:border-sky-500/35 hover:bg-zinc-900/70 focus:ring-2 focus:ring-sky-500/30"
+        className="inline-flex w-full min-w-0 items-center justify-between gap-2 rounded-md border border-zinc-700 bg-zinc-900/80 py-1.5 pl-2.5 pr-2 text-left text-sm text-zinc-200 shadow-inner outline-none ring-inset backdrop-blur-sm transition hover:border-blue-500/35 hover:bg-zinc-900 focus:ring-2 focus:ring-blue-500/25"
         aria-label="Flight data provider"
         aria-haspopup="listbox"
         aria-expanded={open}

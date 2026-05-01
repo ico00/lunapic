@@ -36,17 +36,6 @@ function altBlock(f: FlightState): string {
   return parts.join(" · ");
 }
 
-const MAP_LEGEND_COPY = (
-  <>
-    Cyan band + pale center line: the ground strip and{" "}
-    <strong className="font-semibold text-sky-100/90">zero-offset</strong> line
-    (3D line-of-sight, aircraft altitude) for the{" "}
-    <strong className="font-semibold text-sky-100/90">current slider time</strong>{" "}
-    only — the direction you move along the ground to line up the hull with the
-    moon’s center at your fixed observer. Zoom out if the band is off-screen.
-  </>
-);
-
 export type SelectedAircraftPopupContentProps = {
   flight: FlightState | null;
   onDismiss: () => void;
@@ -61,13 +50,13 @@ export function SelectedAircraftPopupContent({
 
   return (
     <div
-      className="pointer-events-auto overflow-y-auto rounded-2xl border border-sky-800/50 bg-sky-950/95 p-2.5 text-zinc-200 shadow-xl shadow-black/40 backdrop-blur max-md:max-h-[min(32dvh,14.5rem)] max-md:w-[calc(100dvw-1rem-env(safe-area-inset-left)-env(safe-area-inset-right))] max-md:max-w-none max-md:rounded-b-none max-md:rounded-t-2xl max-md:border-white/10 max-md:bg-zinc-950/98 max-md:shadow-2xl md:max-h-[34rem] md:w-[min(18rem,calc(100vw-2.25rem))] md:p-3"
+      className="pointer-events-auto overflow-y-auto rounded-md border border-zinc-700 bg-zinc-950/98 p-2.5 text-zinc-200 shadow-xl shadow-black/45 backdrop-blur max-md:max-h-[min(32dvh,14.5rem)] max-md:w-[calc(100dvw-1rem-env(safe-area-inset-left)-env(safe-area-inset-right))] max-md:max-w-none max-md:rounded-b-none max-md:rounded-t-lg max-md:border-zinc-800 max-md:bg-zinc-950 max-md:shadow-2xl md:max-h-[34rem] md:w-[min(18rem,calc(100vw-2.25rem))] md:p-3"
       data-testid="selected-flight-card"
     >
       <div className="flex items-start justify-between gap-2 md:items-start">
         {flight ? (
           <div className="min-w-0 flex-1 md:hidden">
-            <p className="truncate font-mono text-[0.95rem] font-semibold leading-tight tracking-tight text-amber-100/95">
+            <p className="truncate font-mono text-[0.95rem] font-semibold leading-tight tracking-tight text-yellow-400/95">
               {flight.callSign?.trim() || "—"}
             </p>
             <p className="mt-0.5 truncate text-[0.65rem] text-zinc-400">
@@ -75,11 +64,11 @@ export function SelectedAircraftPopupContent({
             </p>
           </div>
         ) : (
-          <h2 className="text-xs font-medium uppercase tracking-wide text-sky-400/90 md:hidden">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-blue-400/90 md:hidden">
             Selected aircraft
           </h2>
         )}
-        <h2 className="hidden text-xs font-medium uppercase tracking-wide text-sky-400/90 md:block">
+        <h2 className="hidden text-xs font-medium uppercase tracking-wide text-blue-400/90 md:block">
           Selected aircraft
         </h2>
         <button
@@ -98,14 +87,10 @@ export function SelectedAircraftPopupContent({
         </p>
       ) : (
         <>
-          {/* Desktop: full legend + definition list */}
-          <p className="mt-2 hidden text-xs leading-snug text-sky-200/80 md:block">
-            {MAP_LEGEND_COPY}
-          </p>
-          <dl className="mt-3 hidden space-y-1.5 text-sm md:block">
+          <dl className="mt-2 hidden space-y-1.5 text-sm md:block">
             <div className="flex flex-wrap justify-between gap-x-3 gap-y-0.5">
               <dt className="text-zinc-500">Airline</dt>
-              <dd className="max-w-[65%] text-right text-[0.72rem] text-sky-100/90">
+              <dd className="max-w-[65%] text-right text-[0.72rem] text-yellow-400/90">
                 {flightAirlineDisplayLine(flight) ?? "—"}
               </dd>
             </div>
@@ -117,7 +102,7 @@ export function SelectedAircraftPopupContent({
             </div>
             <div className="flex flex-wrap justify-between gap-x-3 gap-y-0.5">
               <dt className="text-zinc-500">Call sign</dt>
-              <dd className="font-mono text-sky-200">
+              <dd className="font-mono text-zinc-200">
                 {flight.callSign?.trim() || "—"}
               </dd>
             </div>
@@ -228,14 +213,6 @@ export function SelectedAircraftPopupContent({
                 {hasMounted ? fmtDataTimestamp(flight.timestamp) : "—"}
               </p>
             </div>
-            <details className="mt-1.5 rounded-lg border border-white/[0.06] bg-zinc-900/40 px-2 py-1">
-              <summary className="cursor-pointer list-none text-[0.62rem] font-medium text-sky-300/90 [&::-webkit-details-marker]:hidden">
-                Map legend
-              </summary>
-              <p className="mt-1.5 border-t border-white/[0.05] pt-1.5 text-[0.62rem] leading-snug text-sky-200/75">
-                {MAP_LEGEND_COPY}
-              </p>
-            </details>
           </div>
         </>
       )}

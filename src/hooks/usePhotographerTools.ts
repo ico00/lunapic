@@ -1,3 +1,4 @@
+import { useMoonStateComputed } from "@/hooks/useTransitCandidates";
 import { GeometryEngine } from "@/lib/domain/geometry/geometryEngine";
 import { isMoonVisibleFromMoonState } from "@/lib/domain/astro/moonVisibility";
 import { extrapolateFlightForDisplay } from "@/lib/flight/extrapolateFlightPosition";
@@ -5,7 +6,7 @@ import {
   evaluateShotFeasibility,
   type ShotFeasibility,
 } from "@/lib/domain/geometry/shotFeasibility";
-import { useMoonStateComputed } from "@/hooks/useTransitCandidates";
+import { playShortBeep } from "@/lib/audio/fieldAudio";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useObserverStore } from "@/stores/observer-store";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -118,28 +119,6 @@ export function usePhotographerTools() {
   return { ...result, now };
 }
 
-function playBeep(frequency: number) {
-  if (globalThis.window === undefined) {
-    return;
-  }
-  const AC =
-    (globalThis.window as unknown as { webkitAudioContext?: typeof AudioContext })
-      .webkitAudioContext ?? globalThis.window.AudioContext;
-  if (AC == null) {
-    return;
-  }
-  const ctx = new AC();
-  const o = ctx.createOscillator();
-  const g = ctx.createGain();
-  o.type = "sine";
-  o.frequency.setValueAtTime(frequency, ctx.currentTime);
-  g.gain.setValueAtTime(0.1, ctx.currentTime);
-  o.connect(g);
-  g.connect(ctx.destination);
-  o.start();
-  o.stop(ctx.currentTime + 0.09);
-}
-
 /**
  * 3 s prije točke poravnanja i točno u trenutku (kada |t| mali nakon 0).
  */
@@ -171,12 +150,12 @@ export function useTransitBeep(
     }
     const t = timeToAlignmentSec;
     if (t < 0.1 && t > -0.25 && !hitRef.current) {
-      playBeep(990);
+      playShortBeep(990, 0.09, 0.1);
       hitRef.current = true;
       return;
     }
     if (t > 0 && t <= 3.2 && t >= 2.6 && !preRef.current) {
-      playBeep(660);
+      playShortBeep(660, 0.09, 0.1);
       preRef.current = true;
     }
   }, [beepOn, timeToAlignmentSec]);

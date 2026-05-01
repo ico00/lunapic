@@ -39,16 +39,12 @@ export function ObserverLocationPanel({
           <dd>{formatFixed(observer.groundHeightMeters, 0)}</dd>
         </div>
       </dl>
-      <p className="mt-1.5 text-[10px] leading-snug text-zinc-500">
-        From map: Mapbox terrain DEM. From &quot;Use my GPS&quot;: device altitude
-        when the browser exposes it (often ellipsoid height).
-      </p>
       <div className="mt-2 flex flex-col gap-2">
         <button
           type="button"
           onClick={onUseGps}
           disabled={gpsBusy || locationActionsDisabled}
-          className="rounded-lg border border-sky-800/50 bg-sky-950/30 px-2 py-1.5 text-sm text-sky-200/90 transition hover:border-sky-500/50 disabled:opacity-50"
+          className="rounded-md border border-blue-500/35 bg-blue-500/10 px-2 py-1.5 text-sm text-yellow-400/90 transition hover:border-blue-400/50 disabled:opacity-50"
         >
           {gpsBusy ? "GPS…" : "Use my GPS"}
         </button>

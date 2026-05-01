@@ -23,7 +23,7 @@ export function WeatherOverlay() {
   return (
     <div className="pointer-events-none w-full min-w-0 shrink-0 self-stretch">
       <div
-        className="flex h-full w-full min-w-0 items-center justify-start gap-1.5 rounded-xl border border-white/[0.09] bg-gradient-to-br from-zinc-900/75 to-zinc-950/90 px-2.5 py-1.5 text-xs text-zinc-100 shadow-[0_8px_30px_-6px_rgba(0,0,0,0.4)] ring-1 ring-white/[0.05] backdrop-blur-md"
+        className="flex h-full w-full min-w-0 items-center justify-start gap-1.5 rounded-md border border-zinc-700 bg-gradient-to-br from-zinc-900/95 to-zinc-950 px-2.5 py-1.5 font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-200 shadow-[0_8px_30px_-6px_rgba(0,0,0,0.45)] ring-1 ring-zinc-800/80 backdrop-blur-md"
         title={title}
         aria-live="polite"
       >

@@ -9,7 +9,7 @@ LunaPic helps you **line up a real (or static) aircraft** with the **Moon** in t
 ## What you do (typical flow)
 
 1. **Set the observer** (your shooting location)
-  - Default is a point in Zagreb; you can use GPS, place the **camera marker** on the map, or type coordinates.  
+  - Default is a fixed **balcony** point in Zagreb (with ground height); you can use GPS, place the **camera marker** on the map, or type coordinates.  
   - *Rule in the app:* all moon and alignment math uses this point — **not** “whatever the map is centered on” unless you explicitly set the observer from the map.
   - **Ground elevation (Observer panel):** many browsers **do not** return GPS **altitude**. In that case the app fills **ground height** from the **Mapbox terrain model** after the map loads, or whenever you **move the camera marker** (same model when you place the observer from the map). If your device **does** report altitude, that value is kept for the observer height instead.
 2. **Sync time (optional)**
@@ -27,7 +27,8 @@ LunaPic helps you **line up a real (or static) aircraft** with the **Moon** in t
 6. **Pick a flight (optional)**
   - Click an aircraft to select it. You get a **stand corridor** (cyan ground band) and a **pale center line** showing where to be on the ground, for the **current simulated time**, using the aircraft’s **altitude** in the line-of-sight model.
 7. **Read the “photographer” side** (wide layout: right column)
-  - Countdown, angular rates, suggested shutter, compass aim, and optional beeps when a transit is very tight (“golden” alignment).
+  - Countdown, angular rates, shot feasibility, compass aim.
+  - **Field sounds** (after you pick a flight): turn **Sounds on** for a **chime** when that aircraft enters the **green** map filter (moon overlap **and** optical reach for your focal length / sensor), a **soft hold tone** while it stays in the **moon-overlap** disc model (same geometry as overlap on candidates), plus the existing **countdown beeps** a few seconds before alignment and at alignment — useful when you should look up. Many mobile browsers need a tap on the page first so Web Audio can play.
 
 **What you do *not* need for basic use:** reading `architecture.md` or the changelog — those are for developers.
 

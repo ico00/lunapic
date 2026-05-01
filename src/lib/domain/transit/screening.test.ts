@@ -31,6 +31,7 @@ describe("screenTransitCandidates", () => {
       distanceKm: 380_000,
       apparentRadius: { degrees: 0.25 },
       phaseFraction: 0.3,
+      illuminationFraction: 0.5,
     };
     expect(screenTransitCandidates(observer, moon, [])).toEqual([]);
   });
@@ -42,6 +43,7 @@ describe("screenTransitCandidates", () => {
       distanceKm: 380_000,
       apparentRadius: { degrees: 0.25 },
       phaseFraction: 0.3,
+      illuminationFraction: 0.5,
     };
     const f: FlightState = {
       id: "x",
@@ -66,6 +68,7 @@ describe("screenTransitCandidates", () => {
       distanceKm: 380_000,
       apparentRadius: { degrees: 0.3 },
       phaseFraction: 0.5,
+      illuminationFraction: 1,
     };
     const out = screenTransitCandidates(observer, moon, [flight("a", fLat, fLng, h)]);
     expect(out).toHaveLength(1);
@@ -85,6 +88,7 @@ describe("screenTransitCandidates", () => {
       distanceKm: 380_000,
       apparentRadius: { degrees: 0.2 },
       phaseFraction: 0.2,
+      illuminationFraction: 0.4,
     };
     const out = screenTransitCandidates(observer, m, [
       flight("far", f2Lat, f2Lng, h),

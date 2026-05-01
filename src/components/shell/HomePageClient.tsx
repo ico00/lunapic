@@ -132,7 +132,7 @@ function TimeAndWeatherBlock(props: ShellControls) {
               type="button"
               onClick={props.onPlaceObserverFromView}
               disabled={props.observerLocationLocked}
-              className="mt-toolbar-btn w-9 text-amber-200/90 hover:border-amber-500/35"
+              className="mt-toolbar-btn w-9 text-yellow-400/90 hover:border-blue-500/35"
               title="Set my location here"
               aria-label="Set my location here — current view center becomes observer"
             >
@@ -160,7 +160,7 @@ function TimeAndWeatherBlock(props: ShellControls) {
             <button
               type="button"
               onClick={props.onFocusMapOnObserver}
-              className="mt-toolbar-btn w-9 hover:border-sky-400/40"
+              className="mt-toolbar-btn w-9 hover:border-blue-500/35"
               title="Focus on me"
               aria-label="Focus on me — pan map to observer, does not move the point"
             >
@@ -182,7 +182,7 @@ function TimeAndWeatherBlock(props: ShellControls) {
             </button>
             <Link
               href="/about"
-              className="mt-toolbar-btn px-3 text-xs font-medium text-zinc-200 hover:border-emerald-500/35"
+              className="mt-toolbar-btn px-3 font-[family-name:var(--font-jetbrains-mono)] text-xs font-medium text-zinc-200 hover:border-blue-500/35"
               title="About and usage guide"
               aria-label="Open about and usage guide page"
             >
@@ -348,12 +348,19 @@ export function HomePageClient() {
       />
       <MoonEphemerisPanel
         moon={s.moon}
+        observer={s.obs}
         display={s.moonDisplay}
         moonRise={s.moonRise}
         moonSet={s.moonSet}
         moonRiseSetKind={s.moonRiseSetKind}
         showEphemeris={s.showEphemeris}
         isMoonBelowHorizon={s.isMoonBelowHorizon}
+        snapshotContext={{
+          referenceEpochMs: s.referenceEpochMs,
+          observerLat: s.obs.lat,
+          observerLng: s.obs.lng,
+          observerGroundHeightMeters: s.obs.groundHeightMeters,
+        }}
       />
       <TransitCandidatesPanel
         candidates={s.candidatesDisplay}
@@ -408,7 +415,7 @@ export function HomePageClient() {
       <AddToHomeScreenPrompt />
       {isWide ? (
         <div className="grid min-h-0 min-w-0 flex-1 auto-rows-[auto_minmax(0,1fr)] grid-cols-1 md:grid-cols-[20rem_minmax(0,1fr)_20rem]">
-          <header className="mt-chrome-bar w-full min-w-0 shrink-0 self-start overflow-hidden px-4 py-2.5 pt-[max(0.5rem,env(safe-area-inset-top))] shadow-[0_1px_0_0_rgba(0,0,0,0.35)] md:col-start-1 md:row-start-1">
+          <header className="mt-chrome-bar w-full min-w-0 shrink-0 self-start overflow-hidden px-4 py-2.5 pt-[max(0.5rem,env(safe-area-inset-top))] md:col-start-1 md:row-start-1">
             <AppHeaderBrand compact={false} />
           </header>
           <div className="shrink-0 md:col-span-2 md:col-start-2 md:row-start-1">
@@ -417,10 +424,11 @@ export function HomePageClient() {
           <aside className="mt-side-rail min-h-0 min-w-0 overflow-y-auto border-r p-4 text-zinc-200 [scrollbar-gutter:stable] md:col-start-1 md:row-start-2">
             {missionPanels}
           </aside>
-          <div className="relative min-h-0 min-w-0 overflow-hidden shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_24px_80px_-20px_rgba(0,0,0,0.55)] md:col-start-2 md:row-start-2 md:rounded-2xl">
+          <div className="relative min-h-0 min-w-0 overflow-hidden shadow-[0_0_0_1px_rgba(63,63,70,0.5),0_24px_80px_-20px_rgba(0,0,0,0.55)] md:col-start-2 md:row-start-2 md:rounded-md">
             <MapContainer
               flightProvider={s.flightProvider}
               isGolden={s.isGolden}
+              fieldSoundsEnabled={s.beepOnTransit}
             />
           </div>
           <aside className="mt-side-rail min-h-0 min-w-0 overflow-y-auto border-l p-4 text-zinc-200 [scrollbar-gutter:stable] md:col-start-3 md:row-start-2">
@@ -428,9 +436,9 @@ export function HomePageClient() {
           </aside>
         </div>
       ) : (
-        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-zinc-950">
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-black">
           <div className="pointer-events-none absolute inset-x-0 top-0 z-40 px-2.5 pt-[max(0.4rem,env(safe-area-inset-top))]">
-            <div className="pointer-events-auto inline-flex max-w-[min(76vw,14rem)] items-center rounded-2xl border border-white/10 bg-zinc-950/80 px-2.5 py-1.5 shadow-lg shadow-black/40 backdrop-blur-xl">
+            <div className="pointer-events-auto inline-flex max-w-[min(76vw,14rem)] items-center rounded-md border border-zinc-700 bg-zinc-950/90 px-2.5 py-1.5 shadow-lg shadow-black/40 backdrop-blur-xl">
               <AppHeaderBrand compact />
             </div>
           </div>
@@ -438,11 +446,12 @@ export function HomePageClient() {
             <MapContainer
               flightProvider={s.flightProvider}
               isGolden={s.isGolden}
+              fieldSoundsEnabled={s.beepOnTransit}
             />
           </div>
           {mobileTab ? (
             <section
-              className={`absolute inset-x-0 bottom-[calc(3.8rem+env(safe-area-inset-bottom))] z-50 max-h-[78dvh] min-h-[42dvh] overflow-hidden rounded-t-3xl border border-white/10 bg-zinc-950/95 shadow-[0_-12px_60px_-12px_rgba(0,0,0,0.7)] backdrop-blur-2xl transition-[height,transform,box-shadow] duration-300 motion-reduce:transition-none ${sheetHeightClass}`}
+              className={`absolute inset-x-0 bottom-[calc(3.8rem+env(safe-area-inset-bottom))] z-50 max-h-[78dvh] min-h-[42dvh] overflow-hidden rounded-t-lg border border-zinc-800 bg-zinc-950/98 shadow-[0_-12px_60px_-12px_rgba(0,0,0,0.65)] backdrop-blur-2xl transition-[height,transform,box-shadow] duration-300 motion-reduce:transition-none ${sheetHeightClass}`}
               aria-label={`${mobileTabTitle} controls`}
               style={{
                 transform: `translateY(${Math.max(0, sheetDragOffsetPx)}px)`,
@@ -462,7 +471,7 @@ export function HomePageClient() {
                       prev === "peek" ? "half" : prev === "half" ? "full" : "peek"
                     );
                   }}
-                  className="absolute left-1/2 top-1.5 h-1.5 w-12 -translate-x-1/2 rounded-full bg-zinc-600/90 transition-transform duration-150 active:scale-x-110 active:scale-y-125 motion-reduce:transition-none"
+                  className="absolute left-1/2 top-1.5 h-1.5 w-12 -translate-x-1/2 rounded-full bg-zinc-600 transition-transform duration-150 active:scale-x-110 active:scale-y-125 motion-reduce:transition-none"
                   aria-label="Adjust panel height"
                   title="Adjust panel height"
                 />
@@ -474,7 +483,7 @@ export function HomePageClient() {
                   onClick={() => {
                     setMobileTab(null);
                   }}
-                  className="rounded-lg border border-white/10 bg-zinc-900/80 px-2 py-1 text-xs text-zinc-300"
+                  className="rounded-md border border-white/12 bg-[#121212] px-2 py-1 font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-300"
                   aria-label="Close controls"
                 >
                   Close
@@ -489,12 +498,19 @@ export function HomePageClient() {
                     />
                     <MoonEphemerisPanel
                       moon={s.moon}
+                      observer={s.obs}
                       display={s.moonDisplay}
                       moonRise={s.moonRise}
                       moonSet={s.moonSet}
                       moonRiseSetKind={s.moonRiseSetKind}
                       showEphemeris={s.showEphemeris}
                       isMoonBelowHorizon={s.isMoonBelowHorizon}
+                      snapshotContext={{
+                        referenceEpochMs: s.referenceEpochMs,
+                        observerLat: s.obs.lat,
+                        observerLng: s.obs.lng,
+                        observerGroundHeightMeters: s.obs.groundHeightMeters,
+                      }}
                     />
                     <TransitCandidatesPanel
                       candidates={s.candidatesDisplay}
@@ -523,7 +539,7 @@ export function HomePageClient() {
                 ) : null}
                 {mobileTab === "time" ? (
                   <div className="space-y-3">
-                    <div className="rounded-2xl border border-white/10 bg-zinc-900/60 px-2.5 py-2">
+                    <div className="rounded-md border border-white/10 bg-[#121212]/90 px-2.5 py-2">
                       <WeatherOverlay />
                     </div>
                     <TimeSliderPanel
@@ -541,7 +557,7 @@ export function HomePageClient() {
                     <button
                       type="button"
                       onClick={s.syncTime}
-                      className="w-full rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-3 py-2.5 text-sm font-medium text-emerald-100"
+                      className="w-full rounded-md border border-blue-500/40 bg-blue-500/10 px-3 py-2.5 font-[family-name:var(--font-jetbrains-mono)] text-sm font-semibold text-yellow-400"
                     >
                       Sync time to now
                     </button>
@@ -561,14 +577,14 @@ export function HomePageClient() {
                         type="button"
                         onClick={requestPlaceObserverFromView}
                         disabled={observerLocationLocked}
-                        className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-2.5 py-2.5 text-xs font-medium text-amber-100 disabled:opacity-40"
+                        className="rounded-md border border-blue-500/35 bg-blue-500/08 px-2.5 py-2.5 font-[family-name:var(--font-jetbrains-mono)] text-xs font-medium text-yellow-400/90 disabled:opacity-40"
                       >
                         Set my location here
                       </button>
                       <button
                         type="button"
                         onClick={requestFocusOnObserver}
-                        className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-2.5 py-2.5 text-xs font-medium text-sky-100"
+                        className="rounded-md border border-white/15 bg-[#121212] px-2.5 py-2.5 font-[family-name:var(--font-jetbrains-mono)] text-xs font-medium text-zinc-200"
                       >
                         Focus on me
                       </button>
@@ -595,7 +611,7 @@ export function HomePageClient() {
             </section>
           ) : null}
           <nav
-            className="absolute inset-x-0 bottom-0 z-[60] border-t border-white/10 bg-zinc-950/92 px-2 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-2xl"
+            className="absolute inset-x-0 bottom-0 z-[60] border-t border-zinc-800 bg-black/92 px-2 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-2xl"
             aria-label="Primary mobile navigation"
             role="tablist"
           >
@@ -609,7 +625,7 @@ export function HomePageClient() {
                 }}
                 className={`flex min-h-12 flex-col items-center justify-center rounded-xl px-2 py-1.5 text-center text-[0.68rem] font-medium transition duration-150 active:scale-[0.96] motion-reduce:transition-none ${
                   mobileTab === "mission"
-                    ? "bg-zinc-800/95 text-zinc-50 ring-1 ring-emerald-500/55"
+                    ? "bg-zinc-900 text-zinc-50 ring-1 ring-blue-500/50"
                     : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
                 } ${pulseTab === "mission" ? "scale-[1.03]" : ""}`}
               >
@@ -636,7 +652,7 @@ export function HomePageClient() {
                 }}
                 className={`flex min-h-12 flex-col items-center justify-center rounded-xl px-2 py-1.5 text-center text-[0.68rem] font-medium transition duration-150 active:scale-[0.96] motion-reduce:transition-none ${
                   mobileTab === "time"
-                    ? "bg-zinc-800/95 text-zinc-50 ring-1 ring-amber-500/55"
+                    ? "bg-zinc-900 text-zinc-50 ring-1 ring-yellow-500/45"
                     : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
                 } ${pulseTab === "time" ? "scale-[1.03]" : ""}`}
               >
@@ -663,7 +679,7 @@ export function HomePageClient() {
                 }}
                 className={`flex min-h-12 flex-col items-center justify-center rounded-xl px-2 py-1.5 text-center text-[0.68rem] font-medium transition duration-150 active:scale-[0.96] motion-reduce:transition-none ${
                   mobileTab === "observer"
-                    ? "bg-zinc-800/95 text-zinc-50 ring-1 ring-sky-500/55"
+                    ? "bg-zinc-900 text-zinc-50 ring-1 ring-zinc-500/40"
                     : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
                 } ${pulseTab === "observer" ? "scale-[1.03]" : ""}`}
               >
@@ -690,7 +706,7 @@ export function HomePageClient() {
                 }}
                 className={`flex min-h-12 flex-col items-center justify-center rounded-xl px-2 py-1.5 text-center text-[0.68rem] font-medium transition duration-150 active:scale-[0.96] motion-reduce:transition-none ${
                   mobileTab === "field"
-                    ? "bg-zinc-800/95 text-zinc-50 ring-1 ring-violet-500/55"
+                    ? "bg-zinc-900 text-zinc-50 ring-1 ring-blue-400/45"
                     : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
                 } ${pulseTab === "field" ? "scale-[1.03]" : ""}`}
               >

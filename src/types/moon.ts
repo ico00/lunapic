@@ -8,8 +8,10 @@ export interface MoonState extends HorizontalDirection {
   readonly distanceKm: number;
   /** Apparent semi-diameter, degrees. */
   readonly apparentRadius: AngularRadius;
-  /** 0 = new, 0.5 = full (optional). */
+  /** Lunar cycle position from Suncalc (`illumination.phase`): 0 = new, 0.5 = full, 1 = new. */
   readonly phaseFraction: number;
+  /** Lit fraction of the lunar disk (`illumination.fraction`): 0 = new, 1 = full. */
+  readonly illuminationFraction: number;
 }
 
 /**

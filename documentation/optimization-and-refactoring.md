@@ -54,7 +54,7 @@ For day-to-day architecture rules, see `documentation/architecture.md`. For the 
 | `hooks/useSelectedAircraftStandCorridorFeatures.ts` | One stand trapezoid (T=0) + spine `LineString`; strip axis from `horizontalToPoint` (aircraft at altitude) via `standCorridorQuads`.                                              |
 | `hooks/useMoonTransitMap.ts`                        | Mapbox `Map` instance, `moveend` / bounds refresh / flight load (**debounced** for OpenSky), **refetch when observer `lat`/`lng` or `flightProvider` change**, observer marker DOM (golden crosshair, lock ring, `setLngLat`, `flyTo` on focus nonce). |
 | `components/map/MapObserverControlStrip.tsx`        | Bottom-left “Set my location here” / “Focus on me” controls.                                                                                                                      |
-| `components/map/MapContainer.tsx`                   | Composes hooks, `WeatherOverlay`, `MapObserverControlStrip`; shows missing-token message if env is unset.                                                                         |
+| `components/map/MapContainer.tsx`                   | Composes map hooks, `useExtrapolatedFlightsForMap`, `useTransitFieldSounds` (when `fieldSoundsEnabled`), `useMapGeoJsonSync`, popups; shows missing-token message if env is unset. |
 
 
 **Optimization note:** GeoJSON `setData` is split by concern (moon vs path vs stand vs stand spine vs flights vs routes) to avoid re-pushing the entire world when only one input changes. The **flights** layer additionally avoids **re-pushing symbols** on every extrapolation tick by **throttling** updates to the Mapbox source.
@@ -66,7 +66,7 @@ For day-to-day architecture rules, see `documentation/architecture.md`. For the 
 
 | File                                        | Role                                                                                                                                                                                   |
 | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `hooks/useHomeShellOrchestration.ts`        | All Zustand subscriptions, `usePhotographerTools`, `useGpsObserver`, time slider state, golden flash token, derived lists.                                                             |
+| `hooks/useHomeShellOrchestration.ts`        | All Zustand subscriptions, `usePhotographerTools`, `useTransitBeep`, `useGpsObserver`, time slider state, golden flash token, `beepOnTransit` / Field sounds toggle, derived lists.      |
 | `components/shell/HomePageClient.tsx`       | Layout: aside + map column; `useAstronomySync` + `useWeatherSync` + `useHomeShellOrchestration`; passes props from the orchestration hook into panels.                                 |
 | `components/shell/GoldenAlignmentFlash.tsx` | Full-screen flash on first “golden” alignment.                                                                                                                                         |
 | `components/shell/panels/*`                 | `FlightSourcePanel`, `ObserverLocationPanel`, `MoonEphemerisPanel`, `TimeSliderPanel`, `TransitCandidatesPanel`, `ActiveTransitsPanel`, `PhotographerToolsPanel`, `SidebarSyncFooter`. |

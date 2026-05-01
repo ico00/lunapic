@@ -15,15 +15,28 @@ import {
   CAMERA_SENSOR_ORDER,
   type CameraSensorType,
 } from "@/lib/domain/geometry/shotFeasibility";
+import { clampFloatingMenuLeft } from "@/lib/ui/clampFloatingMenuLeft";
 
+/** Puni naziv u otvorenom izborniku. */
 function labelForSensor(id: CameraSensorType): string {
   if (id === "fullFrame") {
-    return "Full Frame (1.0x)";
+    return "Full Frame (1.0× crop)";
   }
   if (id === "apsC") {
-    return "APS-C (1.5x)";
+    return "APS-C (1.5× crop)";
   }
-  return "Micro 4/3 (2.0x)";
+  return "Micro Four Thirds (2.0× crop)";
+}
+
+/** Kratki naziv na zatvorenom triggeru — bez skraćivanja. */
+function triggerLabelForSensor(id: CameraSensorType): string {
+  if (id === "fullFrame") {
+    return "Full Frame";
+  }
+  if (id === "apsC") {
+    return "APS-C";
+  }
+  return "Micro 4/3";
 }
 
 type CameraSensorSelectProps = {
@@ -61,6 +74,21 @@ export function CameraSensorSelect({ value, onChange }: CameraSensorSelectProps)
     }
     updatePosition();
   }, [open, updatePosition]);
+
+  useLayoutEffect(() => {
+    if (!open || !pos) {
+      return;
+    }
+    const menu = menuRef.current;
+    if (!menu) {
+      return;
+    }
+    const w = menu.getBoundingClientRect().width;
+    const nextLeft = clampFloatingMenuLeft(pos.left, w);
+    if (Math.abs(nextLeft - pos.left) >= 1) {
+      setPos((p) => (p ? { ...p, left: nextLeft } : null));
+    }
+  }, [open, pos]);
 
   useEffect(() => {
     if (!open) {
@@ -105,11 +133,13 @@ export function CameraSensorSelect({ value, onChange }: CameraSensorSelectProps)
         ref={menuRef}
         id={listboxId}
         role="listbox"
-        className="fixed z-[280] m-0 max-h-60 list-none overflow-y-auto rounded-lg border border-white/10 bg-zinc-900/95 p-1 py-1 shadow-[0_12px_40px_rgba(0,0,0,0.55)] ring-1 ring-inset ring-white/[0.06] backdrop-blur-md"
+        className="fixed z-[280] m-0 max-h-60 list-none overflow-y-auto rounded-md border border-zinc-700 bg-zinc-950/98 p-1 py-1 shadow-[0_12px_40px_rgba(0,0,0,0.55)] ring-1 ring-inset ring-zinc-800 backdrop-blur-md"
         style={{
           top: pos.top,
           left: pos.left,
-          width: pos.width,
+          minWidth: pos.width,
+          width: "max-content",
+          maxWidth: "min(calc(100vw - 1rem), 22rem)",
         }}
       >
         {CAMERA_SENSOR_ORDER.map((id) => {
@@ -122,8 +152,8 @@ export function CameraSensorSelect({ value, onChange }: CameraSensorSelectProps)
               aria-selected={isSel}
               className={
                 isSel
-                  ? "cursor-pointer select-none rounded-md bg-sky-500/20 px-2.5 py-1.5 text-left text-sm text-sky-100"
-                  : "cursor-pointer select-none rounded-md px-2.5 py-1.5 text-left text-sm text-zinc-200 outline-none hover:bg-sky-950/50 hover:text-zinc-50 focus:bg-sky-950/50"
+                  ? "cursor-pointer select-none whitespace-nowrap rounded-md bg-blue-500/20 px-2.5 py-1.5 text-left text-sm text-yellow-400"
+                  : "cursor-pointer select-none whitespace-nowrap rounded-md px-2.5 py-1.5 text-left text-sm text-zinc-200 outline-none hover:bg-zinc-800 hover:text-zinc-50 focus:bg-zinc-900"
               }
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => onPick(id)}
@@ -153,7 +183,7 @@ export function CameraSensorSelect({ value, onChange }: CameraSensorSelectProps)
         type="button"
         data-testid="camera-sensor-select"
         data-value={value}
-        className="inline-flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-white/10 bg-zinc-900/50 py-1.5 pl-2.5 pr-2 text-left text-sm text-zinc-200 shadow-inner outline-none ring-inset backdrop-blur-sm transition hover:border-sky-500/35 hover:bg-zinc-900/70 focus:ring-2 focus:ring-sky-500/30"
+        className="inline-flex h-9 w-full min-w-0 shrink-0 items-center justify-between gap-2 rounded-md border border-zinc-700 bg-zinc-900/80 px-2.5 pr-2 text-left text-sm leading-none text-zinc-200 shadow-inner outline-none ring-inset backdrop-blur-sm transition hover:border-blue-500/35 hover:bg-zinc-900 focus:ring-2 focus:ring-blue-500/25"
         aria-label="Camera sensor type"
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -170,7 +200,9 @@ export function CameraSensorSelect({ value, onChange }: CameraSensorSelectProps)
           }
         }}
       >
-        <span className="min-w-0 flex-1 truncate">{labelForSensor(value)}</span>
+        <span className="min-w-0 flex-1 text-left">
+          {triggerLabelForSensor(value)}
+        </span>
         <svg
           className={`h-4 w-4 shrink-0 text-zinc-500 transition ${open ? "rotate-180" : ""}`}
           viewBox="0 0 24 24"

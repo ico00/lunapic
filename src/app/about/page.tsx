@@ -30,6 +30,12 @@ const faqs = [
       "It is the moon azimuth from your observer point (compass direction to look). It updates with slider time, so when you scrub time, this line rotates to the moon direction for that instant.",
   },
   {
+    question:
+      "What is the cyan band and pale center line when an aircraft is selected?",
+    answer:
+      "Cyan band + pale center line: the ground strip and zero-offset line (3D line-of-sight, aircraft altitude) for the current slider time only — the direction you move along the ground to line up the hull with the moon's center at your fixed observer. Zoom out if the band is off-screen.",
+  },
+  {
     question: "How does the Compass → Moon panel work?",
     answer:
       "Goal. Hold the phone flat like a map (screen facing you). The compass rose (ticks + N/E/S/W) rotates with your device heading so cardinals stay lined up with the horizon (best effort from the sensor). The fixed triangle at 12 o'clock marks the top of the phone — your forward direction in the horizontal plane. The amber needle is the shortest turn from that forward direction to the moon's azimuth: when it points straight up to the triangle, you are aimed correctly. Moon azimuth uses true north at 0°, increasing clockwise; ephemeris does not apply magnetic declination.\n\nSensors. The browser reports device orientation. On many iPhones, Safari exposes a compass-derived heading; elsewhere the fallback is often alpha (attitude), which behaves more like an estimated bearing and can drift. This is a field helper, not survey-grade north.\n\nField use. Prefer open air with a clear view toward the moon. Move away from cars, rebar, large steel, speakers, and strong currents — they skew the Earth's magnetic field and confuse compass heading. If the needle jitters, walk a few steps, re-level the phone, and wait for the value below the disc to settle.\n\nLimits. This panel is plan view only (azimuth on the ground). It does not tell you moon altitude; use Moon (nowcast) and the map for elevation. Your lens still needs to be pointed up at the correct elevation to frame the disc — the compass only lines up the horizontal aim.",
@@ -37,12 +43,17 @@ const faqs = [
   {
     question: "How should I read Moon (nowcast)?",
     answer:
-      "Altitude is moon height above horizon (degrees), azimuth is compass direction from true north, and angular radius is apparent moon size. Visibility Advice flags low-altitude cases where the moon may be technically up but hard to see in practice.",
+      "Altitude is moon height above horizon (degrees), azimuth is compass direction from true north, and angular radius is apparent moon size. Illuminated is the percentage of the lunar disk lit as seen from Earth (0% = new moon, 100% = full moon), from the same ephemeris as the rest of the panel. Visibility Advice flags low-altitude cases where the moon may be technically up but hard to see in practice. When you keep the **default balcony** observer and the simulated moon lands in a narrow band around a saved reference (height, direction, near-full phase), an **Ideal for transit watch** callout appears — a cue that conditions match that clear-sight session for waiting on a moon crossing. **Copy field note** still copies observer coordinates, **ground elevation (m)**, simulation instant, numbers, rise/set, and visibility text to the clipboard.",
   },
   {
     question: "What is the countdown in Photographer tools?",
     answer:
       "It is an estimate of time until plane direction aligns with moon direction from your observer position. It is meant as a practical shooting aid, not a perfect physical simulation.",
+  },
+  {
+    question: "What do Field sounds do?",
+    answer:
+      "Turn **Sounds on** after selecting an aircraft. You get a short **chime** when that aircraft enters the **green** map filter (geometric moon overlap **and** within your focal length / sensor optical reach). While the aircraft stays in the **moon-overlap** disc model (same geometry as the overlap test on candidates), a **soft hold tone** plays so you know to look up. When timing data exists, you still get the **countdown beeps** a few seconds before alignment and at the alignment instant. Many mobile browsers require a tap in the page before Web Audio will play reliably.",
   },
   {
     question: "What time basis does Photographer — tools use?",
@@ -94,7 +105,7 @@ function highlightText(text: string, query: string): ReactNode {
     out.push(
       <mark
         key={k++}
-        className="rounded-sm bg-amber-400/35 px-0.5 text-inherit"
+        className="rounded-sm bg-yellow-500/25 px-0.5 text-inherit"
       >
         {m[0]}
       </mark>
@@ -175,7 +186,7 @@ export default function AboutPage() {
                 placeholder="Search all answers…"
                 autoComplete="off"
                 spellCheck={false}
-                className="w-full rounded-xl border border-white/15 bg-[#070f2a]/80 px-3 py-2 text-sm text-zinc-100 shadow-inner shadow-black/20 outline-none ring-emerald-400/40 placeholder:text-zinc-500 focus:border-emerald-400/50 focus:ring-2"
+                className="w-full rounded-md border border-zinc-700 bg-zinc-900/90 px-3 py-2 text-sm text-zinc-100 shadow-inner shadow-black/20 outline-none ring-blue-500/30 placeholder:text-zinc-500 focus:border-blue-500/40 focus:ring-2"
               />
               {isSearchActive ? (
                 <p className="mt-1.5 text-xs text-zinc-500" aria-live="polite">
@@ -221,7 +232,7 @@ export default function AboutPage() {
                     {!isSearchActive ? (
                       <span
                         className={`mt-0.5 shrink-0 text-2xl leading-none transition ${
-                          openIdx === idx ? "text-emerald-300" : "text-zinc-400"
+                          openIdx === idx ? "text-yellow-400" : "text-zinc-400"
                         }`}
                       >
                         {openIdx === idx ? "−" : "+"}
@@ -243,8 +254,8 @@ export default function AboutPage() {
             })}
           </div>
           {(!isSearchActive || proTipMatches) && (
-            <section className="mt-5 rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-4">
-              <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300/90">
+            <section className="mt-5 rounded-md border border-zinc-700 bg-zinc-900/50 px-4 py-4">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-400/90">
                 {isSearchActive
                   ? highlightText(proTip.title, search)
                   : proTip.title}

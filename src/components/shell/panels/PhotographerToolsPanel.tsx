@@ -79,10 +79,10 @@ export function PhotographerToolsPanel({
   const shotTier = photoShotFeasibility?.tier ?? null;
   const shotBadgeClass =
     shotTier === "excellent"
-      ? "bg-emerald-800/40 text-emerald-100 border-emerald-600/40"
+      ? "bg-blue-500/15 text-blue-200 border-blue-500/40"
       : shotTier === "fair"
-        ? "bg-amber-800/35 text-amber-100 border-amber-600/40"
-        : "bg-rose-900/35 text-rose-100 border-rose-700/40";
+        ? "bg-zinc-800/80 text-yellow-400 border-zinc-600"
+        : "bg-zinc-900 text-zinc-400 border-zinc-700";
   const shotLabel =
     shotTier === "excellent"
       ? "EXCELLENT"
@@ -99,7 +99,7 @@ export function PhotographerToolsPanel({
       <div>
         <p className="text-[0.65rem] text-zinc-500">Camera settings</p>
         <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <label className="space-y-1">
+          <label className="flex min-h-0 min-w-0 flex-col gap-1">
             <span className="text-[0.62rem] uppercase tracking-wide text-zinc-500">
               Focal length (mm)
             </span>
@@ -123,14 +123,14 @@ export function PhotographerToolsPanel({
                   (e.target as HTMLInputElement).blur();
                 }
               }}
-              className="w-full rounded border border-zinc-700 bg-zinc-900/70 px-2 py-1.5 font-mono text-sm text-zinc-100"
+              className="box-border h-9 w-full rounded-md border border-zinc-700 bg-zinc-900/70 px-2 font-mono text-sm leading-none text-zinc-100"
             />
           </label>
-          <label className="space-y-1">
+          <label className="flex min-h-0 min-w-0 flex-col gap-1">
             <span className="text-[0.62rem] uppercase tracking-wide text-zinc-500">
               Sensor type
             </span>
-            <div className="mt-1 min-w-0">
+            <div className="min-w-0">
               <CameraSensorSelect
                 value={cameraSensorType}
                 onChange={setCameraSensorType}
@@ -148,20 +148,42 @@ export function PhotographerToolsPanel({
         </p>
       )}
       {selectedFlightId && !photoPack && (
-        <p className="mt-3 border-t border-zinc-800/80 pt-3 text-sm text-amber-300/80">
+        <p className="mt-3 border-t border-zinc-800/80 pt-3 text-sm text-yellow-600/90">
           {reasonText(photoUnavailableReason)}
         </p>
       )}
+      {selectedFlightId ? (
+        <div className="mt-3 space-y-2 border-t border-zinc-800/80 pt-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-zinc-500">Field sounds</span>
+            <button
+              type="button"
+              data-testid="field-sounds-toggle"
+              onClick={onToggleBeep}
+              className={`rounded-lg px-2.5 py-1 text-xs ${
+                beepOnTransit
+                  ? "bg-blue-500/20 text-yellow-400"
+                  : "bg-zinc-800 text-zinc-400"
+              }`}
+            >
+              {beepOnTransit ? "Sounds on" : "Sounds off"}
+            </button>
+          </div>
+          <p className="text-[0.62rem] leading-relaxed text-zinc-500">
+            Chime when the selected aircraft enters the <span className="text-emerald-400/90">green</span> (feasible) map filter; soft hold tone while its disc overlaps the moon in the sky model; countdown beeps when timing data is available.
+          </p>
+        </div>
+      ) : null}
       {photoPack && (
-        <div className="mt-3 space-y-3 border-t border-zinc-800/80 pt-3">
+        <div className="mt-3 space-y-3 pt-3">
           <div
-            className="rounded-xl border border-emerald-800/50 bg-zinc-950/80 px-2 py-3 text-center"
+            className="rounded-md border border-zinc-700 bg-zinc-950/80 px-2 py-3 text-center"
             aria-live="polite"
           >
             <p className="text-xs font-medium leading-snug text-zinc-200">
               Time until moon and plane line up
             </p>
-            <p className="mt-3 font-mono text-3xl font-semibold tabular-nums tracking-tight text-emerald-300">
+            <p className="mt-3 font-mono text-3xl font-semibold tabular-nums tracking-tight text-yellow-400">
               {formatCountdown(photoPack.timeToAlignmentSec ?? null)}
             </p>
           </div>
@@ -211,20 +233,6 @@ export function PhotographerToolsPanel({
               </p>
             </div>
           ) : null}
-          <div className="flex items-center justify-between gap-2 border-t border-zinc-800/80 pt-2">
-            <span className="text-xs text-zinc-500">Sound on transit</span>
-            <button
-              type="button"
-              onClick={onToggleBeep}
-              className={`rounded-lg px-2.5 py-1 text-xs ${
-                beepOnTransit
-                  ? "bg-emerald-800/50 text-emerald-100"
-                  : "bg-zinc-800 text-zinc-300"
-              }`}
-            >
-              {beepOnTransit ? "Beep on" : "Beep off"}
-            </button>
-          </div>
         </div>
       )}
     </ShellSectionCard>
