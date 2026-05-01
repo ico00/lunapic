@@ -10,6 +10,7 @@ import {
   type PhotographerToolsUnavailableReason,
 } from "@/hooks/usePhotographerTools";
 import { CAMERA_SENSOR_CROP } from "@/lib/domain/geometry/shotFeasibility";
+import { primeFieldAudioFromUserGesture } from "@/lib/audio/fieldAudio";
 import { formatFixed } from "@/lib/format/numbers";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useCallback, useState } from "react";
@@ -159,7 +160,12 @@ export function PhotographerToolsPanel({
             <button
               type="button"
               data-testid="field-sounds-toggle"
-              onClick={onToggleBeep}
+              onClick={() => {
+                if (!beepOnTransit) {
+                  primeFieldAudioFromUserGesture();
+                }
+                onToggleBeep();
+              }}
               className={`rounded-lg px-2.5 py-1 text-xs ${
                 beepOnTransit
                   ? "bg-blue-500/20 text-yellow-400"
@@ -171,6 +177,9 @@ export function PhotographerToolsPanel({
           </div>
           <p className="text-[0.62rem] leading-relaxed text-zinc-500">
             Chime when the selected aircraft enters the <span className="text-emerald-400/90">green</span> (feasible) map filter; soft hold tone while its disc overlaps the moon in the sky model; countdown beeps when timing data is available.
+          </p>
+          <p className="text-[0.6rem] leading-snug text-amber-400/85">
+            iPhone: turn off the <span className="font-semibold">silent</span> switch and use the ringer volume. When you tap <span className="font-semibold">Sounds on</span>, you should hear a <span className="font-semibold">short unlock ping</span> — that primes Safari for later chimes and tones. If you heard nothing, tap Sounds off, then on again.
           </p>
         </div>
       ) : null}

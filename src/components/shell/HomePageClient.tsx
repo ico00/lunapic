@@ -18,6 +18,7 @@ import { useIsMdUp } from "@/hooks/useMediaQuery";
 import { useTransitCandidateNotifications } from "@/hooks/useTransitCandidateNotifications";
 import { useAstronomySync } from "@/hooks/useAstronomySync";
 import { useWeatherSync } from "@/hooks/useWeatherSync";
+import { resumeSharedAudioFromUserGesture } from "@/lib/audio/fieldAudio";
 import { appPath } from "@/lib/paths/appPath";
 import { useObserverStore } from "@/stores/observer-store";
 import dynamic from "next/dynamic";
@@ -243,7 +244,10 @@ export function HomePageClient() {
     timeSliderStartLabel: s.timeSliderStartLabel,
     timeSliderEndLabel: s.timeSliderEndLabel,
     timeSliderMode: s.timeSliderMode,
-    syncTime: s.syncTime,
+    syncTime: () => {
+      resumeSharedAudioFromUserGesture();
+      s.syncTime();
+    },
     observerLocationLocked,
     onPlaceObserverFromView: requestPlaceObserverFromView,
     onFocusMapOnObserver: requestFocusOnObserver,
@@ -556,7 +560,10 @@ export function HomePageClient() {
                     />
                     <button
                       type="button"
-                      onClick={s.syncTime}
+                      onClick={() => {
+                        resumeSharedAudioFromUserGesture();
+                        s.syncTime();
+                      }}
                       className="w-full rounded-md border border-blue-500/40 bg-blue-500/10 px-3 py-2.5 font-[family-name:var(--font-jetbrains-mono)] text-sm font-semibold text-yellow-400"
                     >
                       Sync time to now
