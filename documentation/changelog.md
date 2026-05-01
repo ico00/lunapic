@@ -8,6 +8,13 @@ where version bumps are made for releases (currently `0.x`).
 
 ## [Unreleased]
 
+### Changed
+
+- **Map — aircraft markers (3D)** — Flight markers use a Mapbox **`model`** layer with a placeholder airplane model (`FLIGHT_3D_MODEL_URL`, `airplane.glb` from Mapbox example), `map.addModel` + layout `model-id`. Paint: `model-rotation` Z from ADS-B **`track`**, `model-translation` altitude from **`altitudeMeters`**, `model-scale` interpolated from altitude (no zoom-driven expression), `model-color` / `model-color-mix-intensity` for green (`isShotFeasible`) vs sky blue. The previous SVG `symbol` path and `FLIGHT_PLANE_ICON_*` constants were removed; circle fallback remains if setup throws.
+- **Map — aircraft markers keep readable size while zooming** — Added runtime zoom compensation for flight `model-scale` (`setPaintProperty` on `zoom`) so 3D aircraft stay approximately the same screen size across zoom levels instead of becoming tiny when zoomed out.
+- **Map — aircraft model orientation + far-zoom readability tweak** — Increased zoom-compensation ceiling and base model scale so aircraft remain legible at wide-area zoom levels, plus added a yaw offset to align the airplane nose with ADS-B heading (`track`) instead of side-facing drift.
+- **Map — aircraft far-zoom sizing rebalance** — Raised reference zoom and minimum compensation factor for model scale so aircraft keep a practical average size even on very wide zoom-outs.
+
 ### Documentation
 
 - **Flights / OpenSky / mobile** — Synced **`documentation/architecture.md`**, **`documentation/user-guide.md`**, **`documentation/optimization-and-refactoring.md`**, **`documentation/technicalconventions.md`**, **`documentation/performance.md`**, **`documentation/refactor-roadmap.md`**, root **`README.md`**, **`src/stores/README.md`**, and the **Flight source** panel copy for: default provider **`opensky`**, combobox order, **fetch vs client filter** (observer disk + map union), **`mergeFlightsWithOpenSkyRetention`**, GeoJSON **throttle** + extrapolation **tick**, `useMoonTransitMap` **debounce** and **observer refetch**, and E2E combobox wording in technical conventions.

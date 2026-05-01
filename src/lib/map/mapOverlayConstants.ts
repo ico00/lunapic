@@ -30,14 +30,12 @@ export const SELECTED_STAND_SPINE_LINE_WIDTH = 3.4;
 export const SELECTED_STAND_SPINE_LINE_OPACITY = 0.95;
 export const SELECTED_STAND_SPINE_LINE_OPACITY_DIM = 0.22;
 
-import { appPath } from "@/lib/paths/appPath";
+/**
+ * Placeholder 3D model zrakoplova (Mapbox GL JS primjer).
+ * @see https://docs.mapbox.com/mapbox-gl-js/example/add-3d-model-and-animate-along-route/
+ */
+export const FLIGHT_3D_MODEL_URL =
+  "https://docs.mapbox.com/mapbox-gl-js/assets/airplane.glb";
 
-/** Javni URL SVG ikone zrakoplova na karti (`public/plane_5367346.svg`); s `basePath` uključuje prefiks. */
-export const FLIGHT_PLANE_ICON_URL = appPath("/plane_5367346.svg");
-
-/** ID teksture u Mapbox `addImage` (symbol `icon-image`). */
-export const FLIGHT_PLANE_ICON_IMAGE_ID = "flight-plane-icon-blue";
-export const FLIGHT_PLANE_ICON_IMAGE_ID_FEASIBLE = "flight-plane-icon-green";
-
-/** Relativna veličina ikone (izvorna slika je velika; ~0.06–0.12 je čitko). */
-export const FLIGHT_PLANE_ICON_SIZE = 0.09;
+/** ID modela u stilu (`map.addModel` / layout `model-id`). */
+export const FLIGHT_3D_MODEL_ID = "lunapic-aircraft-3d";
