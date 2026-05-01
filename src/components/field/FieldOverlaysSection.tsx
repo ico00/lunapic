@@ -5,10 +5,6 @@ import { SectionIconField } from "@/components/shell/sectionCategoryIcons";
 import { usePhotographerTools } from "@/hooks/usePhotographerTools";
 import { useMoonStateComputed } from "@/hooks/useTransitCandidates";
 import {
-  CAMERA_SENSOR_CROP,
-  type CameraSensorType,
-} from "@/lib/domain/geometry/shotFeasibility";
-import {
   type FieldPlanSnapshot,
   buildFieldPlanText,
   createFieldPlanPngDataUrl,
@@ -27,12 +23,6 @@ export function FieldOverlaysSection() {
   const latencySkewMs = useMoonTransitStore((s) => s.openSkyLatencySkewMs);
   const addSkew = useMoonTransitStore((s) => s.addOpenSkyLatencySkewMs);
   const setSkew = useMoonTransitStore((s) => s.setOpenSkyLatencySkewMs);
-  const cameraFocalLengthMm = useMoonTransitStore((s) => s.cameraFocalLengthMm);
-  const cameraSensorType = useMoonTransitStore((s) => s.cameraSensorType);
-  const setCameraFocalLengthMm = useMoonTransitStore(
-    (s) => s.setCameraFocalLengthMm
-  );
-  const setCameraSensorType = useMoonTransitStore((s) => s.setCameraSensorType);
   const referenceEpochMs = useMoonTransitStore((s) => s.referenceEpochMs);
   const timeOffsetMs = useMoonTransitStore((s) => s.timeOffsetMs);
   const selectedFlightId = useMoonTransitStore((s) => s.selectedFlightId);
@@ -44,8 +34,6 @@ export function FieldOverlaysSection() {
   const { pack } = usePhotographerTools();
   const [exportBusy, setExportBusy] = useState(false);
   const skewSec = latencySkewMs / 1000;
-  const effectiveFocalMm =
-    cameraFocalLengthMm * CAMERA_SENSOR_CROP[cameraSensorType];
 
   const planSnapshot: FieldPlanSnapshot = useMemo(() => {
     const sel = flights.find((f) => f.id === selectedFlightId) ?? null;
@@ -103,49 +91,6 @@ export function FieldOverlaysSection() {
       icon={<SectionIconField />}
     >
       <div>
-        <p className="text-[0.65rem] text-zinc-500">Camera settings</p>
-        <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <label className="space-y-1">
-            <span className="text-[0.62rem] uppercase tracking-wide text-zinc-500">
-              Focal length (mm)
-            </span>
-            <input
-              type="number"
-              min={50}
-              max={2400}
-              step={10}
-              value={cameraFocalLengthMm}
-              onChange={(e) => {
-                const next = Number.parseFloat(e.target.value);
-                if (Number.isFinite(next)) {
-                  setCameraFocalLengthMm(next);
-                }
-              }}
-              className="w-full rounded border border-zinc-700 bg-zinc-900/70 px-2 py-1.5 font-mono text-sm text-zinc-100"
-            />
-          </label>
-          <label className="space-y-1">
-            <span className="text-[0.62rem] uppercase tracking-wide text-zinc-500">
-              Sensor type
-            </span>
-            <select
-              value={cameraSensorType}
-              onChange={(e) => {
-                setCameraSensorType(e.target.value as CameraSensorType);
-              }}
-              className="w-full rounded border border-zinc-700 bg-zinc-900/70 px-2 py-1.5 text-sm text-zinc-100"
-            >
-              <option value="fullFrame">Full Frame (1.0x)</option>
-              <option value="apsC">APS-C (1.5x)</option>
-              <option value="microFourThirds">Micro 4/3 (2.0x)</option>
-            </select>
-          </label>
-        </div>
-        <p className="mt-1 font-mono text-[0.65rem] text-zinc-500">
-          Effective focal length: {num(effectiveFocalMm, 0)} mm
-        </p>
-      </div>
-      <div className="border-t border-zinc-800/80 pt-2">
         <p className="text-[0.65rem] text-zinc-500">
           Fine-tune for OpenSky latency: offset from “now” for track
           extrapolation (does not change the Moon from the time slider).

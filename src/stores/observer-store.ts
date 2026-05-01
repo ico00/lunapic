@@ -22,6 +22,12 @@ type ObserverState = {
    * Spriječi slučajne dodire / GPS s pomakom promatrača (teren).
    */
   observerLocationLocked: boolean;
+  /**
+   * Povećava se kad treba nadopuniti `groundHeightMeters` s Mapbox DEM-om
+   * (npr. GPS bez `coords.altitude`) — `useMoonTransitMap` reagira kad je karta spremna.
+   */
+  terrainGroundHeightSyncNonce: number;
+  requestTerrainGroundHeightSync: () => void;
   setObserver: (next: Partial<GroundObserver>) => void;
   /**
    * Postavi samo tlocrt iz centra trenutnog viewporta (ručno poravnanje s kartom).
@@ -39,6 +45,11 @@ export const useObserverStore = create<ObserverState>((set) => ({
   mapFocusNonce: 0,
   placeObserverFromViewNonce: 0,
   observerLocationLocked: false,
+  terrainGroundHeightSyncNonce: 0,
+  requestTerrainGroundHeightSync: () =>
+    set((s) => ({
+      terrainGroundHeightSyncNonce: s.terrainGroundHeightSyncNonce + 1,
+    })),
   setObserver: (next) =>
     set((s) => {
       if (s.observerLocationLocked) {

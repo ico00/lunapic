@@ -18,7 +18,12 @@ export interface GeodeticPosition extends LatLng {
 export interface GroundObserver {
   readonly lat: number;
   readonly lng: number;
-  /** meters above the ellipsoid; default 0 if unknown. */
+  /**
+   * Ground height in meters used for ECEF / line-of-sight:
+   * - **GPS:** browser `coords.altitude` when present (typically WGS84 ellipsoid height).
+   * - **Map placement:** sampled from Mapbox global DEM via `queryTerrainElevation` (terrain model, ~mean sea level — not identical to ellipsoid).
+   * Falls back to **0** only when neither source is available.
+   */
   readonly groundHeightMeters: number;
 }
 

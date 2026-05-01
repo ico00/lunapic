@@ -10,6 +10,13 @@ export const CAMERA_SENSOR_CROP = {
   microFourThirds: 2.0,
 } as const satisfies Record<CameraSensorType, number>;
 
+/** UI / iteration order (matches `CAMERA_SENSOR_CROP` keys). */
+export const CAMERA_SENSOR_ORDER = [
+  "fullFrame",
+  "apsC",
+  "microFourThirds",
+] as const satisfies readonly CameraSensorType[];
+
 export type ShotFeasibilityTier = "excellent" | "fair" | "poor";
 
 export type ShotFeasibility = {

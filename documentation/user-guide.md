@@ -11,6 +11,7 @@ LunaPic helps you **line up a real (or static) aircraft** with the **Moon** in t
 1. **Set the observer** (your shooting location)
   - Default is a point in Zagreb; you can use GPS, place the **camera marker** on the map, or type coordinates.  
   - *Rule in the app:* all moon and alignment math uses this point — **not** “whatever the map is centered on” unless you explicitly set the observer from the map.
+  - **Ground elevation (Observer panel):** many browsers **do not** return GPS **altitude**. In that case the app fills **ground height** from the **Mapbox terrain model** after the map loads, or whenever you **move the camera marker** (same model when you place the observer from the map). If your device **does** report altitude, that value is kept for the observer height instead.
 2. **Sync time (optional)**
   - On load, the app syncs to **now**; use **Sync** in the shell when you want the simulated time to jump back to the real time window.
 3. **Move the time slider**
@@ -22,7 +23,7 @@ LunaPic helps you **line up a real (or static) aircraft** with the **Moon** in t
   - **Routes (static)** — demo routes; good offline.  
   - **Mock** — small test set.
 5. **Pan / zoom the map**
-  - Flights re-load for the current bounds (and for OpenSky also when the **observer** moves). The observer stays where you set it unless you change it.
+  - The map starts in a **flat (2D) view** (no tilt). To **tilt or rotate in 3D**, use the **right mouse button** and drag on the map (Mapbox’s default), or the **+ / − pitch** controls on the map’s navigation widget; on touch devices a **two-finger** tilt still works. Flights re-load for the current bounds (and for OpenSky also when the **observer** moves). The observer stays where you set it unless you change it.
 6. **Pick a flight (optional)**
   - Click an aircraft to select it. You get a **stand corridor** (cyan ground band) and a **pale center line** showing where to be on the ground, for the **current simulated time**, using the aircraft’s **altitude** in the line-of-sight model.
 7. **Read the “photographer” side** (wide layout: right column)

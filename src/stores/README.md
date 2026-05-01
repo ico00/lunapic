@@ -5,7 +5,7 @@
 
 | Store                 | Odgovornost                                                                                                                                                                                                                    |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `useObserverStore`    | Fiksni promatrač (lat/lng/visina), zamka lokacije, zahtjev za fokusom karte.                                                                                                                                                   |
+| `useObserverStore`    | Fiksni promatrač (`lat` / `lng` / `groundHeightMeters`), zamka lokacije, `mapFocusNonce`, postavljanje iz centra karte (`placeObserverFromViewNonce`). Visina: GNSS `altitude` kad preglednik pošalje; inače Mapbox DEM (`terrainGroundHeightSyncNonce` + `requestTerrainGroundHeightSync` nakon GPS-a bez visine, te `queryTerrainElevation` u `useMoonTransitMap` pri dragu / centru karte / učitavanju slojeva). |
 | `useMoonTransitStore` | Vrijeme (sidro, pomak, `referenceEpochMs`; klizač = **cijeli UTC dan**), suncalc izlaz/zlaz (`moonRise` / `moonSet` / `kind` za ephemeru i **vidljivi** luk na karti, osvježavanje s `ephemerisRefetchKey` + `useAstronomySync`), `mapView`, letovi, **`flightProvider` (zadano `opensky`)**, odabrani let, OpenSky skew, učitavanje. `loadFlightsInBounds` nakon providera radi **`mergeStickyFlightMetadata`** + **`mergeFlightsWithOpenSkyRetention`** (kratko zadržavanje ICAO24 između OpenSky osvježavanja; čišćenje pri promjeni providera). |
 
 

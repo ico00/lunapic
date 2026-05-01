@@ -38,14 +38,16 @@ export function useGpsObserver(): UseGpsObserverResult {
     setError(null);
     globalThis.navigator.geolocation.getCurrentPosition(
       (pos) => {
+        const rawAlt = pos.coords.altitude;
+        const hasAltitude = rawAlt != null && !Number.isNaN(rawAlt);
         setObserver({
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
-          groundHeightMeters:
-            pos.coords.altitude != null && !Number.isNaN(pos.coords.altitude)
-              ? pos.coords.altitude
-              : 0,
+          groundHeightMeters: hasAltitude ? rawAlt : 0,
         });
+        if (!hasAltitude) {
+          useObserverStore.getState().requestTerrainGroundHeightSync();
+        }
         useObserverStore.getState().requestFocusOnObserver();
         setBusy(false);
       },

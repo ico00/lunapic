@@ -28,6 +28,23 @@ Before relying on “classic” Next 12 patterns, read `**AGENTS.md`** (Next 16 
 - **Tailwind CSS 4** — utility classes in components; `globals.css` for global rules / animations.
 - **No separate design-system package** — follow existing classes (zinc/emerald/amber/sky palette in sidebar and map controls).
 
+## Combobox (dropdown) pattern
+
+For **any new discrete choice** in the main shell / sidebar (and generally anywhere a `ShellSectionCard` or other clipped container would cut off a native menu), **do not use** a bare HTML `<select>`.
+
+1. **Follow the existing combobox implementation** — mirror [`src/components/shell/FlightProviderSelect.tsx`](../src/components/shell/FlightProviderSelect.tsx) (flight source) and [`src/components/shell/CameraSensorSelect.tsx`](../src/components/shell/CameraSensorSelect.tsx) (camera sensor type):  
+   - **Trigger:** `<button type="button">` with full width, `border-white/10`, `bg-zinc-900/50`, sky-tinted hover/focus ring (`hover:border-sky-500/35`, `focus:ring-sky-500/30`), trailing chevron SVG that rotates when open.  
+   - **Menu:** `role="listbox"` rendered with **`createPortal(…, document.body)`** so it is not clipped; **`fixed`** position from `getBoundingClientRect()` of the trigger (`top: bottom + 4px`, same `width` as trigger); **`z-[280]`**; `max-h-60 overflow-y-auto`; same glass panel classes as the references (`border-white/10`, `bg-zinc-900/95`, `backdrop-blur-md`, option hover/selected sky tones).  
+   - **Close:** mousedown outside, `Escape`, and capture-phase **`scroll`** on `window` (same listeners as the reference components).  
+   - **Hydration:** use **`useHasMounted`** before portaling the listbox.  
+   - **A11y:** `aria-haspopup="listbox"`, `aria-expanded`, `aria-controls` on trigger; options `role="option"`, `aria-selected`; `onMouseDown` preventDefault on options to avoid blur-before-click issues.
+
+2. **E2E** — Set **`data-testid="<feature>-select"`** (or similar) and **`data-value={current}`** on the trigger button so Playwright can assert value and click `role=option` by name, consistent with `flight-provider-select` / `camera-sensor-select`.
+
+3. **Reuse** — If a third or fourth picker appears, consider extracting a small shared **`ShellCombobox`** (props: `value`, `onChange`, `options`, `ariaLabel`, `testId`) that both existing components adopt; until then, **copy the pattern** rather than introducing a divergent native `<select>`.
+
+Native `<select>` remains acceptable only for **non-shell** contexts where clipping is impossible (e.g. raw HTML forms outside the app shell), and should be the exception.
+
 ## State (Zustand)
 
 - **Two stores** — `useMoonTransitStore` (flights, time, map view, provider, suncalc rise/set + `ephemerisRefetchKey` for `useAstronomySync`, selected flight) and `useObserverStore` (observer, map focus, lock). Don’t merge without a design discussion. **Deeper rationale:** `src/stores/README.md` (intentional single aggregate for the moon-transit slice; optional future split is documented in `documentation/architecture.md`). **Astronomy:** do not key `useAstronomySync` only on `referenceEpochMs` — use `ephemerisRefetchKey` + observer so UTC midnight while scrubbing does not replace `getMoonTimes` for the wrong day.
@@ -39,7 +56,7 @@ Before relying on “classic” Next 12 patterns, read `**AGENTS.md`** (Next 16 
 1. **Domain / math** — New pure logic → `lib/domain/…` (new file or subfolder), no React or Zustand. Export types from `src/types` when shared.
 2. **External data** — New flight or weather-like source → implement `IFlightProvider` (or a small service module) and wire via registry; avoid ad-hoc fetches in components.
 3. **Orchestration** — Connect stores + services in a **hook** under `src/hooks/` (e.g. `use…Sync`, `use…Orchestration`), not inside presentational components.
-4. **UI** — New sidebar content → a **panel** under `src/components/shell/panels/` (or `components/<feature>/`) with **props**; keep `HomePageClient` as composition only, not 200+ lines of inline JSX and logic.
+4. **UI** — New sidebar content → a **panel** under `src/components/shell/panels/` (or `components/<feature>/`) with **props**; keep `HomePageClient` as composition only, not 200+ lines of inline JSX and logic. **Dropdowns** in the shell → follow **Combobox (dropdown) pattern** (below), not native `<select>`.
 5. **Map** — New Mapbox behavior → extend `lib/map/` (`registerMoonTransitLayers` / new helper), `useMapGeoJsonSync` or a dedicated hook; **do not** add business rules inside `MapContainer` — keep it a thin shell.
 
 ## Data and geometry
@@ -77,7 +94,7 @@ Before relying on “classic” Next 12 patterns, read `**AGENTS.md`** (Next 16 
 ## Testing and quality
 
 - **Unit tests (domain)** — [Vitest](https://vitest.dev/) 3. Co-located `src/lib/domain/**/*.test.ts` (WGS84/ENU, `horizontal`, line-of-sight, sky separation, `screening`, `getMoonState`, `standCorridorQuads`, `geometryEngineMoonRay` / `geometryEnginePhotographer`, `AstroService` moon path). Run once: `npm run test:run`. Watch: `npm test`.
-- **E2E smoke** — [Playwright](https://playwright.dev/) 1, Chromium. `e2e/smoke.spec.ts` (shell + map column), `e2e/flight-source.spec.ts` (flight provider **combobox** — `data-testid="flight-provider-select"` / `data-value`, role `option`). Run: `npm run build` then `npx playwright test` (or `npm run test:e2e`). First time: `npx playwright install chromium`. `webServer` in `playwright.config.ts` starts `npm run start` on `127.0.0.1:3000` and does not reuse a stale process. Optional: repo secret `NEXT_PUBLIC_MAPBOX_TOKEN` in GitHub Actions so the build can embed a token for a full map in E2E.
+- **E2E smoke** — [Playwright](https://playwright.dev/) 1, Chromium. `e2e/smoke.spec.ts` (shell + map column), `e2e/flight-source.spec.ts` (flight provider **combobox** — `data-testid="flight-provider-select"` / `data-value`, role `option`). New shell comboboxes should expose the same **`data-testid` / `data-value`** pattern (see **Combobox (dropdown) pattern** above). Run: `npm run build` then `npx playwright test` (or `npm run test:e2e`). First time: `npx playwright install chromium`. `webServer` in `playwright.config.ts` starts `npm run start` on `127.0.0.1:3000` and does not reuse a stale process. Optional: repo secret `NEXT_PUBLIC_MAPBOX_TOKEN` in GitHub Actions so the build can embed a token for a full map in E2E.
 - **Field / runtime performance** — `documentation/performance.md` — enable `NEXT_PUBLIC_FIELD_PERF=1` or `localStorage.moonTransitFieldPerf`; in-map violet overlay and hook labels (`useMapMoonOverlayFeatures`, `useMapGeoJsonSync`, `useExtrapolatedFlightsForMap`, Mapbox `moveend`→`idle`, React `Profiler` on the map block). Complement with Chrome Performance tab.
 - **CI** — [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): on push/PR to `main` or `master`, after `npm ci` runs `npm audit`, `npm run lint`, `npx tsc --noEmit`, `npm run test:run`, `npm run build`, and Playwright (`npx playwright install` + `npx playwright test` on the runner). Optional: GitHub secret `NEXT_PUBLIC_MAPBOX_TOKEN` for an E2E build that inlines a token.
 - Before PR: same as CI locally, or at minimum `npm run lint`, `npm run test:run`, `npx tsc --noEmit`, `npm run build`, `npm audit` (all green), and `npx playwright test` with a prior `npm run build`.

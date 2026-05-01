@@ -8,7 +8,7 @@ This document explains how the application is structured, how data moves through
 2. **Time** — a wall-clock anchor with a **simulated** offset on a **full UTC calendar-day window** (00:00–24:00 for the day anchored by `timeAnchorMs` / sync): `referenceEpochMs = timeAnchorMs + timeOffsetMs` is the “current simulation time”. **Moonrise / moonset** from suncalc still drive ephemeris UI and which **map moon-path arc** is drawn as the primary (visible) segment, but they no longer limit how far the slider can scrub. Initial load and **Sync** clamp time into that day and bump ephemeris refresh.
 3. **Flights** — `FlightState[]` from a pluggable **flight provider** (Strategy pattern), loaded for the current map bounds.
 4. **Transit / alignment** — compare moon azimuth with aircraft position (from altitude) to find “candidates” and “active” alignments within tolerance, plus photographer tools (line-of-sight rate, duration, suggested shutter).
-5. **Map** — Mapbox GL: routes, **moon path** (primary dashed arc for the visible rise→set window when known, plus a **low-contrast full-day** path for the whole UTC day), **simulated-instant marker** on the path, **moon azimuth** at `referenceEpochMs`, optional **NOW** wall-clock moon pointer (cyan), static-route intersections, flights as a **3D model layer** (airplane glTF), observer marker, **selected-aircraft stand** (cyan footprint + zero-offset spine + 3D volume linked to observer direction and moon elevation), observer-centric **transit opportunity corridor** (green LOW/MEDIUM/HIGH confidence bands + 3D volume, shown only when moon field visibility is **Optimal**), short **selected-flight trajectory** with altitude-aware 3D offset when an aircraft is picked, optional “golden” UI when alignment is within a critical angle.
+5. **Map** — Mapbox GL: routes, **moon path** (primary dashed arc for the visible rise→set window when known, plus a **low-contrast full-day** path for the whole UTC day), **simulated-instant marker** on the path, **moon azimuth** at `referenceEpochMs`, optional **NOW** wall-clock moon pointer (cyan), static-route intersections, flights as a **3D model layer** (airplane glTF), observer marker, global **raster DEM** for **`queryTerrainElevation`** (observer **ground height** when the browser does not supply GNSS altitude or when the user places the observer on the map), **selected-aircraft stand** (cyan footprint + zero-offset spine + 3D volume linked to observer direction and moon elevation), observer-centric **transit opportunity corridor** (green LOW/MEDIUM/HIGH confidence bands + 3D volume, shown only when moon field visibility is **Optimal**), short **selected-flight trajectory** with altitude-aware 3D offset when an aircraft is picked, optional “golden” UI when alignment is within a critical angle.
 
 ## High-level layout
 
@@ -80,14 +80,19 @@ flowchart TB
 ### `useObserverStore` (`src/stores/observer-store.ts`)
 
 
-| Field / action           | Role                                                                                           |
-| ------------------------ | ---------------------------------------------------------------------------------------------- |
-| `observer`               | `{ lat, lng, groundHeightMeters }` — default near Zagreb; can be GPS or “set from map center”. |
-| `observerLocationLocked` | When true, user cannot accidentally move the observer.                                         |
-| `mapFocusNonce`          | Incremented to ask `MapContainer` to `flyTo` the observer.                                     |
+| Field / action                    | Role                                                                                           |
+| --------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `observer`                        | `{ lat, lng, groundHeightMeters }` — default near Zagreb; position from GPS, draggable marker, or “set from map center”. |
+| `observerLocationLocked`          | When true, user cannot accidentally move the observer.                                         |
+| `mapFocusNonce`                   | Incremented to ask `MapContainer` to `flyTo` the observer.                                     |
+| `placeObserverFromViewNonce`      | Bumps when the UI asks to copy the **map viewport center** into `observer` (`useMoonTransitMap`). |
+| `terrainGroundHeightSyncNonce`    | Bumps after a **GPS** fix when the browser omits **`coords.altitude`** — `useMoonTransitMap` re-samples Mapbox DEM once the style is ready (avoids leaving `groundHeightMeters` at 0 until the user moves the marker). |
+| `requestTerrainGroundHeightSync`  | Action: increment `terrainGroundHeightSyncNonce` (used from `useGpsObserver`).               |
 
 
 **Rule:** All moon/plane relative math should use `observer` from this store, not the map’s internal center, unless the feature explicitly is “set observer from view”.
+
+**Observer ground height (`groundHeightMeters`):** **`registerMoonTransitLayers`** calls **`ensureMapboxTerrain`** (`src/lib/map/mapboxTerrainElevation.ts`) to add **`mapbox://mapbox.mapbox-terrain-dem-v1`** and **`setTerrain`**. **`useMoonTransitMap`** uses **`queryTerrainElevation(..., { exaggerated: false })`** after: first layer registration, **set observer from map center**, **marker drag end**, and when **`terrainGroundHeightSyncNonce`** changes (post-GPS without altitude). That yields a **terrain-model elevation** (Mapbox DEM, ~mean sea level — not identical to WGS84 ellipsoid). When **`navigator.geolocation`** provides **`coords.altitude`**, **`useGpsObserver`** stores it and **does not** request a terrain overwrite. See **`GroundObserver`** in `src/types/geo.ts` and the Observer panel copy in the shell.
 
 ## Flight providers (Strategy)
 
@@ -138,12 +143,12 @@ Keep **pure functions** in `lib/domain` (no React, no `window` except where a mo
 - **Flights** — Mapbox `model` layer with `model-id` loaded via `map.addModel` from `FLIGHT_3D_MODEL_URL` (placeholder airplane `.glb`). Rotation follows feature `track` (with a yaw alignment offset to match model forward-axis), altitude comes from `altitudeMeters` via `model-translation` Z, and `isShotFeasible` drives blue/green tint through `model-color` + `model-color-mix-intensity`. Runtime zoom compensation updates `model-scale` on map `zoom` so aircraft remain readable on wide-area views. Fallback circle layer uses the same color semantics if model setup fails; layer is `moveLayer`d to the top so it stays **above** stand and other GeoJSON overlays.
 - **Observer** — `mapboxgl.Marker` with a custom DOM (camera), not a GeoJSON point.
 
-**Performance:** `loadFlightsInBounds` runs on map **`moveend`** (and when **`flightProvider`** or **observer `lat`/`lng`** change). For **OpenSky**, `useMoonTransitMap` **debounces** bounds refresh (~800 ms, slightly longer when a flight is selected) so panning does not hammer the proxy. Map default pitch is enabled (`defaultMapViewState.pitch`), so avoid adding heavyweight per-frame geometry generation without throttling.
+**Performance:** `loadFlightsInBounds` runs on map **`moveend`** (and when **`flightProvider`** or **observer `lat`/`lng`** change). For **OpenSky**, `useMoonTransitMap` **debounces** bounds refresh (~800 ms, slightly longer when a flight is selected) so panning does not hammer the proxy. **Map view** — default **0° pitch** (2D plan) from `defaultMapViewState`; `pitchWithRotate` stays **true** so Mapbox’s usual **right-button drag** (and related rotate/tilt gestures) behave as standard. `NavigationControl` pitch ± and `touchPitch` unchanged. Avoid heavyweight per-frame geometry without throttling.
 
 ## Field / export
 
 - `**lib/field/fieldPlanExport.ts`** — Plain-text “cheat sheet” and a simple PNG (canvas) derived from a snapshot; triggered from the field section in the shell.
-- `**components/field/FieldOverlaysSection.tsx`** — camera setup (focal length + sensor type), OpenSky latency skew, lock toggle, export actions.
+- `**components/field/FieldOverlaysSection.tsx`** — OpenSky latency skew, lock toggle, export actions. Camera focal length / sensor live under **`PhotographerToolsPanel`**.
 
 ## Extension points (checklist for new features)
 

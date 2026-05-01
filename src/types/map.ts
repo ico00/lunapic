@@ -16,6 +16,6 @@ export const defaultMapViewState: MapViewState = {
     lat: DEFAULT_OBSERVER_LOCATION.lat,
   },
   zoom: 6,
-  pitch: 52,
+  pitch: 0,
   bearing: 0,
 };
