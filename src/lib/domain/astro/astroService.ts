@@ -7,11 +7,9 @@ import { getMoonRiseSetForObserverDay } from "./moonTimes";
 export const MOON_PATH_SAMPLE_COUNT = 24;
 export const MOON_PATH_STEP_MS = 30 * 60 * 1000;
 
-/**
- * Polumjer starog vremenskog klizača (±6h od središta) — 12h ukupno u fallback modu.
- * `t1 - t0 = 2 * TIME_SLIDER_6H_HALF_MS`.
- */
+/** @deprecated Stariji ±6 h klizač; prozor klizača sada je `UTC_DAY_MS` naprijed od sidra. */
 export const TIME_SLIDER_6H_HALF_MS = 6 * 60 * 60 * 1000;
+/** Trajanje klizača: jedan civilni dan (~24 h) naprijed od `timeAnchorMs`. */
 export const UTC_DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
@@ -52,36 +50,23 @@ export function getMoonPathVisibilityWindowMs(
 }
 
 /**
- * Prozor za vremenski klizač: puni UTC dan (00:00–23:59:59.999) oko referentnog
- * trenutka. `riseSet` ostaje u potpisu radi kompatibilnosti poziva, ali ne utječe
- * na prozor klizača.
+ * Prozor za vremenski klizač: **[t0, t0 + 24h)** od zadnjeg sidra (`timeAnchorMs` > 0).
+ * Lijevo je uvijek trenutak **Sync** (početak simulacije); desno je isti civilni dan
+ * (~86 400 s) naprijed — sidro se ne pomiče pri pomicanju klizača.
+ * `riseSet` ostaje u potpisu radi kompatibilnosti poziva; ne utječe na prozor.
  */
 export function getTimeSliderWindowMs(
   referenceEpochMs: number,
-  timeAnchorLeftMs: number,
+  timeAnchorMs: number,
   riseSet: MoonRiseSetTimes
 ): { t0: number; t1: number } {
   void riseSet;
-  const anchorBasisMs =
-    Number.isFinite(timeAnchorLeftMs) && timeAnchorLeftMs > 0
-      ? timeAnchorLeftMs + TIME_SLIDER_6H_HALF_MS
-      : Number.NaN;
-  const basisMs =
-    Number.isFinite(anchorBasisMs)
-      ? anchorBasisMs
+  const t0 =
+    Number.isFinite(timeAnchorMs) && timeAnchorMs > 0
+      ? timeAnchorMs
       : Number.isFinite(referenceEpochMs) && referenceEpochMs > 0
         ? referenceEpochMs
         : Date.now();
-  const d = new Date(basisMs);
-  const t0 = Date.UTC(
-    d.getUTCFullYear(),
-    d.getUTCMonth(),
-    d.getUTCDate(),
-    0,
-    0,
-    0,
-    0
-  );
   return { t0, t1: t0 + UTC_DAY_MS };
 }
 

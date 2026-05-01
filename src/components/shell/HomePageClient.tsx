@@ -85,7 +85,7 @@ type ShellControls = {
   sliderWidthHours: number;
   timeSliderStartLabel: string;
   timeSliderEndLabel: string;
-  timeSliderMode: "fullDay";
+  timeSliderMode: "forward24h";
   syncTime: () => void;
   observerLocationLocked: boolean;
   onPlaceObserverFromView: () => void;

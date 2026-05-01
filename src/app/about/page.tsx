@@ -22,7 +22,7 @@ const faqs = [
   {
     question: "How does the Observer point behave?",
     answer:
-      "Observer is a fixed point and does not follow map pan; all ephemeris and intersection math is anchored to this location. On first open, if you are still on the built-in default observer, the app asks once for device location permission so you can quickly switch to your real field position.",
+      "Observer is a fixed point and does not follow map pan; all ephemeris and intersection math is anchored to this location. On first open, if you are still on the built-in default observer, the app asks once for device location permission so you can quickly switch to your real field position. You can also set the observer manually — type coordinates, drag the camera marker on the map, or tap “Set my location here” so the current map view center becomes the observer — because consumer GPS often has several metres of error and you may want a precise stand or tripod pin.",
   },
   {
     question: "What does the long moon line on the map mean?",

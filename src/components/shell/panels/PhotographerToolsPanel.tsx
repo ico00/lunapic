@@ -12,7 +12,7 @@ import {
 import { CAMERA_SENSOR_CROP } from "@/lib/domain/geometry/shotFeasibility";
 import { formatFixed } from "@/lib/format/numbers";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 type PhotographerToolsPanelProps = {
   selectedFlightId: string | null;
@@ -52,33 +52,29 @@ export function PhotographerToolsPanel({
     (s) => s.setCameraFocalLengthMm
   );
   const setCameraSensorType = useMoonTransitStore((s) => s.setCameraSensorType);
-  const [focalInput, setFocalInput] = useState(() =>
-    String(cameraFocalLengthMm)
-  );
-  const [focalFocused, setFocalFocused] = useState(false);
+  /**
+   * While focused, hold a draft string; when null, the input shows the store value
+   * directly so external focal-length changes sync without a setState-in-effect.
+   */
+  const [focalDraft, setFocalDraft] = useState<string | null>(null);
+  const focalInputValue = focalDraft ?? String(cameraFocalLengthMm);
   const effectiveFocalMm =
     cameraFocalLengthMm * CAMERA_SENSOR_CROP[cameraSensorType];
 
-  useEffect(() => {
-    if (!focalFocused) {
-      setFocalInput(String(cameraFocalLengthMm));
-    }
-  }, [cameraFocalLengthMm, focalFocused]);
-
   const commitFocalLengthFromInput = useCallback(() => {
-    setFocalFocused(false);
-    const raw = focalInput.trim().replace(",", ".");
+    const raw = focalInputValue.trim().replace(",", ".");
     if (raw === "") {
-      setFocalInput(String(cameraFocalLengthMm));
+      setFocalDraft(null);
       return;
     }
     const n = Number.parseFloat(raw);
     if (!Number.isFinite(n)) {
-      setFocalInput(String(cameraFocalLengthMm));
+      setFocalDraft(null);
       return;
     }
     setCameraFocalLengthMm(n);
-  }, [cameraFocalLengthMm, focalInput, setCameraFocalLengthMm]);
+    setFocalDraft(null);
+  }, [focalInputValue, setCameraFocalLengthMm]);
 
   const shotTier = photoShotFeasibility?.tier ?? null;
   const shotBadgeClass =
@@ -114,13 +110,12 @@ export function PhotographerToolsPanel({
               enterKeyHint="done"
               aria-label="Focal length in millimeters"
               placeholder="50–2400"
-              value={focalInput}
+              value={focalInputValue}
               onFocus={() => {
-                setFocalFocused(true);
-                setFocalInput(String(cameraFocalLengthMm));
+                setFocalDraft(String(cameraFocalLengthMm));
               }}
               onChange={(e) => {
-                setFocalInput(e.target.value);
+                setFocalDraft(e.target.value);
               }}
               onBlur={commitFocalLengthFromInput}
               onKeyDown={(e) => {

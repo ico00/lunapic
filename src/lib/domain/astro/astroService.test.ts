@@ -2,9 +2,33 @@ import { describe, expect, it } from "vitest";
 import {
   AstroService,
   buildMoonPathSamplesInTimeRange,
+  getTimeSliderWindowMs,
   MOON_PATH_SAMPLE_COUNT,
   MOON_PATH_STEP_MS,
+  UTC_DAY_MS,
 } from "./astroService";
+
+describe("getTimeSliderWindowMs", () => {
+  const riseSet = {
+    rise: null,
+    set: null,
+    kind: "normal" as const,
+  };
+
+  it("spans civil day forward from a positive time anchor", () => {
+    const t0 = Date.UTC(2020, 5, 10, 15, 30, 0);
+    const win = getTimeSliderWindowMs(0, t0, riseSet);
+    expect(win.t0).toBe(t0);
+    expect(win.t1 - win.t0).toBe(UTC_DAY_MS);
+  });
+
+  it("falls back to referenceEpochMs when anchor unset", () => {
+    const ref = Date.UTC(2019, 0, 1, 12, 0, 0);
+    const win = getTimeSliderWindowMs(ref, 0, riseSet);
+    expect(win.t0).toBe(ref);
+    expect(win.t1).toBe(ref + UTC_DAY_MS);
+  });
+});
 
 describe("AstroService.getMoonTimes", () => {
   it("returns a normal kind with rise and/or set in typical conditions", () => {

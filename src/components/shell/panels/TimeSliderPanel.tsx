@@ -20,8 +20,8 @@ type TimeSliderPanelProps = {
   /** en-GB HH:MM at window start and end. */
   timeSliderStartLabel: string;
   timeSliderEndLabel: string;
-  /** Full UTC-day time mode. */
-  timeSliderMode: "fullDay";
+  /** Forward from last sync (~24 h). */
+  timeSliderMode: "forward24h";
   /**
    * `mapChip` — kompaktno uz weather (isti omot kao `ShellSectionCard`, accent amber).
    * `panel` — veća kartica (npr. sidebar).
@@ -47,10 +47,11 @@ export function TimeSliderPanel({
   const hasMounted = useHasMounted();
   const headingId = useId();
   const isChip = variant === "mapChip";
-  const heading = timeSliderMode === "fullDay" ? "Time (full day)" : "Time";
+  const heading =
+    timeSliderMode === "forward24h" ? "Time (next 24 h)" : "Time";
   const rangeTitle =
-    timeSliderMode === "fullDay"
-      ? "Simulated time across full UTC day (00:00–24:00)"
+    timeSliderMode === "forward24h"
+      ? "Simulated time from Sync — about 24 h forward (civil day)"
       : "Simulated time";
   const horizonClass =
     isMoonBelowHorizon && showEphemeris
@@ -110,12 +111,12 @@ export function TimeSliderPanel({
                 onChange={onOffsetHoursChange}
                 disabled={!showEphemeris}
                 className="h-1 w-full min-w-[3.25rem] cursor-pointer accent-amber-500/80 disabled:opacity-40"
-                aria-label="Time within visibility window, hours from start"
+                aria-label="Simulated time, hours forward from last Sync"
               />
               <div className="mt-0 flex justify-between gap-1 px-px text-[0.48rem] leading-none text-zinc-600">
                 <span
                   className="max-w-[3rem] shrink-0 truncate"
-                  title="Window start"
+                  title="Time at last Sync"
                   suppressHydrationWarning
                 >
                   {startLabel}
@@ -125,7 +126,7 @@ export function TimeSliderPanel({
                 </span>
                 <span
                   className="max-w-[3rem] shrink-0 truncate text-right"
-                  title="Window end"
+                  title="About 24 h after Sync"
                   suppressHydrationWarning
                 >
                   {endLabel}
@@ -134,7 +135,7 @@ export function TimeSliderPanel({
             </div>
             <p
               className="shrink-0 font-mono text-[0.6rem] tabular-nums text-amber-400/75"
-              aria-label={`${offsetHours >= 0 ? "" : ""}${offsetHours.toFixed(1)} hours from window start`}
+              aria-label={`${offsetHours.toFixed(1)} hours forward from last Sync`}
             >
               {offsetHours.toFixed(1)}h
             </p>
@@ -173,7 +174,7 @@ export function TimeSliderPanel({
       <div className="mt-2 flex items-center justify-between gap-1 text-xs text-zinc-500">
         <span
           className="max-w-[4rem] shrink truncate"
-          title="Window start"
+          title="Time at last Sync"
           suppressHydrationWarning
         >
           {startLabel}
@@ -181,7 +182,7 @@ export function TimeSliderPanel({
         <span>→</span>
         <span
           className="max-w-[4rem] shrink truncate text-right"
-          title="Window end"
+          title="About 24 h after Sync"
           suppressHydrationWarning
         >
           {endLabel}
@@ -196,10 +197,10 @@ export function TimeSliderPanel({
         onChange={onOffsetHoursChange}
         disabled={!showEphemeris}
         className="mt-1 w-full accent-amber-400 disabled:opacity-40"
-        aria-label="Time within visibility window, hours from start"
+        aria-label="Simulated time, hours forward from last Sync"
       />
       <p className="mt-1.5 text-center text-xs text-zinc-500">
-        From start:{" "}
+        From Sync:{" "}
         <span className="font-mono text-amber-200/90">
           {offsetHours.toFixed(1)} h
         </span>

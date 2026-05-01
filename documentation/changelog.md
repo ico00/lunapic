@@ -10,16 +10,21 @@ where version bumps are made for releases (currently `0.x`).
 
 ### Fixed
 
+- **Photographer tools — focal length input** — `PhotographerToolsPanel` no longer syncs the focal text field in a `useEffect` when the store value changes. A **draft string only while the input is focused** keeps the field aligned with `cameraFocalLengthMm` when unfocused without `setState` inside an effect, satisfying `react-hooks/set-state-in-effect` and restoring a clean full-tree **`npm run lint`**.
 - **Observer ground height on map** — Mapbox raster DEM + `queryTerrainElevation` fills `groundHeightMeters` after placing the observer from the map center, dragging the marker, and on first layer registration (default location included). The Observer panel label now reflects terrain vs GPS sources instead of implying strict ellipsoid height everywhere. When **GPS omits altitude** (common in browsers), a store nonce triggers the same terrain sample once the map style is ready so the first fix is not stuck at 0 m until the marker is moved.
 
 ### Documentation
 
+- **About — manual observer vs GPS** — FAQ *How does the Observer point behave?* notes that the observer can be set manually (coordinates, draggable map marker, **Set my location here**) because consumer GPS often has several metres of error when you need a precise stand or tripod point.
+- **Time handling** — `.cursorrules`, `architecture.md`, `user-guide.md`, `optimization-and-refactoring.md`, and `src/stores/README.md` aligned with the **forward-from-Sync (~24 h)** time slider, `getTimeSliderWindowMs` semantics, and **`ephemerisRefetchKey`** bumps on **UTC calendar day** change while scrubbing.
+- **Tests — `getTimeSliderWindowMs`** — `astroService.test.ts` covers the forward civil-day window from a positive anchor and the fallback when the anchor is unset.
 - **Observer ground elevation** — `architecture.md` (Map bullet + `useObserverStore` table and **`groundHeightMeters`** subsection), `user-guide.md` (step 1), and `src/stores/README.md` aligned with Mapbox DEM, `terrainGroundHeightSyncNonce`, and GPS altitude behavior.
 - **Technical conventions — combobox pattern** — Documented mandatory shell dropdown styling (portal listbox, sky glass, `data-testid`/`data-value`, no native `<select>` in sidebar); `.cursorrules` UI section cross-links to `technicalconventions.md`.
 - **Architecture / user guide — map pitch** — `architecture.md` / `user-guide.md` aligned with default **0° pitch** on load, **`pitchWithRotate` true** (stock right-drag tilt/rotate), no Shift gesture; Field vs Photographer camera placement note kept in sync.
 
 ### Changed
 
+- **Time slider — forward from Sync (~24 h)** — **Sync** sets the left edge of the slider to wall-clock **now**; you scrub **forward** up to a **civil day** (~24 h), matching “now → next full rotation” planning. **`getTimeSliderWindowMs`** is `[timeAnchorMs, timeAnchorMs + 24h)`; **`ephemerisRefetchKey`** also bumps when scrubbing crosses a **UTC calendar day** so moonrise/moonset stay aligned. Replaces the previous **full UTC calendar day** (00:00–24:00) slider window.
 - **Map — default 2D pitch** — `defaultMapViewState.pitch` remains **0** (plan view on load). Custom Shift-drag pitch removed; `pitchWithRotate` is **true** again so Mapbox **right-button** rotate/tilt matches stock behaviour alongside nav pitch ± and touch pitch.
 - **UI — sensor type combobox** — Replaced native `<select>` with `CameraSensorSelect` (same portal listbox + sky glass pattern as `FlightProviderSelect`); `data-testid="camera-sensor-select"` / `data-value` for parity with provider E2E hooks.
 - **UI — camera settings location** — Focal length, sensor type, and effective focal readout moved from `FieldOverlaysSection` to `PhotographerToolsPanel` (same store wiring); Field card now starts with OpenSky latency skew.

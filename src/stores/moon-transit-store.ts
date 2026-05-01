@@ -1,6 +1,6 @@
 import {
   getTimeSliderWindowMs,
-  TIME_SLIDER_6H_HALF_MS,
+  UTC_DAY_MS,
 } from "@/lib/domain/astro/astroService";
 import type { CameraSensorType } from "@/lib/domain/geometry/shotFeasibility";
 import {
@@ -15,19 +15,16 @@ import type { FlightProviderId } from "@/types/flight-provider";
 import { defaultMapViewState } from "@/types/map";
 import { create } from "zustand";
 
-/**
- * Polovina starog klizača (±6 h od središta). Isto kao `TIME_SLIDER_6H_HALF_MS`.
- * @deprecated Prefer `TIME_SLIDER_6H_HALF_MS` from `astroService`.
- */
-export const TIME_SLIDER_WINDOW_MS = TIME_SLIDER_6H_HALF_MS;
+/** Širina klizača u ms (civilni dan naprijed od sidra). */
+export const TIME_SLIDER_WINDOW_MS = UTC_DAY_MS;
 
 type MoonTransitState = {
   /**
-   * Lijevi rub vremenskog prozora klizača (ms). Nakon synca u fallbacku ≈ `now-6h`;
-   * kad su rise/set poznati, odgovara moonrise (početak vidljivog luka).
+   * Sidro klizača (ms): **Sync** postavlja na `Date.now()`; lijevi rub trake = ovaj trenutak.
+   * Ne pomiče se pri pomicanju klizača (desno do +~24 h).
    */
   timeAnchorMs: number;
-  /** Pomak u ms od `timeAnchorMs` (lijevo do desno unutar [t0, t1]). */
+  /** Pomak u ms od `timeAnchorMs` (0 … `UTC_DAY_MS`). */
   timeOffsetMs: number;
   referenceEpochMs: number;
   mapView: MapViewState;
@@ -61,11 +58,11 @@ type MoonTransitState = {
     moonSet: Date | null;
     moonRiseSetKind: "normal" | "alwaysUp" | "alwaysDown";
   }) => void;
-  /** Pomak u ms od lijevog ruba vremenskog prozora (puni UTC dan). */
+  /** Pomak u ms naprijed od sidra (maks. civilni dan). */
   setTimeOffsetMs: (offsetMs: number) => void;
   /**
-   * Broj povećava se u `syncTimeToNow` kako bi `useAstronomySync` ponovno učitao
-   * suncalc za UTC dan trenutnog `referenceEpochMs` (ne pri svakom pomicanju klizača).
+   * Broj povećava u `syncTimeToNow` i kad klizač prijeđe u drugi UTC kalendar dan
+   * (`setTimeOffsetMs`), da `useAstronomySync` ponovno učita suncalc za taj dan.
    */
   ephemerisRefetchKey: number;
   /**
@@ -80,6 +77,15 @@ type MoonTransitState = {
 };
 
 const MAX_LATENCY_SKEW_MS = 120_000;
+
+function utcCalendarDayStartMs(t: number): number {
+  const d = new Date(t);
+  return Date.UTC(
+    d.getUTCFullYear(),
+    d.getUTCMonth(),
+    d.getUTCDate()
+  );
+}
 
 function clampLatencySkew(ms: number): number {
   return Math.max(
@@ -120,59 +126,55 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   setCameraSensorType: (sensor) => set({ cameraSensorType: sensor }),
   setTimeOffsetMs: (offsetMs) => {
     const s = get();
-    const win = getTimeSliderWindowMs(
-      s.referenceEpochMs,
-      s.timeAnchorMs,
-      {
-        rise: s.moonRise,
-        set: s.moonSet,
-        kind: s.moonRiseSetKind,
-      }
-    );
-    const maxO = win.t1 - win.t0;
+    const riseSet = {
+      rise: s.moonRise,
+      set: s.moonSet,
+      kind: s.moonRiseSetKind,
+    };
+    const win = getTimeSliderWindowMs(s.referenceEpochMs, s.timeAnchorMs, riseSet);
+    const anchor = s.timeAnchorMs > 0 ? s.timeAnchorMs : win.t0;
+    const maxO = UTC_DAY_MS;
     const o = Math.max(0, Math.min(maxO, offsetMs));
+    const ref = anchor + o;
+    const prevRef = s.referenceEpochMs;
+    const shouldRefetchEphemeris =
+      prevRef > 0 && utcCalendarDayStartMs(ref) !== utcCalendarDayStartMs(prevRef);
     set({
-      timeAnchorMs: win.t0,
-      timeOffsetMs: o,
-      referenceEpochMs: win.t0 + o,
+      timeAnchorMs: s.timeAnchorMs,
+      timeOffsetMs: ref - anchor,
+      referenceEpochMs: ref,
+      ephemerisRefetchKey: shouldRefetchEphemeris
+        ? s.ephemerisRefetchKey + 1
+        : s.ephemerisRefetchKey,
     });
   },
   setMoonRiseSet: (p) =>
     set((s) => {
-      const riseSet = {
-        rise: p.moonRise,
-        set: p.moonSet,
-        kind: p.moonRiseSetKind,
-      };
-      const win = getTimeSliderWindowMs(
-        s.referenceEpochMs,
-        s.timeAnchorMs,
-        riseSet
-      );
-      const c = Math.min(Math.max(s.referenceEpochMs, win.t0), win.t1);
+      const anchor = s.timeAnchorMs;
+      if (anchor <= 0) {
+        return {
+          moonRise: p.moonRise,
+          moonSet: p.moonSet,
+          moonRiseSetKind: p.moonRiseSetKind,
+        };
+      }
+      const t1 = anchor + UTC_DAY_MS;
+      const c = Math.min(Math.max(s.referenceEpochMs, anchor), t1);
       return {
         moonRise: p.moonRise,
         moonSet: p.moonSet,
         moonRiseSetKind: p.moonRiseSetKind,
-        timeAnchorMs: win.t0,
-        timeOffsetMs: c - win.t0,
+        timeOffsetMs: c - anchor,
         referenceEpochMs: c,
       };
     }),
   syncTimeToNow: () => {
     const now = Date.now();
     const s = get();
-    const left = now - TIME_SLIDER_6H_HALF_MS;
-    const win = getTimeSliderWindowMs(s.referenceEpochMs, left, {
-      rise: s.moonRise,
-      set: s.moonSet,
-      kind: s.moonRiseSetKind,
-    });
-    const ref = Math.min(Math.max(now, win.t0), win.t1);
     set({
-      timeAnchorMs: win.t0,
-      timeOffsetMs: ref - win.t0,
-      referenceEpochMs: ref,
+      timeAnchorMs: now,
+      timeOffsetMs: 0,
+      referenceEpochMs: now,
       ephemerisRefetchKey: s.ephemerisRefetchKey + 1,
     });
   },
