@@ -25,12 +25,7 @@ export function ObserverLocationPanel({
       accent="rose"
       icon={<SectionIconObserver />}
     >
-      <p className="text-xs leading-relaxed text-zinc-500">
-        Fixed point (does not follow pan) — all ephemeris and intersection math
-        use this. On first open, the app also asks for your device location once
-        if you are still on the built-in default (browser permission).
-      </p>
-      <dl className="mt-2 space-y-0.5 font-mono text-xs tabular-nums text-zinc-300">
+      <dl className="space-y-0.5 font-mono text-xs tabular-nums text-zinc-300">
         <div className="flex justify-between gap-2">
           <dt>φ</dt>
           <dd>{formatFixed(observer.lat, 5)}°</dd>
@@ -40,10 +35,14 @@ export function ObserverLocationPanel({
           <dd>{formatFixed(observer.lng, 5)}°</dd>
         </div>
         <div className="flex justify-between gap-2">
-          <dt>Ground alt. (ellipsoid)</dt>
-          <dd>{formatFixed(observer.groundHeightMeters, 0)} m</dd>
+          <dt>Ground elevation (m)</dt>
+          <dd>{formatFixed(observer.groundHeightMeters, 0)}</dd>
         </div>
       </dl>
+      <p className="mt-1.5 text-[10px] leading-snug text-zinc-500">
+        From map: Mapbox terrain DEM. From &quot;Use my GPS&quot;: device altitude
+        when the browser exposes it (often ellipsoid height).
+      </p>
       <div className="mt-2 flex flex-col gap-2">
         <button
           type="button"

@@ -5,9 +5,9 @@ import { useEffect, useMemo } from "react";
 
 /**
  * Račun izlaz/zlaz Mjeseca (suncalc) za UTC dan trenutnog `referenceEpochMs` u
- * storeu, te zapis u store. Ponovi dohvat u syncu (vidi `ephemerisRefetchKey`) i
- * pri promjeni promatrača — ne na svakom pomicanju vremena, da prelaz preko
- * lokalne ponoći ne zamijeni suncalc dan i ne „lomi“ luk/oznake.
+ * storeu, te zapis u store. Ponovi dohvat kad se poveća `ephemerisRefetchKey`
+ * (**Sync**, prijelaz na drugi UTC dan klizačem, promjena promatrača) — ne na
+ * svakom koraku klizača unutar istog UTC dana.
  */
 export function useAstronomySync(): void {
   const ephemerisRefetchKey = useMoonTransitStore(

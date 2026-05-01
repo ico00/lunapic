@@ -6,10 +6,22 @@ import { useDeviceCompass } from "@/hooks/useDeviceCompass";
 import { useMoonStateComputed } from "@/hooks/useTransitCandidates";
 import { useCallback, useState } from "react";
 
-/**
- * Frame for plan view: turn until the arrow (upward) lines up with the
- * moon azimuth. Status below the disc (not absolute) — stable flow on mobile.
- */
+/** Moon–heading delta needle plus a compass rose rotated so N/E/S/W track the horizon. */
+const ROSE_TICK_DEG = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330] as const;
+const CARDINALS = [
+  { label: "N", deg: 0 },
+  { label: "E", deg: 90 },
+  { label: "S", deg: 180 },
+  { label: "W", deg: 270 },
+] as const;
+
+const INTERCARDINALS = [
+  { label: "NE", deg: 45 },
+  { label: "SE", deg: 135 },
+  { label: "SW", deg: 225 },
+  { label: "NW", deg: 315 },
+] as const;
+
 export function CompassAimPanel() {
   const moon = useMoonStateComputed();
   const { headingDeg, hasHeading, needPermission, request, listening } =
@@ -29,6 +41,8 @@ export function CompassAimPanel() {
       ? ((moon.azimuthDeg - headingDeg + 540) % 360) - 180
       : 0;
 
+  const headingForRose = hasHeading && headingDeg != null ? headingDeg : 0;
+
   return (
     <ShellSectionCard
       className="mt-3"
@@ -36,15 +50,11 @@ export function CompassAimPanel() {
       accent="lime"
       icon={<SectionIconCompass />}
     >
-      <p className="text-[0.6rem] leading-relaxed text-zinc-500">
-        Phone, est. gyro — open air, magnetic interference. Goal: arrow straight
-        up = lens on plan-view moon azimuth (N=0).
-      </p>
       {!listening && needPermission && (
         <button
           type="button"
           onClick={onEnable}
-          className="mt-2 w-full rounded-lg border border-lime-700/50 bg-lime-950/40 py-1.5 text-sm text-lime-100/90"
+          className="mt-0 w-full rounded-lg border border-lime-700/50 bg-lime-950/40 py-1.5 text-sm text-lime-100/90"
         >
           Allow orientation (iOS)
         </button>
@@ -53,21 +63,77 @@ export function CompassAimPanel() {
       {listening && (
         <div className="mt-3 flex w-full min-w-0 flex-col items-center gap-2">
           <div
-            className="relative h-[7.5rem] w-[7.5rem] shrink-0 overflow-visible rounded-full border-2 border-zinc-600 bg-zinc-950/80"
-            aria-label="Compass for direction relative to moon azimuth"
+            className="relative h-[7.5rem] w-[7.5rem] shrink-0 overflow-visible rounded-full border-2 border-zinc-600 bg-zinc-950/80 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
+            aria-label="Compass rose and moon azimuth error: align amber needle to the top triangle"
           >
-            <span className="absolute left-1/2 top-2 -translate-x-1/2 text-[0.5rem] text-zinc-500">
-              N
+            {/* Rotating rose: geographic frame; turns so cardinals track the horizon */}
+            <div
+              className="absolute inset-[5px] rounded-full"
+              style={{
+                transform: `rotate(${-headingForRose}deg)`,
+                transformOrigin: "50% 50%",
+                transition: "transform 100ms linear",
+              }}
+            >
+              {ROSE_TICK_DEG.map((deg) => {
+                const isCardinal = deg % 90 === 0;
+                return (
+                  <div
+                    key={deg}
+                    className={`absolute left-1/2 top-1/2 ${
+                      isCardinal ? "w-[2px] bg-zinc-500/90" : "w-px bg-zinc-600/70"
+                    }`}
+                    style={{
+                      height: isCardinal ? "46%" : "36%",
+                      transformOrigin: "50% 100%",
+                      transform: `translate(-50%, -100%) rotate(${deg}deg)`,
+                    }}
+                  />
+                );
+              })}
+              {CARDINALS.map(({ label, deg }) => (
+                <span
+                  key={label}
+                  className={`absolute left-1/2 top-1/2 select-none text-[0.55rem] font-semibold leading-none ${
+                    label === "N"
+                      ? "text-rose-300/95"
+                      : "text-zinc-400/95"
+                  }`}
+                  style={{
+                    transform: `translate(-50%, -50%) rotate(${deg}deg) translateY(-2.35rem) rotate(${headingForRose}deg)`,
+                  }}
+                >
+                  {label}
+                </span>
+              ))}
+              {INTERCARDINALS.map(({ label, deg }) => (
+                <span
+                  key={label}
+                  className="absolute left-1/2 top-1/2 select-none text-[0.45rem] font-medium leading-none text-zinc-500/85"
+                  style={{
+                    transform: `translate(-50%, -50%) rotate(${deg}deg) translateY(-2.1rem) rotate(${headingForRose}deg)`,
+                  }}
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+            {/* Fixed to screen: top of phone / forward in the horizontal plane */}
+            <span
+              className="pointer-events-none absolute left-1/2 top-1 z-[12] -translate-x-1/2 text-[0.55rem] leading-none text-lime-400/95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"
+              title="Top of phone — align the amber needle here when aimed at the moon"
+            >
+              ▲
             </span>
             <div
-              className="absolute left-1/2 top-1/2 w-0.5 rounded-full bg-amber-200 shadow shadow-amber-500/20"
+              className="absolute left-1/2 top-1/2 z-[11] w-0.5 rounded-full bg-amber-200 shadow shadow-amber-500/20"
               style={{
                 height: 40,
                 transform: `translate(-50%, -100%) rotate(${delta}deg)`,
                 transformOrigin: "50% 100%",
               }}
             />
-            <div className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-400" />
+            <div className="absolute left-1/2 top-1/2 z-[11] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-400 ring-1 ring-zinc-900/80" />
           </div>
           <p className="w-full min-w-0 break-words px-1 text-center text-[0.7rem] leading-snug text-zinc-400">
             {hasHeading

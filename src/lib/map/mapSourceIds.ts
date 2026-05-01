@@ -20,3 +20,5 @@ export const SELECTED_FLIGHT_TRAJECTORY_LABEL_SOURCE =
 export const MOON_PATH_SOURCE = "moon-path-geo";
 export const MOON_PATH_LABELS_SOURCE = "moon-path-labels-geo";
 export const MOON_PATH_CURRENT_SOURCE = "moon-path-current-geo";
+/** Mapbox global DEM for `queryTerrainElevation` (observer ground height from map). */
+export const MAPBOX_TERRAIN_DEM_SOURCE = "lunapic-mapbox-terrain-dem";

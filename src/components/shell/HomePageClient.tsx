@@ -21,6 +21,7 @@ import { useWeatherSync } from "@/hooks/useWeatherSync";
 import { appPath } from "@/lib/paths/appPath";
 import { useObserverStore } from "@/stores/observer-store";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
 
 /**
@@ -84,7 +85,7 @@ type ShellControls = {
   sliderWidthHours: number;
   timeSliderStartLabel: string;
   timeSliderEndLabel: string;
-  timeSliderMode: "fullDay";
+  timeSliderMode: "forward24h";
   syncTime: () => void;
   observerLocationLocked: boolean;
   onPlaceObserverFromView: () => void;
@@ -179,14 +180,14 @@ function TimeAndWeatherBlock(props: ShellControls) {
                 />
               </svg>
             </button>
-            <a
-              href={appPath("/about")}
+            <Link
+              href="/about"
               className="mt-toolbar-btn px-3 text-xs font-medium text-zinc-200 hover:border-emerald-500/35"
               title="About and usage guide"
               aria-label="Open about and usage guide page"
             >
               About
-            </a>
+            </Link>
           </div>
         </div>
         <div className="pointer-events-auto flex max-h-44 min-h-0 min-w-0 flex-1 flex-col self-start sm:max-h-52 md:max-h-56">
@@ -337,8 +338,6 @@ export function HomePageClient() {
       <FlightSourcePanel
         flightProviderId={s.flightProviderId}
         onFlightProviderIdChange={s.setFlightProvider}
-        routeCorridor={s.routeCorridor}
-        isLoading={s.isLoading}
       />
       <ObserverLocationPanel
         observer={s.obs}
@@ -487,8 +486,6 @@ export function HomePageClient() {
                     <FlightSourcePanel
                       flightProviderId={s.flightProviderId}
                       onFlightProviderIdChange={s.setFlightProvider}
-                      routeCorridor={s.routeCorridor}
-                      isLoading={s.isLoading}
                     />
                     <MoonEphemerisPanel
                       moon={s.moon}

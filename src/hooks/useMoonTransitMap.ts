@@ -2,6 +2,7 @@ import { geoBoundsFromMapbox } from "@/lib/map/geoBoundsFromMapbox";
 import { fieldPerfRecord, fieldPerfTime, isFieldPerfEnabled } from "@/lib/perf/fieldPerf";
 import { ROUTES_SOURCE } from "@/lib/map/mapSourceIds";
 import { createObserverMarkerElement } from "@/lib/map/observerMarkerElement";
+import { queryTerrainElevationMeters } from "@/lib/map/mapboxTerrainElevation";
 import { registerMoonTransitLayers } from "@/lib/map/registerMoonTransitLayers";
 import type { IFlightProvider } from "@/types";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
@@ -17,6 +18,29 @@ import {
 } from "react";
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+
+function scheduleObserverGroundHeightFromTerrain(
+  map: mapboxgl.Map,
+  lat: number,
+  lng: number
+): void {
+  const stamp = { lat, lng };
+  const apply = () => {
+    const s = useObserverStore.getState();
+    if (s.observerLocationLocked) {
+      return;
+    }
+    if (s.observer.lat !== stamp.lat || s.observer.lng !== stamp.lng) {
+      return;
+    }
+    const h = queryTerrainElevationMeters(map, lng, lat);
+    if (h != null) {
+      s.setObserver({ groundHeightMeters: h });
+    }
+  };
+  apply();
+  map.once("idle", apply);
+}
 
 export type UseMoonTransitMapOptions = {
   flightProvider: IFlightProvider;
@@ -47,9 +71,13 @@ export function useMoonTransitMap(
   const placeObserverFromViewNonce = useObserverStore(
     (s) => s.placeObserverFromViewNonce
   );
+  const terrainGroundHeightSyncNonce = useObserverStore(
+    (s) => s.terrainGroundHeightSyncNonce
+  );
   const setObserverFromMapView = useObserverStore(
     (s) => s.setObserverFromMapView
   );
+  const setObserver = useObserverStore((s) => s.setObserver);
 
   const loadFlights = useRef(useMoonTransitStore.getState().loadFlightsInBounds);
   const setMapViewState = useRef(useMoonTransitStore.getState().setMapView);
@@ -149,6 +177,7 @@ export function useMoonTransitMap(
     }
     const c = m.getCenter();
     setObserverFromMapView({ lat: c.lat, lng: c.lng });
+    scheduleObserverGroundHeightFromTerrain(m, c.lat, c.lng);
   }, [setObserverFromMapView]);
 
   useEffect(() => {
@@ -157,6 +186,18 @@ export function useMoonTransitMap(
     }
     applyPlaceObserverFromMapCenter();
   }, [placeObserverFromViewNonce, mapReadyTick, applyPlaceObserverFromMapCenter]);
+
+  useEffect(() => {
+    if (terrainGroundHeightSyncNonce === 0) {
+      return;
+    }
+    const m = mapRef.current;
+    if (!m || !m.isStyleLoaded()) {
+      return;
+    }
+    const o = useObserverStore.getState().observer;
+    scheduleObserverGroundHeightFromTerrain(m, o.lat, o.lng);
+  }, [terrainGroundHeightSyncNonce, mapReadyTick]);
 
   useEffect(() => {
     if (!elRef.current || !MAPBOX_TOKEN) {
@@ -171,6 +212,7 @@ export function useMoonTransitMap(
       zoom: initial.zoom,
       pitch: initial.pitch,
       bearing: initial.bearing,
+      /** Default pitch is 0° in `defaultMapViewState`; Mapbox right-drag / rotate+tilt behaviour stays enabled. */
       pitchWithRotate: true,
       touchPitch: true,
       maxPitch: 78,
@@ -181,16 +223,24 @@ export function useMoonTransitMap(
     const mark = new mapboxgl.Marker({
       element: createObserverMarkerElement(),
       anchor: "bottom",
+      draggable: !useObserverStore.getState().observerLocationLocked,
     })
       .setLngLat([obs.lng, obs.lat])
       .addTo(map);
     markerRef.current = mark;
+    mark.on("dragend", () => {
+      const pos = mark.getLngLat();
+      setObserver({ lat: pos.lat, lng: pos.lng });
+      scheduleObserverGroundHeightFromTerrain(map, pos.lat, pos.lng);
+    });
 
     const settled = () => onMoveSettled(map);
 
     map.on("load", () => {
       registerMoonTransitLayers(map, () => {
         settled();
+        const obs = useObserverStore.getState().observer;
+        scheduleObserverGroundHeightFromTerrain(map, obs.lat, obs.lng);
         setMapReadyTick((n) => n + 1);
       });
     });
@@ -214,7 +264,7 @@ export function useMoonTransitMap(
       setMapReadyTick(0);
       map.remove();
     };
-  }, [onMoveSettled]);
+  }, [onMoveSettled, setObserver]);
 
   useEffect(() => {
     const m = markerRef.current;
@@ -255,14 +305,17 @@ export function useMoonTransitMap(
     if (!m) {
       return;
     }
+    m.setDraggable(!observerLocationLocked);
     const disc = m.getElement()?.querySelector<HTMLDivElement>("div");
     if (!disc) {
       return;
     }
     if (observerLocationLocked) {
       disc.classList.add("ring-2", "ring-rose-500/60");
+      disc.classList.remove("cursor-grab", "active:cursor-grabbing");
     } else {
       disc.classList.remove("ring-2", "ring-rose-500/60");
+      disc.classList.add("cursor-grab", "active:cursor-grabbing");
     }
   }, [observerLocationLocked]);
 

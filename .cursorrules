@@ -17,12 +17,13 @@ Before starting any significant task, review these files:
 ## 3. KEY CALCULATIONS & PHYSICS
 - **Parallax:** Always account for aircraft altitude (approx. 10km) vs. observer position. Use `GeometryEngine` for intersections.
 - **Kinematics:** Transit duration and shutter recommendations are based on **angular velocity (ω)** from the photographer's perspective, not just ground speed.
-- **Time Handling:** - `referenceEpochMs` = `timeAnchorMs` + `timeOffsetMs` (for simulation). The time **slider** spans a full **UTC calendar day** anchored by `timeAnchorMs` / sync; moonrise/moonset still drive the **visible** moon-path highlight on the map, not the slider extent.
+- **Time Handling:** - `referenceEpochMs` = `timeAnchorMs` + `timeOffsetMs` (for simulation). **Sync** sets `timeAnchorMs` to wall-clock now; the **slider** runs **forward ~24 h** from that anchor (civil day). Moonrise/moonset still drive the **visible** moon-path highlight on the map, not the slider extent; suncalc refresh bumps when **Sync**, when the slider crosses a **UTC calendar day**, or when the **observer** moves.
     - `openSkyLatencySkewMs` applies only to real-time flight extrapolation, not ephemeris.
 
 ## 4. UI & STYLE GUIDELINES
 - **User-Facing Language:** UI copy MUST be in **English**.
 - **Styling:** Use **Tailwind CSS 4**. Follow the existing color palette (zinc, emerald, amber, sky).
+- **Dropdowns / discrete pickers:** Do **not** add new native `<select>` in the shell or main planning UI. Use the same **combobox** pattern as `FlightProviderSelect` and `CameraSensorSelect`: button trigger + chevron, listbox in a **`document.body` portal** (`z-[280]`, sky/zinc glass), so menus are not clipped by `ShellSectionCard` `overflow-hidden`. Expose `data-testid` + `data-value` on the trigger for E2E. Details: `documentation/technicalconventions.md` → *Combobox (dropdown) pattern*.
 - **Mapbox:** All layers and sources must be managed within `MapContainer.tsx` to maintain sync.
 
 ## 5. PHOTOGRAPHER TOOLS

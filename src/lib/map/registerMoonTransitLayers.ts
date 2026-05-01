@@ -7,6 +7,7 @@ import {
   SELECTED_STAND_SPINE_LINE_OPACITY,
   SELECTED_STAND_SPINE_LINE_WIDTH,
 } from "@/lib/map/mapOverlayConstants";
+import { ensureMapboxTerrain } from "@/lib/map/mapboxTerrainElevation";
 import {
   FLIGHTS_LAYER_ID,
   FLIGHTS_SOURCE,
@@ -239,6 +240,7 @@ export function registerMoonTransitLayers(
   map: Map,
   onLayersReady?: () => void
 ): void {
+  ensureMapboxTerrain(map);
   map.addSource(ROUTES_SOURCE, {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },

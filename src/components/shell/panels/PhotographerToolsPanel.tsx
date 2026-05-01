@@ -1,3 +1,6 @@
+"use client";
+
+import { CameraSensorSelect } from "@/components/shell/CameraSensorSelect";
 import { ShellSectionCard } from "@/components/shell/ShellSectionCard";
 import { SectionIconCamera } from "@/components/shell/sectionCategoryIcons";
 import {
@@ -6,7 +9,10 @@ import {
   type PhotographerToolPack,
   type PhotographerToolsUnavailableReason,
 } from "@/hooks/usePhotographerTools";
+import { CAMERA_SENSOR_CROP } from "@/lib/domain/geometry/shotFeasibility";
 import { formatFixed } from "@/lib/format/numbers";
+import { useMoonTransitStore } from "@/stores/moon-transit-store";
+import { useCallback, useState } from "react";
 
 type PhotographerToolsPanelProps = {
   selectedFlightId: string | null;
@@ -40,6 +46,36 @@ export function PhotographerToolsPanel({
   beepOnTransit,
   onToggleBeep,
 }: PhotographerToolsPanelProps) {
+  const cameraFocalLengthMm = useMoonTransitStore((s) => s.cameraFocalLengthMm);
+  const cameraSensorType = useMoonTransitStore((s) => s.cameraSensorType);
+  const setCameraFocalLengthMm = useMoonTransitStore(
+    (s) => s.setCameraFocalLengthMm
+  );
+  const setCameraSensorType = useMoonTransitStore((s) => s.setCameraSensorType);
+  /**
+   * While focused, hold a draft string; when null, the input shows the store value
+   * directly so external focal-length changes sync without a setState-in-effect.
+   */
+  const [focalDraft, setFocalDraft] = useState<string | null>(null);
+  const focalInputValue = focalDraft ?? String(cameraFocalLengthMm);
+  const effectiveFocalMm =
+    cameraFocalLengthMm * CAMERA_SENSOR_CROP[cameraSensorType];
+
+  const commitFocalLengthFromInput = useCallback(() => {
+    const raw = focalInputValue.trim().replace(",", ".");
+    if (raw === "") {
+      setFocalDraft(null);
+      return;
+    }
+    const n = Number.parseFloat(raw);
+    if (!Number.isFinite(n)) {
+      setFocalDraft(null);
+      return;
+    }
+    setCameraFocalLengthMm(n);
+    setFocalDraft(null);
+  }, [focalInputValue, setCameraFocalLengthMm]);
+
   const shotTier = photoShotFeasibility?.tier ?? null;
   const shotBadgeClass =
     shotTier === "excellent"
@@ -60,22 +96,64 @@ export function PhotographerToolsPanel({
       titleTone="emerald"
       icon={<SectionIconCamera />}
     >
-      <p className="text-[0.65rem] leading-relaxed text-zinc-500">
-        Pick a flight from the list or map. Times use the{" "}
-        <strong className="font-medium text-zinc-400">slider time</strong> for
-        the moon and a short forward guess for the plane (speed + heading from
-        the flight feed).
-      </p>
+      <div>
+        <p className="text-[0.65rem] text-zinc-500">Camera settings</p>
+        <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <label className="space-y-1">
+            <span className="text-[0.62rem] uppercase tracking-wide text-zinc-500">
+              Focal length (mm)
+            </span>
+            <input
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
+              enterKeyHint="done"
+              aria-label="Focal length in millimeters"
+              placeholder="50–2400"
+              value={focalInputValue}
+              onFocus={() => {
+                setFocalDraft(String(cameraFocalLengthMm));
+              }}
+              onChange={(e) => {
+                setFocalDraft(e.target.value);
+              }}
+              onBlur={commitFocalLengthFromInput}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  (e.target as HTMLInputElement).blur();
+                }
+              }}
+              className="w-full rounded border border-zinc-700 bg-zinc-900/70 px-2 py-1.5 font-mono text-sm text-zinc-100"
+            />
+          </label>
+          <label className="space-y-1">
+            <span className="text-[0.62rem] uppercase tracking-wide text-zinc-500">
+              Sensor type
+            </span>
+            <div className="mt-1 min-w-0">
+              <CameraSensorSelect
+                value={cameraSensorType}
+                onChange={setCameraSensorType}
+              />
+            </div>
+          </label>
+        </div>
+        <p className="mt-1 font-mono text-[0.65rem] text-zinc-500">
+          Effective focal length: {formatFixed(effectiveFocalMm, 0)} mm
+        </p>
+      </div>
       {selectedFlightId == null && (
-        <p className="mt-2 text-sm text-zinc-500">No flight selected.</p>
+        <p className="mt-3 border-t border-zinc-800/80 pt-3 text-sm text-zinc-500">
+          No flight selected.
+        </p>
       )}
       {selectedFlightId && !photoPack && (
-        <p className="mt-2 text-sm text-amber-300/80">
+        <p className="mt-3 border-t border-zinc-800/80 pt-3 text-sm text-amber-300/80">
           {reasonText(photoUnavailableReason)}
         </p>
       )}
       {photoPack && (
-        <div className="mt-3 space-y-3">
+        <div className="mt-3 space-y-3 border-t border-zinc-800/80 pt-3">
           <div
             className="rounded-xl border border-emerald-800/50 bg-zinc-950/80 px-2 py-3 text-center"
             aria-live="polite"
