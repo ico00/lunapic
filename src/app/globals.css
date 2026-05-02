@@ -180,15 +180,28 @@ body {
   z-index: 20;
 }
 
-/* Mobile: iznad legene i bottom tabova (nav z-[60]) da sadržaj kartice ostane čitljiv. */
+/* Mobile: cijeli map column je iznad tabova (HomePageClient z-[70] + pointer-events); širina = viewport (setMaxWidth u TS + ovo). */
 @media (max-width: 767px) {
+  .moon-transit-aircraft-popup.mapboxgl-popup {
+    max-width: none !important;
+  }
+
   .moon-transit-aircraft-popup {
-    z-index: 68;
+    z-index: 80;
   }
 
   .moon-transit-aircraft-popup .mapboxgl-popup-content {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  /* Kad TS postavi širinu na root popupa; sadržaj prati punu širinu (suženi viewport). */
+  .moon-transit-aircraft-popup .mapboxgl-popup-content > * {
     width: 100%;
     max-width: none;
+    box-sizing: border-box;
   }
 }
 

@@ -66,6 +66,94 @@ function normalizeIcaoKey(raw: string): string {
 }
 
 /**
+ * ICAO airline (3 znaka) → IATA (2 znaka) za `images.kiwi.com` PNG logotipe.
+ * Samo prijevoznici iz {@link AIRLINE_ICAO_NAMES}; inače `null` (UI ostavlja prazan slot).
+ */
+const AIRLINE_ICAO_TO_IATA_LOGO: Readonly<Record<string, string>> = {
+  AAL: "AA",
+  ACA: "AC",
+  AEA: "UX",
+  AFR: "AF",
+  AMX: "AM",
+  ASA: "AS",
+  AUA: "OS",
+  AZA: "IT",
+  BAW: "BA",
+  BEL: "SN",
+  CFG: "DE",
+  CHH: "HU",
+  CSA: "OK",
+  CTA: "OU",
+  DAL: "DL",
+  DLH: "LH",
+  EAI: "EA",
+  EIN: "EI",
+  ENY: "MQ",
+  ETD: "EY",
+  EJU: "EC",
+  EWG: "EW",
+  EZS: "DS",
+  EZY: "U2",
+  FIN: "AY",
+  FPO: "5O",
+  GWI: "4Y",
+  HAL: "HA",
+  IBE: "IB",
+  JBU: "B6",
+  JAL: "JL",
+  KLM: "KL",
+  LAN: "LA",
+  LOT: "LO",
+  LXJ: "1I",
+  MGL: "OM",
+  NAX: "DY",
+  NOZ: "DY",
+  OAL: "OA",
+  OAW: "2L",
+  POE: "PD",
+  QTR: "QR",
+  RYR: "FR",
+  SAS: "SK",
+  SHT: "BA",
+  SWR: "LX",
+  TAP: "TP",
+  TGZ: "A9",
+  THY: "TK",
+  UAL: "UA",
+  UIA: "PS",
+  ULA: "4Z",
+  VIR: "VS",
+  VLG: "VY",
+  WMT: "W4",
+  WZZ: "W6",
+};
+
+/** ICAO designator (3 slova) iz polja ili prefiksa callsigna, kao u OpenSky parseru. */
+function airlineIcao3FromFlight(f: FlightState): string | null {
+  const fromField = f.airlineIcao?.trim();
+  if (fromField && /^[A-Za-z]{3}$/.test(fromField)) {
+    return fromField.toUpperCase().slice(0, 3);
+  }
+  const cs = f.callSign?.trim();
+  if (cs && cs.length >= 3) {
+    const raw = cs.slice(0, 3);
+    if (/^[A-Za-z]{3}$/.test(raw)) {
+      return raw.toUpperCase();
+    }
+  }
+  return null;
+}
+
+/** IATA kod za Kiwi CDN logo, ili `null` ako nemamo pouzdanog para u mapi. */
+export function flightAirlineLogoKiwiIata(f: FlightState): string | null {
+  const icao3 = airlineIcao3FromFlight(f);
+  if (!icao3) {
+    return null;
+  }
+  return AIRLINE_ICAO_TO_IATA_LOGO[icao3] ?? null;
+}
+
+/**
  * Jedna linija za UI: eksplicitno ime, inače lookup ICAO (prva 3 znaka callsigna), inače ICAO + zemlja.
  */
 export function flightAirlineDisplayLine(f: FlightState): string | null {

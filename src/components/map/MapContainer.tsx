@@ -32,12 +32,15 @@ export type MapContainerProps = {
   isGolden?: boolean;
   /** When true, map-linked field sounds (green-zone chime, moon-overlap hold tone). */
   fieldSoundsEnabled?: boolean;
+  /** Mobile shell: hide selected-aircraft Mapbox popup while a bottom sheet is open. */
+  suppressSelectedAircraftPopup?: boolean;
 };
 
 export function MapContainer({
   flightProvider,
   isGolden = false,
   fieldSoundsEnabled = false,
+  suppressSelectedAircraftPopup = false,
 }: MapContainerProps) {
   const flights = useExtrapolatedFlightsForMap();
   const observer = useObserverStore((s) => s.observer);
@@ -145,11 +148,18 @@ export function MapContainer({
   }
 
   const mapColumn = (
-    <div className="relative h-full w-full" data-testid="map-surface">
+    <div
+      className="pointer-events-auto relative h-full w-full overflow-visible"
+      data-testid="map-surface"
+    >
       <div ref={elRef} className="h-full w-full" />
       <FlightAltitudeLegend />
       <FieldPerfOverlay />
-      <SelectedAircraftMapPopup mapRef={mapRef} mapReadyTick={mapReadyTick} />
+      <SelectedAircraftMapPopup
+        mapRef={mapRef}
+        mapReadyTick={mapReadyTick}
+        suppressed={suppressSelectedAircraftPopup}
+      />
     </div>
   );
 

@@ -31,6 +31,7 @@ import {
 import { resumeSharedAudioFromUserGesture } from "@/lib/audio/fieldAudio";
 import { appPath } from "@/lib/paths/appPath";
 import { useObserverStore } from "@/stores/observer-store";
+import type { MapContainerProps } from "@/components/map/MapContainer";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import type { ComponentType, SVGProps } from "react";
@@ -82,7 +83,7 @@ function AppHeaderBrand({ compact }: { compact: boolean }) {
   );
 }
 
-const MapContainer = dynamic(
+const MapContainer = dynamic<MapContainerProps>(
   () =>
     import("@/components/map/MapContainer").then((m) => m.MapContainer),
   {
@@ -605,16 +606,17 @@ export function HomePageClient() {
               <AppHeaderBrand compact />
             </div>
           </div>
-          <div className="relative min-h-0 w-full min-w-0 flex-1 touch-pan-x touch-pan-y pb-[max(4.5rem,calc(3.6rem+env(safe-area-inset-bottom)))]">
+          <div className="pointer-events-none relative z-[70] min-h-0 w-full min-w-0 flex-1 touch-pan-x touch-pan-y pb-[max(4.5rem,calc(3.6rem+env(safe-area-inset-bottom)))]">
             <MapContainer
               flightProvider={s.flightProvider}
               isGolden={s.isGolden}
               fieldSoundsEnabled={s.beepOnTransit}
+              suppressSelectedAircraftPopup={mobilePanelId != null}
             />
           </div>
           {mobilePanelId ? (
             <section
-              className={`absolute inset-x-0 bottom-[calc(3.35rem+env(safe-area-inset-bottom))] z-50 max-h-[78dvh] min-h-[42dvh] overflow-hidden rounded-t-lg border border-zinc-800 bg-zinc-950/98 shadow-[0_-12px_60px_-12px_rgba(0,0,0,0.65)] backdrop-blur-2xl transition-[height,transform,box-shadow] duration-300 motion-reduce:transition-none ${sheetHeightClass}`}
+              className={`absolute inset-x-0 bottom-[calc(3.55rem+env(safe-area-inset-bottom))] z-[75] max-h-[78dvh] min-h-[42dvh] overflow-hidden rounded-t-lg border border-zinc-800 bg-zinc-950/98 shadow-[0_-12px_60px_-12px_rgba(0,0,0,0.65)] backdrop-blur-2xl transition-[height,transform,box-shadow] duration-300 motion-reduce:transition-none ${sheetHeightClass}`}
               aria-label={`${mobileSheetTitle} controls`}
               aria-labelledby={`mobile-shell-tab-${mobilePanelId}`}
               style={{
@@ -785,7 +787,8 @@ export function HomePageClient() {
             </section>
           ) : null}
           <nav
-            className="absolute inset-x-0 bottom-0 z-[60] border-t border-zinc-800 bg-black/92 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1 backdrop-blur-2xl"
+            data-testid="mobile-primary-nav"
+            className="absolute inset-x-0 bottom-0 z-[60] border-t border-zinc-800 bg-black/92 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-2xl"
             aria-label="Primary mobile navigation — scroll the tab bar sideways for more panels"
           >
             <div className="relative">
@@ -811,7 +814,7 @@ export function HomePageClient() {
               ) : null}
               <div
                 ref={mobileTabListRef}
-                className="flex w-full snap-x snap-mandatory gap-1.5 overflow-x-auto px-2 py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                className="flex w-full snap-x snap-mandatory gap-1.5 overflow-x-auto px-2 py-1.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                 role="tablist"
               >
                 {MOBILE_BOTTOM_TABS.map((t) => {
@@ -832,7 +835,7 @@ export function HomePageClient() {
                       onClick={() => {
                         openMobilePanel(t.id);
                       }}
-                      className={`flex min-h-[3.35rem] min-w-[calc((100vw-2.25rem)/5)] max-w-[6.75rem] shrink-0 snap-start flex-col items-center justify-center gap-1 overflow-visible rounded-lg px-1.5 py-1.5 text-center text-xs font-semibold leading-tight tracking-tight transition duration-150 active:scale-[0.97] motion-reduce:transition-none sm:min-w-[4.5rem] ${
+                      className={`flex min-h-[3.5rem] min-w-[calc((100vw-2.25rem)/5)] max-w-[6.75rem] shrink-0 snap-start flex-col items-center justify-center gap-1 overflow-visible rounded-lg px-1.5 py-2 text-center text-xs font-semibold leading-tight tracking-tight transition duration-150 active:scale-[0.97] motion-reduce:transition-none sm:min-w-[4.5rem] ${
                         selected
                           ? "bg-zinc-900 text-zinc-50 ring-1 ring-inset ring-blue-500/45"
                           : "text-zinc-400 hover:bg-zinc-800/55 hover:text-zinc-200"
