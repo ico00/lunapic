@@ -4,7 +4,7 @@ You are an expert developer working on the **LunaPic** application. This is a hi
 
 ## 1. CORE PRINCIPLES & ARCHITECTURE
 - **Observer-Centric:** All geometry and ephemeris calculations MUST use the fixed `observer` location from `useObserverStore`, NOT the map's current center.
-- **SOLID & Strategy Pattern:** Flight data sources must implement the `IFlightProvider` interface. Never hardcode data fetching logic outside of providers.
+- **SOLID & Strategy Pattern:** Flight data sources must implement the `IFlightProvider` interface. Never hardcode data fetching logic outside of providers. Live traffic today is **OpenSky** only — not FlightRadar24 / ADSB-One / other aggregators (different coverage); see `documentation/architecture.md`.
 - **Domain Purity:** Keep pure mathematical and astronomical functions in `lib/domain`. These modules must remain framework-agnostic (no React hooks or Zustand stores inside).
 - **Coordinate Standard:** Use WGS84. GeoJSON format is `[longitude, latitude]`, while application types use `{ lat, lng }`.
 

@@ -29,6 +29,7 @@ where version bumps are made for releases (currently `0.x`).
 - **Tests — `getTimeSliderWindowMs`** — `astroService.test.ts` covers the forward civil-day window from a positive anchor and the fallback when the anchor is unset.
 - **Observer ground elevation** — `architecture.md` (Map bullet + `useObserverStore` table and **`groundHeightMeters`** subsection), `user-guide.md` (step 1), and `src/stores/README.md` aligned with Mapbox DEM, `terrainGroundHeightSyncNonce`, and GPS altitude behavior.
 - **Technical conventions — combobox pattern** — Documented mandatory shell dropdown styling (portal listbox, sky glass, `data-testid`/`data-value`, no native `<select>` in sidebar); `.cursorrules` UI section cross-links to `technicalconventions.md`.
+- **Flight data vs other trackers** — `documentation/architecture.md`, `documentation/user-guide.md`, About (*What does Flight source control?*), and root `README.md` now state explicitly that live traffic is **OpenSky-only**; FlightRadar24, ADSB-One, and similar feeds use **different** networks/rules, so missing or extra aircraft vs those apps is expected.
 - **Architecture / user guide — map pitch** — `architecture.md` / `user-guide.md` aligned with default **0° pitch** on load, **`pitchWithRotate` true** (stock right-drag tilt/rotate), no Shift gesture; Field vs Photographer camera placement note kept in sync.
 
 ### Changed

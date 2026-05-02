@@ -17,7 +17,7 @@ const faqs = [
   {
     question: "What does Flight source control?",
     answer:
-      "OpenSky provides real ADS-B traffic for a bounded area around your observer and the map (demo corridor rules can apply near static routes). Symbols are smoothed between refreshes on slower devices. Static uses simulated points from routes.json. Heavy OpenSky use can hit anonymous rate limits (429); adding a free OpenSky account in server .env.local (OPENSKY_API_*, see .env.local.example) raises limits. Route-region average-speed diagnostics use aircraft currently in the air with valid speed samples from the visible map corridor.",
+      "OpenSky provides real ADS-B traffic for a bounded area around your observer and the map (demo corridor rules can apply near static routes). Symbols are smoothed between refreshes on slower devices. Static uses simulated points from routes.json. Heavy OpenSky use can hit anonymous rate limits (429); adding a free OpenSky account in server .env.local (OPENSKY_API_*, see .env.local.example) raises limits. Route-region average-speed diagnostics use aircraft currently in the air with valid speed samples from the visible map corridor. LunaPic does not ingest FlightRadar24, ADSB-One, or other commercial/community aggregators: those maps can show aircraft that never reach the OpenSky snapshot your session uses (different receivers, MLAT, partners) — compare with opensky-network.org if you need to confirm coverage.",
   },
   {
     question: "How does the Observer point behave?",

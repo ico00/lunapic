@@ -103,6 +103,8 @@ flowchart TB
   - `staticFlightProvider` — `routes.json` + `staticRoutePointAndBearing` for position/track along a segment.
   - `openSkyFlightProvider` — fetches via `GET /api/opensky/states?...` (bbox). **Fetch region:** inside the static `routes.json` hull the bbox is **hull ∩ observer disk** (~100 km radius); **outside** that hull the bbox is the **observer disk alone** so relocation (e.g. another country) still loads local ADS-B. **Client filter** for which states become `FlightState[]`: always **`union(map viewport bounds, observer disk)`** — avoids dropping aircraft that are still in the API box but slightly off the current viewport edge. Parses in `parseOpenSkyStates.ts`; server-side bbox caching remains in the provider (`CACHE_MS`).
 
+**Not the same as other flight apps:** LunaPic’s live mode uses **OpenSky Network only** (plus this app’s bbox / on-ground filters). **FlightRadar24**, **ADSB-One**, and similar products merge **different** receiver communities, MLAT, ANSP or partner feeds, and their own rules — so an aircraft visible there may be **absent** from OpenSky (and the reverse). That is expected; it is not a LunaPic map bug unless the ICAO24 appears on [OpenSky’s own map](https://opensky-network.org) for the same instant and bbox policy still drops it.
+
 Adding a new source: implement `IFlightProvider`, register in the registry, add the id to **`FLIGHT_PROVIDER_IDS`** (order = combobox order; **`opensky`** is first and matches the store default) and the sidebar selector.
 
 ## Domain layer
