@@ -4,7 +4,7 @@ You are an expert developer working on the **LunaPic** application. This is a hi
 
 ## 1. CORE PRINCIPLES & ARCHITECTURE
 - **Observer-Centric:** All geometry and ephemeris calculations MUST use the fixed `observer` location from `useObserverStore`, NOT the map's current center.
-- **SOLID & Strategy Pattern:** Flight data sources must implement the `IFlightProvider` interface. Never hardcode data fetching logic outside of providers.
+- **SOLID & Strategy Pattern:** Flight data sources must implement the `IFlightProvider` interface. Never hardcode data fetching logic outside of providers. Live traffic today is **OpenSky** only — not FlightRadar24 / ADSB-One / other aggregators (different coverage); see `documentation/architecture.md`.
 - **Domain Purity:** Keep pure mathematical and astronomical functions in `lib/domain`. These modules must remain framework-agnostic (no React hooks or Zustand stores inside).
 - **Coordinate Standard:** Use WGS84. GeoJSON format is `[longitude, latitude]`, while application types use `{ lat, lng }`.
 
@@ -29,7 +29,7 @@ Before starting any significant task, review these files:
 ## 5. PHOTOGRAPHER TOOLS
 - **Golden State:** UI should trigger a "Golden" alert/flash when alignment is within 0.1°.
 - **Field Use:** Prioritize mobile-friendly controls in the sidebar and ensure the compass/HUD logic remains performant.
-- **Audio Alerts:** Use `AudioContext` via `src/lib/audio/fieldAudio.ts` — countdown beeps (`useTransitBeep`), green-zone chime + moon-overlap hold tone (`useTransitFieldSounds` in `MapContainer` when Field sounds are on).
+- **Audio Alerts:** Use `AudioContext` via `src/lib/audio/fieldAudio.ts` — shared context primed from a **user tap** (`primeFieldAudioFromUserGesture` on **Sounds on**, `resumeSharedAudioFromUserGesture` on **Sync**); countdown beeps (`useTransitBeep`), green-zone chime + hold tone (`useTransitFieldSounds`). iOS Safari blocks audio started only from effects.
 
 ## 6. DEVELOPMENT WORKFLOW
 - **Check before coding:** "Does this change break the parallax math or desync simulated time?"

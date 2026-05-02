@@ -17,7 +17,7 @@ const faqs = [
   {
     question: "What does Flight source control?",
     answer:
-      "OpenSky provides real ADS-B traffic for a bounded area around your observer and the map (demo corridor rules can apply near static routes). Symbols are smoothed between refreshes on slower devices. Static uses simulated points from routes.json. Heavy OpenSky use can hit anonymous rate limits (429); adding a free OpenSky account in server .env.local (OPENSKY_API_*, see .env.local.example) raises limits. Route-region average-speed diagnostics use aircraft currently in the air with valid speed samples from the visible map corridor.",
+      "OpenSky provides real ADS-B traffic for a bounded area around your observer and the map (demo corridor rules can apply near static routes). Symbols are smoothed between refreshes on slower devices. Static uses simulated points from routes.json. Heavy OpenSky use can hit anonymous rate limits (429); adding a free OpenSky account in server .env.local (OPENSKY_API_*, see .env.local.example) raises limits. Route-region average-speed diagnostics use aircraft currently in the air with valid speed samples from the visible map corridor. LunaPic does not ingest FlightRadar24, ADSB-One, or other commercial/community aggregators: those maps can show aircraft that never reach the OpenSky snapshot your session uses (different receivers, MLAT, partners) — compare with opensky-network.org if you need to confirm coverage.",
   },
   {
     question: "How does the Observer point behave?",
@@ -53,7 +53,7 @@ const faqs = [
   {
     question: "What do Field sounds do?",
     answer:
-      "Turn **Sounds on** after selecting an aircraft. You get a short **chime** when that aircraft enters the **green** map filter (geometric moon overlap **and** within your focal length / sensor optical reach). While the aircraft stays in the **moon-overlap** disc model (same geometry as the overlap test on candidates), a **soft hold tone** plays so you know to look up. When timing data exists, you still get the **countdown beeps** a few seconds before alignment and at the alignment instant. Many mobile browsers require a tap in the page before Web Audio will play reliably.",
+      "Turn **Sounds on** after selecting an aircraft. On **iPhone**, turn off the **silent** switch and raise **ringer** volume; the first **Sounds on** tap plays a **short unlock ping** and links Web Audio to your finger (Safari otherwise keeps timer-driven sounds silent). **Sync time to now** also unlocks the shared audio context quietly. Then: a **chime** when the selected aircraft enters the **green** map filter, a **soft hold tone** while it stays in the **moon-overlap** disc model, and **countdown beeps** when timing data exists.",
   },
   {
     question: "What time basis does Photographer — tools use?",

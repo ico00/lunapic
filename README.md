@@ -75,7 +75,7 @@ NEXT_PUBLIC_MAPBOX_TOKEN=pk.your_mapbox_token
 
 The sidebar **Provider** combobox defaults to **OpenSky** on first load (order: OpenSky → static → mock).
 
-- **opensky** — Live (best-effort) ADS-B via OpenSky: bounded **fetch bbox** around the **observer** and demo corridor rules (see `documentation/architecture.md`); **display** uses the union of **map bounds** and the **observer ~100 km disk**, plus short **retention** between snapshots for steadier symbols on mobile.
+- **opensky** — Live (best-effort) ADS-B via OpenSky: bounded **fetch bbox** around the **observer** and demo corridor rules (see `documentation/architecture.md`); **display** uses the union of **map bounds** and the **observer ~100 km disk**, plus short **retention** between snapshots for steadier symbols on mobile. **Not** the same dataset as FlightRadar24, ADSB-One, or other trackers — different coverage is normal.
 - **static** — Positions on routes from `src/data/routes.json`; route polylines; track from the active route segment near the view center.
 - **mock** — Hard-coded test aircraft.
 

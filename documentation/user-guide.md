@@ -20,6 +20,7 @@ LunaPic helps you **line up a real (or static) aircraft** with the **Moon** in t
   - **Tip:** the Moon returns to about the same compass direction after roughly **24h 50m** (a lunar day), not after exactly 24h — so the **right** end of the slider (now + 24h) is **not** the same point on the path as **Sync** (now).
 4. **Choose a flight data source (Provider)** — the app **defaults to OpenSky** on a fresh load.
   - **OpenSky (ADS-B)** — live traffic for a **bounded region** around your **observer** and the **map view** (via the app’s server route; no OpenSky key in the browser). The map may **briefly retain** symbols between refreshes so tracking feels steadier on phones.  
+  - **Other apps (FlightRadar24, ADSB-One, …):** they are **different** data products — other receiver networks, MLAT, or partner feeds — so a plane you see there may **not** appear in LunaPic until OpenSky carries it (and vice versa).  
   - **Routes (static)** — demo routes; good offline.  
   - **Mock** — small test set.
 5. **Pan / zoom the map**
@@ -28,7 +29,7 @@ LunaPic helps you **line up a real (or static) aircraft** with the **Moon** in t
   - Click an aircraft to select it. You get a **stand corridor** (cyan ground band) and a **pale center line** showing where to be on the ground, for the **current simulated time**, using the aircraft’s **altitude** in the line-of-sight model.
 7. **Read the “photographer” side** (wide layout: right column)
   - Countdown, angular rates, shot feasibility, compass aim.
-  - **Field sounds** (after you pick a flight): turn **Sounds on** for a **chime** when that aircraft enters the **green** map filter (moon overlap **and** optical reach for your focal length / sensor), a **soft hold tone** while it stays in the **moon-overlap** disc model (same geometry as overlap on candidates), plus the existing **countdown beeps** a few seconds before alignment and at alignment — useful when you should look up. Many mobile browsers need a tap on the page first so Web Audio can play.
+  - **Field sounds** (after you pick a flight): on **iPhone**, disable the **silent** switch and use **ringer** volume; tap **Sounds on** — you should hear a **short unlock ping** (Safari only allows Web Audio after a gesture like this). **Sync time to now** also unlocks audio quietly. Then you get a **chime** when that aircraft enters the **green** map filter, a **soft hold tone** while it stays in the **moon-overlap** disc model, plus **countdown beeps** before and at alignment.
 
 **What you do *not* need for basic use:** reading `architecture.md` or the changelog — those are for developers.
 
