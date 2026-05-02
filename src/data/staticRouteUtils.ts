@@ -23,13 +23,23 @@ export type StaticRoutesFile = {
 export const STATIC_ROUTES = routesJson as unknown as StaticRoutesFile;
 
 /**
- * Rute iz `routes.json` koje sijeku zadani vidljivi okvir — za Mapbox.
+ * Kad je `true`, mapa crta ljubičaste polylinije iz `routes.json` (demo koridori).
+ * Ostaje `false` dok nemamo pouzdane **historic route** podatke iz live izvora —
+ * trenutne linije nisu stvarni ADS-B trackovi.
+ */
+export const ENABLE_STATIC_ROUTE_MAP_OVERLAY = false;
+
+/**
+ * Rute iz `routes.json` koje sijeku zadani vidljivi okvir — za Mapbox (`routes-geo`).
  */
 export function getStaticRouteLineFeatures(
-  view: GeoBounds
+  _view: GeoBounds
 ): readonly RouteLineFeature[] {
+  if (!ENABLE_STATIC_ROUTE_MAP_OVERLAY) {
+    return [];
+  }
   return STATIC_ROUTES.routes
-    .filter((r) => routeBBoxIntersectsBounds(r.waypoints, view))
+    .filter((r) => routeBBoxIntersectsBounds(r.waypoints, _view))
     .map(
       (r) =>
         ({

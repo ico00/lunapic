@@ -12,8 +12,8 @@ import type { GeoBounds } from "@/types/geo";
 
 /**
  * Izvor: `src/data/routes.json` — fiksne rute s tipičnom FL kružnom visinom 10,000m.
- * Linije u {@link IFlightProvider.getRouteLineFeatures} slijede ista ograničenja
- * (Strategy — mapa ovisi samo o sučelju).
+ * {@link IFlightProvider.getRouteLineFeatures} koristi {@link getStaticRouteLineFeatures}
+ * (trenutno prazan overlay dok nema historic track polilinija).
  */
 export class StaticFlightProvider implements IFlightProvider {
   readonly id: FlightProviderId = "static";

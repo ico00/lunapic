@@ -1,5 +1,5 @@
 import { centerOfBounds, getStaticRouteLineFeatures } from "@/data/staticRouteUtils";
-import { appPath } from "@/lib/paths/appPath";
+import { fetchAdsbOnePointJson } from "@/lib/flight/adsbone/fetchAdsbOneUpstream";
 import {
   averageVelocityFromFlightsInRegion,
   flightsFromAdsbOnePointResponse,
@@ -85,38 +85,19 @@ export class AdsbOneFlightProvider implements IFlightProvider {
         return flights;
       }
 
-      const url = appPath(
-        `/api/adsbone/point?lat=${encodeURIComponent(c.lat)}&lng=${encodeURIComponent(c.lng)}&radiusNm=${encodeURIComponent(radiusNm)}`
-      );
-      const res = await fetch(url);
-      const text = await res.text();
-      if (!res.ok) {
-        let message = text.slice(0, 240);
-        try {
-          const j = JSON.parse(text) as {
-            error?: string;
-            body?: string;
-            hint?: string;
-          };
-          const parts: string[] = [];
-          for (const x of [j.error, j.body, j.hint]) {
-            if (typeof x === "string" && x.length > 0 && !parts.includes(x)) {
-              parts.push(x);
-            }
-          }
-          if (parts.length > 0) {
-            message = parts.join(" — ");
-          }
-        } catch {
-          /* non-JSON */
-        }
-        if (res.status === 429) {
+      let data: AdsbOnePointResponse;
+      try {
+        data = await fetchAdsbOnePointJson(c.lat, c.lng, radiusNm);
+      } catch (e) {
+        if (
+          e instanceof Error &&
+          /ADS-B One: 429/.test(e.message)
+        ) {
           this.fetchNotBeforeMs = Date.now() + 5_000;
         }
-        throw new Error(`ADS-B One: ${res.status} ${message}`);
+        throw e;
       }
       this.fetchNotBeforeMs = 0;
-      const data = JSON.parse(text) as AdsbOnePointResponse;
       this.cache = {
         at: Date.now(),
         data,

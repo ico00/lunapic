@@ -1,3 +1,4 @@
+import { canonicalIcao24Id } from "@/lib/flight/icao24CanonicalId";
 import type { FlightState } from "@/types/flight";
 import type { GeoBounds } from "@/types/geo";
 
@@ -46,10 +47,11 @@ export function stateToFlightState(
   row: readonly (string | number | boolean | null)[],
   viewBounds: GeoBounds
 ): FlightState | null {
-  const icao = row[0];
-  if (typeof icao !== "string" || icao.length === 0) {
+  const icaoRaw = row[0];
+  if (typeof icaoRaw !== "string" || icaoRaw.length === 0) {
     return null;
   }
+  const icao = canonicalIcao24Id(icaoRaw);
   const lon = row[5];
   const lat = row[6];
   if (typeof lon !== "number" || typeof lat !== "number") {
@@ -110,9 +112,6 @@ export function flightsFromOpenSkyResponse(
   }
   const out: FlightState[] = [];
   for (const row of data.states) {
-    if (row[8] === true) {
-      continue;
-    }
     const f = stateToFlightState(row, viewBounds);
     if (f) {
       out.push(f);

@@ -50,7 +50,7 @@ export function SelectedAircraftPopupContent({
 
   return (
     <div
-      className="pointer-events-auto overflow-y-auto rounded-md border border-zinc-700 bg-zinc-950/98 p-2.5 text-zinc-200 shadow-xl shadow-black/45 backdrop-blur max-md:max-h-[min(32dvh,14.5rem)] max-md:w-[calc(100dvw-1rem-env(safe-area-inset-left)-env(safe-area-inset-right))] max-md:max-w-none max-md:rounded-b-none max-md:rounded-t-lg max-md:border-zinc-800 max-md:bg-zinc-950 max-md:shadow-2xl md:max-h-[34rem] md:w-[min(18rem,calc(100vw-2.25rem))] md:p-3"
+      className="pointer-events-auto overflow-y-auto rounded-md border border-zinc-700 bg-zinc-950/98 p-2.5 text-zinc-200 shadow-xl shadow-black/45 backdrop-blur max-md:max-h-[min(32dvh,14.5rem)] max-md:w-full max-md:max-w-none max-md:rounded-b-none max-md:rounded-t-lg max-md:border-x max-md:border-t max-md:border-b-0 max-md:border-zinc-800 max-md:bg-black/92 max-md:shadow-none max-md:backdrop-blur-2xl md:max-h-[34rem] md:w-[min(18rem,calc(100vw-2.25rem))] md:p-3"
       data-testid="selected-flight-card"
     >
       <div className="flex items-start justify-between gap-2 md:items-start">

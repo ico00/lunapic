@@ -139,6 +139,13 @@ export function useMoonTransitMap(
     }
     const delayMs = (() => {
       const st = useMoonTransitStore.getState();
+      const dualLive =
+        (st.flightProvider === "opensky" || st.flightProvider === "adsbone") &&
+        st.liveFlightFeeds.opensky &&
+        st.liveFlightFeeds.adsbone;
+      if (dualLive) {
+        return st.selectedFlightId != null ? 1800 : 1400;
+      }
       if (st.flightProvider === "opensky") {
         return st.selectedFlightId != null ? 1200 : 800;
       }
@@ -168,9 +175,13 @@ export function useMoonTransitMap(
   );
 
   const flightProviderId = useMoonTransitStore((s) => s.flightProvider);
+  const liveFlightFeedsKey = useMoonTransitStore(
+    (s) =>
+      `${s.liveFlightFeeds.opensky ? 1 : 0}${s.liveFlightFeeds.adsbone ? 1 : 0}`
+  );
   useEffect(() => {
     onBoundsRefresh();
-  }, [flightProviderId, onBoundsRefresh, mapReadyTick]);
+  }, [flightProviderId, liveFlightFeedsKey, onBoundsRefresh, mapReadyTick]);
 
   useEffect(() => {
     onBoundsRefresh();

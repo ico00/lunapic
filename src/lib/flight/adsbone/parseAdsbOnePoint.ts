@@ -1,4 +1,5 @@
 import { centerOfBounds } from "@/data/staticRouteUtils";
+import { canonicalIcao24Id } from "@/lib/flight/icao24CanonicalId";
 import { greatCircleDistanceNauticalMiles } from "@/lib/domain/geo/greatCircleDistance";
 import type { FlightState } from "@/types/flight";
 import type { GeoBounds } from "@/types/geo";
@@ -67,7 +68,7 @@ export function adsbOneAircraftToFlightState(
   if (typeof hexRaw !== "string" || hexRaw.length === 0) {
     return null;
   }
-  const icao = hexRaw.toUpperCase();
+  const icao = canonicalIcao24Id(hexRaw);
   const lat = row.lat;
   const lon = row.lon;
   if (typeof lat !== "number" || typeof lon !== "number") {

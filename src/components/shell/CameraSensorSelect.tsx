@@ -16,6 +16,10 @@ import {
   type CameraSensorType,
 } from "@/lib/domain/geometry/shotFeasibility";
 import { clampFloatingMenuLeft } from "@/lib/ui/clampFloatingMenuLeft";
+import {
+  shellComboboxListboxPortalClass,
+  shellComboboxTriggerClass,
+} from "@/lib/ui/shellComboboxStyles";
 
 /** Puni naziv u otvorenom izborniku. */
 function labelForSensor(id: CameraSensorType): string {
@@ -133,7 +137,7 @@ export function CameraSensorSelect({ value, onChange }: CameraSensorSelectProps)
         ref={menuRef}
         id={listboxId}
         role="listbox"
-        className="fixed z-[280] m-0 max-h-60 list-none overflow-y-auto rounded-md border border-zinc-700 bg-zinc-950/98 p-1 py-1 shadow-[0_12px_40px_rgba(0,0,0,0.55)] ring-1 ring-inset ring-zinc-800 backdrop-blur-md"
+        className={shellComboboxListboxPortalClass}
         style={{
           top: pos.top,
           left: pos.left,
@@ -183,7 +187,7 @@ export function CameraSensorSelect({ value, onChange }: CameraSensorSelectProps)
         type="button"
         data-testid="camera-sensor-select"
         data-value={value}
-        className="inline-flex h-9 w-full min-w-0 shrink-0 items-center justify-between gap-2 rounded-md border border-zinc-700 bg-zinc-900/80 px-2.5 pr-2 text-left text-sm leading-none text-zinc-200 shadow-inner outline-none ring-inset backdrop-blur-sm transition hover:border-blue-500/35 hover:bg-zinc-900 focus:ring-2 focus:ring-blue-500/25"
+        className={shellComboboxTriggerClass}
         aria-label="Camera sensor type"
         aria-haspopup="listbox"
         aria-expanded={open}

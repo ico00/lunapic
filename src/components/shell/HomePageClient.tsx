@@ -9,7 +9,6 @@ import { FlightSourcePanel } from "@/components/shell/panels/FlightSourcePanel";
 import { MoonEphemerisPanel } from "@/components/shell/panels/MoonEphemerisPanel";
 import { ObserverLocationPanel } from "@/components/shell/panels/ObserverLocationPanel";
 import { PhotographerToolsPanel } from "@/components/shell/panels/PhotographerToolsPanel";
-import { SidebarSyncFooter } from "@/components/shell/panels/SidebarSyncFooter";
 import { TimeSliderPanel } from "@/components/shell/panels/TimeSliderPanel";
 import { TransitCandidatesPanel } from "@/components/shell/panels/TransitCandidatesPanel";
 import { WeatherOverlay } from "@/components/weather/WeatherOverlay";
@@ -23,7 +22,7 @@ import { appPath } from "@/lib/paths/appPath";
 import { useObserverStore } from "@/stores/observer-store";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 /**
  * Lijevo: logo (ograničen max visinom/širinom — PNG može biti ogroman).
@@ -74,7 +73,38 @@ const MapContainer = dynamic(
   }
 );
 
-type MobileTab = "mission" | "time" | "observer" | "field";
+/** Jedan tab = jedna `ShellSectionCard` na mobilnom donjem traku (~5 vidljivo, ostatak vodoravni scroll). */
+type MobileShellPanelId =
+  | "flight"
+  | "observer"
+  | "moon"
+  | "candidates"
+  | "active"
+  | "time"
+  | "photo"
+  | "compass"
+  | "field";
+
+const MOBILE_BOTTOM_TABS: readonly {
+  readonly id: MobileShellPanelId;
+  readonly sheetTitle: string;
+  readonly tabLabel: string;
+}[] = [
+  { id: "flight", sheetTitle: "Flight source", tabLabel: "Flight" },
+  { id: "observer", sheetTitle: "Observer", tabLabel: "Observer" },
+  { id: "moon", sheetTitle: "Moon (nowcast)", tabLabel: "Moon" },
+  { id: "candidates", sheetTitle: "Transit candidates", tabLabel: "Tracks" },
+  { id: "active", sheetTitle: "Active transits", tabLabel: "Active" },
+  { id: "time", sheetTitle: "Time & weather", tabLabel: "Time" },
+  { id: "photo", sheetTitle: "Photographer — tools", tabLabel: "Photo" },
+  { id: "compass", sheetTitle: "Compass → Moon", tabLabel: "Compass" },
+  {
+    id: "field",
+    sheetTitle: "Field: manual correction & export",
+    tabLabel: "Field",
+  },
+];
+
 type SheetSnap = "peek" | "half" | "full";
 
 type ShellControls = {
@@ -95,10 +125,10 @@ type ShellControls = {
 
 function TimeAndWeatherBlock(props: ShellControls) {
   return (
-    <div className="mt-chrome-bar px-3 py-2 sm:px-4 md:py-2.5">
-      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
-        <div className="flex w-max max-w-full min-w-0 flex-col items-stretch gap-2 self-start sm:shrink-0">
-          <div className="w-full pt-0.5">
+    <div className="mt-chrome-bar px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-4 sm:pb-2 md:px-4 md:pb-2.5 md:pt-[max(0.625rem,env(safe-area-inset-top))]">
+      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <div className="flex w-max max-w-full min-w-0 flex-col items-stretch gap-2 self-start sm:shrink-0 sm:self-center">
+          <div className="w-full pt-0.5 sm:pt-0">
             <WeatherOverlay />
           </div>
           <div
@@ -191,7 +221,7 @@ function TimeAndWeatherBlock(props: ShellControls) {
             </Link>
           </div>
         </div>
-        <div className="pointer-events-auto flex max-h-44 min-h-0 min-w-0 flex-1 flex-col self-start sm:max-h-52 md:max-h-56">
+        <div className="pointer-events-auto flex max-h-44 min-h-0 min-w-0 flex-1 flex-col self-start sm:max-h-52 sm:self-center md:max-h-56">
           <TimeSliderPanel
             variant="mapChip"
             className="h-full min-h-0 flex flex-col"
@@ -214,8 +244,15 @@ function TimeAndWeatherBlock(props: ShellControls) {
 export function HomePageClient() {
   const s = useHomeShellOrchestration();
   const isWide = useIsMdUp();
-  const [mobileTab, setMobileTab] = useState<MobileTab | null>(null);
-  const [pulseTab, setPulseTab] = useState<MobileTab | null>(null);
+  const [mobilePanelId, setMobilePanelId] = useState<MobileShellPanelId | null>(
+    null
+  );
+  const [pulsePanelId, setPulsePanelId] = useState<MobileShellPanelId | null>(
+    null
+  );
+  const mobileTabBtnRefs = useRef<
+    Partial<Record<MobileShellPanelId, HTMLButtonElement | null>>
+  >({});
   const [sheetSnap, setSheetSnap] = useState<SheetSnap>("peek");
   const [sheetDragOffsetPx, setSheetDragOffsetPx] = useState(0);
   const touchStartYRef = useRef<number | null>(null);
@@ -253,13 +290,26 @@ export function HomePageClient() {
     onFocusMapOnObserver: requestFocusOnObserver,
   };
 
-  const mobileTabTitle = useMemo(() => {
-    if (mobileTab === "mission") return "Mission";
-    if (mobileTab === "time") return "Time & weather";
-    if (mobileTab === "observer") return "Observer";
-    if (mobileTab === "field") return "Photo & field";
-    return "";
-  }, [mobileTab]);
+  const mobileSheetTitle = useMemo(() => {
+    if (!mobilePanelId) {
+      return "";
+    }
+    return (
+      MOBILE_BOTTOM_TABS.find((t) => t.id === mobilePanelId)?.sheetTitle ?? ""
+    );
+  }, [mobilePanelId]);
+
+  useLayoutEffect(() => {
+    if (!mobilePanelId) {
+      return;
+    }
+    const el = mobileTabBtnRefs.current[mobilePanelId];
+    el?.scrollIntoView({
+      inline: "center",
+      block: "nearest",
+      behavior: "smooth",
+    });
+  }, [mobilePanelId]);
   const candidateNotifications = useTransitCandidateNotifications({
     candidates: s.candidatesDisplay,
     activeTransits: s.activeTransits,
@@ -270,24 +320,24 @@ export function HomePageClient() {
     return "h-[42dvh]";
   }, [sheetSnap]);
 
-  const openMobileTab = useCallback((tab: MobileTab) => {
-    let nextTab: MobileTab | null = null;
-    setMobileTab((prev) => {
-      nextTab = prev === tab ? null : tab;
-      return nextTab;
+  const openMobilePanel = useCallback((panel: MobileShellPanelId) => {
+    let next: MobileShellPanelId | null = null;
+    setMobilePanelId((prev) => {
+      next = prev === panel ? null : panel;
+      return next;
     });
     if (pulseTimeoutRef.current !== null) {
       globalThis.clearTimeout(pulseTimeoutRef.current);
       pulseTimeoutRef.current = null;
     }
-    if (nextTab) {
-      setPulseTab(nextTab);
+    if (next) {
+      setPulsePanelId(next);
       pulseTimeoutRef.current = globalThis.setTimeout(() => {
-        setPulseTab((current) => (current === nextTab ? null : current));
+        setPulsePanelId((current) => (current === next ? null : current));
         pulseTimeoutRef.current = null;
       }, 260);
     } else {
-      setPulseTab(null);
+      setPulsePanelId(null);
     }
     setSheetSnap("peek");
     setSheetDragOffsetPx(0);
@@ -314,7 +364,7 @@ export function HomePageClient() {
     const delta = sheetDragOffsetPx;
     if (delta > 120) {
       if (sheetSnap === "peek") {
-        setMobileTab(null);
+        setMobilePanelId(null);
       } else if (sheetSnap === "half") {
         setSheetSnap("peek");
       } else {
@@ -341,7 +391,8 @@ export function HomePageClient() {
     <>
       <FlightSourcePanel
         flightProviderId={s.flightProviderId}
-        onFlightProviderIdChange={s.setFlightProvider}
+        liveFlightFeeds={s.liveFlightFeeds}
+        onLiveFlightFeedsChange={s.setLiveFlightFeeds}
       />
       <ObserverLocationPanel
         observer={s.obs}
@@ -385,7 +436,6 @@ export function HomePageClient() {
         selectedFlightId={s.selectedFlightId}
         onSelectFlight={s.setSelectedFlightId}
       />
-      <SidebarSyncFooter />
     </>
   );
 
@@ -419,13 +469,13 @@ export function HomePageClient() {
       <AddToHomeScreenPrompt />
       {isWide ? (
         <div className="grid min-h-0 min-w-0 flex-1 auto-rows-[auto_minmax(0,1fr)] grid-cols-1 md:grid-cols-[20rem_minmax(0,1fr)_20rem]">
-          <header className="mt-chrome-bar w-full min-w-0 shrink-0 self-start overflow-hidden px-4 py-2.5 pt-[max(0.5rem,env(safe-area-inset-top))] md:col-start-1 md:row-start-1">
+          <header className="mt-chrome-bar flex w-full min-w-0 shrink-0 items-center overflow-hidden px-4 py-2.5 pt-[max(0.5rem,env(safe-area-inset-top))] md:col-start-1 md:row-start-1 md:self-center">
             <AppHeaderBrand compact={false} />
           </header>
-          <div className="shrink-0 md:col-span-2 md:col-start-2 md:row-start-1">
+          <div className="min-h-0 shrink-0 md:col-span-2 md:col-start-2 md:row-start-1 md:self-stretch">
             <TimeAndWeatherBlock {...timeBlockProps} />
           </div>
-          <aside className="mt-side-rail min-h-0 min-w-0 overflow-y-auto border-r p-4 text-zinc-200 [scrollbar-gutter:stable] md:col-start-1 md:row-start-2">
+          <aside className="mt-side-rail min-h-0 min-w-0 overflow-y-auto border-r px-4 pb-4 pt-0 text-zinc-200 [scrollbar-gutter:stable] md:col-start-1 md:row-start-2">
             {missionPanels}
           </aside>
           <div className="relative min-h-0 min-w-0 overflow-hidden shadow-[0_0_0_1px_rgba(63,63,70,0.5),0_24px_80px_-20px_rgba(0,0,0,0.55)] md:col-start-2 md:row-start-2 md:rounded-md">
@@ -435,7 +485,7 @@ export function HomePageClient() {
               fieldSoundsEnabled={s.beepOnTransit}
             />
           </div>
-          <aside className="mt-side-rail min-h-0 min-w-0 overflow-y-auto border-l p-4 text-zinc-200 [scrollbar-gutter:stable] md:col-start-3 md:row-start-2">
+          <aside className="mt-side-rail min-h-0 min-w-0 overflow-y-auto border-l px-4 pb-4 pt-0 text-zinc-200 [scrollbar-gutter:stable] md:col-start-3 md:row-start-2">
             {fieldPanels}
           </aside>
         </div>
@@ -453,10 +503,11 @@ export function HomePageClient() {
               fieldSoundsEnabled={s.beepOnTransit}
             />
           </div>
-          {mobileTab ? (
+          {mobilePanelId ? (
             <section
-              className={`absolute inset-x-0 bottom-[calc(3.8rem+env(safe-area-inset-bottom))] z-50 max-h-[78dvh] min-h-[42dvh] overflow-hidden rounded-t-lg border border-zinc-800 bg-zinc-950/98 shadow-[0_-12px_60px_-12px_rgba(0,0,0,0.65)] backdrop-blur-2xl transition-[height,transform,box-shadow] duration-300 motion-reduce:transition-none ${sheetHeightClass}`}
-              aria-label={`${mobileTabTitle} controls`}
+              className={`absolute inset-x-0 bottom-[calc(3.35rem+env(safe-area-inset-bottom))] z-50 max-h-[78dvh] min-h-[42dvh] overflow-hidden rounded-t-lg border border-zinc-800 bg-zinc-950/98 shadow-[0_-12px_60px_-12px_rgba(0,0,0,0.65)] backdrop-blur-2xl transition-[height,transform,box-shadow] duration-300 motion-reduce:transition-none ${sheetHeightClass}`}
+              aria-label={`${mobileSheetTitle} controls`}
+              aria-labelledby={`mobile-shell-tab-${mobilePanelId}`}
               style={{
                 transform: `translateY(${Math.max(0, sheetDragOffsetPx)}px)`,
                 transitionTimingFunction: "cubic-bezier(0.2, 0.9, 0.2, 1.06)",
@@ -480,12 +531,12 @@ export function HomePageClient() {
                   title="Adjust panel height"
                 />
                 <h2 className="text-sm font-semibold tracking-wide text-zinc-100">
-                  {mobileTabTitle}
+                  {mobileSheetTitle}
                 </h2>
                 <button
                   type="button"
                   onClick={() => {
-                    setMobileTab(null);
+                    setMobilePanelId(null);
                   }}
                   className="rounded-md border border-white/12 bg-[#121212] px-2 py-1 font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-300"
                   aria-label="Close controls"
@@ -493,55 +544,92 @@ export function HomePageClient() {
                   Close
                 </button>
               </header>
-              <div className="h-[calc(100%-3rem)] overflow-y-auto px-3 py-2 text-zinc-200 [scrollbar-gutter:stable]">
-                {mobileTab === "mission" ? (
-                  <>
-                    <FlightSourcePanel
-                      flightProviderId={s.flightProviderId}
-                      onFlightProviderIdChange={s.setFlightProvider}
-                    />
-                    <MoonEphemerisPanel
-                      moon={s.moon}
-                      observer={s.obs}
-                      display={s.moonDisplay}
-                      moonRise={s.moonRise}
-                      moonSet={s.moonSet}
-                      moonRiseSetKind={s.moonRiseSetKind}
-                      showEphemeris={s.showEphemeris}
-                      isMoonBelowHorizon={s.isMoonBelowHorizon}
-                      snapshotContext={{
-                        referenceEpochMs: s.referenceEpochMs,
-                        observerLat: s.obs.lat,
-                        observerLng: s.obs.lng,
-                        observerGroundHeightMeters: s.obs.groundHeightMeters,
-                      }}
-                    />
-                    <TransitCandidatesPanel
-                      candidates={s.candidatesDisplay}
-                      isLoading={s.isLoading}
-                      error={s.error}
-                      showEmpty={s.showEmptyCandidates}
-                      showEphemeris={s.showEphemeris}
-                      selectedFlightId={s.selectedFlightId}
-                      notificationsSupported={
-                        candidateNotifications.notificationsSupported
-                      }
-                      notificationPermission={candidateNotifications.permission}
-                      watchedFlightIds={candidateNotifications.watchedFlightIds}
-                      onSelectFlight={s.setSelectedFlightId}
-                      onToggleWatchFlight={
-                        candidateNotifications.toggleWatchForFlight
-                      }
-                    />
-                    <ActiveTransitsPanel
-                      rows={s.activeTransits}
-                      showEphemeris={s.showEphemeris}
-                      selectedFlightId={s.selectedFlightId}
-                      onSelectFlight={s.setSelectedFlightId}
-                    />
-                  </>
+              <div
+                id="mobile-shell-sheet-panel"
+                role="tabpanel"
+                className="h-[calc(100%-3rem)] overflow-y-auto px-3 py-2 text-zinc-200 [scrollbar-gutter:stable]"
+              >
+                {mobilePanelId === "flight" ? (
+                  <FlightSourcePanel
+                    flightProviderId={s.flightProviderId}
+                    liveFlightFeeds={s.liveFlightFeeds}
+                    onLiveFlightFeedsChange={s.setLiveFlightFeeds}
+                  />
                 ) : null}
-                {mobileTab === "time" ? (
+                {mobilePanelId === "observer" ? (
+                  <div className="space-y-3">
+                    <ObserverLocationPanel
+                      observer={s.obs}
+                      onUseGps={s.onUseGps}
+                      gpsBusy={s.gpsBusy}
+                      gpsError={s.gpsError}
+                      locationActionsDisabled={s.observerLocationLocked}
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={requestPlaceObserverFromView}
+                        disabled={observerLocationLocked}
+                        className="rounded-md border border-blue-500/35 bg-blue-500/08 px-2.5 py-2.5 font-[family-name:var(--font-jetbrains-mono)] text-xs font-medium text-yellow-400/90 disabled:opacity-40"
+                      >
+                        Set my location here
+                      </button>
+                      <button
+                        type="button"
+                        onClick={requestFocusOnObserver}
+                        className="rounded-md border border-white/15 bg-[#121212] px-2.5 py-2.5 font-[family-name:var(--font-jetbrains-mono)] text-xs font-medium text-zinc-200"
+                      >
+                        Focus on me
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+                {mobilePanelId === "moon" ? (
+                  <MoonEphemerisPanel
+                    moon={s.moon}
+                    observer={s.obs}
+                    display={s.moonDisplay}
+                    moonRise={s.moonRise}
+                    moonSet={s.moonSet}
+                    moonRiseSetKind={s.moonRiseSetKind}
+                    showEphemeris={s.showEphemeris}
+                    isMoonBelowHorizon={s.isMoonBelowHorizon}
+                    snapshotContext={{
+                      referenceEpochMs: s.referenceEpochMs,
+                      observerLat: s.obs.lat,
+                      observerLng: s.obs.lng,
+                      observerGroundHeightMeters: s.obs.groundHeightMeters,
+                    }}
+                  />
+                ) : null}
+                {mobilePanelId === "candidates" ? (
+                  <TransitCandidatesPanel
+                    candidates={s.candidatesDisplay}
+                    isLoading={s.isLoading}
+                    error={s.error}
+                    showEmpty={s.showEmptyCandidates}
+                    showEphemeris={s.showEphemeris}
+                    selectedFlightId={s.selectedFlightId}
+                    notificationsSupported={
+                      candidateNotifications.notificationsSupported
+                    }
+                    notificationPermission={candidateNotifications.permission}
+                    watchedFlightIds={candidateNotifications.watchedFlightIds}
+                    onSelectFlight={s.setSelectedFlightId}
+                    onToggleWatchFlight={
+                      candidateNotifications.toggleWatchForFlight
+                    }
+                  />
+                ) : null}
+                {mobilePanelId === "active" ? (
+                  <ActiveTransitsPanel
+                    rows={s.activeTransits}
+                    showEphemeris={s.showEphemeris}
+                    selectedFlightId={s.selectedFlightId}
+                    onSelectFlight={s.setSelectedFlightId}
+                  />
+                ) : null}
+                {mobilePanelId === "time" ? (
                   <div className="space-y-3">
                     <div className="rounded-md border border-white/10 bg-[#121212]/90 px-2.5 py-2">
                       <WeatherOverlay />
@@ -570,167 +658,58 @@ export function HomePageClient() {
                     </button>
                   </div>
                 ) : null}
-                {mobileTab === "observer" ? (
-                  <div className="space-y-3">
-                    <ObserverLocationPanel
-                      observer={s.obs}
-                      onUseGps={s.onUseGps}
-                      gpsBusy={s.gpsBusy}
-                      gpsError={s.gpsError}
-                      locationActionsDisabled={s.observerLocationLocked}
-                    />
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={requestPlaceObserverFromView}
-                        disabled={observerLocationLocked}
-                        className="rounded-md border border-blue-500/35 bg-blue-500/08 px-2.5 py-2.5 font-[family-name:var(--font-jetbrains-mono)] text-xs font-medium text-yellow-400/90 disabled:opacity-40"
-                      >
-                        Set my location here
-                      </button>
-                      <button
-                        type="button"
-                        onClick={requestFocusOnObserver}
-                        className="rounded-md border border-white/15 bg-[#121212] px-2.5 py-2.5 font-[family-name:var(--font-jetbrains-mono)] text-xs font-medium text-zinc-200"
-                      >
-                        Focus on me
-                      </button>
-                    </div>
-                  </div>
+                {mobilePanelId === "photo" ? (
+                  <PhotographerToolsPanel
+                    selectedFlightId={s.selectedFlightId}
+                    photoPack={s.photoPack}
+                    photoShotFeasibility={s.photoShotFeasibility}
+                    photoUnavailableReason={s.photoUnavailableReason}
+                    beepOnTransit={s.beepOnTransit}
+                    onToggleBeep={() => {
+                      s.setBeepOnTransit((b) => !b);
+                    }}
+                  />
                 ) : null}
-                {mobileTab === "field" ? (
-                  <>
-                    <PhotographerToolsPanel
-                      selectedFlightId={s.selectedFlightId}
-                      photoPack={s.photoPack}
-                      photoShotFeasibility={s.photoShotFeasibility}
-                      photoUnavailableReason={s.photoUnavailableReason}
-                      beepOnTransit={s.beepOnTransit}
-                      onToggleBeep={() => {
-                        s.setBeepOnTransit((b) => !b);
-                      }}
-                    />
-                    <CompassAimPanel />
-                    <FieldOverlaysSection />
-                  </>
-                ) : null}
+                {mobilePanelId === "compass" ? <CompassAimPanel /> : null}
+                {mobilePanelId === "field" ? <FieldOverlaysSection /> : null}
               </div>
             </section>
           ) : null}
           <nav
-            className="absolute inset-x-0 bottom-0 z-[60] border-t border-zinc-800 bg-black/92 px-2 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-2xl"
+            className="absolute inset-x-0 bottom-0 z-[60] border-t border-zinc-800 bg-black/92 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1 backdrop-blur-2xl"
             aria-label="Primary mobile navigation"
-            role="tablist"
           >
-            <div className="grid grid-cols-4 gap-1.5">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mobileTab === "mission"}
-                onClick={() => {
-                  openMobileTab("mission");
-                }}
-                className={`flex min-h-12 flex-col items-center justify-center rounded-xl px-2 py-1.5 text-center text-[0.68rem] font-medium transition duration-150 active:scale-[0.96] motion-reduce:transition-none ${
-                  mobileTab === "mission"
-                    ? "bg-zinc-900 text-zinc-50 ring-1 ring-blue-500/50"
-                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
-                } ${pulseTab === "mission" ? "scale-[1.03]" : ""}`}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  className="mb-0.5 h-4.5 w-4.5"
-                  aria-hidden
-                >
-                  <path d="M3 10.5 12 4l9 6.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z" />
-                  <path d="M9.5 20v-5.5a2.5 2.5 0 0 1 5 0V20" />
-                </svg>
-                Mission
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mobileTab === "time"}
-                onClick={() => {
-                  openMobileTab("time");
-                }}
-                className={`flex min-h-12 flex-col items-center justify-center rounded-xl px-2 py-1.5 text-center text-[0.68rem] font-medium transition duration-150 active:scale-[0.96] motion-reduce:transition-none ${
-                  mobileTab === "time"
-                    ? "bg-zinc-900 text-zinc-50 ring-1 ring-yellow-500/45"
-                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
-                } ${pulseTab === "time" ? "scale-[1.03]" : ""}`}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  className="mb-0.5 h-4.5 w-4.5"
-                  aria-hidden
-                >
-                  <circle cx="12" cy="12" r="8.5" />
-                  <path d="M12 7.75v4.5l3 2" />
-                </svg>
-                Time
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mobileTab === "observer"}
-                onClick={() => {
-                  openMobileTab("observer");
-                }}
-                className={`flex min-h-12 flex-col items-center justify-center rounded-xl px-2 py-1.5 text-center text-[0.68rem] font-medium transition duration-150 active:scale-[0.96] motion-reduce:transition-none ${
-                  mobileTab === "observer"
-                    ? "bg-zinc-900 text-zinc-50 ring-1 ring-zinc-500/40"
-                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
-                } ${pulseTab === "observer" ? "scale-[1.03]" : ""}`}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  className="mb-0.5 h-4.5 w-4.5"
-                  aria-hidden
-                >
-                  <path d="M12 20s6-3.6 6-9a6 6 0 1 0-12 0c0 5.4 6 9 6 9Z" />
-                  <circle cx="12" cy="11" r="2.5" />
-                </svg>
-                Observer
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mobileTab === "field"}
-                onClick={() => {
-                  openMobileTab("field");
-                }}
-                className={`flex min-h-12 flex-col items-center justify-center rounded-xl px-2 py-1.5 text-center text-[0.68rem] font-medium transition duration-150 active:scale-[0.96] motion-reduce:transition-none ${
-                  mobileTab === "field"
-                    ? "bg-zinc-900 text-zinc-50 ring-1 ring-blue-400/45"
-                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
-                } ${pulseTab === "field" ? "scale-[1.03]" : ""}`}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  className="mb-0.5 h-4.5 w-4.5"
-                  aria-hidden
-                >
-                  <path d="M12 3v3m0 12v3M4.2 7.2l2.1 2.1m11.4 0 2.1-2.1M3 12h3m12 0h3M6.3 14.7l-2.1 2.1m13.5-2.1 2.1 2.1" />
-                  <circle cx="12" cy="12" r="4.25" />
-                </svg>
-                Field
-              </button>
+            <div
+              className="flex w-full snap-x snap-mandatory gap-1.5 overflow-x-auto px-2 pt-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              role="tablist"
+            >
+              {MOBILE_BOTTOM_TABS.map((t) => {
+                const selected = mobilePanelId === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    id={`mobile-shell-tab-${t.id}`}
+                    type="button"
+                    ref={(el) => {
+                      mobileTabBtnRefs.current[t.id] = el;
+                    }}
+                    role="tab"
+                    aria-selected={selected}
+                    aria-controls="mobile-shell-sheet-panel"
+                    data-testid={`mobile-shell-tab-${t.id}`}
+                    onClick={() => {
+                      openMobilePanel(t.id);
+                    }}
+                    className={`flex min-h-11 min-w-[calc((100vw-2.25rem)/5)] max-w-[6.25rem] shrink-0 snap-start flex-col items-center justify-center rounded-lg px-1.5 py-1 text-center text-[0.65rem] font-semibold leading-tight transition duration-150 active:scale-[0.97] motion-reduce:transition-none sm:min-w-[4.25rem] ${
+                      selected
+                        ? "bg-zinc-900 text-zinc-50 ring-1 ring-blue-500/45"
+                        : "text-zinc-400 hover:bg-zinc-800/55 hover:text-zinc-200"
+                    } ${pulsePanelId === t.id ? "scale-[1.03]" : ""}`}
+                  >
+                    {t.tabLabel}
+                  </button>
+                );
+              })}
             </div>
           </nav>
         </div>

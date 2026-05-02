@@ -23,7 +23,7 @@ Before starting any significant task, review these files:
 ## 4. UI & STYLE GUIDELINES
 - **User-Facing Language:** UI copy MUST be in **English**.
 - **Styling:** Use **Tailwind CSS 4**. Follow the existing color palette (zinc, emerald, amber, sky).
-- **Dropdowns / discrete pickers:** Do **not** add new native `<select>` in the shell or main planning UI. Use the same **combobox** pattern as `FlightProviderSelect` and `CameraSensorSelect`: button trigger + chevron, listbox in a **`document.body` portal** (`z-[280]`, sky/zinc glass), so menus are not clipped by `ShellSectionCard` `overflow-hidden`. Expose `data-testid` + `data-value` on the trigger for E2E. Details: `documentation/technicalconventions.md` → *Combobox (dropdown) pattern*.
+- **Dropdowns / discrete pickers:** Do **not** add new native `<select>` in the shell or main planning UI. Reuse **`src/lib/ui/shellComboboxStyles.ts`** with the same **combobox** pattern as `FlightProviderSelect` and `CameraSensorSelect`: button trigger + chevron, listbox in a **`document.body` portal** (`z-[280]`, zinc glass + blue accent rings), so menus are not clipped by `ShellSectionCard` `overflow-hidden`. Expose `data-testid` + `data-value` on the trigger for E2E. Details: `documentation/technicalconventions.md` → *Combobox (dropdown) pattern*.
 - **Mapbox:** All layers and sources must be managed within `MapContainer.tsx` to maintain sync.
 
 ## 5. PHOTOGRAPHER TOOLS

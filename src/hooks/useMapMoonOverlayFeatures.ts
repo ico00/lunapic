@@ -4,6 +4,7 @@ import {
   MOON_PATH_STEP_MS,
 } from "@/lib/domain/astro/astroService";
 import { GeometryEngine } from "@/lib/domain/geometry/geometryEngine";
+import { ENABLE_STATIC_ROUTE_MAP_OVERLAY } from "@/data/staticRouteUtils";
 import {
   CRUISE_FL_M,
   MOON_AZ_LENGTH_M,
@@ -201,6 +202,9 @@ export function useMapMoonOverlayFeatures(
   const intersectionFeatures = useMemo(
     () =>
       fieldPerfTime("overlay:intersections", () => {
+        if (!ENABLE_STATIC_ROUTE_MAP_OVERLAY) {
+          return [];
+        }
         const hits = GeometryEngine.intersectMoonAzimuthWithStaticRoutes(
           { lat: observerLat, lng: observerLng },
           moon,

@@ -1,4 +1,5 @@
 import type { AnyLayer, Map } from "mapbox-gl";
+import { flightFeatureColorMapboxExpressionForAltitudeTint } from "@/lib/map/flightAltitudeColor";
 import {
   FLIGHT_3D_MODEL_ID,
   FLIGHT_3D_MODEL_URL,
@@ -132,12 +133,9 @@ function addFlightsCircleFallback(map: Map): void {
     source: FLIGHTS_SOURCE,
     paint: {
       "circle-radius": 6,
-      "circle-color": [
-        "case",
-        ["boolean", ["get", "isShotFeasible"], false],
-        "#22c55e",
-        "#38bdf8",
-      ],
+      "circle-color": flightFeatureColorMapboxExpressionForAltitudeTint(
+        true
+      ) as never,
       "circle-stroke-color": "#0f172a",
       "circle-stroke-width": 1,
     },
@@ -189,12 +187,9 @@ function addFlightsModelLayer(map: Map): void {
           360,
         ],
       ],
-      "model-color": [
-        "case",
-        ["boolean", ["get", "isShotFeasible"], false],
-        "#22c55e",
-        "#38bdf8",
-      ],
+      "model-color": flightFeatureColorMapboxExpressionForAltitudeTint(
+        true
+      ) as never,
       "model-color-mix-intensity": 0.55,
     },
   } as unknown as AnyLayer);

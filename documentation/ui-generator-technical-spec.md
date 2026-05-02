@@ -265,7 +265,7 @@ Korijen aplikacije u shellu: `mt-app-root`, `h-dvh`, `overflow-hidden`, `flex-co
 ### 9.4 Sadržaj stupaca (redoslijed komponenti)
 
 **Lijevo (Mission):**  
-`FlightSourcePanel` → `ObserverLocationPanel` → `MoonEphemerisPanel` → `TransitCandidatesPanel` → `ActiveTransitsPanel` → `SidebarSyncFooter`.
+`FlightSourcePanel` → `ObserverLocationPanel` → `MoonEphemerisPanel` → `TransitCandidatesPanel` → `ActiveTransitsPanel`.
 
 **Desno (Field):**  
 `PhotographerToolsPanel` → `CompassAimPanel` → `FieldOverlaysSection`.
@@ -274,7 +274,7 @@ Korijen aplikacije u shellu: `mt-app-root`, `h-dvh`, `overflow-hidden`, `flex-co
 
 - Karta: `flex-1`, bottom padding za navigaciju; **floating** brand chip (`z-40`, staklo).
 - **Sheet:** `z-50`, `max-h-[78dvh]`, snap visine (`peek` / `half` / `full`), drag handle, `translateY` za drag.
-- **Tab bar:** `z-[60]`, 4 taba: Mission, Time & weather, Observer, Photo & field — `role="tablist"`.
+- **Tab bar:** `z-[60]`, horizontal scroll, ~5 tab widths visible; one tab per shell card (Flight … Field) — inner `role="tablist"` (see `HomePageClient` + `MOBILE_BOTTOM_TABS`).
 - Mobilni sadržaj decka: `data-testid="mobile-deck-content"` (CSS za `select` u `globals.css` ga cilja).
 
 ---

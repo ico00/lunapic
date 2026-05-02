@@ -46,7 +46,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${jetbrainsMono.variable} ${outfit.variable} h-full antialiased`}
     >
       <body className="mt-app-bg flex min-h-0 min-h-full flex-col text-zinc-200">
-        <main className="mt-app-bg-main flex min-h-0 min-h-full flex-1 flex-col">
+        <main className="mt-app-bg-main flex min-h-0 min-h-dvh flex-1 flex-col bg-transparent">
           {children}
         </main>
       </body>

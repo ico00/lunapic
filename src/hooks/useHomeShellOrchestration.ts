@@ -22,7 +22,16 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
  */
 export function useHomeShellOrchestration() {
   const flightProviderId = useMoonTransitStore((s) => s.flightProvider);
-  const setFlightProvider = useMoonTransitStore((s) => s.setFlightProvider);
+  const ensureFlightSourceComboboxMode = useMoonTransitStore(
+    (s) => s.ensureFlightSourceComboboxMode
+  );
+  useLayoutEffect(() => {
+    ensureFlightSourceComboboxMode();
+  }, [ensureFlightSourceComboboxMode]);
+  const liveFlightFeeds = useMoonTransitStore((s) => s.liveFlightFeeds);
+  const setLiveFlightFeeds = useMoonTransitStore(
+    (s) => s.setLiveFlightFeeds
+  );
   const flightProvider = useMemo(
     () => getFlightProvider(flightProviderId),
     [flightProviderId]
@@ -161,7 +170,8 @@ export function useHomeShellOrchestration() {
 
   return {
     flightProviderId,
-    setFlightProvider,
+    liveFlightFeeds,
+    setLiveFlightFeeds,
     flightProvider,
     moon,
     isLoading,

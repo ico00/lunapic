@@ -11,8 +11,15 @@ import {
 } from "react";
 
 import { useHasMounted } from "@/hooks/useHasMounted";
+import { clampFloatingMenuLeft } from "@/lib/ui/clampFloatingMenuLeft";
 import {
-  FLIGHT_PROVIDER_IDS,
+  shellAccentCheckboxClass,
+  shellComboboxListboxPortalClass,
+  shellComboboxTriggerClass,
+} from "@/lib/ui/shellComboboxStyles";
+import type { LiveFlightFeeds } from "@/stores/moon-transit-store";
+import {
+  FLIGHT_PROVIDER_COMBO_IDS,
   type FlightProviderId,
 } from "@/types/flight-provider";
 
@@ -29,18 +36,36 @@ function labelForProvider(id: FlightProviderId): string {
   return "OpenSky (ADS-B)";
 }
 
+function triggerLabel(
+  value: FlightProviderId,
+  liveFlightFeeds: LiveFlightFeeds
+): string {
+  if (value !== "opensky" && value !== "adsbone") {
+    return labelForProvider(value);
+  }
+  if (liveFlightFeeds.opensky && liveFlightFeeds.adsbone) {
+    return "OpenSky + ADS-B One (merged)";
+  }
+  if (liveFlightFeeds.opensky) {
+    return labelForProvider("opensky");
+  }
+  return labelForProvider("adsbone");
+}
+
 type FlightProviderSelectProps = {
   value: FlightProviderId;
-  onChange: (id: FlightProviderId) => void;
+  liveFlightFeeds: LiveFlightFeeds;
+  onLiveFlightFeedsChange: (patch: Partial<LiveFlightFeeds>) => void;
 };
 
 /**
- * Stilizirani combobox umjesto nativnog &lt;select&gt; (Shell kartica koristi
- * `overflow-hidden` — popis se iscrtava u portal da ne bude odsječen).
+ * Combobox (portal): samo **OpenSky** i **ADS-B One** kao checkbox redovi
+ * (`static` / `mock` nisu u izborniku).
  */
 export function FlightProviderSelect({
   value,
-  onChange,
+  liveFlightFeeds,
+  onLiveFlightFeedsChange,
 }: FlightProviderSelectProps) {
   const hasMounted = useHasMounted();
   const [open, setOpen] = useState(false);
@@ -68,6 +93,21 @@ export function FlightProviderSelect({
     }
     updatePosition();
   }, [open, updatePosition]);
+
+  useLayoutEffect(() => {
+    if (!open || !pos) {
+      return;
+    }
+    const menu = menuRef.current;
+    if (!menu) {
+      return;
+    }
+    const w = menu.getBoundingClientRect().width;
+    const nextLeft = clampFloatingMenuLeft(pos.left, w);
+    if (Math.abs(nextLeft - pos.left) >= 1) {
+      setPos((p) => (p ? { ...p, left: nextLeft } : null));
+    }
+  }, [open, pos]);
 
   useEffect(() => {
     if (!open) {
@@ -101,52 +141,70 @@ export function FlightProviderSelect({
     };
   }, [open, updatePosition]);
 
-  const onPick = (id: FlightProviderId) => {
-    onChange(id);
-    setOpen(false);
-  };
+  const buttonText = triggerLabel(value, liveFlightFeeds);
+
+  const optionRowBase =
+    "cursor-pointer select-none rounded-md px-2.5 py-1.5 text-left text-sm outline-none";
+  const liveRowClass = (feedOn: boolean) =>
+    feedOn
+      ? `${optionRowBase} bg-blue-500/20 text-yellow-400`
+      : `${optionRowBase} text-zinc-200 hover:bg-zinc-800 hover:text-zinc-50 focus:bg-zinc-900`;
 
   const listbox =
     open && pos && hasMounted ? (
       <ul
         ref={menuRef}
         id={listboxId}
+        data-testid="flight-provider-menu"
         role="listbox"
-        className="fixed z-[280] m-0 max-h-60 list-none overflow-y-auto rounded-md border border-zinc-700 bg-zinc-950/98 p-1 py-1 shadow-[0_12px_40px_rgba(0,0,0,0.55)] ring-1 ring-inset ring-zinc-800 backdrop-blur-md"
+        aria-label="Flight data provider"
+        className={shellComboboxListboxPortalClass}
         style={{
           top: pos.top,
           left: pos.left,
-          width: pos.width,
+          minWidth: pos.width,
+          width: "max-content",
+          maxWidth: "min(calc(100vw - 1rem), 22rem)",
         }}
       >
-        {FLIGHT_PROVIDER_IDS.map((id) => {
-          const isSel = id === value;
+        {FLIGHT_PROVIDER_COMBO_IDS.map((id) => {
+          const feedOn =
+            id === "opensky"
+              ? liveFlightFeeds.opensky
+              : liveFlightFeeds.adsbone;
           return (
             <li
               key={id}
-              role="option"
-              tabIndex={-1}
-              aria-selected={isSel}
-              className={
-                isSel
-                  ? "cursor-pointer select-none rounded-md bg-blue-500/20 px-2.5 py-1.5 text-left text-sm text-yellow-400"
-                  : "cursor-pointer select-none rounded-md px-2.5 py-1.5 text-left text-sm text-zinc-200 outline-none hover:bg-zinc-800 hover:text-zinc-50 focus:bg-zinc-900"
-              }
+              role="presentation"
+              className={liveRowClass(feedOn)}
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => onPick(id)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onPick(id);
-                }
-                if (e.key === "Escape") {
-                  e.stopPropagation();
-                  setOpen(false);
-                  triggerRef.current?.focus();
-                }
-              }}
             >
-              {labelForProvider(id)}
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  data-testid={
+                    id === "opensky"
+                      ? "live-feed-opensky"
+                      : "live-feed-adsbone"
+                  }
+                  checked={feedOn}
+                  onChange={(e) => {
+                    if (id === "opensky") {
+                      onLiveFlightFeedsChange({
+                        opensky: e.target.checked,
+                      });
+                    } else {
+                      onLiveFlightFeedsChange({
+                        adsbone: e.target.checked,
+                      });
+                    }
+                  }}
+                  className={shellAccentCheckboxClass}
+                />
+                <span className="min-w-0 flex-1 select-none">
+                  {labelForProvider(id)}
+                </span>
+              </label>
             </li>
           );
         })}
@@ -160,7 +218,7 @@ export function FlightProviderSelect({
         type="button"
         data-testid="flight-provider-select"
         data-value={value}
-        className="inline-flex w-full min-w-0 items-center justify-between gap-2 rounded-md border border-zinc-700 bg-zinc-900/80 py-1.5 pl-2.5 pr-2 text-left text-sm text-zinc-200 shadow-inner outline-none ring-inset backdrop-blur-sm transition hover:border-blue-500/35 hover:bg-zinc-900 focus:ring-2 focus:ring-blue-500/25"
+        className={shellComboboxTriggerClass}
         aria-label="Flight data provider"
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -177,9 +235,7 @@ export function FlightProviderSelect({
           }
         }}
       >
-        <span className="min-w-0 flex-1 truncate">
-          {labelForProvider(value)}
-        </span>
+        <span className="min-w-0 flex-1 truncate">{buttonText}</span>
         <svg
           className={`h-4 w-4 shrink-0 text-zinc-500 transition ${open ? "rotate-180" : ""}`}
           viewBox="0 0 24 24"

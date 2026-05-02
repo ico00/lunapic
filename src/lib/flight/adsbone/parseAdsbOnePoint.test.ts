@@ -31,7 +31,7 @@ describe("parseAdsbOnePoint", () => {
     const now = 1_675_633_671_226;
     const f = adsbOneAircraftToFlightState(row, view, now);
     expect(f).not.toBeNull();
-    expect(f!.id).toBe("A9CEE9");
+    expect(f!.id).toBe("a9cee9");
     expect(f!.callSign).toBe("N731BP");
     expect(f!.position.lat).toBeCloseTo(37.358322, 5);
     expect(f!.baroAltitudeMeters).toBeCloseTo(38000 * 0.3048, 1);

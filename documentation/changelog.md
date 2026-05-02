@@ -8,15 +8,55 @@ where version bumps are made for releases (currently `0.x`).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Map — selected aircraft card (mobile dock)** — Popup anchor sits at the **bottom of the map canvas** with a **pixel `setOffset`** derived from the map wrapper’s **`padding-bottom`** (same strip as the bottom tab bar), so the card meets the tabs instead of floating with a gap. Card styling on small screens matches the tab strip (**`bg-black/92`**, **no bottom radius / border**, **`border-zinc-800`**, no drop shadow). Popup **`z-index`** is **54** under the tab bar (**60**).
+
+- **Map — moon × static route intersection markers** — Yellow **`moon-intersections`** points are only built when **`ENABLE_STATIC_ROUTE_MAP_OVERLAY`** is on (same gate as the violet `routes.json` polylines). With the overlay off, **`useMapMoonOverlayFeatures`** now returns an empty intersection list so stray demo-route dots no longer sit on the live map. `routes.json` remains in use for OpenSky hull / domain math.
+
+- **Moon (nowcast) — altitude visibility dot** — The tier indicator next to **Altitude** again uses **red** (`critical`, e.g. below horizon), **amber** (`caution`, 5–12°), and **emerald** (`optimal`, ≥ 12°). A prior styling pass had mapped `critical`/`optimal` to yellow/blue so the dot no longer matched field-visibility meaning.
+
+### Changed
+
+- **UI — mobile bottom tabs (per card)** — Below `md`, the bottom bar is now a **horizontally scrollable tab list** (≈**five** tab widths visible at once via `min-width: calc((100vw - padding) / 5)`), one tab per main **Shell** card: **Flight**, **Observer**, **Moon**, **Tracks** (transit candidates), **Active**, **Time**, **Photo**, **Compass**, **Field**. Tapping opens the same bottom sheet with **only that panel** (replacing the old four grouped tabs: Mission / Time / Observer / Field). **`useLayoutEffect`** scrolls the active tab toward center; `data-testid="mobile-shell-tab-<id>"`.
+
+- **UI — transit candidates** — Removed the tiny footnote under **Transit candidates** (“Notify me on watched flights…”). Bell buttons keep **`aria-label`** / **`title`** for alerts and permission context.
+
+- **Shell — sidebar footnote** — Removed **`SidebarSyncFooter`** (the dashed “Fixed observer… routes.json… provider…” note under Active transits). Behaviour is unchanged; details remain in About / architecture.
+
+- **Map — altitude color scale** — Aircraft tint by **`altitudeMeters`** is now **light green (low) → green → blue → dark blue (~12 km)** instead of grey→rainbow→red; legend stops match. **Shot-feasible** override stays **`#22c55e`**.
+
+- **Map — altitude legend readability** — Larger type (`text-sm` / `text-base` title, `text-xs`–`text-sm` mono ticks), taller gradient bar, wider padding; tick labels shortened to **`0m` / `2k` / `4.5k`** style so they stay on one line. **`shellAccentCheckboxClass`** uses **`h-4 w-4`** for a clearer control.
+
+- **Map — altitude legend copy** — **`FlightAltitudeLegend`** keeps title, scale, tick labels, and **Color by altitude** only; long footnotes moved to About FAQ (**What does the altitude color bar on the map mean?**). Checkbox retains a concise **`aria-label`** for screen readers.
+
+- **UI — shell combobox + map legend styling** — **`shellComboboxStyles.ts`** centralises trigger, portal listbox, glass panel, and accent checkbox classes. **`FlightProviderSelect`** now matches **`CameraSensorSelect`** (`h-9` trigger, same portal panel + width/clamp behaviour, **blue** checkbox accent vs sky). **`FlightAltitudeLegend`** uses the same **glass panel** and **`shellAccentCheckboxClass`** as the shell pickers.
+
+- **Flights — Flight source combobox** — Menu is **OpenSky** + **ADS-B One** checkboxes only (`FLIGHT_PROVIDER_COMBO_IDS`). **Mock** and **Routes (static)** are not listed. **`ensureFlightSourceComboboxMode`** migrates a lingering **`static`** session to live dual fetch. `mock` / `StaticFlightProvider` remain for tests and `routes.json` domain geometry (OpenSky hull, moon–route math).
+- **Flights — default live feeds** — `liveFlightFeeds` now starts with **both** OpenSky and ADS-B One enabled (`{ opensky: true, adsbone: true }`); the combobox trigger shows **OpenSky + ADS-B One (merged)** until the user narrows sources.
+- **Map — static route polylines** — The violet **`routes-geo`** / `routes-line` overlay from `routes.json` is **off** by default (`ENABLE_STATIC_ROUTE_MAP_OVERLAY = false` in `staticRouteUtils.ts`): those lines were **demo corridor geometry**, not real ADS-B history. Domain logic (OpenSky bbox hull, moon–route intersections) still uses `routes.json`; flip the flag when real historic route polylines are available.
+
 ### Added
 
-- **Flights — ADS-B One** — Provider id `adsbone`: `GET /api/adsbone/point` (proxied `api.adsb.one`), `AdsbOneFlightProvider`, parser `parseAdsbOnePoint.ts`; same query geometry as OpenSky via `openSkyStyleQueryRegion.ts`. Combobox label in `FlightProviderSelect`; `mergeFlightsWithOpenSkyRetention` applies to `adsbone` like OpenSky; map debounce unchanged from prior branch work.
+- **Map — altitude colors toggle** — **`FlightAltitudeLegend`** includes a **Color by altitude** checkbox (`data-testid="flight-altitude-colors-toggle"`). When off, **`mapAircraftAltitudeColors`** in `moon-transit-store` drives **`applyFlightLayerColorPaint`**: markers use a **single neutral tone** (`#94a3b8`); **shot-feasible** stays **green**. **`useMapFlightAltitudeColorsPaint`** reapplies paint after the async **3D model** swap (`idle`). Default: on (full altitude scale).
+
+- **Map — altitude color + legend** — Aircraft **3D model** and **circle** fallback use **`flightFeatureColorMapboxExpression`** (`flightAltitudeColor.ts`): interpolate by **`altitudeMeters`** (~12 km MSL; **light green → dark blue** scale; **shot-feasible** stays **`#22c55e`**). **`FlightAltitudeLegend`** on the map bottom documents the scale (English).
+- **Flights — dual live feeds** — In the **Flight source** combobox menu, **OpenSky** and **ADS-B One** rows use **checkboxes** only (no static/mock rows). Same **ICAO24** is **one map aircraft**: **`mergeLiveFlightLists`** (newer `timestamp` wins; sticky metadata). Merged mode shows **OpenSky + ADS-B One (merged)** on the trigger. `loadFlightsInBounds` uses `Promise.allSettled`; map debounce is slightly longer when both feeds are on.
+- **Flights — ADS-B One** — Provider id `adsbone`: `AdsbOneFlightProvider` + `parseAdsbOnePoint.ts`; same query geometry as OpenSky (`openSkyStyleQueryRegion.ts`). **Fetch:** browser-first **mirrors** `api.adsb.one` then `api.airplanes.live` (same `/v2/point/…` shape; second host often survives when Cloudflare blocks datacenter IPs), then same-origin `GET /api/adsbone/point` (tries both upstreams). Optional `NEXT_PUBLIC_ADSBONE_DISABLE_DIRECT=1` in `.env.local.example`.
 - **Photographer — field sounds** — With **Sounds on** and a selected aircraft, `useTransitFieldSounds` in `MapContainer` plays a short **chime** when that aircraft enters the **green** (shot-feasible) map set, and a **soft sustained tone** while it stays in the **moon-overlap** disc model (`screenTransitCandidates`); existing **countdown beeps** (≈3 s before alignment and at alignment) still use `useTransitBeep`. Shared short tones live in `src/lib/audio/fieldAudio.ts`; green-set logic is `computeShotFeasibleFlightIds` in `src/lib/domain/transit/computeShotFeasibleFlightIds.ts`.
 - **Moon (nowcast) — “Ideal for transit watch”** — When the observer is still the **default balcony** point and the simulated moon matches a saved reference band (altitude, azimuth, near-full illumination, apparent radius), the panel shows a yellow **Ideal for transit watch** callout (English) as a cue for waiting on a moon crossing with a clear sight line. Logic lives in `src/lib/domain/astro/balconyTransitWatchIdeal.ts`.
 - **Moon (nowcast) — field note** — When the Moon is above the horizon, **Copy field note** copies a plain-text block (English) to the clipboard: simulation instant (UTC + local), observer WGS84, **ground elevation (m)**, altitude/azimuth/angular radius/illumination, moonrise/moonset lines, and field visibility advice — for balcony or stand shot logs.
 - **Moon (nowcast)** — **Illuminated** row shows disk lit percentage (Suncalc `fraction`, 0–100%) next to altitude/azimuth; `MoonState` now includes `illuminationFraction` alongside phase.
 
 ### Fixed
+
+- **Flights — OpenSky ground traffic** — `flightsFromOpenSkyResponse` no longer skips states with **`on_ground`** set, so aircraft **on the apron / taxi / runway** (e.g. near Zagreb) can appear when OpenSky returns them. Velocity stats (`averageVelocityMpsInRegion`) still ignore on-ground rows for sensible speed averages.
+
+- **Flights — dual live duplicate markers** — OpenSky kept ICAO24 casing from the API while ADS-B One used uppercase `hex`, so the same aircraft produced **two** `FlightState.id` values and **two** map symbols. Both parsers and **`mergeLiveFlightLists`** now use **`canonicalIcao24Id`** (trim + lowercase).
+
+- **Shell — desktop header / rails** — Logo column uses `md:self-center` + `flex items-center` so it vertically centers against the taller time/weather chrome; `TimeAndWeatherBlock` uses `sm:items-center` so clouds, toolbar, and slider share a common vertical alignment; safe-area top padding matches both chrome rows; side rails use `pt-0` with horizontal/bottom padding so the first panel lines up with the map column top.
+
+- **Shell — page background** — Explicit black on `html` + solid black underlay on `body` so the viewport no longer shows a light grey “canvas” gutter outside the `mt-app-bg` gradients; `main` uses `min-h-dvh` + transparent fill.
 
 - **Field sounds on iOS Safari** — Web Audio from `useEffect` alone was silent; **`resumeSharedAudioFromUserGesture`** runs on **Sync** / toolbar taps (no extra sound), **`primeFieldAudioFromUserGesture`** on **Sounds on** plays a short unlock ping and reuses one **shared `AudioContext`** for chimes, hold tone, and countdown beeps. Photographer panel copy explains silent switch + ping.
 - **Map — 3D flight markers during zoom** — `model-scale` zoom compensation no longer calls `setPaintProperty` on every raw Mapbox `zoom` event (could flood the main thread during pinch/scroll zoom and make aircraft motion appear to stall until the gesture ended). Updates are coalesced with `requestAnimationFrame` and a final apply runs on `zoomend`.

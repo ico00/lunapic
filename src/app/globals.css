@@ -21,11 +21,18 @@
 
 html {
   color-scheme: dark;
+  /* Preglednici inače ostave svijetlu „canvas” podlogu (npr. izvan body / pri overscrollu). */
+  background-color: #000000;
 }
 
 html,
 body {
   height: 100%;
+}
+
+body {
+  /* Osnova ispod gradijenta u `.mt-app-bg` ako preflight kasnije dira `background`. */
+  background-color: #000000;
 }
 
 /* Crna + siva podloga, blaga plava/žuta atmosfera, diskretna mreža */
@@ -171,6 +178,18 @@ body {
 
 .moon-transit-aircraft-popup {
   z-index: 20;
+}
+
+/* Mobile: iznad moon legende / sheet-a, ispod bottom tabova — kartica „sjeda“ na traku. */
+@media (max-width: 767px) {
+  .moon-transit-aircraft-popup {
+    z-index: 54;
+  }
+
+  .moon-transit-aircraft-popup .mapboxgl-popup-content {
+    width: 100%;
+    max-width: none;
+  }
 }
 
 .moon-transit-aircraft-popup .mapboxgl-popup-content {

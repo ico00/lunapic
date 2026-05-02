@@ -75,12 +75,10 @@ NEXT_PUBLIC_MAPBOX_TOKEN=pk.your_mapbox_token
 
 ## Flight data modes
 
-The sidebar **Provider** combobox defaults to **OpenSky** on first load (order: OpenSky → ADS-B One → static → mock).
+The sidebar **Provider** control is a combobox with **two checkboxes** (OpenSky and ADS-B One) on first load both are **on** (merged fetch; trigger **OpenSky + ADS-B One (merged)**). **Static** demo flights and **mock** are not listed in the UI; `routes.json` hull still drives OpenSky bbox logic in code (`StaticFlightProvider` for tests).
 
 - **opensky** — Live (best-effort) ADS-B via OpenSky: bounded **fetch bbox** around the **observer** and demo corridor rules (see `documentation/architecture.md`); **display** uses the union of **map bounds** and the **observer ~100 km disk**, plus short **retention** between snapshots for steadier symbols on mobile. **Not** the same dataset as FlightRadar24 or other trackers — different coverage is normal.
-- **adsbone** — Live ADS-B via [ADS-B One](https://adsb.one/faq) (`GET /api/adsbone/point`, same `appPath` rules); same query geometry as OpenSky; community API with strict rate limits (the app caches and debounces map moves).
-- **static** — Positions on routes from `src/data/routes.json`; route polylines; track from the active route segment near the view center.
-- **mock** — Hard-coded test aircraft.
+- **adsbone** — Live ADS-B via [ADS-B One](https://adsb.one/faq): the **browser** calls `api.adsb.one` first (same query geometry as OpenSky), then falls back to same-origin `/api/adsbone/point` if needed — Cloudflare often blocks **server** IPs (e.g. Vercel). Community API; ~1 req/s; client cache + debounced map loads.
 
 ## Continuous integration
 

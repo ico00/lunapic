@@ -69,7 +69,7 @@ For day-to-day architecture rules, see `documentation/architecture.md`. For the 
 | `hooks/useHomeShellOrchestration.ts`        | All Zustand subscriptions, `usePhotographerTools`, `useTransitBeep`, `useGpsObserver`, time slider state, golden flash token, `beepOnTransit` / Field sounds toggle, derived lists.      |
 | `components/shell/HomePageClient.tsx`       | Layout: aside + map column; `useAstronomySync` + `useWeatherSync` + `useHomeShellOrchestration`; passes props from the orchestration hook into panels.                                 |
 | `components/shell/GoldenAlignmentFlash.tsx` | Full-screen flash on first “golden” alignment.                                                                                                                                         |
-| `components/shell/panels/*`                 | `FlightSourcePanel`, `ObserverLocationPanel`, `MoonEphemerisPanel`, `TimeSliderPanel`, `TransitCandidatesPanel`, `ActiveTransitsPanel`, `PhotographerToolsPanel`, `SidebarSyncFooter`. |
+| `components/shell/panels/*`                 | `FlightSourcePanel`, `ObserverLocationPanel`, `MoonEphemerisPanel`, `TimeSliderPanel`, `TransitCandidatesPanel`, `ActiveTransitsPanel`, `PhotographerToolsPanel`. |
 
 
 **Export:** `PhotographerToolPack` is exported from `hooks/usePhotographerTools.ts` for typing the photographer panel without importing `GeometryEngine` in UI.

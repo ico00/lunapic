@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { E2E_BASE } from "./basePath";
 
 test.describe("flight source", () => {
-  test("Provider select switches mock, static, opensky, and adsbone without errors", async ({
+  test("Live feed checkboxes toggle OpenSky and ADS-B One without errors", async ({
     page,
   }) => {
     const pageErrors: string[] = [];
@@ -21,21 +21,20 @@ test.describe("flight source", () => {
     const provider = page.getByTestId("flight-provider-select");
     await expect(provider).toBeVisible();
     await expect(provider).toHaveAttribute("data-value", "opensky");
+    await expect(provider).toContainText("OpenSky + ADS-B One (merged)");
 
     await provider.click();
-    await page.getByRole("option", { name: "Routes (static)" }).click();
-    await expect(provider).toHaveAttribute("data-value", "static");
+    await page.getByTestId("live-feed-adsbone").uncheck();
+    await expect(provider).toHaveAttribute("data-value", "opensky");
+    await expect(provider).not.toContainText("merged");
 
     await provider.click();
-    await page.getByRole("option", { name: "Mock" }).click();
-    await expect(provider).toHaveAttribute("data-value", "mock");
-
-    await provider.click();
-    await page.getByRole("option", { name: "OpenSky (ADS-B)" }).click();
+    await page.getByTestId("live-feed-adsbone").check();
+    await expect(provider).toContainText("OpenSky + ADS-B One (merged)");
     await expect(provider).toHaveAttribute("data-value", "opensky");
 
     await provider.click();
-    await page.getByRole("option", { name: "ADS-B One (free API)" }).click();
+    await page.getByTestId("live-feed-opensky").uncheck();
     await expect(provider).toHaveAttribute("data-value", "adsbone");
 
     expect(pageErrors, pageErrors.join("\n")).toEqual([]);

@@ -1,10 +1,12 @@
 "use client";
 
+import { FlightAltitudeLegend } from "@/components/map/FlightAltitudeLegend";
 import { SelectedAircraftMapPopup } from "@/components/map/SelectedAircraftMapPopup";
 import { useCurrentMoonAzimuthFeature } from "@/hooks/useCurrentMoonAzimuthFeature";
 import { FieldPerfOverlay } from "@/components/perf/FieldPerfOverlay";
 import { useExtrapolatedFlightsForMap } from "@/hooks/useExtrapolatedFlightsForMap";
 import { useMapFlightPick } from "@/hooks/useMapFlightPick";
+import { useMapFlightAltitudeColorsPaint } from "@/hooks/useMapFlightAltitudeColorsPaint";
 import { useMapGeoJsonSync } from "@/hooks/useMapGeoJsonSync";
 import { useMapMoonHorizonDeemphasis } from "@/hooks/useMapMoonHorizonDeemphasis";
 import { useMapMoonOverlayFeatures } from "@/hooks/useMapMoonOverlayFeatures";
@@ -101,6 +103,8 @@ export function MapContainer({
       flights,
     });
 
+  useMapFlightAltitudeColorsPaint(mapRef, mapReadyTick);
+
   useMapGeoJsonSync({
     mapRef,
     mapReadyTick,
@@ -143,6 +147,7 @@ export function MapContainer({
   const mapColumn = (
     <div className="relative h-full w-full" data-testid="map-surface">
       <div ref={elRef} className="h-full w-full" />
+      <FlightAltitudeLegend />
       <FieldPerfOverlay />
       <SelectedAircraftMapPopup mapRef={mapRef} mapReadyTick={mapReadyTick} />
     </div>

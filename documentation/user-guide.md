@@ -4,7 +4,7 @@
 
 ## What the app is for
 
-LunaPic helps you **line up a real (or static) aircraft** with the **Moon** in the sky from a **fixed place on the ground** (the **observer**). The map, time control, and side panels work together to show **when and where** the moon is, **where flights are**, and how close you are to a good **lunar transit** frame.
+LunaPic helps you **line up a live ADS-B aircraft** with the **Moon** in the sky from a **fixed place on the ground** (the **observer**). The map, time control, and side panels work together to show **when and where** the moon is, **where flights are**, and how close you are to a good **lunar transit** frame.
 
 ## What you do (typical flow)
 
@@ -18,12 +18,11 @@ LunaPic helps you **line up a real (or static) aircraft** with the **Moon** in t
   - **Sync** pins the **left** end of the slider to real **now**; you scrub **forward** up to about **24 hours** (one civil day). **Moonrise and moonset** still appear in the Moon panel and still define the **highlighted** part of the moon path on the map; you can scrub ahead to plan outside that arc.  
   - The **time in the header** is the **simulated** instant: ephemeris, flight positions (extrapolation), and map overlays follow that instant. A **dot + time label** on the moon path marks that same instant so it is not confused with the fixed clock labels along the arc.  
   - **Tip:** the Moon returns to about the same compass direction after roughly **24h 50m** (a lunar day), not after exactly 24h — so the **right** end of the slider (now + 24h) is **not** the same point on the path as **Sync** (now).
-4. **Choose a flight data source (Provider)** — the app **defaults to OpenSky** on a fresh load.
+4. **Choose a flight data source (Provider)** — on a fresh load the app uses **OpenSky + ADS-B One together** (merged live fetch); narrow to one feed in the combobox menu if you prefer.
   - **OpenSky (ADS-B)** — live traffic for a **bounded region** around your **observer** and the **map view** (via the app’s server route; no OpenSky key in the browser). The map may **briefly retain** symbols between refreshes so tracking feels steadier on phones.  
   - **ADS-B One** — alternate live feed (also proxied); same geometry rules; different upstream coverage and rate limits than OpenSky.  
   - **Other apps (FlightRadar24, …):** they are **different** data products — other receiver networks, MLAT, or partner feeds — so a plane you see there may **not** appear in LunaPic for the feed you picked (and vice versa).  
-  - **Routes (static)** — demo routes; good offline.  
-  - **Mock** — small test set.
+  - Open the **Provider** menu to **toggle OpenSky and/or ADS-B One** (checkboxes); same aircraft (**ICAO24**) is shown once with merged data when both are on.
 5. **Pan / zoom the map**
   - The map starts in a **flat (2D) view** (no tilt). To **tilt or rotate in 3D**, use the **right mouse button** and drag on the map (Mapbox’s default), or the **+ / − pitch** controls on the map’s navigation widget; on touch devices a **two-finger** tilt still works. Flights re-load for the current bounds (and for OpenSky also when the **observer** moves). The observer stays where you set it unless you change it.
 6. **Pick a flight (optional)**
@@ -44,9 +43,9 @@ LunaPic helps you **line up a real (or static) aircraft** with the **Moon** in t
 | **Dashed white arc (with time labels)**                      | **Moon path** — brighter segment for the **visible** window (rise→set when known); fainter dashed loop for the **whole UTC day**; **dot + label** = exact simulated time on the path.                                                                                                     |
 | **Cyan dashed line + `NOW`**                                   | **Wall-clock** moon direction (updates every second), independent of the slider.                                                                                               |
 | **Amber dashed line + `+90s`** (when a flight is selected)    | Short **ground-track** prediction from speed and heading, not the moon.                                                                                                        |
-| **Purple route lines**                                       | Static route geometry (source depends on provider).                                                                                                                           |
+| **Purple route lines**                                       | **Hidden for now** — `routes.json` corridors were demo polylines, not live tracks. Re-enable via `ENABLE_STATIC_ROUTE_MAP_OVERLAY` in `staticRouteUtils.ts` when historic route data is wired in.                                                                                                                           |
 | **Yellow dots**                                              | Intersections of route geometry with the moon-azimuth idea (for static route analysis).                                                                                       |
-| **Aircraft model**                                           | Extrapolated position for the **simulated** time (and OpenSky display skew if you use it in the field tools). 3D airplane orientation follows heading and color tint marks shot-feasible flights (green vs blue). |
+| **Aircraft model**                                           | Extrapolated position for the **simulated** time (and OpenSky display skew if you use it in the field tools). 3D orientation follows heading. **Color** = **altitude** (see the bottom legend: low = light green → high = dark blue) except **green** = shot-feasible in the camera tools. Symbol **size** also increases with cruise height. |
 | **Cyan band + pale center line** (when a flight is selected) | **Stand corridor** for framing: a ground strip derived from 3D line of sight to the plane at the selected time; the **pale line** is the “zero offset” axis along that strip. |
 | **Green corridor + nested green volumes**                    | **Transit opportunity corridor** for your fixed observer position and current camera setup. LOW/MEDIUM/HIGH shades are confidence bands; shown only when moon visibility is **Optimal**. |
 | **Weather overlay** (if enabled)                             | Cloud layer from forecast — for context only.                                                                                                                                 |

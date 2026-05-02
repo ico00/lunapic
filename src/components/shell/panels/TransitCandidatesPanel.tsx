@@ -90,6 +90,7 @@ export function TransitCandidatesPanel({
   onSelectFlight,
   onToggleWatchFlight,
 }: TransitCandidatesPanelProps) {
+  void notificationPermission;
   return (
     <ShellSectionCard
       className="mt-3"
@@ -102,14 +103,6 @@ export function TransitCandidatesPanel({
           <p className="text-sm text-zinc-500">Loading…</p>
         )}
         {error && <p className="text-sm text-red-400">{error}</p>}
-        <p className="text-[0.68rem] text-zinc-500">
-          Notify me on watched flights when alignment becomes active.
-          {!notificationsSupported
-            ? " Push is unavailable in this browser context."
-            : notificationPermission !== "granted"
-              ? " Enable browser notifications when prompted."
-              : ""}
-        </p>
       </div>
       <ul className="mt-2 max-h-48 space-y-1.5 overflow-y-auto text-sm">
         {showEmpty && <li className="text-zinc-500">No visible tracks.</li>}

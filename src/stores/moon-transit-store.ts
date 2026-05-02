@@ -3,6 +3,7 @@ import {
   UTC_DAY_MS,
 } from "@/lib/domain/astro/astroService";
 import type { CameraSensorType } from "@/lib/domain/geometry/shotFeasibility";
+import { mergeLiveFlightLists } from "@/lib/flight/mergeLiveFlightLists";
 import {
   clearOpenSkyFlightRetention,
   mergeFlightsWithOpenSkyRetention,
@@ -12,6 +13,12 @@ import { useObserverStore } from "@/stores/observer-store";
 import type { GeoBounds, MapViewState } from "@/types";
 import type { FlightState } from "@/types/flight";
 import type { FlightProviderId } from "@/types/flight-provider";
+
+/** Koji live REST izvori su uključeni (ICAO24 se spaja u jedan zapis po zrakoplovu). */
+export type LiveFlightFeeds = {
+  readonly opensky: boolean;
+  readonly adsbone: boolean;
+};
 import { defaultMapViewState } from "@/types/map";
 import { create } from "zustand";
 
@@ -29,6 +36,8 @@ type MoonTransitState = {
   referenceEpochMs: number;
   mapView: MapViewState;
   flightProvider: FlightProviderId;
+  /** Vrijedi kad je `flightProvider` `opensky` ili `adsbone`; inače se ignorira pri učitavanju. */
+  liveFlightFeeds: LiveFlightFeeds;
   flights: readonly FlightState[];
   isLoading: boolean;
   error: string | null;
@@ -70,7 +79,13 @@ type MoonTransitState = {
    */
   syncTimeToNow: () => void;
   setMapView: (next: Partial<MapViewState>) => void;
+  /** Kad je uključeno, markeri letova koriste skalu boja po visini (legend); inače neutralna siva osim zelenog za shot-feasible. */
+  mapAircraftAltitudeColors: boolean;
+  setMapAircraftAltitudeColors: (enabled: boolean) => void;
   setFlightProvider: (id: FlightProviderId) => void;
+  setLiveFlightFeeds: (patch: Partial<LiveFlightFeeds>) => void;
+  /** Ako je još `static` (stari build), prebaci na live dual — static nije u comboboxu. */
+  ensureFlightSourceComboboxMode: () => void;
   setFlights: (f: readonly FlightState[]) => void;
   loadFlightsInBounds: (bounds: GeoBounds) => Promise<void>;
   resetError: () => void;
@@ -100,6 +115,7 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   referenceEpochMs: 0,
   mapView: defaultMapViewState,
   flightProvider: "opensky",
+  liveFlightFeeds: { opensky: true, adsbone: true },
   flights: [],
   isLoading: false,
   error: null,
@@ -180,13 +196,75 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   },
   setMapView: (next) =>
     set((s) => ({ mapView: { ...s.mapView, ...next } })),
+  mapAircraftAltitudeColors: true,
+  setMapAircraftAltitudeColors: (enabled) =>
+    set({ mapAircraftAltitudeColors: enabled }),
   setFlightProvider: (id) =>
     set((s) => {
-      if (s.flightProvider === id) {
+      let liveFlightFeeds = s.liveFlightFeeds;
+      if (id === "opensky") {
+        liveFlightFeeds = { opensky: true, adsbone: false };
+      } else if (id === "adsbone") {
+        liveFlightFeeds = { opensky: false, adsbone: true };
+      }
+      const sameProvider = s.flightProvider === id;
+      const feedsUnchanged =
+        liveFlightFeeds.opensky === s.liveFlightFeeds.opensky &&
+        liveFlightFeeds.adsbone === s.liveFlightFeeds.adsbone;
+      if (sameProvider && feedsUnchanged) {
         return {};
       }
       clearOpenSkyFlightRetention();
-      return { flightProvider: id, selectedFlightId: null };
+      return {
+        flightProvider: id,
+        liveFlightFeeds,
+        selectedFlightId: null,
+      };
+    }),
+  setLiveFlightFeeds: (patch) =>
+    set((s) => {
+      if (s.flightProvider !== "opensky" && s.flightProvider !== "adsbone") {
+        return {};
+      }
+      const next = {
+        opensky: patch.opensky ?? s.liveFlightFeeds.opensky,
+        adsbone: patch.adsbone ?? s.liveFlightFeeds.adsbone,
+      };
+      if (!next.opensky && !next.adsbone) {
+        return {};
+      }
+      const unchanged =
+        next.opensky === s.liveFlightFeeds.opensky &&
+        next.adsbone === s.liveFlightFeeds.adsbone;
+      if (unchanged) {
+        return {};
+      }
+      clearOpenSkyFlightRetention();
+      let flightProvider = s.flightProvider;
+      if (next.opensky && !next.adsbone) {
+        flightProvider = "opensky";
+      } else if (!next.opensky && next.adsbone) {
+        flightProvider = "adsbone";
+      } else if (next.opensky && next.adsbone) {
+        flightProvider = "opensky";
+      }
+      return {
+        liveFlightFeeds: next,
+        flightProvider,
+        selectedFlightId: null,
+      };
+    }),
+  ensureFlightSourceComboboxMode: () =>
+    set((s) => {
+      if (s.flightProvider !== "static") {
+        return {};
+      }
+      clearOpenSkyFlightRetention();
+      return {
+        flightProvider: "opensky",
+        liveFlightFeeds: { opensky: true, adsbone: true },
+        selectedFlightId: null,
+      };
     }),
   setSelectedFlightId: (id) => set({ selectedFlightId: id }),
   setFlights: (f) => set({ flights: f }),
@@ -194,16 +272,87 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   loadFlightsInBounds: async (bounds) => {
     set({ isLoading: true, error: null });
     try {
-      const p = getFlightProvider(get().flightProvider);
+      const fp = get().flightProvider;
       const previousFlights = get().flights;
       const observer = useObserverStore.getState().observer;
-      const flights = await p.getFlightsInBounds({ bounds, observer });
-      const merged = mergeFlightsWithOpenSkyRetention(flights, previousFlights, {
-        providerId: get().flightProvider,
-        mapBounds: bounds,
-        nowMs: Date.now(),
-        openSkyLatencySkewMs: get().openSkyLatencySkewMs,
+      const query = { bounds, observer };
+
+      if (fp === "static" || fp === "mock") {
+        const p = getFlightProvider(fp);
+        const flights = await p.getFlightsInBounds(query);
+        const merged = mergeFlightsWithOpenSkyRetention(
+          flights,
+          previousFlights,
+          {
+            providerId: fp,
+            mapBounds: bounds,
+            nowMs: Date.now(),
+            openSkyLatencySkewMs: get().openSkyLatencySkewMs,
+          }
+        );
+        const sel = get().selectedFlightId;
+        const keepSel =
+          sel != null && merged.some((f) => f.id === sel);
+        set({
+          flights: merged,
+          isLoading: false,
+          ...(keepSel ? {} : { selectedFlightId: null }),
+        });
+        return;
+      }
+
+      const feeds = get().liveFlightFeeds;
+      const ids: ("opensky" | "adsbone")[] = [];
+      if (feeds.opensky) {
+        ids.push("opensky");
+      }
+      if (feeds.adsbone) {
+        ids.push("adsbone");
+      }
+      if (ids.length === 0) {
+        ids.push("opensky");
+      }
+
+      const settled = await Promise.allSettled(
+        ids.map((id) =>
+          getFlightProvider(id).getFlightsInBounds(query)
+        )
+      );
+
+      const lists: (readonly FlightState[])[] = [];
+      const errors: string[] = [];
+      settled.forEach((r, i) => {
+        if (r.status === "fulfilled") {
+          lists.push(r.value);
+        } else {
+          const msg =
+            r.reason instanceof Error ? r.reason.message : String(r.reason);
+          errors.push(`${ids[i]}: ${msg}`);
+        }
       });
+
+      if (lists.length === 0) {
+        throw new Error(errors.join("; ") || "No flight data");
+      }
+      if (errors.length > 0) {
+        console.warn("[MoonTransit] Live flight source partial failure", errors);
+      }
+
+      const combined =
+        lists.length === 1 ? lists[0] : mergeLiveFlightLists(lists);
+      const retentionId: FlightProviderId = ids.includes("opensky")
+        ? "opensky"
+        : "adsbone";
+      const merged = mergeFlightsWithOpenSkyRetention(
+        combined,
+        previousFlights,
+        {
+          providerId: retentionId,
+          mapBounds: bounds,
+          nowMs: Date.now(),
+          openSkyLatencySkewMs: get().openSkyLatencySkewMs,
+        }
+      );
       const sel = get().selectedFlightId;
       const keepSel =
         sel != null && merged.some((f) => f.id === sel);

@@ -1,16 +1,19 @@
 import { FlightProviderSelect } from "@/components/shell/FlightProviderSelect";
 import { ShellSectionCard } from "@/components/shell/ShellSectionCard";
 import { SectionIconFlightSource } from "@/components/shell/sectionCategoryIcons";
+import type { LiveFlightFeeds } from "@/stores/moon-transit-store";
 import { type FlightProviderId } from "@/types/flight-provider";
 
 type FlightSourcePanelProps = {
   flightProviderId: FlightProviderId;
-  onFlightProviderIdChange: (id: FlightProviderId) => void;
+  liveFlightFeeds: LiveFlightFeeds;
+  onLiveFlightFeedsChange: (patch: Partial<LiveFlightFeeds>) => void;
 };
 
 export function FlightSourcePanel({
   flightProviderId,
-  onFlightProviderIdChange,
+  liveFlightFeeds,
+  onLiveFlightFeedsChange,
 }: FlightSourcePanelProps) {
   return (
     <ShellSectionCard
@@ -23,7 +26,8 @@ export function FlightSourcePanel({
         <div className="mt-1 min-w-0">
           <FlightProviderSelect
             value={flightProviderId}
-            onChange={onFlightProviderIdChange}
+            liveFlightFeeds={liveFlightFeeds}
+            onLiveFlightFeedsChange={onLiveFlightFeedsChange}
           />
         </div>
       </label>

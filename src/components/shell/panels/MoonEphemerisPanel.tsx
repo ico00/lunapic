@@ -26,24 +26,25 @@ import { formatFixed } from "@/lib/format/numbers";
 import type { GroundObserver } from "@/types/geo";
 import type { MoonRiseSetKind, MoonState } from "@/types/moon";
 
+/** Altitude row dot: red = poor / hidden band, amber = marginal, green = good for field use. */
 function tierDotClass(tier: MoonFieldVisibilityTier): string {
   if (tier === "critical") {
-    return "bg-yellow-600 shadow-[0_0_0_1px_rgba(255,255,255,0.12)]";
+    return "bg-red-500 shadow-[0_0_0_1px_rgba(255,255,255,0.12)]";
   }
   if (tier === "caution") {
-    return "bg-yellow-500 shadow-[0_0_0_1px_rgba(255,255,255,0.12)]";
+    return "bg-amber-400 shadow-[0_0_0_1px_rgba(255,255,255,0.12)]";
   }
-  return "bg-blue-500 shadow-[0_0_0_1px_rgba(255,255,255,0.12)]";
+  return "bg-emerald-500 shadow-[0_0_0_1px_rgba(255,255,255,0.12)]";
 }
 
 function tierLabelClass(tier: MoonFieldVisibilityTier): string {
   if (tier === "critical") {
-    return "text-yellow-500/95";
+    return "text-red-400/95";
   }
   if (tier === "caution") {
-    return "text-yellow-400/95";
+    return "text-amber-400/95";
   }
-  return "text-blue-300/95";
+  return "text-emerald-400/95";
 }
 
 function moonRowLabel(icon: ReactNode, text: string) {

@@ -29,17 +29,32 @@ function schedulePopupTeardown(args: {
   });
 }
 
-const MOBILE_POPUP_EDGE_PX = 12;
-
 /** Match Tailwind `md:` breakpoint used by the shell. */
 function isMobileMapWidth(map: Map): boolean {
   return map.getContainer().getBoundingClientRect().width < 768;
 }
 
 /**
+ * Donji `padding` roditelja Mapbox containera (HomePageClient ostavlja traku za tabove).
+ * Pomakne `Popup` s `anchor: bottom` vizualno u rezervu da se kartica spoji s tab trakom.
+ */
+function readMobileDockPaddingBottomPx(map: Map): number {
+  let el: HTMLElement | null = map.getContainer().parentElement;
+  for (let hop = 0; hop < 5 && el; hop++) {
+    const raw = getComputedStyle(el).paddingBottom;
+    const px = Number.parseFloat(raw);
+    if (Number.isFinite(px) && px >= 8) {
+      return Math.round(px);
+    }
+    el = el.parentElement;
+  }
+  return 72;
+}
+
+/**
  * Screen pixel anchor for `map.unproject` (origin top-left of the map container).
- * Mobile: dock like Flightradar24 — full-width card centered above the bottom tab bar
- * (`anchor: bottom`). Desktop: HUD under header (`anchor: top-left`).
+ * Mobile: bottom-centre of map canvas; {@link readMobileDockPaddingBottomPx} + `setOffset`
+ * nosač spaja s bottom tab stripom. Desktop: HUD under header (`anchor: top-left`).
  */
 function popupScreenAnchor(map: Map): {
   x: number;
@@ -51,10 +66,7 @@ function popupScreenAnchor(map: Map): {
   if (mobile) {
     return {
       x: rect.width / 2,
-      y: Math.max(
-        MOBILE_POPUP_EDGE_PX + 1,
-        rect.height - MOBILE_POPUP_EDGE_PX
-      ),
+      y: rect.height,
       anchor: "bottom",
     };
   }
@@ -104,6 +116,11 @@ export function SelectedAircraftMapPopup({
     }
     const anchor = popupScreenAnchor(map);
     popup.setLngLat(map.unproject([anchor.x, anchor.y]));
+    if (anchor.anchor === "bottom") {
+      popup.setOffset([0, readMobileDockPaddingBottomPx(map)]);
+    } else {
+      popup.setOffset([0, 0]);
+    }
   }, [mapRef]);
 
   const repositionLatest = useRef(reposition);
@@ -148,6 +165,10 @@ export function SelectedAircraftMapPopup({
         maxWidth: "none",
         className: "moon-transit-aircraft-popup",
         anchor: anchor.anchor,
+        offset:
+          anchor.anchor === "bottom"
+            ? ([0, readMobileDockPaddingBottomPx(map)] as [number, number])
+            : undefined,
       })
         .setDOMContent(el)
         .addTo(map);
