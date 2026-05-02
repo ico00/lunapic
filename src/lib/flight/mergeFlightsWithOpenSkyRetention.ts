@@ -55,7 +55,10 @@ export function mergeFlightsWithOpenSkyRetention(
     flightLastSeenAtMs.set(f.id, context.nowMs);
   }
 
-  if (context.providerId !== "opensky") {
+  if (
+    context.providerId !== "opensky" &&
+    context.providerId !== "adsbone"
+  ) {
     pruneStaleFlightLastSeen(context.nowMs);
     return mergedMeta;
   }

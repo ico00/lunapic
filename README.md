@@ -55,6 +55,8 @@ NEXT_PUBLIC_MAPBOX_TOKEN=pk.your_mapbox_token
 
 **OpenSky:** the browser does not call OpenSky directly. The app uses the Next.js route `GET /api/opensky/states` as a CORS-free proxy; with a sub-URL, the **client** uses `appPath("/api/…")` so the request matches `basePath`. No OpenSky key is required for basic public usage.
 
+**ADS-B One:** proxied through `GET /api/adsbone/point` (same `appPath` pattern). Free community feed; see their FAQ for fair-use / rate limits.
+
 ## Scripts
 
 
@@ -73,9 +75,10 @@ NEXT_PUBLIC_MAPBOX_TOKEN=pk.your_mapbox_token
 
 ## Flight data modes
 
-The sidebar **Provider** combobox defaults to **OpenSky** on first load (order: OpenSky → static → mock).
+The sidebar **Provider** combobox defaults to **OpenSky** on first load (order: OpenSky → ADS-B One → static → mock).
 
-- **opensky** — Live (best-effort) ADS-B via OpenSky: bounded **fetch bbox** around the **observer** and demo corridor rules (see `documentation/architecture.md`); **display** uses the union of **map bounds** and the **observer ~100 km disk**, plus short **retention** between snapshots for steadier symbols on mobile. **Not** the same dataset as FlightRadar24, ADSB-One, or other trackers — different coverage is normal.
+- **opensky** — Live (best-effort) ADS-B via OpenSky: bounded **fetch bbox** around the **observer** and demo corridor rules (see `documentation/architecture.md`); **display** uses the union of **map bounds** and the **observer ~100 km disk**, plus short **retention** between snapshots for steadier symbols on mobile. **Not** the same dataset as FlightRadar24 or other trackers — different coverage is normal.
+- **adsbone** — Live ADS-B via [ADS-B One](https://adsb.one/faq) (`GET /api/adsbone/point`, same `appPath` rules); same query geometry as OpenSky; community API with strict rate limits (the app caches and debounces map moves).
 - **static** — Positions on routes from `src/data/routes.json`; route polylines; track from the active route segment near the view center.
 - **mock** — Hard-coded test aircraft.
 

@@ -82,6 +82,7 @@ Native `<select>` remains acceptable only for **non-shell** contexts where clipp
 ## API / network
 
 - **OpenSky** — Only through the Next.js route `GET /api/opensky/states` (CORS proxy). No direct browser calls to `opensky-network.org`. The client must call this route with **`appPath("/api/opensky/states?…")`** in [`src/lib/paths/appPath.ts`](../src/lib/paths/appPath.ts) whenever `basePath` is set (inlined via `NEXT_PUBLIC_BASE_PATH` from [cpanelBasePath.cjs](../cpanelBasePath.cjs)). Plain `fetch("/api/…")` hits the domain root and fails behind a sub-URL.
+- **ADS-B One** — Only through `GET /api/adsbone/point` (same `appPath` rule as OpenSky). Do not call `api.adsb.one` from the browser.
 - **Caching** — Route handler uses `cache: "no-store"`; adjust if you add rate limits or SWR on the client.
 
 ## Sub-URL (self-host / `basePath`)

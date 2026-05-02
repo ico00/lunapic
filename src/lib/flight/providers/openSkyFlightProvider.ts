@@ -1,11 +1,5 @@
-import {
-  centerOfBounds,
-  expandBounds,
-  getStaticRouteLineFeatures,
-  intersectBounds,
-  unionBBoxOfAllStaticRoutes,
-} from "@/data/staticRouteUtils";
-import { geoBoundsAroundPointKm } from "@/lib/domain/geo/boundsAroundPointKm";
+import { getStaticRouteLineFeatures } from "@/data/staticRouteUtils";
+import { openSkyStyleRegionAndFilterBounds } from "@/lib/flight/openSkyStyleQueryRegion";
 import { appPath } from "@/lib/paths/appPath";
 import {
   averageVelocityMpsInRegion,
@@ -17,9 +11,6 @@ import type { FlightQuery, FlightState } from "@/types/flight";
 import type { FlightProviderId } from "@/types/flight-provider";
 import type { GeoBounds } from "@/types/geo";
 
-const ROUTES_MARGIN_DEG = 0.25;
-/** OpenSky bbox oko promatrača (polumjer, promjer 200 km). */
-const OPENSKY_OBSERVER_RADIUS_KM = 100;
 /** Usklađeno s proxy predmemorijom (~30s); smanjuje ponovne pozive istog bbox-a. */
 const CACHE_MS = 32_000;
 
@@ -54,30 +45,7 @@ export class OpenSkyFlightProvider implements IFlightProvider {
   }
 
   async getFlightsInBounds(q: FlightQuery): Promise<readonly FlightState[]> {
-    const routesHull = expandBounds(
-      unionBBoxOfAllStaticRoutes(),
-      ROUTES_MARGIN_DEG,
-      ROUTES_MARGIN_DEG
-    );
-    const obs = q.observer ?? centerOfBounds(q.bounds);
-    const aroundObserver = geoBoundsAroundPointKm(
-      obs.lat,
-      obs.lng,
-      OPENSKY_OBSERVER_RADIUS_KM
-    );
-    /**
-     * In the static-route “corridor” (demo data), keep the tight intersection so
-     * OpenSky bbox stays small. Outside that hull (e.g. observer in Amsterdam),
-     * fall back to a bounded box around the observer — otherwise we would keep
-     * intersecting the hull with the map viewport and never leave Croatia.
-     */
-    const primary = intersectBounds(routesHull, aroundObserver);
-    const region: GeoBounds = primary ?? aroundObserver;
-    /**
-     * Uvijek uključi disk oko promatrača uz viewport — čisti `q.bounds` su premali
-     * kad se karta malo pomakne ili ADS-B „treperi”, pa zrakoplovi nestaju na rubu.
-     */
-    const filterBounds = unionGeoBounds(q.bounds, aroundObserver);
+    const { region, filterBounds } = openSkyStyleRegionAndFilterBounds(q);
 
     const tail = async (): Promise<readonly FlightState[]> => {
       const now = Date.now();
@@ -176,11 +144,3 @@ function boxesCloseEnough(a: GeoBounds, b: GeoBounds): boolean {
   );
 }
 
-function unionGeoBounds(a: GeoBounds, b: GeoBounds): GeoBounds {
-  return {
-    south: Math.min(a.south, b.south),
-    north: Math.max(a.north, b.north),
-    west: Math.min(a.west, b.west),
-    east: Math.max(a.east, b.east),
-  };
-}

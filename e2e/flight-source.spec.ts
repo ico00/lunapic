@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { E2E_BASE } from "./basePath";
 
 test.describe("flight source", () => {
-  test("Provider select switches mock, static, and opensky without errors", async ({
+  test("Provider select switches mock, static, opensky, and adsbone without errors", async ({
     page,
   }) => {
     const pageErrors: string[] = [];
@@ -33,6 +33,10 @@ test.describe("flight source", () => {
     await provider.click();
     await page.getByRole("option", { name: "OpenSky (ADS-B)" }).click();
     await expect(provider).toHaveAttribute("data-value", "opensky");
+
+    await provider.click();
+    await page.getByRole("option", { name: "ADS-B One (free API)" }).click();
+    await expect(provider).toHaveAttribute("data-value", "adsbone");
 
     expect(pageErrors, pageErrors.join("\n")).toEqual([]);
   });

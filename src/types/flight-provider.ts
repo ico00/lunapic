@@ -3,7 +3,7 @@ import type { FlightQuery, FlightState } from "./flight";
 import type { RouteLineFeature } from "./map-overlays";
 
 /** Redoslijed u UI: OpenSky prvi (zadani izvor pri učitavanju). */
-export const FLIGHT_PROVIDER_IDS = ["opensky", "static", "mock"] as const;
+export const FLIGHT_PROVIDER_IDS = ["opensky", "adsbone", "static", "mock"] as const;
 export type FlightProviderId = (typeof FLIGHT_PROVIDER_IDS)[number];
 
 /**
@@ -11,7 +11,7 @@ export type FlightProviderId = (typeof FLIGHT_PROVIDER_IDS)[number];
  * Implementations are swapped without changing domain logic.
  */
 export interface IFlightProvider {
-  /** Stable id, e.g. "mock" | "opensky". */
+  /** Stable id, e.g. "mock" | "opensky" | "adsbone". */
   readonly id: string;
   getFlightsInBounds(query: FlightQuery): Promise<readonly FlightState[]>;
   /**

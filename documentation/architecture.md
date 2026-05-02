@@ -66,13 +66,13 @@ flowchart TB
 | `ephemerisRefetchKey`                              | Bumped in `syncTimeToNow` and when `setTimeOffsetMs` crosses a **UTC calendar day** so `useAstronomySync` re-fetches `getMoonTimes` for the simulated day; not on every slider step within the same UTC day. |
 | `setMoonRiseSet`                                   | Writes rise/set; re-clamps `referenceEpochMs` / `timeOffsetMs` into `[timeAnchorMs, timeAnchorMs+24h)` when the anchor is set.                                                                                                                              |
 | `mapView`                                          | Center, zoom, pitch, bearing — updated when the user pans the map.                                                                                                                                                |
-| `flightProvider`                                   | `mock` / `static` / `opensky` (see `FlightProviderId`). **Default:** `opensky`.                                                                                                                                   |
+| `flightProvider`                                   | `mock` / `static` / `opensky` / `adsbone` (see `FlightProviderId`). **Default:** `opensky`.                                                                                                                        |
 | `flights`                                          | Last loaded snapshot; **not** real-time until next bounds load.                                                                                                                                                   |
 | `selectedFlightId`                                 | Drives photographer tools, list highlighting, and the **stand** overlay on the map.                                                                                                                               |
 | `openSkyLatencySkewMs`                             | Manual time skew for display extrapolation (field section).                                                                                                                                                       |
 | `cameraFocalLengthMm`, `cameraSensorType`          | Photographer optical setup (default **600 mm**, **full frame**). Used by shot-feasibility scoring and map visual filtering thresholds.                                                                          |
 | `syncTimeToNow`                                    | “Sync” and initial shell layout: `timeAnchorMs` = now, `timeOffsetMs` = 0, `referenceEpochMs` = now; bump `ephemerisRefetchKey`.                                                                                                               |
-| `loadFlightsInBounds`                              | Invokes the active `IFlightProvider`, then **`mergeFlightsWithOpenSkyRetention`** (after **`mergeStickyFlightMetadata`**) when ingesting — keeps short-lived OpenSky gaps smoother on mobile; clears retention when **`setFlightProvider`** changes. Sets `flights` / `error` / `isLoading`.                                                                                                                                  |
+| `loadFlightsInBounds`                              | Invokes the active `IFlightProvider`, then **`mergeFlightsWithOpenSkyRetention`** (after **`mergeStickyFlightMetadata`**) when ingesting — for **`opensky`** and **`adsbone`** keeps short-lived feed gaps smoother on mobile; clears retention when **`setFlightProvider`** changes. Sets `flights` / `error` / `isLoading`.                                                                                                      |
 
 
 **Design note (bounded context):** The store combines **simulated time**, **map view state**, and **flight loading + selection** in one Zustand slice. This is an **intentional aggregate** for a small app: a single `loadFlightsInBounds` can depend on time and provider without cross-store sync. A future split into `timeStore` / `flightsStore` / `mapViewStore` is optional; see `src/stores/README.md` (Croatian summary), `documentation/optimization-and-refactoring.md`, and `documentation/technicalconventions.md` (State + feature checklist) for the refactor log, trade-offs, and where to add new behavior.
@@ -102,10 +102,11 @@ flowchart TB
   - `mockFlightProvider` — minimal test data.
   - `staticFlightProvider` — `routes.json` + `staticRoutePointAndBearing` for position/track along a segment.
   - `openSkyFlightProvider` — fetches via `GET /api/opensky/states?...` (bbox). **Fetch region:** inside the static `routes.json` hull the bbox is **hull ∩ observer disk** (~100 km radius); **outside** that hull the bbox is the **observer disk alone** so relocation (e.g. another country) still loads local ADS-B. **Client filter** for which states become `FlightState[]`: always **`union(map viewport bounds, observer disk)`** — avoids dropping aircraft that are still in the API box but slightly off the current viewport edge. Parses in `parseOpenSkyStates.ts`; server-side bbox caching remains in the provider (`CACHE_MS`).
+  - `adsbOneFlightProvider` — `GET /api/adsbone/point?lat=&lng=&radiusNm=` → `api.adsb.one` `/v2/point/…`. **Same fetch geometry** as OpenSky (shared `openSkyStyleQueryRegion.ts`): center + radius (nm) derived from the same bbox; client filter uses the same **`union(viewport, observer disk)`** as OpenSky. Parser: `parseAdsbOnePoint.ts`.
 
-**Not the same as other flight apps:** LunaPic’s live mode uses **OpenSky Network only** (plus this app’s bbox / on-ground filters). **FlightRadar24**, **ADSB-One**, and similar products merge **different** receiver communities, MLAT, ANSP or partner feeds, and their own rules — so an aircraft visible there may be **absent** from OpenSky (and the reverse). That is expected; it is not a LunaPic map bug unless the ICAO24 appears on [OpenSky’s own map](https://opensky-network.org) for the same instant and bbox policy still drops it.
+**Not the same as other flight apps:** Live modes use **OpenSky** and/or **ADS-B One** (this app’s bbox / filters), not FlightRadar24. Any third-party map can still show aircraft your chosen feed did not return for that instant (different receivers, MLAT, partners).
 
-Adding a new source: implement `IFlightProvider`, register in the registry, add the id to **`FLIGHT_PROVIDER_IDS`** (order = combobox order; **`opensky`** is first and matches the store default) and the sidebar selector.
+Adding a new source: implement `IFlightProvider`, register in the registry, add the id to **`FLIGHT_PROVIDER_IDS`** (order = combobox order; **`opensky`** is first and matches the store default) and **`FlightProviderSelect`**.
 
 ## Domain layer
 
@@ -143,6 +144,7 @@ Keep **pure functions** in `lib/domain` (no React, no `window` except where a mo
 ## API routes (Next.js)
 
 - `**/api/opensky/states`** — Server-side `fetch` to `opensky-network.org` with `lamin, lomin, lamax, lomax` query params. Avoids CORS; returns JSON or 502 on upstream error. The **browser** must request this route with the app’s `basePath` prefix (via `appPath` in `OpenSkyFlightProvider`) when not hosted at `/`.
+- `**/api/adsbone/point`** — Server-side `fetch` to `https://api.adsb.one/v2/point/{lat}/{lon}/{radiusNm}`; short TTL cache per rounded point/radius. Client uses `appPath` in `AdsbOneFlightProvider`.
 
 ## Map rendering (Mapbox)
 

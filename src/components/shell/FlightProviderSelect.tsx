@@ -23,6 +23,9 @@ function labelForProvider(id: FlightProviderId): string {
   if (id === "static") {
     return "Routes (static)";
   }
+  if (id === "adsbone") {
+    return "ADS-B One (free API)";
+  }
   return "OpenSky (ADS-B)";
 }
 

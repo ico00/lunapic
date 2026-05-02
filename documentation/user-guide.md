@@ -20,7 +20,8 @@ LunaPic helps you **line up a real (or static) aircraft** with the **Moon** in t
   - **Tip:** the Moon returns to about the same compass direction after roughly **24h 50m** (a lunar day), not after exactly 24h — so the **right** end of the slider (now + 24h) is **not** the same point on the path as **Sync** (now).
 4. **Choose a flight data source (Provider)** — the app **defaults to OpenSky** on a fresh load.
   - **OpenSky (ADS-B)** — live traffic for a **bounded region** around your **observer** and the **map view** (via the app’s server route; no OpenSky key in the browser). The map may **briefly retain** symbols between refreshes so tracking feels steadier on phones.  
-  - **Other apps (FlightRadar24, ADSB-One, …):** they are **different** data products — other receiver networks, MLAT, or partner feeds — so a plane you see there may **not** appear in LunaPic until OpenSky carries it (and vice versa).  
+  - **ADS-B One** — alternate live feed (also proxied); same geometry rules; different upstream coverage and rate limits than OpenSky.  
+  - **Other apps (FlightRadar24, …):** they are **different** data products — other receiver networks, MLAT, or partner feeds — so a plane you see there may **not** appear in LunaPic for the feed you picked (and vice versa).  
   - **Routes (static)** — demo routes; good offline.  
   - **Mock** — small test set.
 5. **Pan / zoom the map**
@@ -58,7 +59,7 @@ LunaPic helps you **line up a real (or static) aircraft** with the **Moon** in t
 - **Observer-centric:** the Moon’s position, rise/set, and the comparison with an aircraft are always from **your observer point** and the **simulated** `reference` time, not from an arbitrary map center.  
 - **Aircraft in 3D:** the app uses the aircraft’s **height** and your position to get a realistic **line of sight** (azimuth, elevation, slant range) for tools and the stand band — not a flat “shadow on the map only” for those parts.  
 - **Opportunity corridor:** the green confidence corridor is **observer-centric** (your fixed camera point), derived from moon geometry + camera setup. It helps rank where transit timing is strongest, but it is not a hard guarantee for a specific live aircraft.
-- **Flights in OpenSky mode:** the server returns a **snapshot** for a bounded area; the app **extrapolates** along track for display and applies a **light retention** between refreshes so symbols do not constantly vanish on patchy mobile networks — still not a full 4D radar simulation.  
+- **Flights in live modes (OpenSky / ADS-B One):** the server returns a **snapshot** for a bounded area; the app **extrapolates** along track for display and applies a **light retention** between refreshes so symbols do not constantly vanish on patchy mobile networks — still not a full 4D radar simulation.  
 - **Moon ephemeris:** rise/set and path use standard astronomical models (suncalc family) for the observer location. The **slider** runs **forward from Sync** for about **24 hours**; rise/set still drive the **primary** path highlight and ephemeris text. **Suncalc** refresh runs on **Sync**, when you **cross midnight UTC** while scrubbing, and when the **observer** moves — not on every small slider step (see [changelog.md](./changelog.md) if you care why).
 
 **If you need formulas and modules:** that’s in [architecture.md](./architecture.md) and `lib/domain/`.

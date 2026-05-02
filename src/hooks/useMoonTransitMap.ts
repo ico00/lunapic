@@ -127,7 +127,10 @@ export function useMoonTransitMap(
       });
     };
 
-    if (useMoonTransitStore.getState().flightProvider !== "opensky") {
+    const st0 = useMoonTransitStore.getState();
+    const debouncedProvider =
+      st0.flightProvider === "opensky" || st0.flightProvider === "adsbone";
+    if (!debouncedProvider) {
       run();
       return;
     }
@@ -136,10 +139,13 @@ export function useMoonTransitMap(
     }
     const delayMs = (() => {
       const st = useMoonTransitStore.getState();
-      if (st.flightProvider !== "opensky") {
-        return 0;
+      if (st.flightProvider === "opensky") {
+        return st.selectedFlightId != null ? 1200 : 800;
       }
-      return st.selectedFlightId != null ? 1200 : 800;
+      if (st.flightProvider === "adsbone") {
+        return st.selectedFlightId != null ? 1600 : 1200;
+      }
+      return 0;
     })();
     boundsRefreshDebounceRef.current = setTimeout(() => {
       boundsRefreshDebounceRef.current = null;
