@@ -180,10 +180,10 @@ body {
   z-index: 20;
 }
 
-/* Mobile: iznad moon legende / sheet-a, ispod bottom tabova — kartica „sjeda“ na traku. */
+/* Mobile: iznad legene i bottom tabova (nav z-[60]) da sadržaj kartice ostane čitljiv. */
 @media (max-width: 767px) {
   .moon-transit-aircraft-popup {
-    z-index: 54;
+    z-index: 68;
   }
 
   .moon-transit-aircraft-popup .mapboxgl-popup-content {

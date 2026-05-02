@@ -307,7 +307,7 @@ Sve promjene vizuala na letovima / Mjesecu treba raditi kroz postojeće **source
 | `SELECTED_FLIGHT_TRAJECTORY_*` | Kratka predikcija putanje + label |
 | `MAPBOX_TERRAIN_DEM_SOURCE` | DEM za elevaciju promatrača |
 
-**MapContainer** također: `data-testid="map-surface"`; bez tokena `data-testid="map-missing-token"`. Popup klasa: `.moon-transit-aircraft-popup` (`z-index: 20` u CSS-u).
+**MapContainer** također: `data-testid="map-surface"`; bez tokena `data-testid="map-missing-token"`. Popup klasa: `.moon-transit-aircraft-popup` (desktop `z-index: 20`; mobile `max-width: 767px` → **68**, iznad bottom tabova).
 
 ### 11.1 Boje i filtri na karti (konceptualno)
 

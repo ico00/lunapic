@@ -10,7 +10,9 @@ where version bumps are made for releases (currently `0.x`).
 
 ### Fixed
 
-- **Map — selected aircraft card (mobile dock)** — Popup anchor sits at the **bottom of the map canvas** with a **pixel `setOffset`** derived from the map wrapper’s **`padding-bottom`** (same strip as the bottom tab bar), so the card meets the tabs instead of floating with a gap. Card styling on small screens matches the tab strip (**`bg-black/92`**, **no bottom radius / border**, **`border-zinc-800`**, no drop shadow). Popup **`z-index`** is **54** under the tab bar (**60**).
+- **UI — mobile shell tabs** — Selected tab uses **`ring-inset`** (outer `ring` was clipped by the tab row’s horizontal scroll `overflow-*` pairing). **Pulse** no longer uses **`scale-[1.03]`** (transform overflow); short **`brightness-110`** flash instead. Slightly taller tabs (**`min-h-[3.35rem]`**), **`py-1`** on the tab scroller, icon wrapped in **`leading-none`** span.
+
+- **Map — selected aircraft card (mobile)** — Popup anchor stays at the **bottom-centre of the map canvas** with **`setOffset`** from the wrapper’s **`padding-bottom`** (max along ancestor chain, **≥ 88px**). Popup **`z-index`** is **68** (above bottom nav **`z-[60]`**) so the card is not hidden under tabs. **Altitude legend** is **`max-md:hidden`** while an aircraft is selected (popup DOM sits inside the map canvas layer, below legend’s sibling overlay). Mobile **Altitude** row is **full-width** with **`break-words`**; card **`max-h`** is **`min(46dvh, 20rem)`**. Shell strip styling unchanged (**`bg-black/92`**, no bottom radius on the card).
 
 - **Map — moon × static route intersection markers** — Yellow **`moon-intersections`** points are only built when **`ENABLE_STATIC_ROUTE_MAP_OVERLAY`** is on (same gate as the violet `routes.json` polylines). With the overlay off, **`useMapMoonOverlayFeatures`** now returns an empty intersection list so stray demo-route dots no longer sit on the live map. `routes.json` remains in use for OpenSky hull / domain math.
 
@@ -18,7 +20,9 @@ where version bumps are made for releases (currently `0.x`).
 
 ### Changed
 
-- **UI — mobile bottom tabs (per card)** — Below `md`, the bottom bar is now a **horizontally scrollable tab list** (≈**five** tab widths visible at once via `min-width: calc((100vw - padding) / 5)`), one tab per main **Shell** card: **Flight**, **Observer**, **Moon**, **Tracks** (transit candidates), **Active**, **Time**, **Photo**, **Compass**, **Field**. Tapping opens the same bottom sheet with **only that panel** (replacing the old four grouped tabs: Mission / Time / Observer / Field). **`useLayoutEffect`** scrolls the active tab toward center; `data-testid="mobile-shell-tab-<id>"`.
+- **CI — GitHub Actions** — `actions/checkout@v5` and `actions/setup-node@v5`; workflow Node **22** (LTS) instead of 20, addressing the Node 20 action-runtime deprecation annotation on `ubuntu-latest`.
+
+- **UI — mobile bottom tabs (per card)** — Below `md`, the bottom bar is a **horizontally scrollable tab list** (≈**five** tab widths visible at once via `min-width: calc((100vw - padding) / 5)`), one tab per main **Shell** card, each with the same **SVG icon** as the matching shell section (`sectionCategoryIcons`), **`text-xs`** labels, and **edge fades + a right chevron** when more tabs lie off-screen (scroll + `ResizeObserver`). Tapping opens the bottom sheet for that panel. **`useLayoutEffect`** scrolls the active tab toward center; `data-testid="mobile-shell-tab-<id>"`.
 
 - **UI — transit candidates** — Removed the tiny footnote under **Transit candidates** (“Notify me on watched flights…”). Bell buttons keep **`aria-label`** / **`title`** for alerts and permission context.
 
@@ -28,7 +32,7 @@ where version bumps are made for releases (currently `0.x`).
 
 - **Map — altitude legend readability** — Larger type (`text-sm` / `text-base` title, `text-xs`–`text-sm` mono ticks), taller gradient bar, wider padding; tick labels shortened to **`0m` / `2k` / `4.5k`** style so they stay on one line. **`shellAccentCheckboxClass`** uses **`h-4 w-4`** for a clearer control.
 
-- **Map — altitude legend copy** — **`FlightAltitudeLegend`** keeps title, scale, tick labels, and **Color by altitude** only; long footnotes moved to About FAQ (**What does the altitude color bar on the map mean?**). Checkbox retains a concise **`aria-label`** for screen readers.
+- **Map — altitude legend copy** — **`FlightAltitudeLegend`**: the **toggle** sits **before** the title **Aircraft color by altitude (MSL)** on one row (no separate **Color by altitude** line); tighter **`gap`** / **`py`** on small screens. Long footnotes stay in About FAQ. Checkbox **`aria-label`** unchanged (`data-testid="flight-altitude-colors-toggle"`).
 
 - **UI — shell combobox + map legend styling** — **`shellComboboxStyles.ts`** centralises trigger, portal listbox, glass panel, and accent checkbox classes. **`FlightProviderSelect`** now matches **`CameraSensorSelect`** (`h-9` trigger, same portal panel + width/clamp behaviour, **blue** checkbox accent vs sky). **`FlightAltitudeLegend`** uses the same **glass panel** and **`shellAccentCheckboxClass`** as the shell pickers.
 
@@ -37,6 +41,8 @@ where version bumps are made for releases (currently `0.x`).
 - **Map — static route polylines** — The violet **`routes-geo`** / `routes-line` overlay from `routes.json` is **off** by default (`ENABLE_STATIC_ROUTE_MAP_OVERLAY = false` in `staticRouteUtils.ts`): those lines were **demo corridor geometry**, not real ADS-B history. Domain logic (OpenSky bbox hull, moon–route intersections) still uses `routes.json`; flip the flag when real historic route polylines are available.
 
 ### Added
+
+- **Chrome — logo refresh** — Tapping the **header logo** runs **`location.reload()`** (hard refresh), mainly for **Add to Home Screen** / in-app WebView where the browser refresh control is missing. **`aria-label` / `title`**: “Refresh page”; **`data-testid="header-logo-refresh"`**.
 
 - **Map — altitude colors toggle** — **`FlightAltitudeLegend`** includes a **Color by altitude** checkbox (`data-testid="flight-altitude-colors-toggle"`). When off, **`mapAircraftAltitudeColors`** in `moon-transit-store` drives **`applyFlightLayerColorPaint`**: markers use a **single neutral tone** (`#94a3b8`); **shot-feasible** stays **green**. **`useMapFlightAltitudeColorsPaint`** reapplies paint after the async **3D model** swap (`idle`). Default: on (full altitude scale).
 

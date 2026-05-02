@@ -17,11 +17,23 @@ import { useIsMdUp } from "@/hooks/useMediaQuery";
 import { useTransitCandidateNotifications } from "@/hooks/useTransitCandidateNotifications";
 import { useAstronomySync } from "@/hooks/useAstronomySync";
 import { useWeatherSync } from "@/hooks/useWeatherSync";
+import {
+  SectionIconCamera,
+  SectionIconCompass,
+  SectionIconField,
+  SectionIconFlightSource,
+  SectionIconMoon,
+  SectionIconObserver,
+  SectionIconTarget,
+  SectionIconTime,
+  SectionIconTransitsList,
+} from "@/components/shell/sectionCategoryIcons";
 import { resumeSharedAudioFromUserGesture } from "@/lib/audio/fieldAudio";
 import { appPath } from "@/lib/paths/appPath";
 import { useObserverStore } from "@/stores/observer-store";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import type { ComponentType, SVGProps } from "react";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 /**
@@ -41,17 +53,29 @@ function AppHeaderBrand({ compact }: { compact: boolean }) {
       <div className="flex shrink-0 items-center">
         {/*
          * Native img + direct `appPath` (avoids `next/image` / some host issues).
+         * Logo tap = full reload (PWA / in-app Safari has no refresh control).
          */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={appPath("/logo.png")}
-          alt=""
-          width={280}
-          height={80}
-          decoding="async"
-          fetchPriority="high"
-          className={imgClass}
-        />
+        <button
+          type="button"
+          className="m-0 flex cursor-pointer items-center border-0 bg-transparent p-0 text-left active:opacity-90 motion-reduce:active:opacity-100 focus-visible:rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500/75"
+          aria-label="Refresh page"
+          title="Refresh page"
+          data-testid="header-logo-refresh"
+          onClick={() => {
+            globalThis.location.reload();
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={appPath("/logo.png")}
+            alt=""
+            width={280}
+            height={80}
+            decoding="async"
+            fetchPriority="high"
+            className={imgClass}
+          />
+        </button>
       </div>
       <span className={wordClass}>LunaPic</span>
     </h1>
@@ -85,23 +109,67 @@ type MobileShellPanelId =
   | "compass"
   | "field";
 
+type MobileTabIcon = ComponentType<SVGProps<SVGSVGElement>>;
+
 const MOBILE_BOTTOM_TABS: readonly {
   readonly id: MobileShellPanelId;
   readonly sheetTitle: string;
   readonly tabLabel: string;
+  readonly TabIcon: MobileTabIcon;
 }[] = [
-  { id: "flight", sheetTitle: "Flight source", tabLabel: "Flight" },
-  { id: "observer", sheetTitle: "Observer", tabLabel: "Observer" },
-  { id: "moon", sheetTitle: "Moon (nowcast)", tabLabel: "Moon" },
-  { id: "candidates", sheetTitle: "Transit candidates", tabLabel: "Tracks" },
-  { id: "active", sheetTitle: "Active transits", tabLabel: "Active" },
-  { id: "time", sheetTitle: "Time & weather", tabLabel: "Time" },
-  { id: "photo", sheetTitle: "Photographer — tools", tabLabel: "Photo" },
-  { id: "compass", sheetTitle: "Compass → Moon", tabLabel: "Compass" },
+  {
+    id: "flight",
+    sheetTitle: "Flight source",
+    tabLabel: "Flight",
+    TabIcon: SectionIconFlightSource,
+  },
+  {
+    id: "observer",
+    sheetTitle: "Observer",
+    tabLabel: "Observer",
+    TabIcon: SectionIconObserver,
+  },
+  {
+    id: "moon",
+    sheetTitle: "Moon (nowcast)",
+    tabLabel: "Moon",
+    TabIcon: SectionIconMoon,
+  },
+  {
+    id: "candidates",
+    sheetTitle: "Transit candidates",
+    tabLabel: "Tracks",
+    TabIcon: SectionIconTarget,
+  },
+  {
+    id: "active",
+    sheetTitle: "Active transits",
+    tabLabel: "Active",
+    TabIcon: SectionIconTransitsList,
+  },
+  {
+    id: "time",
+    sheetTitle: "Time & weather",
+    tabLabel: "Time",
+    TabIcon: SectionIconTime,
+  },
+  {
+    id: "photo",
+    sheetTitle: "Photographer — tools",
+    tabLabel: "Photo",
+    TabIcon: SectionIconCamera,
+  },
+  {
+    id: "compass",
+    sheetTitle: "Compass → Moon",
+    tabLabel: "Compass",
+    TabIcon: SectionIconCompass,
+  },
   {
     id: "field",
     sheetTitle: "Field: manual correction & export",
     tabLabel: "Field",
+    TabIcon: SectionIconField,
   },
 ];
 
@@ -253,6 +321,11 @@ export function HomePageClient() {
   const mobileTabBtnRefs = useRef<
     Partial<Record<MobileShellPanelId, HTMLButtonElement | null>>
   >({});
+  const mobileTabListRef = useRef<HTMLDivElement | null>(null);
+  const [mobileTabScrollFade, setMobileTabScrollFade] = useState({
+    left: false,
+    right: false,
+  });
   const [sheetSnap, setSheetSnap] = useState<SheetSnap>("peek");
   const [sheetDragOffsetPx, setSheetDragOffsetPx] = useState(0);
   const touchStartYRef = useRef<number | null>(null);
@@ -299,6 +372,38 @@ export function HomePageClient() {
     );
   }, [mobilePanelId]);
 
+  const refreshMobileTabScrollFade = useCallback(() => {
+    const el = mobileTabListRef.current;
+    if (!el) return;
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    if (maxScroll <= 2) {
+      setMobileTabScrollFade({ left: false, right: false });
+      return;
+    }
+    setMobileTabScrollFade({
+      left: el.scrollLeft > 2,
+      right: el.scrollLeft < maxScroll - 2,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (isWide) return;
+    const el = mobileTabListRef.current;
+    if (!el) return;
+    refreshMobileTabScrollFade();
+    const ro = new ResizeObserver(() => {
+      refreshMobileTabScrollFade();
+    });
+    ro.observe(el);
+    el.addEventListener("scroll", refreshMobileTabScrollFade, { passive: true });
+    window.addEventListener("resize", refreshMobileTabScrollFade);
+    return () => {
+      ro.disconnect();
+      el.removeEventListener("scroll", refreshMobileTabScrollFade);
+      window.removeEventListener("resize", refreshMobileTabScrollFade);
+    };
+  }, [isWide, refreshMobileTabScrollFade]);
+
   useLayoutEffect(() => {
     if (!mobilePanelId) {
       return;
@@ -309,7 +414,11 @@ export function HomePageClient() {
       block: "nearest",
       behavior: "smooth",
     });
-  }, [mobilePanelId]);
+    const id = globalThis.requestAnimationFrame(() => {
+      refreshMobileTabScrollFade();
+    });
+    return () => globalThis.cancelAnimationFrame(id);
+  }, [mobilePanelId, refreshMobileTabScrollFade]);
   const candidateNotifications = useTransitCandidateNotifications({
     candidates: s.candidatesDisplay,
     activeTransits: s.activeTransits,
@@ -677,39 +786,66 @@ export function HomePageClient() {
           ) : null}
           <nav
             className="absolute inset-x-0 bottom-0 z-[60] border-t border-zinc-800 bg-black/92 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1 backdrop-blur-2xl"
-            aria-label="Primary mobile navigation"
+            aria-label="Primary mobile navigation — scroll the tab bar sideways for more panels"
           >
-            <div
-              className="flex w-full snap-x snap-mandatory gap-1.5 overflow-x-auto px-2 pt-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-              role="tablist"
-            >
-              {MOBILE_BOTTOM_TABS.map((t) => {
-                const selected = mobilePanelId === t.id;
-                return (
-                  <button
-                    key={t.id}
-                    id={`mobile-shell-tab-${t.id}`}
-                    type="button"
-                    ref={(el) => {
-                      mobileTabBtnRefs.current[t.id] = el;
-                    }}
-                    role="tab"
-                    aria-selected={selected}
-                    aria-controls="mobile-shell-sheet-panel"
-                    data-testid={`mobile-shell-tab-${t.id}`}
-                    onClick={() => {
-                      openMobilePanel(t.id);
-                    }}
-                    className={`flex min-h-11 min-w-[calc((100vw-2.25rem)/5)] max-w-[6.25rem] shrink-0 snap-start flex-col items-center justify-center rounded-lg px-1.5 py-1 text-center text-[0.65rem] font-semibold leading-tight transition duration-150 active:scale-[0.97] motion-reduce:transition-none sm:min-w-[4.25rem] ${
-                      selected
-                        ? "bg-zinc-900 text-zinc-50 ring-1 ring-blue-500/45"
-                        : "text-zinc-400 hover:bg-zinc-800/55 hover:text-zinc-200"
-                    } ${pulsePanelId === t.id ? "scale-[1.03]" : ""}`}
-                  >
-                    {t.tabLabel}
-                  </button>
-                );
-              })}
+            <div className="relative">
+              {mobileTabScrollFade.left ? (
+                <div
+                  className="pointer-events-none absolute inset-y-0 left-0 z-[1] w-9 bg-gradient-to-r from-black/92 via-black/55 to-transparent"
+                  aria-hidden
+                />
+              ) : null}
+              {mobileTabScrollFade.right ? (
+                <div
+                  className="pointer-events-none absolute inset-y-0 right-0 z-[1] w-11 bg-gradient-to-l from-black/92 via-black/60 to-transparent"
+                  aria-hidden
+                />
+              ) : null}
+              {mobileTabScrollFade.right ? (
+                <span
+                  className="pointer-events-none absolute right-1 top-1/2 z-[2] -translate-y-1/2 select-none text-lg leading-none text-zinc-500"
+                  aria-hidden
+                >
+                  ›
+                </span>
+              ) : null}
+              <div
+                ref={mobileTabListRef}
+                className="flex w-full snap-x snap-mandatory gap-1.5 overflow-x-auto px-2 py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                role="tablist"
+              >
+                {MOBILE_BOTTOM_TABS.map((t) => {
+                  const selected = mobilePanelId === t.id;
+                  const TabIcon = t.TabIcon;
+                  return (
+                    <button
+                      key={t.id}
+                      id={`mobile-shell-tab-${t.id}`}
+                      type="button"
+                      ref={(el) => {
+                        mobileTabBtnRefs.current[t.id] = el;
+                      }}
+                      role="tab"
+                      aria-selected={selected}
+                      aria-controls="mobile-shell-sheet-panel"
+                      data-testid={`mobile-shell-tab-${t.id}`}
+                      onClick={() => {
+                        openMobilePanel(t.id);
+                      }}
+                      className={`flex min-h-[3.35rem] min-w-[calc((100vw-2.25rem)/5)] max-w-[6.75rem] shrink-0 snap-start flex-col items-center justify-center gap-1 overflow-visible rounded-lg px-1.5 py-1.5 text-center text-xs font-semibold leading-tight tracking-tight transition duration-150 active:scale-[0.97] motion-reduce:transition-none sm:min-w-[4.5rem] ${
+                        selected
+                          ? "bg-zinc-900 text-zinc-50 ring-1 ring-inset ring-blue-500/45"
+                          : "text-zinc-400 hover:bg-zinc-800/55 hover:text-zinc-200"
+                      } ${pulsePanelId === t.id ? "brightness-110 motion-reduce:brightness-100" : ""}`}
+                    >
+                      <span className="flex shrink-0 items-center justify-center leading-none [&>svg]:block">
+                        <TabIcon className="h-5 w-5 shrink-0 opacity-95" />
+                      </span>
+                      <span className="max-w-full truncate">{t.tabLabel}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </nav>
         </div>

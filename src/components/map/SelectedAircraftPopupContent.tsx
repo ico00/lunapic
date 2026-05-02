@@ -50,7 +50,7 @@ export function SelectedAircraftPopupContent({
 
   return (
     <div
-      className="pointer-events-auto overflow-y-auto rounded-md border border-zinc-700 bg-zinc-950/98 p-2.5 text-zinc-200 shadow-xl shadow-black/45 backdrop-blur max-md:max-h-[min(32dvh,14.5rem)] max-md:w-full max-md:max-w-none max-md:rounded-b-none max-md:rounded-t-lg max-md:border-x max-md:border-t max-md:border-b-0 max-md:border-zinc-800 max-md:bg-black/92 max-md:shadow-none max-md:backdrop-blur-2xl md:max-h-[34rem] md:w-[min(18rem,calc(100vw-2.25rem))] md:p-3"
+      className="pointer-events-auto overflow-y-auto rounded-md border border-zinc-700 bg-zinc-950/98 p-2.5 text-zinc-200 shadow-xl shadow-black/45 backdrop-blur max-md:max-h-[min(46dvh,20rem)] max-md:w-full max-md:max-w-none max-md:rounded-b-none max-md:rounded-t-lg max-md:border-x max-md:border-t max-md:border-b-0 max-md:border-zinc-800 max-md:bg-black/92 max-md:shadow-none max-md:backdrop-blur-2xl md:max-h-[34rem] md:w-[min(18rem,calc(100vw-2.25rem))] md:p-3"
       data-testid="selected-flight-card"
     >
       <div className="flex items-start justify-between gap-2 md:items-start">
@@ -157,11 +157,11 @@ export function SelectedAircraftPopupContent({
           {/* Mobile: compact Flightradar-style strip */}
           <div className="mt-2 md:hidden">
             <div className="grid grid-cols-2 gap-1.5">
-              <div className="rounded-lg border border-white/[0.06] bg-zinc-900/70 px-2 py-1">
+              <div className="col-span-2 rounded-lg border border-white/[0.06] bg-zinc-900/70 px-2 py-1">
                 <div className="text-[0.55rem] font-medium uppercase tracking-wide text-zinc-500">
                   Altitude
                 </div>
-                <div className="mt-0.5 truncate font-mono text-[0.68rem] tabular-nums leading-none text-zinc-100">
+                <div className="mt-0.5 break-words font-mono text-[0.68rem] tabular-nums leading-snug text-zinc-100">
                   {altBlock(flight)}
                 </div>
               </div>

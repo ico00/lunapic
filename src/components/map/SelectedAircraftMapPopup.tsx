@@ -38,17 +38,24 @@ function isMobileMapWidth(map: Map): boolean {
  * Donji `padding` roditelja Mapbox containera (HomePageClient ostavlja traku za tabove).
  * Pomakne `Popup` s `anchor: bottom` vizualno u rezervu da se kartica spoji s tab trakom.
  */
+/** Donji tab bar + safe area — donja granica ako `padding-bottom` roditelja nije čitljiv. */
+const MOBILE_MAP_DOCK_PADDING_FALLBACK_PX = 88;
+
 function readMobileDockPaddingBottomPx(map: Map): number {
+  let best = 0;
   let el: HTMLElement | null = map.getContainer().parentElement;
-  for (let hop = 0; hop < 5 && el; hop++) {
+  for (let hop = 0; hop < 8 && el; hop++) {
     const raw = getComputedStyle(el).paddingBottom;
     const px = Number.parseFloat(raw);
     if (Number.isFinite(px) && px >= 8) {
-      return Math.round(px);
+      best = Math.max(best, Math.round(px));
     }
     el = el.parentElement;
   }
-  return 72;
+  return Math.max(
+    best > 0 ? best : MOBILE_MAP_DOCK_PADDING_FALLBACK_PX,
+    MOBILE_MAP_DOCK_PADDING_FALLBACK_PX
+  );
 }
 
 /**
