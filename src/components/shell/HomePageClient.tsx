@@ -427,7 +427,8 @@ export function HomePageClient() {
   const sheetHeightClass = useMemo(() => {
     if (sheetSnap === "full") return "h-[76dvh]";
     if (sheetSnap === "half") return "h-[58dvh]";
-    return "h-[42dvh]";
+    /** Peek: visina sadržaja do max ~42dvh — bez praznog „štapića“ kad je malo teksta. */
+    return "h-fit max-h-[42dvh]";
   }, [sheetSnap]);
 
   const openMobilePanel = useCallback((panel: MobileShellPanelId) => {
@@ -582,13 +583,14 @@ export function HomePageClient() {
           <header className="mt-chrome-bar flex w-full min-w-0 shrink-0 items-center overflow-hidden px-4 py-2.5 pt-[max(0.5rem,env(safe-area-inset-top))] md:col-start-1 md:row-start-1 md:self-center">
             <AppHeaderBrand compact={false} />
           </header>
-          <div className="min-h-0 shrink-0 md:col-span-2 md:col-start-2 md:row-start-1 md:self-stretch">
+          <div className="relative z-10 min-h-0 shrink-0 md:col-span-2 md:col-start-2 md:row-start-1 md:self-stretch">
             <TimeAndWeatherBlock {...timeBlockProps} />
           </div>
           <aside className="mt-side-rail min-h-0 min-w-0 overflow-y-auto border-r px-4 pb-4 pt-0 text-zinc-200 [scrollbar-gutter:stable] md:col-start-1 md:row-start-2">
             {missionPanels}
           </aside>
-          <div className="relative min-h-0 min-w-0 overflow-hidden shadow-[0_0_0_1px_rgba(63,63,70,0.5),0_24px_80px_-20px_rgba(0,0,0,0.55)] md:col-start-2 md:row-start-2 md:rounded-md">
+          {/* z-[20] iznad vremenskog reda (z-10) da Mapbox popup (odabrani avion) ne ostane ispod Sync gumba kad se rubovi podudare. */}
+          <div className="relative z-20 min-h-0 min-w-0 overflow-hidden shadow-[0_0_0_1px_rgba(63,63,70,0.5),0_24px_80px_-20px_rgba(0,0,0,0.55)] md:col-start-2 md:row-start-2 md:rounded-md">
             <MapContainer
               flightProvider={s.flightProvider}
               isGolden={s.isGolden}
@@ -601,7 +603,8 @@ export function HomePageClient() {
         </div>
       ) : (
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-black">
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-40 px-2.5 pt-[max(0.4rem,env(safe-area-inset-top))]">
+          {/* Iznad map stupca (z-[70]) da kompaktno LunaPic dugme ne nestane ispod karte nakon učitavanja. */}
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-[78] px-2.5 pt-[max(0.4rem,env(safe-area-inset-top))]">
             <div className="pointer-events-auto inline-flex max-w-[min(76vw,14rem)] items-center rounded-md border border-zinc-700 bg-zinc-950/90 px-2.5 py-1.5 shadow-lg shadow-black/40 backdrop-blur-xl">
               <AppHeaderBrand compact />
             </div>
@@ -616,7 +619,7 @@ export function HomePageClient() {
           </div>
           {mobilePanelId ? (
             <section
-              className={`absolute inset-x-0 bottom-[calc(3.55rem+env(safe-area-inset-bottom))] z-[75] max-h-[78dvh] min-h-[42dvh] overflow-hidden rounded-t-lg border border-zinc-800 bg-zinc-950/98 shadow-[0_-12px_60px_-12px_rgba(0,0,0,0.65)] backdrop-blur-2xl transition-[height,transform,box-shadow] duration-300 motion-reduce:transition-none ${sheetHeightClass}`}
+              className={`absolute inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-[75] flex max-h-[78dvh] flex-col overflow-hidden rounded-t-lg border border-zinc-800 bg-zinc-950/98 shadow-[0_-12px_60px_-12px_rgba(0,0,0,0.65)] backdrop-blur-2xl transition-[height,transform,box-shadow] duration-300 motion-reduce:transition-none ${sheetHeightClass}`}
               aria-label={`${mobileSheetTitle} controls`}
               aria-labelledby={`mobile-shell-tab-${mobilePanelId}`}
               style={{
@@ -625,7 +628,7 @@ export function HomePageClient() {
               }}
             >
               <header
-                className="flex items-center justify-between border-b border-white/10 px-4 py-2.5"
+                className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-2.5"
                 onTouchStart={handleSheetTouchStart}
                 onTouchMove={handleSheetTouchMove}
                 onTouchEnd={handleSheetTouchEnd}
@@ -658,7 +661,11 @@ export function HomePageClient() {
               <div
                 id="mobile-shell-sheet-panel"
                 role="tabpanel"
-                className="h-[calc(100%-3rem)] overflow-y-auto px-3 py-2 text-zinc-200 [scrollbar-gutter:stable]"
+                className={`overflow-y-auto px-3 py-2 text-zinc-200 [scrollbar-gutter:stable] ${
+                  sheetSnap === "peek"
+                    ? "max-h-[calc(42dvh-3.25rem)] shrink-0"
+                    : "min-h-0 flex-1"
+                }`}
               >
                 {mobilePanelId === "flight" ? (
                   <FlightSourcePanel

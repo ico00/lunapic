@@ -65,6 +65,7 @@ export function MapContainer({
     elRef,
     mapRef,
     mapReadyTick,
+    refreshFlightsNow,
   } = useMoonTransitMap({ flightProvider, isGolden });
   const shotFeasibleFlightIds = useMemo(
     () =>
@@ -159,6 +160,7 @@ export function MapContainer({
         mapRef={mapRef}
         mapReadyTick={mapReadyTick}
         suppressed={suppressSelectedAircraftPopup}
+        onRefreshFlights={refreshFlightsNow}
       />
     </div>
   );

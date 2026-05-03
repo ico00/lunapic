@@ -14,8 +14,63 @@ import {
 import { fieldPerfTime } from "@/lib/perf/fieldPerf";
 import { getMoonPathLabelInstants } from "@/lib/map/moonPathLabelInstants";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
-import type { MoonRiseSetTimes, MoonState } from "@/types/moon";
+import type {
+  MoonPathSample,
+  MoonRiseSetTimes,
+  MoonState,
+} from "@/types/moon";
 import { useMemo } from "react";
+
+/** Ažurirano kad se točka simulacije uklopi u polyliniju (vidi merge ispod). */
+const REF_VERTEX_MATCH_MS = 500;
+
+/**
+ * Umeće točku trenutnog simuliranog vremena u `LineString` tako da vizualno leži
+ * na istom crtežu: segmenti između uzoraka svakih 30 min su tetive, pa „čista“
+ * točka na azimutu za `referenceEpochMs` inače ne pada na poliliniju.
+ */
+function mergeMoonPathLineWithReferenceInstant(
+  samples: readonly MoonPathSample[],
+  lineCoords: readonly [number, number][],
+  referenceEpochMs: number,
+  currentLngLat: [number, number]
+): [number, number][] {
+  if (samples.length < 2 || lineCoords.length !== samples.length) {
+    return [...lineCoords];
+  }
+  const t = referenceEpochMs;
+  const t0s = samples[0]!.epochMs;
+  const t1s = samples[samples.length - 1]!.epochMs;
+
+  if (t <= t0s) {
+    if (Math.abs(t - t0s) <= REF_VERTEX_MATCH_MS) {
+      return [...lineCoords];
+    }
+    return [currentLngLat, ...lineCoords];
+  }
+  if (t >= t1s) {
+    if (Math.abs(t - t1s) <= REF_VERTEX_MATCH_MS) {
+      return [...lineCoords];
+    }
+    return [...lineCoords, currentLngLat];
+  }
+
+  for (let i = 0; i < samples.length - 1; i++) {
+    const a = samples[i]!.epochMs;
+    const b = samples[i + 1]!.epochMs;
+    if (t >= a && t <= b) {
+      if (Math.abs(t - a) <= REF_VERTEX_MATCH_MS || Math.abs(t - b) <= REF_VERTEX_MATCH_MS) {
+        return [...lineCoords];
+      }
+      return [
+        ...lineCoords.slice(0, i + 1),
+        currentLngLat,
+        ...lineCoords.slice(i + 1),
+      ] as [number, number][];
+    }
+  }
+  return [...lineCoords];
+}
 
 function formatMoonPathClockLabel(tMs: number): string {
   return new Date(tMs).toLocaleTimeString("en-GB", {
@@ -80,14 +135,32 @@ export function useMapMoonOverlayFeatures(
       spec.samples,
       MOON_PATH_RAY_LENGTH_M
     );
+    const [, currentMoonEnd] = GeometryEngine.buildMoonAzimuthLine(
+      obs,
+      moon,
+      MOON_PATH_RAY_LENGTH_M
+    );
+    const currentLngLat: [number, number] = [
+      currentMoonEnd.lng,
+      currentMoonEnd.lat,
+    ];
+    const mergedPathCoords =
+      spec.samples.length >= 2 && lineCoords.length >= 2
+        ? mergeMoonPathLineWithReferenceInstant(
+            spec.samples,
+            lineCoords as [number, number][],
+            referenceEpochMs,
+            currentLngLat
+          )
+        : lineCoords;
     const lineFeature =
-      lineCoords.length >= 2
+      mergedPathCoords.length >= 2
         ? {
             type: "Feature" as const,
             properties: { kind: "moon-path" },
             geometry: {
               type: "LineString" as const,
-              coordinates: lineCoords,
+              coordinates: mergedPathCoords,
             },
           }
         : null;
@@ -126,17 +199,12 @@ export function useMapMoonOverlayFeatures(
             },
           }
         : null;
-    const [, currentMoonEnd] = GeometryEngine.buildMoonAzimuthLine(
-      obs,
-      moon,
-      MOON_PATH_RAY_LENGTH_M
-    );
     const currentPointFeature = {
       type: "Feature" as const,
       properties: { kind: "moon-path-current", label: formatMoonPathClockLabel(referenceEpochMs) },
       geometry: {
         type: "Point" as const,
-        coordinates: [currentMoonEnd.lng, currentMoonEnd.lat],
+        coordinates: [...currentLngLat] as [number, number],
       },
     };
 

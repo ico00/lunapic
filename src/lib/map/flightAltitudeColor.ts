@@ -91,6 +91,38 @@ export type FlightAltitudeLegendStop = {
   readonly label: string;
 };
 
+/** Jedinica za brojčane oznake ispod trake altitude legende (MSL u podacima i dalje u metrima). */
+export type FlightAltitudeLegendUnit = "km" | "ft";
+
+const METERS_TO_FEET = 3.280839895013123;
+
+function formatLegendThousandsK(valueK: number, suffixPlus: boolean): string {
+  const rounded = Math.round(valueK * 10) / 10;
+  let base: string;
+  if (Math.abs(rounded - Math.round(rounded)) < 1e-9) {
+    base = String(Math.round(rounded));
+  } else {
+    base = rounded.toFixed(1).replace(/\.0$/, "");
+  }
+  return `${base}k${suffixPlus ? "+" : ""}`;
+}
+
+/** Tekst ispod legende za jedan rubni stop (km = ugrađeni kratki labeli, ft = kompaktno u tisućama ft). */
+export function flightAltitudeLegendStopLabel(
+  stop: FlightAltitudeLegendStop,
+  unit: FlightAltitudeLegendUnit,
+  isLastStop: boolean
+): string {
+  if (unit === "km") {
+    return stop.label;
+  }
+  if (stop.altMeters === 0) {
+    return "0";
+  }
+  const ft = stop.altMeters * METERS_TO_FEET;
+  return formatLegendThousandsK(ft / 1000, isLastStop);
+}
+
 /**
  * Rubni labeli za legendu — kratki oblik (`k` = km MSL) da stanu u jedan redak uz čitljiv font.
  */

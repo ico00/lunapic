@@ -9,6 +9,7 @@ import {
   mergeFlightsWithOpenSkyRetention,
 } from "@/lib/flight/mergeFlightsWithOpenSkyRetention";
 import { getFlightProvider } from "@/lib/flight/flightProviderRegistry";
+import type { FlightAltitudeLegendUnit } from "@/lib/map/flightAltitudeColor";
 import { useObserverStore } from "@/stores/observer-store";
 import type { GeoBounds, MapViewState } from "@/types";
 import type { FlightState } from "@/types/flight";
@@ -82,6 +83,9 @@ type MoonTransitState = {
   /** Kad je uključeno, markeri letova koriste skalu boja po visini (legend); inače neutralna siva osim zelenog za shot-feasible. */
   mapAircraftAltitudeColors: boolean;
   setMapAircraftAltitudeColors: (enabled: boolean) => void;
+  /** Samo prikaz oznaka ispod altitude legende (km MSL vs tisuće ft MSL). */
+  flightAltitudeLegendUnit: FlightAltitudeLegendUnit;
+  setFlightAltitudeLegendUnit: (unit: FlightAltitudeLegendUnit) => void;
   setFlightProvider: (id: FlightProviderId) => void;
   setLiveFlightFeeds: (patch: Partial<LiveFlightFeeds>) => void;
   /** Ako je još `static` (stari build), prebaci na live dual — static nije u comboboxu. */
@@ -199,6 +203,9 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   mapAircraftAltitudeColors: true,
   setMapAircraftAltitudeColors: (enabled) =>
     set({ mapAircraftAltitudeColors: enabled }),
+  flightAltitudeLegendUnit: "km",
+  setFlightAltitudeLegendUnit: (unit) =>
+    set({ flightAltitudeLegendUnit: unit }),
   setFlightProvider: (id) =>
     set((s) => {
       let liveFlightFeeds = s.liveFlightFeeds;

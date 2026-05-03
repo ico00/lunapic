@@ -177,7 +177,8 @@ body {
 }
 
 .moon-transit-aircraft-popup {
-  z-index: 20;
+  /* Iznad Mapbox kontrola (≈2) i field-perf HUD-a (20); desktop grid drži kartu iznad vremenskog reda. */
+  z-index: 35;
 }
 
 /* Mobile: cijeli map column je iznad tabova (HomePageClient z-[70] + pointer-events); širina = viewport (setMaxWidth u TS + ovo). */
@@ -187,7 +188,8 @@ body {
   }
 
   .moon-transit-aircraft-popup {
-    z-index: 80;
+    /* Iznad mobilnog tab bara (z-[60]) i eventualnih slojeva karte — izbjegava da karticu prekrije nav. */
+    z-index: 100;
   }
 
   .moon-transit-aircraft-popup .mapboxgl-popup-content {

@@ -71,15 +71,12 @@ function isMobileMapWidth(map: Map): boolean {
  * Donji `padding` roditelja Mapbox containera (HomePageClient ostavlja traku za tabove).
  * Pomakne `Popup` s `anchor: bottom` vizualno u rezervu da se kartica spoji s tab trakom.
  */
-/** Donji tab bar + safe area — donja granica ako `padding-bottom` roditelja nije čitljiv. */
-const MOBILE_MAP_DOCK_PADDING_FALLBACK_PX = 120;
-/** Dodatni Mapbox `setOffset` Y (px) uz sidrište pomaknuto prema gore. */
-const MOBILE_AIRCRAFT_POPUP_EXTRA_LIFT_PX = 56;
+/** Ako se `padding-bottom` ne može pouzdano očitati s roditelja map canvasa. */
+const MOBILE_MAP_DOCK_PADDING_FALLBACK_PX = 88;
 /**
- * Sidrište `anchor: bottom` u pikselima iznad donjeg ruba canvasa karte — diže cijelu karticu
- * iznad bottom tab trake (offset sam često nije dovoljan zbog Mapbox transforma).
+ * Sidrište `anchor: bottom`: pikseli iznad donjeg ruba canvasa za `unproject` (**0** = donji rub canvasa).
  */
-const MOBILE_POPUP_ANCHOR_ABOVE_MAP_BOTTOM_PX = 96;
+const MOBILE_POPUP_ANCHOR_ABOVE_MAP_BOTTOM_PX = 0;
 
 function readMobileDockPaddingBottomPx(map: Map): number {
   let best = 0;
@@ -92,19 +89,14 @@ function readMobileDockPaddingBottomPx(map: Map): number {
     }
     el = el.parentElement;
   }
-  return Math.max(
-    best > 0 ? best : MOBILE_MAP_DOCK_PADDING_FALLBACK_PX,
-    MOBILE_MAP_DOCK_PADDING_FALLBACK_PX
-  );
+  /** Bez globalnog min(120px): to je diglo karticu predaleko od tabova kad je stvarni padding ~72px. */
+  if (best >= 48) {
+    return best;
+  }
+  return MOBILE_MAP_DOCK_PADDING_FALLBACK_PX;
 }
 
-/**
- * Kad je donja tab traka viša od `padding-bottom` rezerve na map omotaču, Mapbox offset mora
- * dodatno rasti inače zadnji red kartice vizualno upada ispod nav-a.
- */
-function mobileNavHeightBeyondDockPaddingPx(
-  reservedPaddingBottomPx: number
-): number {
+function measuredMobilePrimaryNavHeightPx(): number {
   if (typeof document === "undefined") {
     return 0;
   }
@@ -114,21 +106,40 @@ function mobileNavHeightBeyondDockPaddingPx(
   if (!nav) {
     return 0;
   }
-  const navH = Math.ceil(nav.getBoundingClientRect().height);
-  const breathingPx = 20;
-  return Math.max(0, navH - reservedPaddingBottomPx + breathingPx);
+  return Math.ceil(nav.getBoundingClientRect().height);
 }
 
-function mobileBottomPopupOffsetPx(map: Map): number {
+/**
+ * Pozitivna magnituda (px); u `setOffset` ide kao **negativan** Y za `anchor: bottom` (gore).
+ * `base` = shell `padding-bottom` ispod karte — već uključuje traku za tabove; ne zbrajati opet punu
+ * visinu nav-a (kartica bi „letjela“ iznad karte).
+ */
+function mobileBottomPopupLiftMagnitudePx(map: Map): number {
   const base = readMobileDockPaddingBottomPx(map);
   if (!isMobileMapWidth(map)) {
     return base;
   }
-  return (
-    base +
-    MOBILE_AIRCRAFT_POPUP_EXTRA_LIFT_PX +
-    mobileNavHeightBeyondDockPaddingPx(base)
-  );
+  const navH = measuredMobilePrimaryNavHeightPx();
+  /** Samo ako je nav stvarno viši od shell paddinga — inače par piksela za Mapbox / zaobljenje. */
+  const mismatch =
+    navH > 0 && navH > base + 8
+      ? Math.round((navH - base) * 0.35)
+      : 0;
+  return Math.max(0, Math.min(20, 1 + Math.round(base * 0.02) + mismatch));
+}
+
+/**
+ * Pozitivan Y u {@link mapboxgl.Popup#setOffset} = prema **dolje** (Mapbox). Lagano spušta karticu
+ * na vrh tab trake nakon sitnog `-lift` gore.
+ */
+const MOBILE_POPUP_DOCK_DOWN_NUDGE_PX = 14;
+
+function mobilePopupBottomOffsetY(map: Map): number {
+  if (!isMobileMapWidth(map)) {
+    return 0;
+  }
+  const lift = mobileBottomPopupLiftMagnitudePx(map);
+  return -lift + MOBILE_POPUP_DOCK_DOWN_NUDGE_PX;
 }
 
 /**
@@ -145,7 +156,7 @@ function popupScreenAnchor(map: Map): {
   const mobile = isMobileMapWidth(map);
   if (mobile) {
     const y = Math.max(
-      8,
+      1,
       rect.height - MOBILE_POPUP_ANCHOR_ABOVE_MAP_BOTTOM_PX
     );
     return {
@@ -166,6 +177,8 @@ type SelectedAircraftMapPopupProps = {
   mapReadyTick: number;
   /** Kad je mobilni bottom sheet otvoren — ukloni popup da se ne preklapa s panelom. */
   suppressed?: boolean;
+  /** Ponovno učitaj letove za trenutni viewport (bez debouncea). */
+  onRefreshFlights?: () => void;
 };
 
 /**
@@ -175,6 +188,7 @@ export function SelectedAircraftMapPopup({
   mapRef,
   mapReadyTick,
   suppressed = false,
+  onRefreshFlights,
 }: SelectedAircraftMapPopupProps) {
   const selectedFlightId = useMoonTransitStore((s) => s.selectedFlightId);
   const setSelectedFlightId = useMoonTransitStore(
@@ -205,7 +219,7 @@ export function SelectedAircraftMapPopup({
     popup.setLngLat(map.unproject([anchor.x, anchor.y]));
     const popupEl = popup.getElement();
     if (anchor.anchor === "bottom") {
-      popup.setOffset([0, mobileBottomPopupOffsetPx(map)]);
+      popup.setOffset([0, mobilePopupBottomOffsetY(map)]);
       if (isMobileMapWidth(map)) {
         const vw = Math.max(mobileViewportWidthPx(), map.getContainer().clientWidth);
         if (vw > 0) {
@@ -276,7 +290,7 @@ export function SelectedAircraftMapPopup({
         anchor: anchor.anchor,
         offset:
           anchor.anchor === "bottom"
-            ? ([0, mobileBottomPopupOffsetPx(map)] as [number, number])
+            ? ([0, mobilePopupBottomOffsetY(map)] as [number, number])
             : undefined,
       })
         .setDOMContent(el)
@@ -298,9 +312,10 @@ export function SelectedAircraftMapPopup({
       <SelectedAircraftPopupContent
         flight={flight}
         onDismiss={() => setSelectedFlightId(null)}
+        onRefreshFlights={onRefreshFlights}
       />
     );
-  }, [flight, selectedFlightId, suppressed, setSelectedFlightId]);
+  }, [flight, selectedFlightId, suppressed, setSelectedFlightId, onRefreshFlights]);
 
   useEffect(() => {
     return () => {
@@ -313,6 +328,26 @@ export function SelectedAircraftMapPopup({
       schedulePopupTeardown({ map: m, onMapMove, root, popup });
     };
   }, [onMapMove]);
+
+  /** iOS / in-app browser: `visualViewport` mijenja se bez Mapbox `resize`. */
+  useEffect(() => {
+    if (selectedFlightId == null || suppressed) {
+      return;
+    }
+    const vv = globalThis.window?.visualViewport;
+    if (!vv) {
+      return;
+    }
+    const bump = () => {
+      repositionLatest.current();
+    };
+    vv.addEventListener("resize", bump);
+    vv.addEventListener("scroll", bump);
+    return () => {
+      vv.removeEventListener("resize", bump);
+      vv.removeEventListener("scroll", bump);
+    };
+  }, [selectedFlightId, suppressed]);
 
   return null;
 }

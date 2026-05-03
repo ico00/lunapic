@@ -10,6 +10,24 @@ where version bumps are made for releases (currently `0.x`).
 
 ### Fixed
 
+- **Map — moon NOW + simulated time markers** — Removed vertical **`text-offset`** on **`moon-az-now-label`** / **`moon-path-current-label`**. **`moon-az-now-label`**, **`moon-path-labels`**, and **`moon-path-current-label`** use **`text-pitch-alignment` / `text-rotation-alignment`: `map`**; **`moon-path-current-dot`** uses **`circle-pitch-alignment`: `map`** so pitched maps keep glyphs and the dot on the ground geometry. The **moon path** `LineString` **inserts a vertex** at the simulated instant (between 30 min samples) so the orange current-time marker lies on the drawn polyline.
+
+- **Map — selected aircraft card — refresh samo na mobilnom** — Gumb **Refresh flight data** na kartici je **`md:hidden`**: na širokom layoutu nije postojao, a u retku s **Aircraft type** lako se vizualno preklapa; desktop i dalje može osvježiti letove pomicanjem karte / **Flight source** panelom.
+
+- **Map — selected aircraft popup vs desktop time toolbar** — Donji rub vremenskog reda i gornji rub karte ponekad se vizualno podudare; bez eksplicitnog **z-index** cijeli je stupac karte ispod reda s **Sync** ikonom (ista SVG kao refresh na kartici). Desktop: omotač **`TimeAndWeatherBlock`** **`z-10`**, stupac karte **`z-20`**; **`moon-transit-aircraft-popup`** na desktopu **`z-index: 35`** (mobilni `@media (max-width: 767px)` i dalje **100**).
+
+- **Map — selected aircraft card dock (mobile tune)** — Bez **`max(padding, navH)`** (dvostruko brojanje). Sidrište **0px** od dna canvasa; lift **`1 + 0.02·padding`** (cap **20px**) + **`0.35·(nav−padding)`** kad je nav **> padding + 8px**; **`setOffset`** Y = **`-lift + 14px`** (`**MOBILE_POPUP_DOCK_DOWN_NUDGE_PX**`) — mali pozitivan pomak prema dolje da kartica dotakne tab traku. **`readMobileDockPaddingBottomPx`** ne forsira min **120px** kad je padding ≥ **48px**.
+
+- **Map — selected aircraft popup offset (mobile root cause)** — Mapbox **`Popup` offset**: *negative Y = up*, *positive = down*. Kod je slao **pozitivan** `setOffset` uz `anchor: 'bottom'`, pa je kartica zrakoplova bila gurnuta **prema dolje** ispod donje navigacije. Sada se koristi **negativan Y** (`-mobileBottomPopupLiftMagnitudePx`).
+
+- **UI — mobile bottom sheet (peek)** — Uklonjen **`min-h-[42dvh]`** na cijelom panelu; u stanju **peek** sheet je **`h-fit max-h-[42dvh]`** s **`flex flex-col`**, a tabpanel **`max-h-[calc(42dvh-3.25rem)]`** umjesto fiksnog **`h-[calc(100%-3rem)]`**, da nema velikog praznog prostora kad je malo sadržaja. Donji **`bottom`** pomaknut na **`4.25rem + safe-area`** da se panel ne preklapa s tab trakom.
+
+- **UI — mobile LunaPic chip vs map (Safari / narrow)** — Kompaktni gornji red (`AppHeaderBrand`) bio je **`z-40`**, a map stupac **`z-[70]`**, pa je logo nakon učitavanja karte ostajao **ispod** mape (čini se „blink“ pa nestane). Chip sada **`z-[78]`** (ispod bottom sheeta **`z-[75]`**).
+
+- **Map — altitude legend vs mobile tab bar** — Legenda je na uskim ekranima **`fixed`** s **`bottom: calc(4.35rem + safe-area)`** i **`z-[72]`** kako ne bi završila ispod donje navigacije (ranije `absolute bottom-3` unutar karte).
+
+- **Map — mobile selected-flight card vs tab bar (regression)** — Bottom popup **`setOffset`** now keys off **`max(padding read, measured mobile nav height + 32px)`** plus a larger fixed lift (**72px**) and a higher screen anchor (**120px** above map bottom), so the card clears tall tab rows and safe-area padding. Aircraft popup **`z-index`** on small viewports raised to **100**. Card adds **`env(safe-area-inset-bottom)`** padding for the last stats row.
+
 - **Map — selected aircraft card vs bottom tabs (mobile)** — The map column wrapper uses **`z-[70]`** with **`pointer-events-none`**, and **`MapContainer`** `map-surface` uses **`pointer-events-auto`** + **`overflow-visible`**, so Mapbox popups paint **above** the tab bar (`z-[60]`) while taps reach tabs through the reserved bottom padding. Bottom sheet **`z-[75]`**. **`SelectedAircraftMapPopup`**: higher bottom anchor, larger base lift, **`data-testid="mobile-primary-nav"`** + measured nav height so **`setOffset`** gains extra px whenever the tab bar is taller than the map dock **`padding-bottom`** reserve.
 
 - **Map — selected aircraft vs mobile shell sheet** — `**suppressSelectedAircraftPopup`** kad je `**mobilePanelId**`; teardown u `**useEffect**` + `**destroyAircraftPopupNow**`: `**root.unmount()` / `popup.remove()**` u `**queueMicrotask**` (listeneri `map.off` odmah) da nema *synchronously unmount a root while React was already rendering*. Odabir u storeu ostaje. `**dynamic<MapContainerProps>*`* u `**HomePageClient**`.
@@ -20,6 +38,16 @@ where version bumps are made for releases (currently `0.x`).
 - **Moon (nowcast) — altitude visibility dot** — The tier indicator next to **Altitude** again uses **red** (`critical`, e.g. below horizon), **amber** (`caution`, 5–12°), and **emerald** (`optimal`, ≥ 12°). A prior styling pass had mapped `critical`/`optimal` to yellow/blue so the dot no longer matched field-visibility meaning.
 
 ### Changed
+
+- **Map — selected aircraft card — header layout** — Header is **logo + airline + callsign** only (full width for names, **`break-words` / `break-all`**); the airline block is **`items-center`** with the logo so text is **vertically centered** to the logo tile. **Aircraft type** and **ICAO24** use the **same row style and typography** as Position / Altitude in the desktop **`dl`**, and the same **tile pattern** as the other rows in the mobile grid (no narrow column under the logo).
+
+- **Map — selected aircraft card — Aircraft type / ICAO24** — When **`aircraftType`** or **`icao24`** is missing or blank, the row shows **`N/A`** (English) instead of emitter-category text, “Type not reported”, or “ICAO24 not reported”; applies to all flight sources.
+
+- **Map — altitude legend — km / ft placement** — **`FlightAltitudeLegend`**: the **km** / **ft** segmented control sits on the **same row** as the altitude-colors checkbox and **Aircraft color by altitude (MSL)** title (`flex`, **`gap-3`** between title block and units, **`shrink-0`** on the control); the gradient bar and mono tick row stay below. **About** FAQ (*What does the altitude color bar on the map mean?*) updated for the same behaviour.
+
+- **Map — selected aircraft card — Clear placement** — **Clear** moved to the **bottom** of the card, **to the right** of **State time** (desktop `dl` row and mobile footer strip). The header on narrow screens keeps only **Refresh**.
+
+- **Map — selected aircraft card — refresh flights** — A **Refresh flight data** icon button on the card (header on mobile) calls **`refreshFlightsNow`** from **`useMoonTransitMap`** (same bounds fetch as map moves, **without** the live-feed debounce), so field users can pull the latest OpenSky/ADS-B snapshot without reloading the PWA.
 
 - **Map — selected aircraft card** — Header matches a **three-column** strip: **square logo** (Kiwi `64x64` when mapped; dashed placeholder otherwise), **airline + call sign** (stacked, yellow bold callsign), then **Aircraft type** / **ICAO24** each on its own row (small uppercase mono label + value). Desktop **`dl`** / mobile tiles remain **flight-only** (position, altitude, ground speed, track, state time).
 - **CI — GitHub Actions** — `actions/checkout@v5` and `actions/setup-node@v5`; workflow Node **22** (LTS) instead of 20, addressing the Node 20 action-runtime deprecation annotation on `ubuntu-latest`.
@@ -36,6 +64,7 @@ where version bumps are made for releases (currently `0.x`).
 
 ### Added
 
+- **Map — altitude legend units** — **`FlightAltitudeLegend`**: segmented **km** / **ft** control (`data-testid="flight-altitude-legend-unit-km"` / `**-ft**`, `data-value`) on the **title row** switches tick labels only (MSL scale unchanged); state **`flightAltitudeLegendUnit`** in **`moon-transit-store`**. Ft labels use compact **thousands of feet** (`6.6k`, `39.4k+`, …) via **`flightAltitudeLegendStopLabel`** in **`flightAltitudeColor.ts`**.
 - **Chrome — logo refresh** — Tapping the **header logo** runs `**location.reload()`** (hard refresh), mainly for **Add to Home Screen** / in-app WebView where the browser refresh control is missing. `**aria-label` / `title`**: “Refresh page”; `**data-testid="header-logo-refresh"**`.
 - **Map — altitude colors toggle** — `**FlightAltitudeLegend`** includes a **Color by altitude** checkbox (`data-testid="flight-altitude-colors-toggle"`). When off, `**mapAircraftAltitudeColors`** in `moon-transit-store` drives `**applyFlightLayerColorPaint**`: markers use a **single neutral tone** (`#94a3b8`); **shot-feasible** stays **green**. `**useMapFlightAltitudeColorsPaint`** reapplies paint after the async **3D model** swap (`idle`). Default: on (full altitude scale).
 - **Map — altitude color + legend** — Aircraft **3D model** and **circle** fallback use `**flightFeatureColorMapboxExpression`** (`flightAltitudeColor.ts`): interpolate by `**altitudeMeters**` (~12 km MSL; **light green → dark blue** scale; **shot-feasible** stays `**#22c55e`**). `**FlightAltitudeLegend**` on the map bottom documents the scale (English).

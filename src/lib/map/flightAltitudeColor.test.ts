@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  FLIGHT_ALTITUDE_LEGEND_STOPS,
   flightAltitudeLegendGradientCss,
+  flightAltitudeLegendStopLabel,
   flightFeatureColorMapboxExpression,
   flightFeatureColorMapboxExpressionForAltitudeTint,
   flightFeatureFlatColorMapboxExpression,
@@ -30,5 +32,20 @@ describe("flightAltitudeColor", () => {
   it("builds a CSS linear-gradient for the legend", () => {
     const g = flightAltitudeLegendGradientCss();
     expect(g.startsWith("linear-gradient")).toBe(true);
+  });
+
+  it("legend tick labels match km presets and compact ft thousands", () => {
+    const stops = FLIGHT_ALTITUDE_LEGEND_STOPS;
+    const last = stops.length - 1;
+    expect(
+      stops.map((s, i) =>
+        flightAltitudeLegendStopLabel(s, "km", i === last)
+      )
+    ).toEqual(["0m", "2k", "4.5k", "7k", "9.5k", "12k+"]);
+    expect(
+      stops.map((s, i) =>
+        flightAltitudeLegendStopLabel(s, "ft", i === last)
+      )
+    ).toEqual(["0", "6.6k", "14.8k", "23k", "31.2k", "39.4k+"]);
   });
 });

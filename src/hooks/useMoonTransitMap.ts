@@ -53,6 +53,8 @@ export type UseMoonTransitMapResult = {
   elRef: RefObject<HTMLDivElement | null>;
   mapRef: RefObject<mapboxgl.Map | null>;
   mapReadyTick: number;
+  /** Odmah ponovno učitaj letove za trenutne granice (bez debouncea) — npr. gumb na kartici odabranog leta. */
+  refreshFlightsNow: () => void;
 };
 
 /**
@@ -100,31 +102,47 @@ export function useMoonTransitMap(
     null
   );
 
+  const flushFlightLoadForMapBounds = useCallback((m: mapboxgl.Map) => {
+    fieldPerfTime("map:boundsRefresh", () => {
+      const b = m.getBounds();
+      if (!b) {
+        return;
+      }
+      const bounds = geoBoundsFromMapbox(b);
+      void loadFlights.current(bounds);
+
+      const routeSrc = m.getSource(ROUTES_SOURCE) as
+        | mapboxgl.GeoJSONSource
+        | undefined;
+      if (routeSrc) {
+        const lines = providerRef.current.getRouteLineFeatures?.(bounds) ?? [];
+        routeSrc.setData({
+          type: "FeatureCollection",
+          features: [...lines],
+        });
+      }
+    });
+  }, []);
+
+  const refreshFlightsNow = useCallback(() => {
+    if (boundsRefreshDebounceRef.current != null) {
+      clearTimeout(boundsRefreshDebounceRef.current);
+      boundsRefreshDebounceRef.current = null;
+    }
+    const m = mapRef.current;
+    if (!m || !m.getStyle()) {
+      return;
+    }
+    flushFlightLoadForMapBounds(m);
+  }, [flushFlightLoadForMapBounds]);
+
   const onBoundsRefresh = useCallback(() => {
     const run = () => {
-      fieldPerfTime("map:boundsRefresh", () => {
-        const m = mapRef.current;
-        if (!m) {
-          return;
-        }
-        const b = m.getBounds();
-        if (!b) {
-          return;
-        }
-        const bounds = geoBoundsFromMapbox(b);
-        void loadFlights.current(bounds);
-
-        const routeSrc = m.getSource(ROUTES_SOURCE) as
-          | mapboxgl.GeoJSONSource
-          | undefined;
-        if (routeSrc) {
-          const lines = providerRef.current.getRouteLineFeatures?.(bounds) ?? [];
-          routeSrc.setData({
-            type: "FeatureCollection",
-            features: [...lines],
-          });
-        }
-      });
+      const m = mapRef.current;
+      if (!m) {
+        return;
+      }
+      flushFlightLoadForMapBounds(m);
     };
 
     const st0 = useMoonTransitStore.getState();
@@ -158,7 +176,7 @@ export function useMoonTransitMap(
       boundsRefreshDebounceRef.current = null;
       run();
     }, delayMs);
-  }, []);
+  }, [flushFlightLoadForMapBounds]);
 
   const onMoveSettled = useCallback(
     (map: mapboxgl.Map) => {
@@ -372,5 +390,6 @@ export function useMoonTransitMap(
     elRef,
     mapRef,
     mapReadyTick,
+    refreshFlightsNow,
   };
 }

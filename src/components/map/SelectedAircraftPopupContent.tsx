@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import {
-  flightAircraftTypeDisplayLine,
   flightAirlineDisplayLine,
   flightAirlineLogoKiwiIata,
 } from "@/lib/flight/flightDisplayLabels";
@@ -22,9 +21,9 @@ function fmtDataTimestamp(ms: number): string {
   });
 }
 
-/** English UI copy when the feed omits type / hex. */
-const AIRCRAFT_TYPE_FALLBACK = "Type not reported";
-const ICAO24_FALLBACK = "ICAO24 not reported";
+/** English UI copy when the feed omits value (all providers). */
+const AIRCRAFT_TYPE_FALLBACK = "N/A";
+const ICAO24_FALLBACK = "N/A";
 
 function AirlineLogoSlot({ iata }: { readonly iata: string | null }) {
   const [broken, setBroken] = useState(false);
@@ -79,64 +78,69 @@ function altBlock(f: FlightState): string {
 export type SelectedAircraftPopupContentProps = {
   flight: FlightState | null;
   onDismiss: () => void;
+  /** Ponovno dohvati live letove za trenutni koridor karte (bez punog reloada stranice). */
+  onRefreshFlights?: () => void;
 };
+
+const clearSelectionButtonClass =
+  "shrink-0 rounded-lg px-2 py-1 text-[0.65rem] text-zinc-500 hover:bg-zinc-800/80 hover:text-zinc-300 max-md:border max-md:border-white/10 max-md:bg-zinc-900/60 max-md:py-0.5";
+
+function IconRefreshFlights(props: { readonly className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      className={props.className}
+      aria-hidden
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
+      />
+    </svg>
+  );
+}
 
 /** Sadržaj za Mapbox `Popup` / odabranog zrakoplova (bez podloge karte). */
 export function SelectedAircraftPopupContent({
   flight,
   onDismiss,
+  onRefreshFlights,
 }: SelectedAircraftPopupContentProps) {
   const hasMounted = useHasMounted();
   const typeDisplay = flight
-    ? flightAircraftTypeDisplayLine(flight)?.trim() || AIRCRAFT_TYPE_FALLBACK
+    ? flight.aircraftType?.trim() || AIRCRAFT_TYPE_FALLBACK
     : "";
   const icaoDisplay = flight
-    ? flight.icao24?.trim()
-      ? flight.icao24.trim().toUpperCase()
-      : ICAO24_FALLBACK
+    ? flight.icao24?.trim().toUpperCase() || ICAO24_FALLBACK
     : "";
   const logoIata = flight ? flightAirlineLogoKiwiIata(flight) : null;
 
   return (
     <div
-      className="pointer-events-auto box-border overflow-y-auto rounded-md border border-zinc-700 bg-zinc-950/98 p-2.5 text-zinc-200 shadow-xl shadow-black/45 backdrop-blur max-md:max-h-[min(52dvh,24rem)] max-md:w-full max-md:min-w-0 max-md:max-w-none max-md:rounded-b-none max-md:rounded-t-lg max-md:border-x-0 max-md:border-t max-md:border-b-0 max-md:border-zinc-800 max-md:bg-black/92 max-md:shadow-none max-md:backdrop-blur-2xl md:max-h-[34rem] md:w-[min(18rem,calc(100vw-2.25rem))] md:p-3"
+      className="pointer-events-auto box-border overflow-y-auto rounded-md border border-zinc-700 bg-zinc-950/98 p-2.5 text-zinc-200 shadow-xl shadow-black/45 backdrop-blur max-md:max-h-[min(52dvh,24rem)] max-md:w-full max-md:min-w-0 max-md:max-w-none max-md:rounded-b-none max-md:rounded-t-lg max-md:border-x-0 max-md:border-t max-md:border-b-0 max-md:border-zinc-800 max-md:bg-black/92 max-md:pb-1 max-md:shadow-none max-md:backdrop-blur-2xl md:max-h-[34rem] md:w-[min(18rem,calc(100vw-2.25rem))] md:p-3"
       data-testid="selected-flight-card"
     >
-      <div className="flex items-start justify-between gap-2 md:items-start">
+      <div className="flex items-center justify-between gap-2">
         {flight ? (
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-2.5 md:gap-3">
-              <AirlineLogoSlot
-                key={`${flight.id}-${logoIata ?? ""}`}
-                iata={logoIata}
-              />
-              <div className="flex min-w-0 flex-1 items-center justify-between gap-3 md:gap-4">
-                <div className="flex min-w-0 flex-1 flex-col gap-0.5 leading-tight">
-                  <p className="truncate text-[0.72rem] text-zinc-400 md:text-[0.8rem]">
-                    {flightAirlineDisplayLine(flight) ?? "—"}
-                  </p>
-                  <p className="truncate font-mono text-[1.05rem] font-bold tracking-tight text-yellow-400 md:text-[1.15rem]">
-                    {flight.callSign?.trim() || "—"}
-                  </p>
-                </div>
-                <div className="flex min-w-0 shrink-0 flex-col gap-1.5 text-left">
-                  <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0">
-                    <span className="shrink-0 font-mono text-[0.52rem] font-medium uppercase tracking-wide text-zinc-500 md:text-[0.55rem]">
-                      Aircraft type
-                    </span>
-                    <span className="min-w-0 truncate font-mono text-[0.68rem] text-zinc-100 md:text-[0.72rem]">
-                      {typeDisplay}
-                    </span>
-                  </div>
-                  <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0">
-                    <span className="shrink-0 font-mono text-[0.52rem] font-medium uppercase tracking-wide text-zinc-500 md:text-[0.55rem]">
-                      ICAO24
-                    </span>
-                    <span className="min-w-0 truncate font-mono text-[0.68rem] text-zinc-100 md:text-[0.72rem]">
-                      {icaoDisplay}
-                    </span>
-                  </div>
-                </div>
+              <div className="shrink-0">
+                <AirlineLogoSlot
+                  key={`${flight.id}-${logoIata ?? ""}`}
+                  iata={logoIata}
+                />
+              </div>
+              <div className="min-w-0 flex-1 flex flex-col gap-0.5 leading-tight">
+                <p className="break-words text-[0.72rem] text-zinc-400 md:text-[0.8rem]">
+                  {flightAirlineDisplayLine(flight) ?? "—"}
+                </p>
+                <p className="break-all font-mono text-[1.05rem] font-bold tracking-tight text-yellow-400 md:text-[1.15rem]">
+                  {flight.callSign?.trim() || "—"}
+                </p>
               </div>
             </div>
           </div>
@@ -145,23 +149,54 @@ export function SelectedAircraftPopupContent({
             Selected aircraft
           </h2>
         )}
-        <button
-          type="button"
-          onClick={onDismiss}
-          className="shrink-0 rounded-lg px-2 py-1 text-[0.65rem] text-zinc-500 hover:bg-zinc-800/80 hover:text-zinc-300 max-md:border max-md:border-white/10 max-md:bg-zinc-900/60 max-md:py-0.5"
-          aria-label="Clear aircraft selection"
-        >
-          Clear
-        </button>
+        {flight && onRefreshFlights ? (
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              onClick={onRefreshFlights}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-zinc-900/60 text-zinc-400 hover:bg-zinc-800/80 hover:text-sky-300 md:hidden"
+              aria-label="Refresh flight data"
+              title="Refresh flight data"
+              data-testid="selected-flight-refresh-flights"
+            >
+              <IconRefreshFlights className="h-4 w-4" />
+            </button>
+          </div>
+        ) : null}
       </div>
       {!flight ? (
-        <p className="mt-2 text-sm text-zinc-500">
-          No live data for this id (moved off map or stale selection). Pick
-          another track or refresh flights.
-        </p>
+        <div className="mt-2">
+          <p className="text-sm text-zinc-500">
+            No live data for this id (moved off map or stale selection). Pick
+            another track or refresh flights.
+          </p>
+          <div className="mt-2 flex justify-end">
+            <button
+              type="button"
+              onClick={onDismiss}
+              className={clearSelectionButtonClass}
+              aria-label="Clear aircraft selection"
+              data-testid="selected-flight-clear"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
       ) : (
         <>
           <dl className="mt-2 hidden space-y-1.5 text-sm md:block">
+            <div className="flex flex-wrap justify-between gap-x-3 gap-y-0.5">
+              <dt className="shrink-0 text-zinc-500">Aircraft type</dt>
+              <dd className="min-w-0 break-words text-end font-mono text-[0.7rem] tabular-nums text-zinc-300">
+                {typeDisplay}
+              </dd>
+            </div>
+            <div className="flex flex-wrap justify-between gap-x-3 gap-y-0.5">
+              <dt className="shrink-0 text-zinc-500">ICAO24</dt>
+              <dd className="min-w-0 break-all text-end font-mono text-[0.7rem] tabular-nums text-zinc-300">
+                {icaoDisplay}
+              </dd>
+            </div>
             <div className="flex flex-wrap justify-between gap-x-3 gap-y-0.5">
               <dt className="text-zinc-500">Position (on map)</dt>
               <dd className="font-mono text-[0.7rem] tabular-nums text-zinc-300">
@@ -192,19 +227,48 @@ export function SelectedAircraftPopupContent({
               </dd>
             </div>
             <div className="border-t border-zinc-800/80 pt-2">
-              <dt className="text-[0.65rem] text-zinc-500">State time</dt>
-              <dd
-                className="mt-0.5 font-mono text-[0.7rem] tabular-nums text-zinc-400"
-                suppressHydrationWarning
-              >
-                {hasMounted ? fmtDataTimestamp(flight.timestamp) : "—"}
-              </dd>
+              <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
+                <div className="min-w-0">
+                  <dt className="text-[0.65rem] text-zinc-500">State time</dt>
+                  <dd
+                    className="mt-0.5 font-mono text-[0.7rem] tabular-nums text-zinc-400"
+                    suppressHydrationWarning
+                  >
+                    {hasMounted ? fmtDataTimestamp(flight.timestamp) : "—"}
+                  </dd>
+                </div>
+                <button
+                  type="button"
+                  onClick={onDismiss}
+                  className={clearSelectionButtonClass}
+                  aria-label="Clear aircraft selection"
+                  data-testid="selected-flight-clear"
+                >
+                  Clear
+                </button>
+              </div>
             </div>
           </dl>
 
           {/* Mobile: compact Flightradar-style strip */}
           <div className="mt-2 md:hidden">
             <div className="grid grid-cols-2 gap-1.5">
+              <div className="col-span-2 rounded-lg border border-white/[0.06] bg-zinc-900/70 px-2 py-1">
+                <div className="text-[0.55rem] font-medium uppercase tracking-wide text-zinc-500">
+                  Aircraft type
+                </div>
+                <div className="mt-0.5 break-all font-mono text-[0.68rem] tabular-nums leading-snug text-zinc-100">
+                  {typeDisplay}
+                </div>
+              </div>
+              <div className="col-span-2 rounded-lg border border-white/[0.06] bg-zinc-900/70 px-2 py-1">
+                <div className="text-[0.55rem] font-medium uppercase tracking-wide text-zinc-500">
+                  ICAO24
+                </div>
+                <div className="mt-0.5 break-all font-mono text-[0.68rem] tabular-nums leading-snug text-zinc-100">
+                  {icaoDisplay}
+                </div>
+              </div>
               <div className="col-span-2 rounded-lg border border-white/[0.06] bg-zinc-900/70 px-2 py-1">
                 <div className="text-[0.55rem] font-medium uppercase tracking-wide text-zinc-500">
                   Altitude
@@ -243,13 +307,22 @@ export function SelectedAircraftPopupContent({
                 </div>
               </div>
             </div>
-            <div className="mt-1 border-t border-white/[0.06] pt-1">
+            <div className="mt-1 flex items-center justify-between gap-2 border-t border-white/[0.06] pt-1">
               <p
-                className="font-mono text-[0.58rem] tabular-nums text-zinc-500"
+                className="min-w-0 font-mono text-[0.58rem] tabular-nums text-zinc-500"
                 suppressHydrationWarning
               >
                 {hasMounted ? fmtDataTimestamp(flight.timestamp) : "—"}
               </p>
+              <button
+                type="button"
+                onClick={onDismiss}
+                className={clearSelectionButtonClass}
+                aria-label="Clear aircraft selection"
+                data-testid="selected-flight-clear"
+              >
+                Clear
+              </button>
             </div>
           </div>
         </>
