@@ -609,7 +609,7 @@ export function HomePageClient() {
               <AppHeaderBrand compact />
             </div>
           </div>
-          <div className="pointer-events-none relative z-[70] min-h-0 w-full min-w-0 flex-1 touch-pan-x touch-pan-y pb-[max(4.5rem,calc(3.6rem+env(safe-area-inset-bottom)))]">
+          <div className="pointer-events-none relative z-[70] min-h-0 w-full min-w-0 flex-1 pb-[max(4.5rem,calc(3.6rem+env(safe-area-inset-bottom)))]">
             <MapContainer
               flightProvider={s.flightProvider}
               isGolden={s.isGolden}

@@ -138,6 +138,7 @@ Keep **pure functions** in `lib/domain` (no React, no `window` except where a mo
   - `EXCELLENT`: range < 80 km and coverage > 10%
   - `FAIR`: everything between poor and excellent
   - `POOR`: range > 150 km or coverage < 3%
+- **Viewfinder preview** — `PhotographerToolsPanel` embeds `ViewfinderPreview` when `usePhotographerTools` returns a pack for the selected flight. The preview is a **3:2** black frame with the moon drawn at a fixed **948 px** diameter for **0.5°** on-sky (same angular scale as shot-feasibility copy). **Disk texture:** NASA/GSFC SVS *Moon Phase and Libration* **hourly** JPEGs (730×730, north up), resolved by `nasaMoonPhaseFrameJpgUrl` from `src/lib/domain/astro/nasaMoonPhaseFrame.ts` from `referenceEpochMs` (see [SVS moon phase gallery](https://svs.gsfc.nasa.gov/gallery/moonphase.html)). Client-side catalog years **2023–2026** (8784 frames for leap **2024**); simulated dates outside that range are **snapped** to the nearest catalog year while preserving UT calendar fields where valid. A `Image()` **preload** in the component falls back to `public/moon-textures/nasa-full-moon.jpg` if the remote frame fails. **Aircraft:** `ViewfinderAircraftSilhouette` (solid silhouette from legacy `plane_5367346.svg` paths), sized from wingspan / slant range with the same **0.5° = 948 px** mapping; **transit** motion uses `transitDurationMs` when present.
 
 ## Moon ephemeris (shell) & balcony hint
 
@@ -161,6 +162,7 @@ Keep **pure functions** in `lib/domain` (no React, no `window` except where a mo
 
 - `**lib/field/fieldPlanExport.ts`** — Plain-text “cheat sheet” and a simple PNG (canvas) derived from a snapshot; triggered from the field section in the shell.
 - `**components/field/FieldOverlaysSection.tsx`** — OpenSky latency skew, lock toggle, export actions. Camera focal length / sensor live under **`PhotographerToolsPanel`**.
+- `**components/field/ViewfinderPreview.tsx`** / `**ViewfinderAircraftSilhouette.tsx`** — Photographer viewfinder moon disk + aircraft silhouette (see **Viewfinder preview** under *Optical feasibility model*).
 
 ## Extension points (checklist for new features)
 

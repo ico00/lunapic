@@ -252,7 +252,10 @@ export function useMoonTransitMap(
       touchPitch: true,
       maxPitch: 78,
     });
-    map.addControl(new mapboxgl.NavigationControl(), "top-right");
+    map.addControl(
+      new mapboxgl.NavigationControl({ visualizePitch: true }),
+      "top-right"
+    );
     mapRef.current = map;
     const obs = useObserverStore.getState().observer;
     const mark = new mapboxgl.Marker({

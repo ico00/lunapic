@@ -10,6 +10,12 @@ where version bumps are made for releases (currently `0.x`).
 
 ### Fixed
 
+- **Photographer — Viewfinder moon disk halo** — Removed the light gray SVG underlay circle behind the clipped NASA SVS moon texture so a thin bright ring no longer appears at the circular clip edge (SVS frames include dark sky around the lunar limb).
+
+- **Photographer — Viewfinder aircraft visibility** — Added a permanently visible, center-on-moon aircraft silhouette in `ViewfinderPreview` so relative plane-vs-moon size is always visible even when CSS transit animation fails in some browsers/render paths. Transit animation remains as an additional moving overlay.
+
+- **Map — mobile 3D gestures** — Removed **`touch-pan-x` / `touch-pan-y`** from the narrow-layout map wrapper; restrictive **`touch-action`** could block Mapbox **two-finger** rotate / tilt / pinch. **`NavigationControl`** now uses **`visualizePitch: true`** so the compass reflects tilt.
+
 - **Map — moon NOW + simulated time markers** — Removed vertical **`text-offset`** on **`moon-az-now-label`** / **`moon-path-current-label`**. **`moon-az-now-label`**, **`moon-path-labels`**, and **`moon-path-current-label`** use **`text-pitch-alignment` / `text-rotation-alignment`: `map`**; **`moon-path-current-dot`** uses **`circle-pitch-alignment`: `map`** so pitched maps keep glyphs and the dot on the ground geometry. The **moon path** `LineString` stays **rise→set samples only** (no extra vertex for the simulated instant): inserting that point had drawn **chords across the arc** when scrubbing the timeline. The **simulated-time dot + label** remain on the true azimuth via **`moon-path-current-geo`**.
 
 - **Map — selected aircraft card — refresh samo na mobilnom** — Gumb **Refresh flight data** na kartici je **`md:hidden`**: na širokom layoutu nije postojao, a u retku s **Aircraft type** lako se vizualno preklapa; desktop i dalje može osvježiti letove pomicanjem karte / **Flight source** panelom.
@@ -63,6 +69,8 @@ where version bumps are made for releases (currently `0.x`).
 - **Map — static route polylines** — The violet `**routes-geo`** / `routes-line` overlay from `routes.json` is **off** by default (`ENABLE_STATIC_ROUTE_MAP_OVERLAY = false` in `staticRouteUtils.ts`): those lines were **demo corridor geometry**, not real ADS-B history. Domain logic (OpenSky bbox hull, moon–route intersections) still uses `routes.json`; flip the flag when real historic route polylines are available.
 
 ### Added
+
+- **Photographer — Viewfinder preview** — `ViewfinderPreview` in `PhotographerToolsPanel`: 3:2 black sensor frame; moon disc fixed at **948 px** for **0.5°** with texture from NASA/GSFC SVS **Moon Phase and Libration** hourly JPEGs (730×730, north up) via `nasaMoonPhaseFrameJpgUrl` / `referenceEpochMs` (`src/lib/domain/astro/nasaMoonPhaseFrame.ts`). Catalog **2023–2026** (8784 frames for leap **2024**); other years snap to that range preserving UT date/time where valid; load failure → bundled static moon. Aircraft silhouette + scale from **0.5° = 948 px**; transit animation uses `transitDurationMs`.
 
 - **Flights — OpenSky aircraft type by ICAO24** — Build step `**npm run data:opensky-aircraft**` downloads OpenSky’s aircraft metadata CSV and writes sharded JSON under `**public/data/opensky-aircraft/**` (three hex prefix per file so each shard stays small and `**JSON.parse**` does not freeze the UI). Each entry stores `**typecode**`, `**model**`, and `**manufacturername**`; the UI prefers **manufacturer + model** when both exist (avoids duplicating the manufacturer if the model string already starts with it), otherwise **model**, then manufacturer, then typecode. Selecting an aircraft fetches the matching shard (with a **20 s** fetch budget) and patches `**aircraftType**` into the store when live feeds omit it.
 

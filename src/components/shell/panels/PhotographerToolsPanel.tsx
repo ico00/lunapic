@@ -1,6 +1,7 @@
 "use client";
 
 import { CameraSensorSelect } from "@/components/shell/CameraSensorSelect";
+import { ViewfinderPreview } from "@/components/field/ViewfinderPreview";
 import { ShellSectionCard } from "@/components/shell/ShellSectionCard";
 import { SectionIconCamera } from "@/components/shell/sectionCategoryIcons";
 import {
@@ -53,6 +54,8 @@ export function PhotographerToolsPanel({
     (s) => s.setCameraFocalLengthMm
   );
   const setCameraSensorType = useMoonTransitStore((s) => s.setCameraSensorType);
+  const flights = useMoonTransitStore((s) => s.flights);
+  const referenceEpochMs = useMoonTransitStore((s) => s.referenceEpochMs);
   /**
    * While focused, hold a draft string; when null, the input shows the store value
    * directly so external focal-length changes sync without a setState-in-effect.
@@ -90,6 +93,10 @@ export function PhotographerToolsPanel({
       : shotTier === "fair"
         ? "FAIR"
         : "POOR";
+  const selectedFlight =
+    selectedFlightId == null
+      ? null
+      : flights.find((flight) => flight.id === selectedFlightId) ?? null;
   return (
     <ShellSectionCard
       title="Photographer — tools"
@@ -242,6 +249,17 @@ export function PhotographerToolsPanel({
               </p>
             </div>
           ) : null}
+          <ViewfinderPreview
+            className="pt-1"
+            simulatedEpochMs={referenceEpochMs}
+            angularSizeDeg={photoShotFeasibility?.angularSizeDeg ?? null}
+            transitDurationMs={photoPack.transitDurationMs ?? null}
+            distanceToObserverMeters={
+              photoShotFeasibility?.slantRangeMeters ?? photoPack.kin.slantRangeMeters
+            }
+            aircraftLengthMeters={selectedFlight?.wingspanMeters ?? null}
+            callSign={selectedFlight?.callSign ?? selectedFlight?.id ?? null}
+          />
         </div>
       )}
     </ShellSectionCard>
