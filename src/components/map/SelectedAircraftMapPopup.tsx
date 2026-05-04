@@ -6,6 +6,7 @@ import {
   SELECTED_AIRCRAFT_POPUP_SCREEN_X,
   SELECTED_AIRCRAFT_POPUP_SCREEN_Y,
 } from "@/lib/map/selectedAircraftPopupAnchor";
+import { fetchOpenSkyAircraftTypeLabel } from "@/lib/flight/openskyAircraftIndexClient";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import mapboxgl from "mapbox-gl";
 import type { Map } from "mapbox-gl";
@@ -195,6 +196,9 @@ export function SelectedAircraftMapPopup({
     (s) => s.setSelectedFlightId
   );
   const storeFlights = useMoonTransitStore((s) => s.flights);
+  const patchFlightAircraftTypeFromIndex = useMoonTransitStore(
+    (s) => s.patchFlightAircraftTypeFromIndex
+  );
   const mapFlights = useExtrapolatedFlightsForMap();
 
   const flight =
@@ -203,6 +207,46 @@ export function SelectedAircraftMapPopup({
       : mapFlights.find((f) => f.id === selectedFlightId) ??
         storeFlights.find((f) => f.id === selectedFlightId) ??
         null;
+
+  /** Primitivi za `useEffect` — cijeli `flight` se mijenja pri svakoj ekstrapolaciji. */
+  const flightIdForIndex = flight?.id ?? null;
+  const flightIcaoForIndex = flight?.icao24 ?? null;
+  const flightAircraftTypeForIndex = flight?.aircraftType ?? null;
+
+  useEffect(() => {
+    if (suppressed || flightIdForIndex == null) {
+      return;
+    }
+    const existing = flightAircraftTypeForIndex?.trim() ?? "";
+    if (existing) {
+      return;
+    }
+    const icao = flightIcaoForIndex ?? flightIdForIndex;
+    const ac = new AbortController();
+    void (async () => {
+      try {
+        const label = await fetchOpenSkyAircraftTypeLabel(icao);
+        if (ac.signal.aborted || !label.trim()) {
+          return;
+        }
+        patchFlightAircraftTypeFromIndex(flightIdForIndex, label);
+      } catch (e) {
+        if (!ac.signal.aborted) {
+          console.warn(
+            "[MoonTransit] OpenSky aircraft index lookup failed",
+            e
+          );
+        }
+      }
+    })();
+    return () => ac.abort();
+  }, [
+    flightIdForIndex,
+    flightIcaoForIndex,
+    flightAircraftTypeForIndex,
+    suppressed,
+    patchFlightAircraftTypeFromIndex,
+  ]);
 
   const popupRef = useRef<mapboxgl.Popup | null>(null);
   const rootRef = useRef<Root | null>(null);

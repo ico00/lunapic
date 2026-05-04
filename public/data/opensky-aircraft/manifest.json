@@ -1,0 +1,4819 @@
+{
+  "builtAt": "2026-05-04T18:11:40.614Z",
+  "source": "https://opensky-network.org/datasets/metadata/aircraftDatabase.zip",
+  "shards": [
+    {
+      "prefix": "000",
+      "aircraft": 10,
+      "bytes": 408
+    },
+    {
+      "prefix": "001",
+      "aircraft": 4,
+      "bytes": 188
+    },
+    {
+      "prefix": "004",
+      "aircraft": 19,
+      "bytes": 608
+    },
+    {
+      "prefix": "006",
+      "aircraft": 17,
+      "bytes": 573
+    },
+    {
+      "prefix": "007",
+      "aircraft": 3,
+      "bytes": 82
+    },
+    {
+      "prefix": "008",
+      "aircraft": 471,
+      "bytes": 15304
+    },
+    {
+      "prefix": "009",
+      "aircraft": 748,
+      "bytes": 26097
+    },
+    {
+      "prefix": "00a",
+      "aircraft": 1044,
+      "bytes": 40707
+    },
+    {
+      "prefix": "00b",
+      "aircraft": 383,
+      "bytes": 14303
+    },
+    {
+      "prefix": "00c",
+      "aircraft": 52,
+      "bytes": 1891
+    },
+    {
+      "prefix": "00d",
+      "aircraft": 21,
+      "bytes": 523
+    },
+    {
+      "prefix": "00e",
+      "aircraft": 13,
+      "bytes": 417
+    },
+    {
+      "prefix": "00f",
+      "aircraft": 15,
+      "bytes": 358
+    },
+    {
+      "prefix": "010",
+      "aircraft": 319,
+      "bytes": 11677
+    },
+    {
+      "prefix": "015",
+      "aircraft": 1,
+      "bytes": 61
+    },
+    {
+      "prefix": "017",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "018",
+      "aircraft": 83,
+      "bytes": 2964
+    },
+    {
+      "prefix": "01d",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "020",
+      "aircraft": 220,
+      "bytes": 8853
+    },
+    {
+      "prefix": "021",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "023",
+      "aircraft": 1,
+      "bytes": 61
+    },
+    {
+      "prefix": "028",
+      "aircraft": 3,
+      "bytes": 73
+    },
+    {
+      "prefix": "029",
+      "aircraft": 4,
+      "bytes": 160
+    },
+    {
+      "prefix": "02a",
+      "aircraft": 70,
+      "bytes": 2505
+    },
+    {
+      "prefix": "02b",
+      "aircraft": 5,
+      "bytes": 167
+    },
+    {
+      "prefix": "02c",
+      "aircraft": 4,
+      "bytes": 249
+    },
+    {
+      "prefix": "030",
+      "aircraft": 37,
+      "bytes": 1245
+    },
+    {
+      "prefix": "032",
+      "aircraft": 1,
+      "bytes": 48
+    },
+    {
+      "prefix": "034",
+      "aircraft": 13,
+      "bytes": 469
+    },
+    {
+      "prefix": "036",
+      "aircraft": 12,
+      "bytes": 413
+    },
+    {
+      "prefix": "038",
+      "aircraft": 32,
+      "bytes": 1016
+    },
+    {
+      "prefix": "03e",
+      "aircraft": 16,
+      "bytes": 666
+    },
+    {
+      "prefix": "040",
+      "aircraft": 179,
+      "bytes": 6184
+    },
+    {
+      "prefix": "042",
+      "aircraft": 15,
+      "bytes": 646
+    },
+    {
+      "prefix": "044",
+      "aircraft": 29,
+      "bytes": 1008
+    },
+    {
+      "prefix": "046",
+      "aircraft": 5,
+      "bytes": 136
+    },
+    {
+      "prefix": "04c",
+      "aircraft": 230,
+      "bytes": 7751
+    },
+    {
+      "prefix": "053",
+      "aircraft": 2,
+      "bytes": 76
+    },
+    {
+      "prefix": "054",
+      "aircraft": 10,
+      "bytes": 453
+    },
+    {
+      "prefix": "058",
+      "aircraft": 7,
+      "bytes": 238
+    },
+    {
+      "prefix": "05a",
+      "aircraft": 109,
+      "bytes": 4929
+    },
+    {
+      "prefix": "05c",
+      "aircraft": 4,
+      "bytes": 133
+    },
+    {
+      "prefix": "05e",
+      "aircraft": 9,
+      "bytes": 315
+    },
+    {
+      "prefix": "060",
+      "aircraft": 23,
+      "bytes": 932
+    },
+    {
+      "prefix": "062",
+      "aircraft": 5,
+      "bytes": 200
+    },
+    {
+      "prefix": "064",
+      "aircraft": 234,
+      "bytes": 8286
+    },
+    {
+      "prefix": "067",
+      "aircraft": 1,
+      "bytes": 42
+    },
+    {
+      "prefix": "068",
+      "aircraft": 21,
+      "bytes": 655
+    },
+    {
+      "prefix": "06a",
+      "aircraft": 493,
+      "bytes": 17452
+    },
+    {
+      "prefix": "06c",
+      "aircraft": 4,
+      "bytes": 110
+    },
+    {
+      "prefix": "06e",
+      "aircraft": 14,
+      "bytes": 558
+    },
+    {
+      "prefix": "070",
+      "aircraft": 63,
+      "bytes": 1910
+    },
+    {
+      "prefix": "074",
+      "aircraft": 15,
+      "bytes": 496
+    },
+    {
+      "prefix": "076",
+      "aircraft": 1,
+      "bytes": 40
+    },
+    {
+      "prefix": "07a",
+      "aircraft": 3,
+      "bytes": 97
+    },
+    {
+      "prefix": "07c",
+      "aircraft": 37,
+      "bytes": 1223
+    },
+    {
+      "prefix": "080",
+      "aircraft": 59,
+      "bytes": 2026
+    },
+    {
+      "prefix": "084",
+      "aircraft": 20,
+      "bytes": 716
+    },
+    {
+      "prefix": "088",
+      "aircraft": 5,
+      "bytes": 209
+    },
+    {
+      "prefix": "08a",
+      "aircraft": 7,
+      "bytes": 242
+    },
+    {
+      "prefix": "08c",
+      "aircraft": 23,
+      "bytes": 727
+    },
+    {
+      "prefix": "090",
+      "aircraft": 84,
+      "bytes": 3080
+    },
+    {
+      "prefix": "091",
+      "aircraft": 1,
+      "bytes": 41
+    },
+    {
+      "prefix": "092",
+      "aircraft": 1,
+      "bytes": 41
+    },
+    {
+      "prefix": "094",
+      "aircraft": 3,
+      "bytes": 107
+    },
+    {
+      "prefix": "096",
+      "aircraft": 10,
+      "bytes": 312
+    },
+    {
+      "prefix": "098",
+      "aircraft": 2,
+      "bytes": 66
+    },
+    {
+      "prefix": "09a",
+      "aircraft": 23,
+      "bytes": 750
+    },
+    {
+      "prefix": "09c",
+      "aircraft": 8,
+      "bytes": 278
+    },
+    {
+      "prefix": "0a0",
+      "aircraft": 90,
+      "bytes": 3865
+    },
+    {
+      "prefix": "0a2",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "0a4",
+      "aircraft": 60,
+      "bytes": 2670
+    },
+    {
+      "prefix": "0a8",
+      "aircraft": 87,
+      "bytes": 2600
+    },
+    {
+      "prefix": "0aa",
+      "aircraft": 4,
+      "bytes": 142
+    },
+    {
+      "prefix": "0ab",
+      "aircraft": 19,
+      "bytes": 501
+    },
+    {
+      "prefix": "0ac",
+      "aircraft": 621,
+      "bytes": 17214
+    },
+    {
+      "prefix": "0ae",
+      "aircraft": 56,
+      "bytes": 1638
+    },
+    {
+      "prefix": "0b0",
+      "aircraft": 64,
+      "bytes": 2421
+    },
+    {
+      "prefix": "0b1",
+      "aircraft": 1,
+      "bytes": 52
+    },
+    {
+      "prefix": "0b2",
+      "aircraft": 5,
+      "bytes": 176
+    },
+    {
+      "prefix": "0b4",
+      "aircraft": 91,
+      "bytes": 2702
+    },
+    {
+      "prefix": "0b6",
+      "aircraft": 29,
+      "bytes": 724
+    },
+    {
+      "prefix": "0b8",
+      "aircraft": 3,
+      "bytes": 84
+    },
+    {
+      "prefix": "0ba",
+      "aircraft": 11,
+      "bytes": 390
+    },
+    {
+      "prefix": "0bc",
+      "aircraft": 11,
+      "bytes": 417
+    },
+    {
+      "prefix": "0be",
+      "aircraft": 3,
+      "bytes": 73
+    },
+    {
+      "prefix": "0c0",
+      "aircraft": 4,
+      "bytes": 118
+    },
+    {
+      "prefix": "0c2",
+      "aircraft": 194,
+      "bytes": 6545
+    },
+    {
+      "prefix": "0c4",
+      "aircraft": 67,
+      "bytes": 1969
+    },
+    {
+      "prefix": "0c6",
+      "aircraft": 37,
+      "bytes": 1418
+    },
+    {
+      "prefix": "0c8",
+      "aircraft": 19,
+      "bytes": 544
+    },
+    {
+      "prefix": "0ca",
+      "aircraft": 14,
+      "bytes": 741
+    },
+    {
+      "prefix": "0d0",
+      "aircraft": 1767,
+      "bytes": 59869
+    },
+    {
+      "prefix": "0d1",
+      "aircraft": 5,
+      "bytes": 121
+    },
+    {
+      "prefix": "0d3",
+      "aircraft": 2,
+      "bytes": 70
+    },
+    {
+      "prefix": "0d4",
+      "aircraft": 1,
+      "bytes": 41
+    },
+    {
+      "prefix": "0d8",
+      "aircraft": 382,
+      "bytes": 13705
+    },
+    {
+      "prefix": "100",
+      "aircraft": 2,
+      "bytes": 93
+    },
+    {
+      "prefix": "102",
+      "aircraft": 3,
+      "bytes": 132
+    },
+    {
+      "prefix": "105",
+      "aircraft": 39,
+      "bytes": 898
+    },
+    {
+      "prefix": "109",
+      "aircraft": 1,
+      "bytes": 24
+    },
+    {
+      "prefix": "10a",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "10c",
+      "aircraft": 2,
+      "bytes": 47
+    },
+    {
+      "prefix": "10d",
+      "aircraft": 2,
+      "bytes": 49
+    },
+    {
+      "prefix": "110",
+      "aircraft": 22,
+      "bytes": 530
+    },
+    {
+      "prefix": "111",
+      "aircraft": 5,
+      "bytes": 136
+    },
+    {
+      "prefix": "112",
+      "aircraft": 8,
+      "bytes": 188
+    },
+    {
+      "prefix": "113",
+      "aircraft": 25,
+      "bytes": 577
+    },
+    {
+      "prefix": "114",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "115",
+      "aircraft": 6,
+      "bytes": 141
+    },
+    {
+      "prefix": "119",
+      "aircraft": 1,
+      "bytes": 40
+    },
+    {
+      "prefix": "122",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "123",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "12a",
+      "aircraft": 1,
+      "bytes": 51
+    },
+    {
+      "prefix": "12d",
+      "aircraft": 1,
+      "bytes": 39
+    },
+    {
+      "prefix": "132",
+      "aircraft": 2,
+      "bytes": 65
+    },
+    {
+      "prefix": "134",
+      "aircraft": 2,
+      "bytes": 60
+    },
+    {
+      "prefix": "135",
+      "aircraft": 1,
+      "bytes": 41
+    },
+    {
+      "prefix": "136",
+      "aircraft": 1,
+      "bytes": 37
+    },
+    {
+      "prefix": "140",
+      "aircraft": 480,
+      "bytes": 17508
+    },
+    {
+      "prefix": "141",
+      "aircraft": 465,
+      "bytes": 16751
+    },
+    {
+      "prefix": "142",
+      "aircraft": 127,
+      "bytes": 4737
+    },
+    {
+      "prefix": "143",
+      "aircraft": 107,
+      "bytes": 3558
+    },
+    {
+      "prefix": "144",
+      "aircraft": 41,
+      "bytes": 1385
+    },
+    {
+      "prefix": "145",
+      "aircraft": 473,
+      "bytes": 15148
+    },
+    {
+      "prefix": "146",
+      "aircraft": 361,
+      "bytes": 12335
+    },
+    {
+      "prefix": "147",
+      "aircraft": 98,
+      "bytes": 3383
+    },
+    {
+      "prefix": "148",
+      "aircraft": 125,
+      "bytes": 4428
+    },
+    {
+      "prefix": "149",
+      "aircraft": 104,
+      "bytes": 3734
+    },
+    {
+      "prefix": "14a",
+      "aircraft": 178,
+      "bytes": 6798
+    },
+    {
+      "prefix": "14b",
+      "aircraft": 90,
+      "bytes": 3388
+    },
+    {
+      "prefix": "14c",
+      "aircraft": 8,
+      "bytes": 303
+    },
+    {
+      "prefix": "14d",
+      "aircraft": 29,
+      "bytes": 1041
+    },
+    {
+      "prefix": "14f",
+      "aircraft": 115,
+      "bytes": 4166
+    },
+    {
+      "prefix": "150",
+      "aircraft": 323,
+      "bytes": 11822
+    },
+    {
+      "prefix": "151",
+      "aircraft": 572,
+      "bytes": 16182
+    },
+    {
+      "prefix": "152",
+      "aircraft": 287,
+      "bytes": 9037
+    },
+    {
+      "prefix": "153",
+      "aircraft": 63,
+      "bytes": 2442
+    },
+    {
+      "prefix": "154",
+      "aircraft": 91,
+      "bytes": 3437
+    },
+    {
+      "prefix": "155",
+      "aircraft": 266,
+      "bytes": 9786
+    },
+    {
+      "prefix": "156",
+      "aircraft": 15,
+      "bytes": 522
+    },
+    {
+      "prefix": "157",
+      "aircraft": 23,
+      "bytes": 814
+    },
+    {
+      "prefix": "159",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "15c",
+      "aircraft": 2,
+      "bytes": 84
+    },
+    {
+      "prefix": "15d",
+      "aircraft": 1,
+      "bytes": 39
+    },
+    {
+      "prefix": "15f",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "160",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "16a",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "170",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "178",
+      "aircraft": 1,
+      "bytes": 37
+    },
+    {
+      "prefix": "17e",
+      "aircraft": 1,
+      "bytes": 42
+    },
+    {
+      "prefix": "180",
+      "aircraft": 27,
+      "bytes": 641
+    },
+    {
+      "prefix": "184",
+      "aircraft": 1,
+      "bytes": 49
+    },
+    {
+      "prefix": "190",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "192",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "194",
+      "aircraft": 1,
+      "bytes": 63
+    },
+    {
+      "prefix": "197",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "19c",
+      "aircraft": 2,
+      "bytes": 98
+    },
+    {
+      "prefix": "19f",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "1a2",
+      "aircraft": 2,
+      "bytes": 49
+    },
+    {
+      "prefix": "1ab",
+      "aircraft": 2,
+      "bytes": 49
+    },
+    {
+      "prefix": "1af",
+      "aircraft": 3,
+      "bytes": 72
+    },
+    {
+      "prefix": "1b2",
+      "aircraft": 2,
+      "bytes": 49
+    },
+    {
+      "prefix": "1b4",
+      "aircraft": 2,
+      "bytes": 49
+    },
+    {
+      "prefix": "1b5",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "1b6",
+      "aircraft": 2,
+      "bytes": 58
+    },
+    {
+      "prefix": "1b7",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "1bf",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "1c3",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "1d0",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "1d2",
+      "aircraft": 3,
+      "bytes": 73
+    },
+    {
+      "prefix": "1d3",
+      "aircraft": 12,
+      "bytes": 289
+    },
+    {
+      "prefix": "1e3",
+      "aircraft": 3,
+      "bytes": 73
+    },
+    {
+      "prefix": "1ea",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "1ed",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "1f1",
+      "aircraft": 5,
+      "bytes": 121
+    },
+    {
+      "prefix": "1f2",
+      "aircraft": 2,
+      "bytes": 49
+    },
+    {
+      "prefix": "1f3",
+      "aircraft": 4,
+      "bytes": 97
+    },
+    {
+      "prefix": "1f6",
+      "aircraft": 2,
+      "bytes": 49
+    },
+    {
+      "prefix": "1f7",
+      "aircraft": 17,
+      "bytes": 409
+    },
+    {
+      "prefix": "201",
+      "aircraft": 37,
+      "bytes": 1312
+    },
+    {
+      "prefix": "202",
+      "aircraft": 2,
+      "bytes": 81
+    },
+    {
+      "prefix": "203",
+      "aircraft": 2,
+      "bytes": 49
+    },
+    {
+      "prefix": "2b2",
+      "aircraft": 1,
+      "bytes": 37
+    },
+    {
+      "prefix": "300",
+      "aircraft": 1054,
+      "bytes": 36127
+    },
+    {
+      "prefix": "301",
+      "aircraft": 2,
+      "bytes": 67
+    },
+    {
+      "prefix": "31c",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "31d",
+      "aircraft": 368,
+      "bytes": 9132
+    },
+    {
+      "prefix": "31f",
+      "aircraft": 45,
+      "bytes": 1271
+    },
+    {
+      "prefix": "320",
+      "aircraft": 96,
+      "bytes": 2892
+    },
+    {
+      "prefix": "330",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "33d",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "33f",
+      "aircraft": 336,
+      "bytes": 10965
+    },
+    {
+      "prefix": "340",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "341",
+      "aircraft": 56,
+      "bytes": 2174
+    },
+    {
+      "prefix": "342",
+      "aircraft": 229,
+      "bytes": 9468
+    },
+    {
+      "prefix": "343",
+      "aircraft": 246,
+      "bytes": 10033
+    },
+    {
+      "prefix": "344",
+      "aircraft": 240,
+      "bytes": 10028
+    },
+    {
+      "prefix": "345",
+      "aircraft": 335,
+      "bytes": 11865
+    },
+    {
+      "prefix": "346",
+      "aircraft": 288,
+      "bytes": 7911
+    },
+    {
+      "prefix": "347",
+      "aircraft": 81,
+      "bytes": 2088
+    },
+    {
+      "prefix": "353",
+      "aircraft": 28,
+      "bytes": 891
+    },
+    {
+      "prefix": "354",
+      "aircraft": 7,
+      "bytes": 225
+    },
+    {
+      "prefix": "355",
+      "aircraft": 6,
+      "bytes": 234
+    },
+    {
+      "prefix": "356",
+      "aircraft": 3,
+      "bytes": 73
+    },
+    {
+      "prefix": "357",
+      "aircraft": 19,
+      "bytes": 469
+    },
+    {
+      "prefix": "359",
+      "aircraft": 25,
+      "bytes": 795
+    },
+    {
+      "prefix": "380",
+      "aircraft": 236,
+      "bytes": 7925
+    },
+    {
+      "prefix": "381",
+      "aircraft": 301,
+      "bytes": 10482
+    },
+    {
+      "prefix": "382",
+      "aircraft": 541,
+      "bytes": 22439
+    },
+    {
+      "prefix": "383",
+      "aircraft": 889,
+      "bytes": 39988
+    },
+    {
+      "prefix": "384",
+      "aircraft": 750,
+      "bytes": 32850
+    },
+    {
+      "prefix": "385",
+      "aircraft": 747,
+      "bytes": 32948
+    },
+    {
+      "prefix": "386",
+      "aircraft": 283,
+      "bytes": 11927
+    },
+    {
+      "prefix": "387",
+      "aircraft": 54,
+      "bytes": 2245
+    },
+    {
+      "prefix": "388",
+      "aircraft": 115,
+      "bytes": 3843
+    },
+    {
+      "prefix": "389",
+      "aircraft": 148,
+      "bytes": 4152
+    },
+    {
+      "prefix": "38a",
+      "aircraft": 115,
+      "bytes": 3293
+    },
+    {
+      "prefix": "38b",
+      "aircraft": 117,
+      "bytes": 3508
+    },
+    {
+      "prefix": "38c",
+      "aircraft": 82,
+      "bytes": 2408
+    },
+    {
+      "prefix": "38d",
+      "aircraft": 111,
+      "bytes": 2830
+    },
+    {
+      "prefix": "38e",
+      "aircraft": 110,
+      "bytes": 2673
+    },
+    {
+      "prefix": "38f",
+      "aircraft": 96,
+      "bytes": 2353
+    },
+    {
+      "prefix": "390",
+      "aircraft": 953,
+      "bytes": 41289
+    },
+    {
+      "prefix": "391",
+      "aircraft": 941,
+      "bytes": 41855
+    },
+    {
+      "prefix": "392",
+      "aircraft": 966,
+      "bytes": 43491
+    },
+    {
+      "prefix": "393",
+      "aircraft": 902,
+      "bytes": 41405
+    },
+    {
+      "prefix": "394",
+      "aircraft": 732,
+      "bytes": 32476
+    },
+    {
+      "prefix": "395",
+      "aircraft": 542,
+      "bytes": 24353
+    },
+    {
+      "prefix": "396",
+      "aircraft": 369,
+      "bytes": 16097
+    },
+    {
+      "prefix": "397",
+      "aircraft": 56,
+      "bytes": 1332
+    },
+    {
+      "prefix": "398",
+      "aircraft": 911,
+      "bytes": 41027
+    },
+    {
+      "prefix": "399",
+      "aircraft": 425,
+      "bytes": 17288
+    },
+    {
+      "prefix": "39a",
+      "aircraft": 382,
+      "bytes": 14954
+    },
+    {
+      "prefix": "39b",
+      "aircraft": 418,
+      "bytes": 16850
+    },
+    {
+      "prefix": "39c",
+      "aircraft": 332,
+      "bytes": 11856
+    },
+    {
+      "prefix": "39d",
+      "aircraft": 239,
+      "bytes": 8197
+    },
+    {
+      "prefix": "39e",
+      "aircraft": 114,
+      "bytes": 3652
+    },
+    {
+      "prefix": "39f",
+      "aircraft": 23,
+      "bytes": 544
+    },
+    {
+      "prefix": "3a0",
+      "aircraft": 52,
+      "bytes": 1814
+    },
+    {
+      "prefix": "3a1",
+      "aircraft": 67,
+      "bytes": 2525
+    },
+    {
+      "prefix": "3a2",
+      "aircraft": 119,
+      "bytes": 4504
+    },
+    {
+      "prefix": "3a3",
+      "aircraft": 61,
+      "bytes": 2091
+    },
+    {
+      "prefix": "3a4",
+      "aircraft": 40,
+      "bytes": 1569
+    },
+    {
+      "prefix": "3a5",
+      "aircraft": 4,
+      "bytes": 148
+    },
+    {
+      "prefix": "3a6",
+      "aircraft": 8,
+      "bytes": 349
+    },
+    {
+      "prefix": "3aa",
+      "aircraft": 269,
+      "bytes": 7614
+    },
+    {
+      "prefix": "3ac",
+      "aircraft": 2,
+      "bytes": 49
+    },
+    {
+      "prefix": "3ad",
+      "aircraft": 1,
+      "bytes": 24
+    },
+    {
+      "prefix": "3b0",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "3b1",
+      "aircraft": 2,
+      "bytes": 49
+    },
+    {
+      "prefix": "3b3",
+      "aircraft": 2,
+      "bytes": 52
+    },
+    {
+      "prefix": "3b6",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "3b7",
+      "aircraft": 481,
+      "bytes": 17866
+    },
+    {
+      "prefix": "3b9",
+      "aircraft": 67,
+      "bytes": 2516
+    },
+    {
+      "prefix": "3ba",
+      "aircraft": 2,
+      "bytes": 49
+    },
+    {
+      "prefix": "3c0",
+      "aircraft": 134,
+      "bytes": 5092
+    },
+    {
+      "prefix": "3c1",
+      "aircraft": 278,
+      "bytes": 7287
+    },
+    {
+      "prefix": "3c2",
+      "aircraft": 6,
+      "bytes": 262
+    },
+    {
+      "prefix": "3c3",
+      "aircraft": 2,
+      "bytes": 81
+    },
+    {
+      "prefix": "3c4",
+      "aircraft": 330,
+      "bytes": 13499
+    },
+    {
+      "prefix": "3c5",
+      "aircraft": 169,
+      "bytes": 6869
+    },
+    {
+      "prefix": "3c6",
+      "aircraft": 419,
+      "bytes": 16522
+    },
+    {
+      "prefix": "3c7",
+      "aircraft": 101,
+      "bytes": 4112
+    },
+    {
+      "prefix": "3c8",
+      "aircraft": 10,
+      "bytes": 431
+    },
+    {
+      "prefix": "3c9",
+      "aircraft": 20,
+      "bytes": 771
+    },
+    {
+      "prefix": "3ca",
+      "aircraft": 11,
+      "bytes": 447
+    },
+    {
+      "prefix": "3cb",
+      "aircraft": 13,
+      "bytes": 560
+    },
+    {
+      "prefix": "3cc",
+      "aircraft": 117,
+      "bytes": 4832
+    },
+    {
+      "prefix": "3cd",
+      "aircraft": 100,
+      "bytes": 4050
+    },
+    {
+      "prefix": "3ce",
+      "aircraft": 74,
+      "bytes": 2874
+    },
+    {
+      "prefix": "3cf",
+      "aircraft": 50,
+      "bytes": 1990
+    },
+    {
+      "prefix": "3d0",
+      "aircraft": 1962,
+      "bytes": 84972
+    },
+    {
+      "prefix": "3d1",
+      "aircraft": 2392,
+      "bytes": 104664
+    },
+    {
+      "prefix": "3d2",
+      "aircraft": 1916,
+      "bytes": 82247
+    },
+    {
+      "prefix": "3d3",
+      "aircraft": 1270,
+      "bytes": 52651
+    },
+    {
+      "prefix": "3d4",
+      "aircraft": 558,
+      "bytes": 22874
+    },
+    {
+      "prefix": "3d5",
+      "aircraft": 65,
+      "bytes": 2273
+    },
+    {
+      "prefix": "3d6",
+      "aircraft": 120,
+      "bytes": 4689
+    },
+    {
+      "prefix": "3d7",
+      "aircraft": 71,
+      "bytes": 2592
+    },
+    {
+      "prefix": "3d8",
+      "aircraft": 57,
+      "bytes": 2463
+    },
+    {
+      "prefix": "3d9",
+      "aircraft": 104,
+      "bytes": 4868
+    },
+    {
+      "prefix": "3da",
+      "aircraft": 85,
+      "bytes": 3782
+    },
+    {
+      "prefix": "3db",
+      "aircraft": 40,
+      "bytes": 1877
+    },
+    {
+      "prefix": "3dc",
+      "aircraft": 23,
+      "bytes": 1009
+    },
+    {
+      "prefix": "3dd",
+      "aircraft": 486,
+      "bytes": 19811
+    },
+    {
+      "prefix": "3de",
+      "aircraft": 205,
+      "bytes": 8397
+    },
+    {
+      "prefix": "3df",
+      "aircraft": 202,
+      "bytes": 8349
+    },
+    {
+      "prefix": "3e0",
+      "aircraft": 217,
+      "bytes": 8355
+    },
+    {
+      "prefix": "3e1",
+      "aircraft": 223,
+      "bytes": 9307
+    },
+    {
+      "prefix": "3e2",
+      "aircraft": 123,
+      "bytes": 5159
+    },
+    {
+      "prefix": "3e3",
+      "aircraft": 159,
+      "bytes": 6549
+    },
+    {
+      "prefix": "3e4",
+      "aircraft": 105,
+      "bytes": 4387
+    },
+    {
+      "prefix": "3e5",
+      "aircraft": 560,
+      "bytes": 23453
+    },
+    {
+      "prefix": "3e6",
+      "aircraft": 1220,
+      "bytes": 50751
+    },
+    {
+      "prefix": "3e7",
+      "aircraft": 1132,
+      "bytes": 46637
+    },
+    {
+      "prefix": "3e8",
+      "aircraft": 111,
+      "bytes": 4199
+    },
+    {
+      "prefix": "3e9",
+      "aircraft": 69,
+      "bytes": 2647
+    },
+    {
+      "prefix": "3ea",
+      "aircraft": 61,
+      "bytes": 2289
+    },
+    {
+      "prefix": "3eb",
+      "aircraft": 53,
+      "bytes": 2069
+    },
+    {
+      "prefix": "3ec",
+      "aircraft": 670,
+      "bytes": 27187
+    },
+    {
+      "prefix": "3ed",
+      "aircraft": 391,
+      "bytes": 15148
+    },
+    {
+      "prefix": "3ee",
+      "aircraft": 3359,
+      "bytes": 153043
+    },
+    {
+      "prefix": "3ef",
+      "aircraft": 3133,
+      "bytes": 141042
+    },
+    {
+      "prefix": "3f0",
+      "aircraft": 1201,
+      "bytes": 55127
+    },
+    {
+      "prefix": "3f2",
+      "aircraft": 395,
+      "bytes": 23064
+    },
+    {
+      "prefix": "3f3",
+      "aircraft": 300,
+      "bytes": 17387
+    },
+    {
+      "prefix": "3f4",
+      "aircraft": 51,
+      "bytes": 1842
+    },
+    {
+      "prefix": "3f5",
+      "aircraft": 47,
+      "bytes": 1811
+    },
+    {
+      "prefix": "3f6",
+      "aircraft": 56,
+      "bytes": 2117
+    },
+    {
+      "prefix": "3f7",
+      "aircraft": 43,
+      "bytes": 1621
+    },
+    {
+      "prefix": "3f8",
+      "aircraft": 98,
+      "bytes": 3361
+    },
+    {
+      "prefix": "3f9",
+      "aircraft": 155,
+      "bytes": 6251
+    },
+    {
+      "prefix": "3fa",
+      "aircraft": 279,
+      "bytes": 12368
+    },
+    {
+      "prefix": "3fb",
+      "aircraft": 72,
+      "bytes": 2945
+    },
+    {
+      "prefix": "3fc",
+      "aircraft": 426,
+      "bytes": 24578
+    },
+    {
+      "prefix": "3fd",
+      "aircraft": 342,
+      "bytes": 19732
+    },
+    {
+      "prefix": "3fe",
+      "aircraft": 1381,
+      "bytes": 55705
+    },
+    {
+      "prefix": "3ff",
+      "aircraft": 1341,
+      "bytes": 40485
+    },
+    {
+      "prefix": "400",
+      "aircraft": 1395,
+      "bytes": 83819
+    },
+    {
+      "prefix": "401",
+      "aircraft": 3154,
+      "bytes": 216649
+    },
+    {
+      "prefix": "402",
+      "aircraft": 2804,
+      "bytes": 182277
+    },
+    {
+      "prefix": "403",
+      "aircraft": 2966,
+      "bytes": 191788
+    },
+    {
+      "prefix": "404",
+      "aircraft": 3166,
+      "bytes": 201171
+    },
+    {
+      "prefix": "405",
+      "aircraft": 3139,
+      "bytes": 207412
+    },
+    {
+      "prefix": "406",
+      "aircraft": 3332,
+      "bytes": 199868
+    },
+    {
+      "prefix": "407",
+      "aircraft": 2534,
+      "bytes": 98515
+    },
+    {
+      "prefix": "408",
+      "aircraft": 1,
+      "bytes": 43
+    },
+    {
+      "prefix": "40d",
+      "aircraft": 1,
+      "bytes": 47
+    },
+    {
+      "prefix": "410",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "41d",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "424",
+      "aircraft": 1511,
+      "bytes": 56960
+    },
+    {
+      "prefix": "425",
+      "aircraft": 8,
+      "bytes": 207
+    },
+    {
+      "prefix": "426",
+      "aircraft": 1,
+      "bytes": 32
+    },
+    {
+      "prefix": "434",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "435",
+      "aircraft": 1,
+      "bytes": 24
+    },
+    {
+      "prefix": "43b",
+      "aircraft": 43,
+      "bytes": 1338
+    },
+    {
+      "prefix": "43c",
+      "aircraft": 1018,
+      "bytes": 44134
+    },
+    {
+      "prefix": "43e",
+      "aircraft": 784,
+      "bytes": 31721
+    },
+    {
+      "prefix": "43f",
+      "aircraft": 3,
+      "bytes": 119
+    },
+    {
+      "prefix": "440",
+      "aircraft": 2064,
+      "bytes": 76146
+    },
+    {
+      "prefix": "444",
+      "aircraft": 298,
+      "bytes": 12805
+    },
+    {
+      "prefix": "446",
+      "aircraft": 1,
+      "bytes": 46
+    },
+    {
+      "prefix": "447",
+      "aircraft": 68,
+      "bytes": 2255
+    },
+    {
+      "prefix": "448",
+      "aircraft": 544,
+      "bytes": 26662
+    },
+    {
+      "prefix": "449",
+      "aircraft": 376,
+      "bytes": 15668
+    },
+    {
+      "prefix": "44a",
+      "aircraft": 229,
+      "bytes": 8764
+    },
+    {
+      "prefix": "44b",
+      "aircraft": 211,
+      "bytes": 8867
+    },
+    {
+      "prefix": "44c",
+      "aircraft": 296,
+      "bytes": 11935
+    },
+    {
+      "prefix": "44d",
+      "aircraft": 212,
+      "bytes": 8809
+    },
+    {
+      "prefix": "44e",
+      "aircraft": 380,
+      "bytes": 16757
+    },
+    {
+      "prefix": "44f",
+      "aircraft": 190,
+      "bytes": 9731
+    },
+    {
+      "prefix": "450",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "451",
+      "aircraft": 101,
+      "bytes": 4130
+    },
+    {
+      "prefix": "452",
+      "aircraft": 110,
+      "bytes": 3128
+    },
+    {
+      "prefix": "456",
+      "aircraft": 12,
+      "bytes": 293
+    },
+    {
+      "prefix": "457",
+      "aircraft": 14,
+      "bytes": 444
+    },
+    {
+      "prefix": "458",
+      "aircraft": 439,
+      "bytes": 19667
+    },
+    {
+      "prefix": "459",
+      "aircraft": 296,
+      "bytes": 12773
+    },
+    {
+      "prefix": "45a",
+      "aircraft": 336,
+      "bytes": 13771
+    },
+    {
+      "prefix": "45b",
+      "aircraft": 161,
+      "bytes": 7174
+    },
+    {
+      "prefix": "45c",
+      "aircraft": 211,
+      "bytes": 9036
+    },
+    {
+      "prefix": "45d",
+      "aircraft": 122,
+      "bytes": 5220
+    },
+    {
+      "prefix": "45e",
+      "aircraft": 292,
+      "bytes": 12648
+    },
+    {
+      "prefix": "45f",
+      "aircraft": 105,
+      "bytes": 3451
+    },
+    {
+      "prefix": "460",
+      "aircraft": 334,
+      "bytes": 14276
+    },
+    {
+      "prefix": "461",
+      "aircraft": 280,
+      "bytes": 11485
+    },
+    {
+      "prefix": "462",
+      "aircraft": 194,
+      "bytes": 9413
+    },
+    {
+      "prefix": "463",
+      "aircraft": 180,
+      "bytes": 7633
+    },
+    {
+      "prefix": "464",
+      "aircraft": 37,
+      "bytes": 1387
+    },
+    {
+      "prefix": "465",
+      "aircraft": 18,
+      "bytes": 464
+    },
+    {
+      "prefix": "467",
+      "aircraft": 71,
+      "bytes": 1896
+    },
+    {
+      "prefix": "468",
+      "aircraft": 315,
+      "bytes": 13005
+    },
+    {
+      "prefix": "469",
+      "aircraft": 92,
+      "bytes": 3613
+    },
+    {
+      "prefix": "46a",
+      "aircraft": 135,
+      "bytes": 5315
+    },
+    {
+      "prefix": "46b",
+      "aircraft": 62,
+      "bytes": 2115
+    },
+    {
+      "prefix": "46c",
+      "aircraft": 19,
+      "bytes": 729
+    },
+    {
+      "prefix": "46d",
+      "aircraft": 57,
+      "bytes": 2273
+    },
+    {
+      "prefix": "46f",
+      "aircraft": 9,
+      "bytes": 453
+    },
+    {
+      "prefix": "470",
+      "aircraft": 136,
+      "bytes": 3901
+    },
+    {
+      "prefix": "471",
+      "aircraft": 231,
+      "bytes": 7838
+    },
+    {
+      "prefix": "472",
+      "aircraft": 32,
+      "bytes": 960
+    },
+    {
+      "prefix": "473",
+      "aircraft": 130,
+      "bytes": 4467
+    },
+    {
+      "prefix": "474",
+      "aircraft": 25,
+      "bytes": 1016
+    },
+    {
+      "prefix": "475",
+      "aircraft": 9,
+      "bytes": 347
+    },
+    {
+      "prefix": "476",
+      "aircraft": 8,
+      "bytes": 329
+    },
+    {
+      "prefix": "477",
+      "aircraft": 53,
+      "bytes": 1484
+    },
+    {
+      "prefix": "478",
+      "aircraft": 910,
+      "bytes": 38666
+    },
+    {
+      "prefix": "479",
+      "aircraft": 89,
+      "bytes": 3010
+    },
+    {
+      "prefix": "47a",
+      "aircraft": 92,
+      "bytes": 3204
+    },
+    {
+      "prefix": "47b",
+      "aircraft": 47,
+      "bytes": 1473
+    },
+    {
+      "prefix": "47c",
+      "aircraft": 92,
+      "bytes": 2834
+    },
+    {
+      "prefix": "47d",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "480",
+      "aircraft": 206,
+      "bytes": 9748
+    },
+    {
+      "prefix": "481",
+      "aircraft": 20,
+      "bytes": 721
+    },
+    {
+      "prefix": "483",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "484",
+      "aircraft": 2250,
+      "bytes": 96910
+    },
+    {
+      "prefix": "485",
+      "aircraft": 1597,
+      "bytes": 46530
+    },
+    {
+      "prefix": "486",
+      "aircraft": 166,
+      "bytes": 4123
+    },
+    {
+      "prefix": "488",
+      "aircraft": 140,
+      "bytes": 4486
+    },
+    {
+      "prefix": "489",
+      "aircraft": 231,
+      "bytes": 7953
+    },
+    {
+      "prefix": "48a",
+      "aircraft": 196,
+      "bytes": 6825
+    },
+    {
+      "prefix": "48b",
+      "aircraft": 184,
+      "bytes": 6409
+    },
+    {
+      "prefix": "48c",
+      "aircraft": 250,
+      "bytes": 8403
+    },
+    {
+      "prefix": "48d",
+      "aircraft": 216,
+      "bytes": 7834
+    },
+    {
+      "prefix": "48e",
+      "aircraft": 15,
+      "bytes": 384
+    },
+    {
+      "prefix": "48f",
+      "aircraft": 127,
+      "bytes": 3164
+    },
+    {
+      "prefix": "490",
+      "aircraft": 243,
+      "bytes": 10984
+    },
+    {
+      "prefix": "491",
+      "aircraft": 287,
+      "bytes": 12768
+    },
+    {
+      "prefix": "492",
+      "aircraft": 103,
+      "bytes": 4443
+    },
+    {
+      "prefix": "493",
+      "aircraft": 31,
+      "bytes": 1305
+    },
+    {
+      "prefix": "494",
+      "aircraft": 47,
+      "bytes": 1880
+    },
+    {
+      "prefix": "495",
+      "aircraft": 577,
+      "bytes": 23654
+    },
+    {
+      "prefix": "496",
+      "aircraft": 31,
+      "bytes": 1192
+    },
+    {
+      "prefix": "497",
+      "aircraft": 80,
+      "bytes": 3108
+    },
+    {
+      "prefix": "498",
+      "aircraft": 176,
+      "bytes": 6405
+    },
+    {
+      "prefix": "499",
+      "aircraft": 74,
+      "bytes": 3065
+    },
+    {
+      "prefix": "49a",
+      "aircraft": 95,
+      "bytes": 4072
+    },
+    {
+      "prefix": "49b",
+      "aircraft": 246,
+      "bytes": 10104
+    },
+    {
+      "prefix": "49c",
+      "aircraft": 339,
+      "bytes": 9160
+    },
+    {
+      "prefix": "49d",
+      "aircraft": 1057,
+      "bytes": 37593
+    },
+    {
+      "prefix": "49e",
+      "aircraft": 41,
+      "bytes": 1708
+    },
+    {
+      "prefix": "49f",
+      "aircraft": 43,
+      "bytes": 990
+    },
+    {
+      "prefix": "4a0",
+      "aircraft": 148,
+      "bytes": 5445
+    },
+    {
+      "prefix": "4a1",
+      "aircraft": 52,
+      "bytes": 1862
+    },
+    {
+      "prefix": "4a2",
+      "aircraft": 17,
+      "bytes": 607
+    },
+    {
+      "prefix": "4a3",
+      "aircraft": 103,
+      "bytes": 3251
+    },
+    {
+      "prefix": "4a4",
+      "aircraft": 70,
+      "bytes": 2628
+    },
+    {
+      "prefix": "4a5",
+      "aircraft": 45,
+      "bytes": 1500
+    },
+    {
+      "prefix": "4a6",
+      "aircraft": 54,
+      "bytes": 2315
+    },
+    {
+      "prefix": "4a7",
+      "aircraft": 40,
+      "bytes": 1060
+    },
+    {
+      "prefix": "4a8",
+      "aircraft": 146,
+      "bytes": 5810
+    },
+    {
+      "prefix": "4a9",
+      "aircraft": 163,
+      "bytes": 6036
+    },
+    {
+      "prefix": "4aa",
+      "aircraft": 405,
+      "bytes": 16690
+    },
+    {
+      "prefix": "4ab",
+      "aircraft": 316,
+      "bytes": 12737
+    },
+    {
+      "prefix": "4ac",
+      "aircraft": 199,
+      "bytes": 6918
+    },
+    {
+      "prefix": "4ad",
+      "aircraft": 292,
+      "bytes": 10384
+    },
+    {
+      "prefix": "4ae",
+      "aircraft": 146,
+      "bytes": 5462
+    },
+    {
+      "prefix": "4b0",
+      "aircraft": 763,
+      "bytes": 37459
+    },
+    {
+      "prefix": "4b1",
+      "aircraft": 739,
+      "bytes": 35545
+    },
+    {
+      "prefix": "4b2",
+      "aircraft": 952,
+      "bytes": 45230
+    },
+    {
+      "prefix": "4b3",
+      "aircraft": 584,
+      "bytes": 27598
+    },
+    {
+      "prefix": "4b4",
+      "aircraft": 1253,
+      "bytes": 66745
+    },
+    {
+      "prefix": "4b5",
+      "aircraft": 314,
+      "bytes": 18765
+    },
+    {
+      "prefix": "4b7",
+      "aircraft": 155,
+      "bytes": 5803
+    },
+    {
+      "prefix": "4b8",
+      "aircraft": 543,
+      "bytes": 25134
+    },
+    {
+      "prefix": "4b9",
+      "aircraft": 184,
+      "bytes": 7833
+    },
+    {
+      "prefix": "4ba",
+      "aircraft": 479,
+      "bytes": 19410
+    },
+    {
+      "prefix": "4bb",
+      "aircraft": 325,
+      "bytes": 11132
+    },
+    {
+      "prefix": "4bc",
+      "aircraft": 205,
+      "bytes": 8193
+    },
+    {
+      "prefix": "4bd",
+      "aircraft": 180,
+      "bytes": 7461
+    },
+    {
+      "prefix": "4be",
+      "aircraft": 120,
+      "bytes": 5644
+    },
+    {
+      "prefix": "4bf",
+      "aircraft": 3,
+      "bytes": 72
+    },
+    {
+      "prefix": "4c0",
+      "aircraft": 304,
+      "bytes": 12846
+    },
+    {
+      "prefix": "4c1",
+      "aircraft": 51,
+      "bytes": 2317
+    },
+    {
+      "prefix": "4c2",
+      "aircraft": 5,
+      "bytes": 172
+    },
+    {
+      "prefix": "4c3",
+      "aircraft": 20,
+      "bytes": 963
+    },
+    {
+      "prefix": "4c4",
+      "aircraft": 17,
+      "bytes": 597
+    },
+    {
+      "prefix": "4c5",
+      "aircraft": 9,
+      "bytes": 352
+    },
+    {
+      "prefix": "4c6",
+      "aircraft": 15,
+      "bytes": 641
+    },
+    {
+      "prefix": "4c8",
+      "aircraft": 50,
+      "bytes": 1637
+    },
+    {
+      "prefix": "4ca",
+      "aircraft": 1610,
+      "bytes": 76722
+    },
+    {
+      "prefix": "4cc",
+      "aircraft": 191,
+      "bytes": 7013
+    },
+    {
+      "prefix": "4d0",
+      "aircraft": 308,
+      "bytes": 12787
+    },
+    {
+      "prefix": "4d2",
+      "aircraft": 836,
+      "bytes": 27683
+    },
+    {
+      "prefix": "4d3",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "4d4",
+      "aircraft": 34,
+      "bytes": 1252
+    },
+    {
+      "prefix": "4ee",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "500",
+      "aircraft": 416,
+      "bytes": 13298
+    },
+    {
+      "prefix": "501",
+      "aircraft": 104,
+      "bytes": 3568
+    },
+    {
+      "prefix": "502",
+      "aircraft": 203,
+      "bytes": 7074
+    },
+    {
+      "prefix": "503",
+      "aircraft": 225,
+      "bytes": 7787
+    },
+    {
+      "prefix": "504",
+      "aircraft": 64,
+      "bytes": 1980
+    },
+    {
+      "prefix": "505",
+      "aircraft": 376,
+      "bytes": 12422
+    },
+    {
+      "prefix": "506",
+      "aircraft": 267,
+      "bytes": 9226
+    },
+    {
+      "prefix": "507",
+      "aircraft": 69,
+      "bytes": 1716
+    },
+    {
+      "prefix": "508",
+      "aircraft": 463,
+      "bytes": 15531
+    },
+    {
+      "prefix": "50f",
+      "aircraft": 44,
+      "bytes": 1314
+    },
+    {
+      "prefix": "510",
+      "aircraft": 97,
+      "bytes": 3507
+    },
+    {
+      "prefix": "511",
+      "aircraft": 156,
+      "bytes": 5578
+    },
+    {
+      "prefix": "512",
+      "aircraft": 11,
+      "bytes": 328
+    },
+    {
+      "prefix": "513",
+      "aircraft": 9,
+      "bytes": 297
+    },
+    {
+      "prefix": "514",
+      "aircraft": 51,
+      "bytes": 1693
+    },
+    {
+      "prefix": "515",
+      "aircraft": 10,
+      "bytes": 366
+    },
+    {
+      "prefix": "516",
+      "aircraft": 17,
+      "bytes": 675
+    },
+    {
+      "prefix": "517",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "577",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "5ba",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "600",
+      "aircraft": 98,
+      "bytes": 3627
+    },
+    {
+      "prefix": "601",
+      "aircraft": 89,
+      "bytes": 2990
+    },
+    {
+      "prefix": "613",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "635",
+      "aircraft": 1,
+      "bytes": 36
+    },
+    {
+      "prefix": "641",
+      "aircraft": 1,
+      "bytes": 46
+    },
+    {
+      "prefix": "680",
+      "aircraft": 9,
+      "bytes": 299
+    },
+    {
+      "prefix": "682",
+      "aircraft": 26,
+      "bytes": 714
+    },
+    {
+      "prefix": "683",
+      "aircraft": 156,
+      "bytes": 4954
+    },
+    {
+      "prefix": "6c1",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "700",
+      "aircraft": 49,
+      "bytes": 1642
+    },
+    {
+      "prefix": "701",
+      "aircraft": 1,
+      "bytes": 48
+    },
+    {
+      "prefix": "702",
+      "aircraft": 102,
+      "bytes": 3376
+    },
+    {
+      "prefix": "704",
+      "aircraft": 71,
+      "bytes": 3160
+    },
+    {
+      "prefix": "706",
+      "aircraft": 96,
+      "bytes": 3586
+    },
+    {
+      "prefix": "708",
+      "aircraft": 16,
+      "bytes": 706
+    },
+    {
+      "prefix": "70a",
+      "aircraft": 43,
+      "bytes": 1841
+    },
+    {
+      "prefix": "70c",
+      "aircraft": 135,
+      "bytes": 4856
+    },
+    {
+      "prefix": "70e",
+      "aircraft": 40,
+      "bytes": 1288
+    },
+    {
+      "prefix": "710",
+      "aircraft": 570,
+      "bytes": 21607
+    },
+    {
+      "prefix": "711",
+      "aircraft": 8,
+      "bytes": 202
+    },
+    {
+      "prefix": "717",
+      "aircraft": 50,
+      "bytes": 1210
+    },
+    {
+      "prefix": "718",
+      "aircraft": 56,
+      "bytes": 1345
+    },
+    {
+      "prefix": "719",
+      "aircraft": 2,
+      "bytes": 49
+    },
+    {
+      "prefix": "71a",
+      "aircraft": 17,
+      "bytes": 532
+    },
+    {
+      "prefix": "71b",
+      "aircraft": 224,
+      "bytes": 8765
+    },
+    {
+      "prefix": "71c",
+      "aircraft": 491,
+      "bytes": 18503
+    },
+    {
+      "prefix": "71d",
+      "aircraft": 48,
+      "bytes": 1619
+    },
+    {
+      "prefix": "71e",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "71f",
+      "aircraft": 49,
+      "bytes": 1945
+    },
+    {
+      "prefix": "727",
+      "aircraft": 9,
+      "bytes": 368
+    },
+    {
+      "prefix": "728",
+      "aircraft": 92,
+      "bytes": 3814
+    },
+    {
+      "prefix": "72c",
+      "aircraft": 1,
+      "bytes": 45
+    },
+    {
+      "prefix": "72d",
+      "aircraft": 1,
+      "bytes": 34
+    },
+    {
+      "prefix": "730",
+      "aircraft": 67,
+      "bytes": 2565
+    },
+    {
+      "prefix": "731",
+      "aircraft": 40,
+      "bytes": 1391
+    },
+    {
+      "prefix": "732",
+      "aircraft": 101,
+      "bytes": 4165
+    },
+    {
+      "prefix": "733",
+      "aircraft": 92,
+      "bytes": 3342
+    },
+    {
+      "prefix": "734",
+      "aircraft": 43,
+      "bytes": 1436
+    },
+    {
+      "prefix": "735",
+      "aircraft": 48,
+      "bytes": 1817
+    },
+    {
+      "prefix": "736",
+      "aircraft": 17,
+      "bytes": 703
+    },
+    {
+      "prefix": "738",
+      "aircraft": 174,
+      "bytes": 7312
+    },
+    {
+      "prefix": "739",
+      "aircraft": 346,
+      "bytes": 11576
+    },
+    {
+      "prefix": "740",
+      "aircraft": 34,
+      "bytes": 1220
+    },
+    {
+      "prefix": "741",
+      "aircraft": 7,
+      "bytes": 278
+    },
+    {
+      "prefix": "742",
+      "aircraft": 17,
+      "bytes": 615
+    },
+    {
+      "prefix": "743",
+      "aircraft": 21,
+      "bytes": 592
+    },
+    {
+      "prefix": "744",
+      "aircraft": 19,
+      "bytes": 606
+    },
+    {
+      "prefix": "748",
+      "aircraft": 39,
+      "bytes": 1481
+    },
+    {
+      "prefix": "750",
+      "aircraft": 524,
+      "bytes": 19183
+    },
+    {
+      "prefix": "754",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "758",
+      "aircraft": 438,
+      "bytes": 15558
+    },
+    {
+      "prefix": "760",
+      "aircraft": 158,
+      "bytes": 5823
+    },
+    {
+      "prefix": "761",
+      "aircraft": 18,
+      "bytes": 754
+    },
+    {
+      "prefix": "762",
+      "aircraft": 8,
+      "bytes": 334
+    },
+    {
+      "prefix": "763",
+      "aircraft": 7,
+      "bytes": 273
+    },
+    {
+      "prefix": "764",
+      "aircraft": 12,
+      "bytes": 532
+    },
+    {
+      "prefix": "765",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "766",
+      "aircraft": 7,
+      "bytes": 190
+    },
+    {
+      "prefix": "768",
+      "aircraft": 4,
+      "bytes": 149
+    },
+    {
+      "prefix": "769",
+      "aircraft": 2,
+      "bytes": 49
+    },
+    {
+      "prefix": "76a",
+      "aircraft": 20,
+      "bytes": 817
+    },
+    {
+      "prefix": "76b",
+      "aircraft": 62,
+      "bytes": 2031
+    },
+    {
+      "prefix": "76c",
+      "aircraft": 204,
+      "bytes": 7570
+    },
+    {
+      "prefix": "76d",
+      "aircraft": 40,
+      "bytes": 1324
+    },
+    {
+      "prefix": "76e",
+      "aircraft": 52,
+      "bytes": 1698
+    },
+    {
+      "prefix": "770",
+      "aircraft": 23,
+      "bytes": 888
+    },
+    {
+      "prefix": "771",
+      "aircraft": 4,
+      "bytes": 97
+    },
+    {
+      "prefix": "773",
+      "aircraft": 6,
+      "bytes": 229
+    },
+    {
+      "prefix": "777",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "778",
+      "aircraft": 35,
+      "bytes": 1341
+    },
+    {
+      "prefix": "77c",
+      "aircraft": 1,
+      "bytes": 41
+    },
+    {
+      "prefix": "780",
+      "aircraft": 3376,
+      "bytes": 130946
+    },
+    {
+      "prefix": "781",
+      "aircraft": 2366,
+      "bytes": 64152
+    },
+    {
+      "prefix": "782",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "783",
+      "aircraft": 2,
+      "bytes": 49
+    },
+    {
+      "prefix": "789",
+      "aircraft": 86,
+      "bytes": 2640
+    },
+    {
+      "prefix": "78c",
+      "aircraft": 5,
+      "bytes": 155
+    },
+    {
+      "prefix": "791",
+      "aircraft": 6,
+      "bytes": 145
+    },
+    {
+      "prefix": "798",
+      "aircraft": 36,
+      "bytes": 1365
+    },
+    {
+      "prefix": "79a",
+      "aircraft": 77,
+      "bytes": 2899
+    },
+    {
+      "prefix": "79c",
+      "aircraft": 3,
+      "bytes": 86
+    },
+    {
+      "prefix": "7a4",
+      "aircraft": 112,
+      "bytes": 2655
+    },
+    {
+      "prefix": "7aa",
+      "aircraft": 2,
+      "bytes": 78
+    },
+    {
+      "prefix": "7b0",
+      "aircraft": 7,
+      "bytes": 297
+    },
+    {
+      "prefix": "7b1",
+      "aircraft": 6,
+      "bytes": 145
+    },
+    {
+      "prefix": "7b7",
+      "aircraft": 2,
+      "bytes": 73
+    },
+    {
+      "prefix": "7bb",
+      "aircraft": 135,
+      "bytes": 5271
+    },
+    {
+      "prefix": "7bc",
+      "aircraft": 6,
+      "bytes": 214
+    },
+    {
+      "prefix": "7bd",
+      "aircraft": 23,
+      "bytes": 846
+    },
+    {
+      "prefix": "7be",
+      "aircraft": 11,
+      "bytes": 366
+    },
+    {
+      "prefix": "7bf",
+      "aircraft": 6,
+      "bytes": 223
+    },
+    {
+      "prefix": "7c0",
+      "aircraft": 1012,
+      "bytes": 52802
+    },
+    {
+      "prefix": "7c1",
+      "aircraft": 957,
+      "bytes": 49218
+    },
+    {
+      "prefix": "7c2",
+      "aircraft": 1067,
+      "bytes": 54379
+    },
+    {
+      "prefix": "7c3",
+      "aircraft": 1138,
+      "bytes": 57413
+    },
+    {
+      "prefix": "7c4",
+      "aircraft": 1176,
+      "bytes": 58332
+    },
+    {
+      "prefix": "7c5",
+      "aircraft": 672,
+      "bytes": 22133
+    },
+    {
+      "prefix": "7c6",
+      "aircraft": 1274,
+      "bytes": 41944
+    },
+    {
+      "prefix": "7c7",
+      "aircraft": 1296,
+      "bytes": 43225
+    },
+    {
+      "prefix": "7c8",
+      "aircraft": 258,
+      "bytes": 9037
+    },
+    {
+      "prefix": "7ca",
+      "aircraft": 6,
+      "bytes": 163
+    },
+    {
+      "prefix": "7cb",
+      "aircraft": 60,
+      "bytes": 1436
+    },
+    {
+      "prefix": "7cc",
+      "aircraft": 302,
+      "bytes": 7562
+    },
+    {
+      "prefix": "7cd",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "7cf",
+      "aircraft": 350,
+      "bytes": 13170
+    },
+    {
+      "prefix": "7d0",
+      "aircraft": 4,
+      "bytes": 97
+    },
+    {
+      "prefix": "7e5",
+      "aircraft": 1,
+      "bytes": 28
+    },
+    {
+      "prefix": "7f2",
+      "aircraft": 1,
+      "bytes": 28
+    },
+    {
+      "prefix": "7f3",
+      "aircraft": 1,
+      "bytes": 28
+    },
+    {
+      "prefix": "7fa",
+      "aircraft": 1,
+      "bytes": 28
+    },
+    {
+      "prefix": "800",
+      "aircraft": 1414,
+      "bytes": 52400
+    },
+    {
+      "prefix": "801",
+      "aircraft": 338,
+      "bytes": 8528
+    },
+    {
+      "prefix": "803",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "807",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "826",
+      "aircraft": 1,
+      "bytes": 43
+    },
+    {
+      "prefix": "840",
+      "aircraft": 234,
+      "bytes": 8926
+    },
+    {
+      "prefix": "841",
+      "aircraft": 98,
+      "bytes": 3846
+    },
+    {
+      "prefix": "842",
+      "aircraft": 13,
+      "bytes": 504
+    },
+    {
+      "prefix": "845",
+      "aircraft": 114,
+      "bytes": 4292
+    },
+    {
+      "prefix": "846",
+      "aircraft": 139,
+      "bytes": 4873
+    },
+    {
+      "prefix": "847",
+      "aircraft": 40,
+      "bytes": 1286
+    },
+    {
+      "prefix": "84b",
+      "aircraft": 110,
+      "bytes": 3685
+    },
+    {
+      "prefix": "84c",
+      "aircraft": 45,
+      "bytes": 1442
+    },
+    {
+      "prefix": "84d",
+      "aircraft": 7,
+      "bytes": 220
+    },
+    {
+      "prefix": "850",
+      "aircraft": 23,
+      "bytes": 919
+    },
+    {
+      "prefix": "851",
+      "aircraft": 95,
+      "bytes": 3596
+    },
+    {
+      "prefix": "852",
+      "aircraft": 63,
+      "bytes": 1962
+    },
+    {
+      "prefix": "853",
+      "aircraft": 1,
+      "bytes": 44
+    },
+    {
+      "prefix": "855",
+      "aircraft": 1,
+      "bytes": 30
+    },
+    {
+      "prefix": "856",
+      "aircraft": 48,
+      "bytes": 1281
+    },
+    {
+      "prefix": "857",
+      "aircraft": 25,
+      "bytes": 923
+    },
+    {
+      "prefix": "858",
+      "aircraft": 3,
+      "bytes": 73
+    },
+    {
+      "prefix": "85c",
+      "aircraft": 39,
+      "bytes": 1391
+    },
+    {
+      "prefix": "85d",
+      "aircraft": 37,
+      "bytes": 1091
+    },
+    {
+      "prefix": "85e",
+      "aircraft": 1,
+      "bytes": 42
+    },
+    {
+      "prefix": "861",
+      "aircraft": 88,
+      "bytes": 3784
+    },
+    {
+      "prefix": "862",
+      "aircraft": 66,
+      "bytes": 2824
+    },
+    {
+      "prefix": "863",
+      "aircraft": 138,
+      "bytes": 5627
+    },
+    {
+      "prefix": "867",
+      "aircraft": 76,
+      "bytes": 2965
+    },
+    {
+      "prefix": "868",
+      "aircraft": 107,
+      "bytes": 4037
+    },
+    {
+      "prefix": "869",
+      "aircraft": 73,
+      "bytes": 2822
+    },
+    {
+      "prefix": "86c",
+      "aircraft": 36,
+      "bytes": 1385
+    },
+    {
+      "prefix": "86d",
+      "aircraft": 147,
+      "bytes": 5364
+    },
+    {
+      "prefix": "86e",
+      "aircraft": 175,
+      "bytes": 6438
+    },
+    {
+      "prefix": "86f",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "872",
+      "aircraft": 60,
+      "bytes": 2272
+    },
+    {
+      "prefix": "873",
+      "aircraft": 78,
+      "bytes": 3372
+    },
+    {
+      "prefix": "874",
+      "aircraft": 58,
+      "bytes": 2714
+    },
+    {
+      "prefix": "87a",
+      "aircraft": 1,
+      "bytes": 24
+    },
+    {
+      "prefix": "87c",
+      "aircraft": 86,
+      "bytes": 2514
+    },
+    {
+      "prefix": "880",
+      "aircraft": 161,
+      "bytes": 5875
+    },
+    {
+      "prefix": "881",
+      "aircraft": 98,
+      "bytes": 3691
+    },
+    {
+      "prefix": "882",
+      "aircraft": 24,
+      "bytes": 808
+    },
+    {
+      "prefix": "883",
+      "aircraft": 64,
+      "bytes": 2323
+    },
+    {
+      "prefix": "884",
+      "aircraft": 70,
+      "bytes": 2605
+    },
+    {
+      "prefix": "885",
+      "aircraft": 124,
+      "bytes": 4287
+    },
+    {
+      "prefix": "886",
+      "aircraft": 19,
+      "bytes": 619
+    },
+    {
+      "prefix": "887",
+      "aircraft": 2,
+      "bytes": 75
+    },
+    {
+      "prefix": "888",
+      "aircraft": 304,
+      "bytes": 9975
+    },
+    {
+      "prefix": "88c",
+      "aircraft": 1,
+      "bytes": 24
+    },
+    {
+      "prefix": "890",
+      "aircraft": 11,
+      "bytes": 369
+    },
+    {
+      "prefix": "894",
+      "aircraft": 103,
+      "bytes": 3473
+    },
+    {
+      "prefix": "895",
+      "aircraft": 29,
+      "bytes": 874
+    },
+    {
+      "prefix": "896",
+      "aircraft": 1072,
+      "bytes": 38167
+    },
+    {
+      "prefix": "897",
+      "aircraft": 2,
+      "bytes": 88
+    },
+    {
+      "prefix": "898",
+      "aircraft": 112,
+      "bytes": 3945
+    },
+    {
+      "prefix": "899",
+      "aircraft": 333,
+      "bytes": 12432
+    },
+    {
+      "prefix": "8a0",
+      "aircraft": 1047,
+      "bytes": 36240
+    },
+    {
+      "prefix": "8a1",
+      "aircraft": 17,
+      "bytes": 664
+    },
+    {
+      "prefix": "8a2",
+      "aircraft": 10,
+      "bytes": 336
+    },
+    {
+      "prefix": "8a4",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "901",
+      "aircraft": 9,
+      "bytes": 231
+    },
+    {
+      "prefix": "902",
+      "aircraft": 2,
+      "bytes": 77
+    },
+    {
+      "prefix": "a00",
+      "aircraft": 2428,
+      "bytes": 100168
+    },
+    {
+      "prefix": "a01",
+      "aircraft": 1785,
+      "bytes": 72882
+    },
+    {
+      "prefix": "a02",
+      "aircraft": 2000,
+      "bytes": 80840
+    },
+    {
+      "prefix": "a03",
+      "aircraft": 2018,
+      "bytes": 82049
+    },
+    {
+      "prefix": "a04",
+      "aircraft": 1716,
+      "bytes": 69638
+    },
+    {
+      "prefix": "a05",
+      "aircraft": 2090,
+      "bytes": 85886
+    },
+    {
+      "prefix": "a06",
+      "aircraft": 1743,
+      "bytes": 70496
+    },
+    {
+      "prefix": "a07",
+      "aircraft": 1668,
+      "bytes": 68086
+    },
+    {
+      "prefix": "a08",
+      "aircraft": 1481,
+      "bytes": 59399
+    },
+    {
+      "prefix": "a09",
+      "aircraft": 1356,
+      "bytes": 53084
+    },
+    {
+      "prefix": "a0a",
+      "aircraft": 1663,
+      "bytes": 67528
+    },
+    {
+      "prefix": "a0b",
+      "aircraft": 1362,
+      "bytes": 55834
+    },
+    {
+      "prefix": "a0c",
+      "aircraft": 1515,
+      "bytes": 61724
+    },
+    {
+      "prefix": "a0d",
+      "aircraft": 1471,
+      "bytes": 58916
+    },
+    {
+      "prefix": "a0e",
+      "aircraft": 1330,
+      "bytes": 51861
+    },
+    {
+      "prefix": "a0f",
+      "aircraft": 1406,
+      "bytes": 57433
+    },
+    {
+      "prefix": "a10",
+      "aircraft": 1189,
+      "bytes": 48058
+    },
+    {
+      "prefix": "a11",
+      "aircraft": 1443,
+      "bytes": 57031
+    },
+    {
+      "prefix": "a12",
+      "aircraft": 1353,
+      "bytes": 50848
+    },
+    {
+      "prefix": "a13",
+      "aircraft": 1347,
+      "bytes": 52893
+    },
+    {
+      "prefix": "a14",
+      "aircraft": 1824,
+      "bytes": 67169
+    },
+    {
+      "prefix": "a15",
+      "aircraft": 1398,
+      "bytes": 52997
+    },
+    {
+      "prefix": "a16",
+      "aircraft": 1438,
+      "bytes": 57450
+    },
+    {
+      "prefix": "a17",
+      "aircraft": 1375,
+      "bytes": 53878
+    },
+    {
+      "prefix": "a18",
+      "aircraft": 1711,
+      "bytes": 68018
+    },
+    {
+      "prefix": "a19",
+      "aircraft": 2166,
+      "bytes": 83893
+    },
+    {
+      "prefix": "a1a",
+      "aircraft": 1929,
+      "bytes": 73920
+    },
+    {
+      "prefix": "a1b",
+      "aircraft": 1929,
+      "bytes": 75293
+    },
+    {
+      "prefix": "a1c",
+      "aircraft": 1846,
+      "bytes": 72249
+    },
+    {
+      "prefix": "a1d",
+      "aircraft": 1646,
+      "bytes": 65808
+    },
+    {
+      "prefix": "a1e",
+      "aircraft": 1913,
+      "bytes": 75762
+    },
+    {
+      "prefix": "a1f",
+      "aircraft": 1602,
+      "bytes": 64085
+    },
+    {
+      "prefix": "a20",
+      "aircraft": 1629,
+      "bytes": 66509
+    },
+    {
+      "prefix": "a21",
+      "aircraft": 1537,
+      "bytes": 60349
+    },
+    {
+      "prefix": "a22",
+      "aircraft": 1432,
+      "bytes": 55898
+    },
+    {
+      "prefix": "a23",
+      "aircraft": 1519,
+      "bytes": 60724
+    },
+    {
+      "prefix": "a24",
+      "aircraft": 1460,
+      "bytes": 57288
+    },
+    {
+      "prefix": "a25",
+      "aircraft": 1651,
+      "bytes": 67098
+    },
+    {
+      "prefix": "a26",
+      "aircraft": 1343,
+      "bytes": 53744
+    },
+    {
+      "prefix": "a27",
+      "aircraft": 1426,
+      "bytes": 56947
+    },
+    {
+      "prefix": "a28",
+      "aircraft": 1193,
+      "bytes": 48511
+    },
+    {
+      "prefix": "a29",
+      "aircraft": 1186,
+      "bytes": 46709
+    },
+    {
+      "prefix": "a2a",
+      "aircraft": 1349,
+      "bytes": 54155
+    },
+    {
+      "prefix": "a2b",
+      "aircraft": 1157,
+      "bytes": 44738
+    },
+    {
+      "prefix": "a2c",
+      "aircraft": 1334,
+      "bytes": 53916
+    },
+    {
+      "prefix": "a2d",
+      "aircraft": 1335,
+      "bytes": 51875
+    },
+    {
+      "prefix": "a2e",
+      "aircraft": 1308,
+      "bytes": 52763
+    },
+    {
+      "prefix": "a2f",
+      "aircraft": 1372,
+      "bytes": 55106
+    },
+    {
+      "prefix": "a30",
+      "aircraft": 1205,
+      "bytes": 46117
+    },
+    {
+      "prefix": "a31",
+      "aircraft": 1615,
+      "bytes": 64596
+    },
+    {
+      "prefix": "a32",
+      "aircraft": 1805,
+      "bytes": 72843
+    },
+    {
+      "prefix": "a33",
+      "aircraft": 1613,
+      "bytes": 63560
+    },
+    {
+      "prefix": "a34",
+      "aircraft": 1776,
+      "bytes": 70437
+    },
+    {
+      "prefix": "a35",
+      "aircraft": 1553,
+      "bytes": 63334
+    },
+    {
+      "prefix": "a36",
+      "aircraft": 1560,
+      "bytes": 63958
+    },
+    {
+      "prefix": "a37",
+      "aircraft": 1580,
+      "bytes": 63543
+    },
+    {
+      "prefix": "a38",
+      "aircraft": 1451,
+      "bytes": 57144
+    },
+    {
+      "prefix": "a39",
+      "aircraft": 1461,
+      "bytes": 59085
+    },
+    {
+      "prefix": "a3a",
+      "aircraft": 1362,
+      "bytes": 52110
+    },
+    {
+      "prefix": "a3b",
+      "aircraft": 1417,
+      "bytes": 54632
+    },
+    {
+      "prefix": "a3c",
+      "aircraft": 1236,
+      "bytes": 47322
+    },
+    {
+      "prefix": "a3d",
+      "aircraft": 1175,
+      "bytes": 44969
+    },
+    {
+      "prefix": "a3e",
+      "aircraft": 1649,
+      "bytes": 64917
+    },
+    {
+      "prefix": "a3f",
+      "aircraft": 1345,
+      "bytes": 52068
+    },
+    {
+      "prefix": "a40",
+      "aircraft": 1490,
+      "bytes": 59392
+    },
+    {
+      "prefix": "a41",
+      "aircraft": 1166,
+      "bytes": 45970
+    },
+    {
+      "prefix": "a42",
+      "aircraft": 1179,
+      "bytes": 45859
+    },
+    {
+      "prefix": "a43",
+      "aircraft": 1244,
+      "bytes": 48778
+    },
+    {
+      "prefix": "a44",
+      "aircraft": 1157,
+      "bytes": 45565
+    },
+    {
+      "prefix": "a45",
+      "aircraft": 1209,
+      "bytes": 47198
+    },
+    {
+      "prefix": "a46",
+      "aircraft": 1089,
+      "bytes": 41873
+    },
+    {
+      "prefix": "a47",
+      "aircraft": 1121,
+      "bytes": 43015
+    },
+    {
+      "prefix": "a48",
+      "aircraft": 1161,
+      "bytes": 47270
+    },
+    {
+      "prefix": "a49",
+      "aircraft": 1051,
+      "bytes": 41093
+    },
+    {
+      "prefix": "a4a",
+      "aircraft": 1728,
+      "bytes": 70386
+    },
+    {
+      "prefix": "a4b",
+      "aircraft": 1544,
+      "bytes": 63654
+    },
+    {
+      "prefix": "a4c",
+      "aircraft": 1486,
+      "bytes": 60085
+    },
+    {
+      "prefix": "a4d",
+      "aircraft": 1709,
+      "bytes": 68880
+    },
+    {
+      "prefix": "a4e",
+      "aircraft": 1643,
+      "bytes": 65062
+    },
+    {
+      "prefix": "a4f",
+      "aircraft": 1671,
+      "bytes": 66839
+    },
+    {
+      "prefix": "a50",
+      "aircraft": 1616,
+      "bytes": 63074
+    },
+    {
+      "prefix": "a51",
+      "aircraft": 1427,
+      "bytes": 56251
+    },
+    {
+      "prefix": "a52",
+      "aircraft": 1506,
+      "bytes": 60767
+    },
+    {
+      "prefix": "a53",
+      "aircraft": 1249,
+      "bytes": 49717
+    },
+    {
+      "prefix": "a54",
+      "aircraft": 1557,
+      "bytes": 63600
+    },
+    {
+      "prefix": "a55",
+      "aircraft": 1563,
+      "bytes": 63391
+    },
+    {
+      "prefix": "a56",
+      "aircraft": 1190,
+      "bytes": 47528
+    },
+    {
+      "prefix": "a57",
+      "aircraft": 1411,
+      "bytes": 59584
+    },
+    {
+      "prefix": "a58",
+      "aircraft": 1323,
+      "bytes": 53468
+    },
+    {
+      "prefix": "a59",
+      "aircraft": 1171,
+      "bytes": 46752
+    },
+    {
+      "prefix": "a5a",
+      "aircraft": 1170,
+      "bytes": 45019
+    },
+    {
+      "prefix": "a5b",
+      "aircraft": 1147,
+      "bytes": 44665
+    },
+    {
+      "prefix": "a5c",
+      "aircraft": 1057,
+      "bytes": 41506
+    },
+    {
+      "prefix": "a5d",
+      "aircraft": 1060,
+      "bytes": 41656
+    },
+    {
+      "prefix": "a5e",
+      "aircraft": 1173,
+      "bytes": 46988
+    },
+    {
+      "prefix": "a5f",
+      "aircraft": 964,
+      "bytes": 39030
+    },
+    {
+      "prefix": "a60",
+      "aircraft": 1094,
+      "bytes": 43495
+    },
+    {
+      "prefix": "a61",
+      "aircraft": 887,
+      "bytes": 35003
+    },
+    {
+      "prefix": "a62",
+      "aircraft": 882,
+      "bytes": 34361
+    },
+    {
+      "prefix": "a63",
+      "aircraft": 1876,
+      "bytes": 76827
+    },
+    {
+      "prefix": "a64",
+      "aircraft": 1717,
+      "bytes": 69662
+    },
+    {
+      "prefix": "a65",
+      "aircraft": 1460,
+      "bytes": 58396
+    },
+    {
+      "prefix": "a66",
+      "aircraft": 1648,
+      "bytes": 66379
+    },
+    {
+      "prefix": "a67",
+      "aircraft": 1548,
+      "bytes": 61755
+    },
+    {
+      "prefix": "a68",
+      "aircraft": 1624,
+      "bytes": 65383
+    },
+    {
+      "prefix": "a69",
+      "aircraft": 1650,
+      "bytes": 64681
+    },
+    {
+      "prefix": "a6a",
+      "aircraft": 1510,
+      "bytes": 60469
+    },
+    {
+      "prefix": "a6b",
+      "aircraft": 1262,
+      "bytes": 50022
+    },
+    {
+      "prefix": "a6c",
+      "aircraft": 1071,
+      "bytes": 41602
+    },
+    {
+      "prefix": "a6d",
+      "aircraft": 1340,
+      "bytes": 53684
+    },
+    {
+      "prefix": "a6e",
+      "aircraft": 1079,
+      "bytes": 43144
+    },
+    {
+      "prefix": "a6f",
+      "aircraft": 1268,
+      "bytes": 50254
+    },
+    {
+      "prefix": "a70",
+      "aircraft": 1405,
+      "bytes": 55273
+    },
+    {
+      "prefix": "a71",
+      "aircraft": 1391,
+      "bytes": 55181
+    },
+    {
+      "prefix": "a72",
+      "aircraft": 1391,
+      "bytes": 55244
+    },
+    {
+      "prefix": "a73",
+      "aircraft": 1157,
+      "bytes": 44595
+    },
+    {
+      "prefix": "a74",
+      "aircraft": 1259,
+      "bytes": 50207
+    },
+    {
+      "prefix": "a75",
+      "aircraft": 909,
+      "bytes": 35423
+    },
+    {
+      "prefix": "a76",
+      "aircraft": 1095,
+      "bytes": 42042
+    },
+    {
+      "prefix": "a77",
+      "aircraft": 1172,
+      "bytes": 46560
+    },
+    {
+      "prefix": "a78",
+      "aircraft": 1007,
+      "bytes": 39088
+    },
+    {
+      "prefix": "a79",
+      "aircraft": 975,
+      "bytes": 38806
+    },
+    {
+      "prefix": "a7a",
+      "aircraft": 837,
+      "bytes": 32014
+    },
+    {
+      "prefix": "a7b",
+      "aircraft": 821,
+      "bytes": 32515
+    },
+    {
+      "prefix": "a7c",
+      "aircraft": 1916,
+      "bytes": 78655
+    },
+    {
+      "prefix": "a7d",
+      "aircraft": 1533,
+      "bytes": 61501
+    },
+    {
+      "prefix": "a7e",
+      "aircraft": 1418,
+      "bytes": 56852
+    },
+    {
+      "prefix": "a7f",
+      "aircraft": 1486,
+      "bytes": 59605
+    },
+    {
+      "prefix": "a80",
+      "aircraft": 1548,
+      "bytes": 61985
+    },
+    {
+      "prefix": "a81",
+      "aircraft": 1458,
+      "bytes": 59461
+    },
+    {
+      "prefix": "a82",
+      "aircraft": 1309,
+      "bytes": 51019
+    },
+    {
+      "prefix": "a83",
+      "aircraft": 1283,
+      "bytes": 51613
+    },
+    {
+      "prefix": "a84",
+      "aircraft": 1145,
+      "bytes": 43856
+    },
+    {
+      "prefix": "a85",
+      "aircraft": 1061,
+      "bytes": 41019
+    },
+    {
+      "prefix": "a86",
+      "aircraft": 1238,
+      "bytes": 48555
+    },
+    {
+      "prefix": "a87",
+      "aircraft": 1013,
+      "bytes": 38882
+    },
+    {
+      "prefix": "a88",
+      "aircraft": 1268,
+      "bytes": 50790
+    },
+    {
+      "prefix": "a89",
+      "aircraft": 1165,
+      "bytes": 45538
+    },
+    {
+      "prefix": "a8a",
+      "aircraft": 1021,
+      "bytes": 38875
+    },
+    {
+      "prefix": "a8b",
+      "aircraft": 1306,
+      "bytes": 51274
+    },
+    {
+      "prefix": "a8c",
+      "aircraft": 1073,
+      "bytes": 41131
+    },
+    {
+      "prefix": "a8d",
+      "aircraft": 1186,
+      "bytes": 46139
+    },
+    {
+      "prefix": "a8e",
+      "aircraft": 961,
+      "bytes": 36681
+    },
+    {
+      "prefix": "a8f",
+      "aircraft": 1010,
+      "bytes": 38833
+    },
+    {
+      "prefix": "a90",
+      "aircraft": 1104,
+      "bytes": 43987
+    },
+    {
+      "prefix": "a91",
+      "aircraft": 911,
+      "bytes": 34915
+    },
+    {
+      "prefix": "a92",
+      "aircraft": 1148,
+      "bytes": 45243
+    },
+    {
+      "prefix": "a93",
+      "aircraft": 878,
+      "bytes": 33401
+    },
+    {
+      "prefix": "a94",
+      "aircraft": 1017,
+      "bytes": 39150
+    },
+    {
+      "prefix": "a95",
+      "aircraft": 2006,
+      "bytes": 82738
+    },
+    {
+      "prefix": "a96",
+      "aircraft": 1629,
+      "bytes": 63357
+    },
+    {
+      "prefix": "a97",
+      "aircraft": 1571,
+      "bytes": 62750
+    },
+    {
+      "prefix": "a98",
+      "aircraft": 1817,
+      "bytes": 70826
+    },
+    {
+      "prefix": "a99",
+      "aircraft": 1534,
+      "bytes": 61574
+    },
+    {
+      "prefix": "a9a",
+      "aircraft": 1583,
+      "bytes": 62806
+    },
+    {
+      "prefix": "a9b",
+      "aircraft": 1434,
+      "bytes": 55708
+    },
+    {
+      "prefix": "a9c",
+      "aircraft": 1300,
+      "bytes": 51312
+    },
+    {
+      "prefix": "a9d",
+      "aircraft": 1807,
+      "bytes": 63975
+    },
+    {
+      "prefix": "a9e",
+      "aircraft": 1936,
+      "bytes": 67402
+    },
+    {
+      "prefix": "a9f",
+      "aircraft": 1022,
+      "bytes": 41331
+    },
+    {
+      "prefix": "aa0",
+      "aircraft": 1282,
+      "bytes": 51222
+    },
+    {
+      "prefix": "aa1",
+      "aircraft": 1370,
+      "bytes": 57293
+    },
+    {
+      "prefix": "aa2",
+      "aircraft": 1248,
+      "bytes": 49996
+    },
+    {
+      "prefix": "aa3",
+      "aircraft": 1849,
+      "bytes": 66904
+    },
+    {
+      "prefix": "aa4",
+      "aircraft": 1143,
+      "bytes": 42929
+    },
+    {
+      "prefix": "aa5",
+      "aircraft": 1100,
+      "bytes": 41828
+    },
+    {
+      "prefix": "aa6",
+      "aircraft": 1383,
+      "bytes": 54334
+    },
+    {
+      "prefix": "aa7",
+      "aircraft": 1212,
+      "bytes": 46711
+    },
+    {
+      "prefix": "aa8",
+      "aircraft": 1561,
+      "bytes": 61533
+    },
+    {
+      "prefix": "aa9",
+      "aircraft": 1068,
+      "bytes": 40759
+    },
+    {
+      "prefix": "aaa",
+      "aircraft": 1152,
+      "bytes": 43599
+    },
+    {
+      "prefix": "aab",
+      "aircraft": 1201,
+      "bytes": 45896
+    },
+    {
+      "prefix": "aac",
+      "aircraft": 930,
+      "bytes": 34816
+    },
+    {
+      "prefix": "aad",
+      "aircraft": 1276,
+      "bytes": 50400
+    },
+    {
+      "prefix": "aae",
+      "aircraft": 1672,
+      "bytes": 68781
+    },
+    {
+      "prefix": "aaf",
+      "aircraft": 1540,
+      "bytes": 61177
+    },
+    {
+      "prefix": "ab0",
+      "aircraft": 1573,
+      "bytes": 63624
+    },
+    {
+      "prefix": "ab1",
+      "aircraft": 1529,
+      "bytes": 60988
+    },
+    {
+      "prefix": "ab2",
+      "aircraft": 1559,
+      "bytes": 62219
+    },
+    {
+      "prefix": "ab3",
+      "aircraft": 1457,
+      "bytes": 57484
+    },
+    {
+      "prefix": "ab4",
+      "aircraft": 1461,
+      "bytes": 57298
+    },
+    {
+      "prefix": "ab5",
+      "aircraft": 1481,
+      "bytes": 58776
+    },
+    {
+      "prefix": "ab6",
+      "aircraft": 1190,
+      "bytes": 45926
+    },
+    {
+      "prefix": "ab7",
+      "aircraft": 1294,
+      "bytes": 50181
+    },
+    {
+      "prefix": "ab8",
+      "aircraft": 1149,
+      "bytes": 44224
+    },
+    {
+      "prefix": "ab9",
+      "aircraft": 1053,
+      "bytes": 40346
+    },
+    {
+      "prefix": "aba",
+      "aircraft": 1392,
+      "bytes": 54920
+    },
+    {
+      "prefix": "abb",
+      "aircraft": 1101,
+      "bytes": 43754
+    },
+    {
+      "prefix": "abc",
+      "aircraft": 1155,
+      "bytes": 45788
+    },
+    {
+      "prefix": "abd",
+      "aircraft": 1061,
+      "bytes": 41060
+    },
+    {
+      "prefix": "abe",
+      "aircraft": 1044,
+      "bytes": 40495
+    },
+    {
+      "prefix": "abf",
+      "aircraft": 1034,
+      "bytes": 41590
+    },
+    {
+      "prefix": "ac0",
+      "aircraft": 986,
+      "bytes": 38279
+    },
+    {
+      "prefix": "ac1",
+      "aircraft": 1230,
+      "bytes": 48911
+    },
+    {
+      "prefix": "ac2",
+      "aircraft": 1287,
+      "bytes": 50101
+    },
+    {
+      "prefix": "ac3",
+      "aircraft": 1292,
+      "bytes": 51990
+    },
+    {
+      "prefix": "ac4",
+      "aircraft": 1064,
+      "bytes": 42437
+    },
+    {
+      "prefix": "ac5",
+      "aircraft": 904,
+      "bytes": 34952
+    },
+    {
+      "prefix": "ac6",
+      "aircraft": 1466,
+      "bytes": 55050
+    },
+    {
+      "prefix": "ac7",
+      "aircraft": 1523,
+      "bytes": 62181
+    },
+    {
+      "prefix": "ac8",
+      "aircraft": 1404,
+      "bytes": 57629
+    },
+    {
+      "prefix": "ac9",
+      "aircraft": 1884,
+      "bytes": 77403
+    },
+    {
+      "prefix": "aca",
+      "aircraft": 1685,
+      "bytes": 67099
+    },
+    {
+      "prefix": "acb",
+      "aircraft": 1641,
+      "bytes": 66159
+    },
+    {
+      "prefix": "acc",
+      "aircraft": 1469,
+      "bytes": 56537
+    },
+    {
+      "prefix": "acd",
+      "aircraft": 1528,
+      "bytes": 59857
+    },
+    {
+      "prefix": "ace",
+      "aircraft": 1254,
+      "bytes": 50065
+    },
+    {
+      "prefix": "acf",
+      "aircraft": 1089,
+      "bytes": 41528
+    },
+    {
+      "prefix": "ad0",
+      "aircraft": 1175,
+      "bytes": 46529
+    },
+    {
+      "prefix": "ad1",
+      "aircraft": 1180,
+      "bytes": 45923
+    },
+    {
+      "prefix": "ad2",
+      "aircraft": 1161,
+      "bytes": 44717
+    },
+    {
+      "prefix": "ad3",
+      "aircraft": 1391,
+      "bytes": 54692
+    },
+    {
+      "prefix": "ad4",
+      "aircraft": 1251,
+      "bytes": 48675
+    },
+    {
+      "prefix": "ad5",
+      "aircraft": 1276,
+      "bytes": 47177
+    },
+    {
+      "prefix": "ad6",
+      "aircraft": 1137,
+      "bytes": 44976
+    },
+    {
+      "prefix": "ad7",
+      "aircraft": 1060,
+      "bytes": 39405
+    },
+    {
+      "prefix": "ad8",
+      "aircraft": 1075,
+      "bytes": 29089
+    },
+    {
+      "prefix": "ad9",
+      "aircraft": 880,
+      "bytes": 23424
+    },
+    {
+      "prefix": "ada",
+      "aircraft": 1130,
+      "bytes": 30657
+    },
+    {
+      "prefix": "adb",
+      "aircraft": 937,
+      "bytes": 24539
+    },
+    {
+      "prefix": "adc",
+      "aircraft": 1053,
+      "bytes": 28414
+    },
+    {
+      "prefix": "add",
+      "aircraft": 1173,
+      "bytes": 32483
+    },
+    {
+      "prefix": "ade",
+      "aircraft": 949,
+      "bytes": 25636
+    },
+    {
+      "prefix": "adf",
+      "aircraft": 1314,
+      "bytes": 42123
+    },
+    {
+      "prefix": "ae0",
+      "aircraft": 2380,
+      "bytes": 86272
+    },
+    {
+      "prefix": "ae1",
+      "aircraft": 1958,
+      "bytes": 91831
+    },
+    {
+      "prefix": "ae2",
+      "aircraft": 712,
+      "bytes": 29359
+    },
+    {
+      "prefix": "ae3",
+      "aircraft": 3,
+      "bytes": 73
+    },
+    {
+      "prefix": "ae4",
+      "aircraft": 680,
+      "bytes": 21272
+    },
+    {
+      "prefix": "ae5",
+      "aircraft": 1805,
+      "bytes": 45690
+    },
+    {
+      "prefix": "ae6",
+      "aircraft": 852,
+      "bytes": 20036
+    },
+    {
+      "prefix": "ae7",
+      "aircraft": 67,
+      "bytes": 1553
+    },
+    {
+      "prefix": "aee",
+      "aircraft": 1,
+      "bytes": 28
+    },
+    {
+      "prefix": "af3",
+      "aircraft": 1,
+      "bytes": 24
+    },
+    {
+      "prefix": "af4",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "c00",
+      "aircraft": 3742,
+      "bytes": 230444
+    },
+    {
+      "prefix": "c01",
+      "aircraft": 3692,
+      "bytes": 227704
+    },
+    {
+      "prefix": "c02",
+      "aircraft": 3511,
+      "bytes": 219109
+    },
+    {
+      "prefix": "c03",
+      "aircraft": 3707,
+      "bytes": 226945
+    },
+    {
+      "prefix": "c04",
+      "aircraft": 3815,
+      "bytes": 237638
+    },
+    {
+      "prefix": "c05",
+      "aircraft": 3675,
+      "bytes": 225860
+    },
+    {
+      "prefix": "c06",
+      "aircraft": 3429,
+      "bytes": 209040
+    },
+    {
+      "prefix": "c07",
+      "aircraft": 3415,
+      "bytes": 209345
+    },
+    {
+      "prefix": "c08",
+      "aircraft": 3594,
+      "bytes": 227774
+    },
+    {
+      "prefix": "c09",
+      "aircraft": 3643,
+      "bytes": 238419
+    },
+    {
+      "prefix": "c0a",
+      "aircraft": 1669,
+      "bytes": 105500
+    },
+    {
+      "prefix": "c0b",
+      "aircraft": 286,
+      "bytes": 20161
+    },
+    {
+      "prefix": "c0c",
+      "aircraft": 129,
+      "bytes": 8707
+    },
+    {
+      "prefix": "c1e",
+      "aircraft": 478,
+      "bytes": 11469
+    },
+    {
+      "prefix": "c2a",
+      "aircraft": 17,
+      "bytes": 864
+    },
+    {
+      "prefix": "c2b",
+      "aircraft": 123,
+      "bytes": 5358
+    },
+    {
+      "prefix": "c2c",
+      "aircraft": 2,
+      "bytes": 49
+    },
+    {
+      "prefix": "c80",
+      "aircraft": 1442,
+      "bytes": 38255
+    },
+    {
+      "prefix": "c81",
+      "aircraft": 2214,
+      "bytes": 68923
+    },
+    {
+      "prefix": "c82",
+      "aircraft": 1306,
+      "bytes": 38299
+    },
+    {
+      "prefix": "c87",
+      "aircraft": 61,
+      "bytes": 2588
+    },
+    {
+      "prefix": "c88",
+      "aircraft": 62,
+      "bytes": 2266
+    },
+    {
+      "prefix": "c90",
+      "aircraft": 2,
+      "bytes": 104
+    },
+    {
+      "prefix": "cad",
+      "aircraft": 1,
+      "bytes": 34
+    },
+    {
+      "prefix": "e01",
+      "aircraft": 51,
+      "bytes": 1885
+    },
+    {
+      "prefix": "e02",
+      "aircraft": 133,
+      "bytes": 5370
+    },
+    {
+      "prefix": "e03",
+      "aircraft": 220,
+      "bytes": 8440
+    },
+    {
+      "prefix": "e04",
+      "aircraft": 8,
+      "bytes": 193
+    },
+    {
+      "prefix": "e05",
+      "aircraft": 13,
+      "bytes": 313
+    },
+    {
+      "prefix": "e06",
+      "aircraft": 122,
+      "bytes": 4155
+    },
+    {
+      "prefix": "e07",
+      "aircraft": 133,
+      "bytes": 4698
+    },
+    {
+      "prefix": "e08",
+      "aircraft": 98,
+      "bytes": 2542
+    },
+    {
+      "prefix": "e09",
+      "aircraft": 75,
+      "bytes": 1920
+    },
+    {
+      "prefix": "e0a",
+      "aircraft": 101,
+      "bytes": 2589
+    },
+    {
+      "prefix": "e0b",
+      "aircraft": 65,
+      "bytes": 1578
+    },
+    {
+      "prefix": "e0c",
+      "aircraft": 48,
+      "bytes": 1660
+    },
+    {
+      "prefix": "e0d",
+      "aircraft": 46,
+      "bytes": 1514
+    },
+    {
+      "prefix": "e0e",
+      "aircraft": 18,
+      "bytes": 435
+    },
+    {
+      "prefix": "e0f",
+      "aircraft": 24,
+      "bytes": 771
+    },
+    {
+      "prefix": "e10",
+      "aircraft": 2,
+      "bytes": 87
+    },
+    {
+      "prefix": "e12",
+      "aircraft": 37,
+      "bytes": 1207
+    },
+    {
+      "prefix": "e14",
+      "aircraft": 5,
+      "bytes": 153
+    },
+    {
+      "prefix": "e16",
+      "aircraft": 13,
+      "bytes": 512
+    },
+    {
+      "prefix": "e17",
+      "aircraft": 97,
+      "bytes": 3899
+    },
+    {
+      "prefix": "e18",
+      "aircraft": 3,
+      "bytes": 116
+    },
+    {
+      "prefix": "e19",
+      "aircraft": 39,
+      "bytes": 1236
+    },
+    {
+      "prefix": "e1a",
+      "aircraft": 54,
+      "bytes": 2306
+    },
+    {
+      "prefix": "e20",
+      "aircraft": 86,
+      "bytes": 2258
+    },
+    {
+      "prefix": "e40",
+      "aircraft": 105,
+      "bytes": 3690
+    },
+    {
+      "prefix": "e41",
+      "aircraft": 2,
+      "bytes": 49
+    },
+    {
+      "prefix": "e45",
+      "aircraft": 1,
+      "bytes": 45
+    },
+    {
+      "prefix": "e47",
+      "aircraft": 194,
+      "bytes": 7793
+    },
+    {
+      "prefix": "e48",
+      "aircraft": 1539,
+      "bytes": 57596
+    },
+    {
+      "prefix": "e49",
+      "aircraft": 1318,
+      "bytes": 36267
+    },
+    {
+      "prefix": "e4c",
+      "aircraft": 1,
+      "bytes": 60
+    },
+    {
+      "prefix": "e55",
+      "aircraft": 1,
+      "bytes": 47
+    },
+    {
+      "prefix": "e68",
+      "aircraft": 1,
+      "bytes": 25
+    },
+    {
+      "prefix": "e80",
+      "aircraft": 575,
+      "bytes": 18762
+    },
+    {
+      "prefix": "e84",
+      "aircraft": 71,
+      "bytes": 2348
+    },
+    {
+      "prefix": "e88",
+      "aircraft": 180,
+      "bytes": 4520
+    },
+    {
+      "prefix": "e8c",
+      "aircraft": 76,
+      "bytes": 2344
+    },
+    {
+      "prefix": "e90",
+      "aircraft": 36,
+      "bytes": 998
+    },
+    {
+      "prefix": "e94",
+      "aircraft": 65,
+      "bytes": 2079
+    },
+    {
+      "prefix": "ea0",
+      "aircraft": 1,
+      "bytes": 45
+    },
+    {
+      "prefix": "faa",
+      "aircraft": 8,
+      "bytes": 185
+    },
+    {
+      "prefix": "fff",
+      "aircraft": 1,
+      "bytes": 24
+    }
+  ],
+  "csvRows": 520000,
+  "indexEntries": 514391,
+  "shardCount": 962
+}

@@ -24,6 +24,9 @@ test-results/
 # production
 /build
 
+# OpenSky aircraft index build cache (optional)
+scripts/.cache/
+
 # misc
 .DS_Store
 *.pem

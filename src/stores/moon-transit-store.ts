@@ -91,6 +91,14 @@ type MoonTransitState = {
   /** Ako je još `static` (stari build), prebaci na live dual — static nije u comboboxu. */
   ensureFlightSourceComboboxMode: () => void;
   setFlights: (f: readonly FlightState[]) => void;
+  /**
+   * Upisuje `aircraftType` iz lokalnog OpenSky ICAO24 indeksa kad live izvor ne šalje tip.
+   * Ne prepisuje postojeći neprazan tip (npr. statične rute).
+   */
+  patchFlightAircraftTypeFromIndex: (
+    flightId: string,
+    aircraftType: string
+  ) => void;
   loadFlightsInBounds: (bounds: GeoBounds) => Promise<void>;
   resetError: () => void;
 };
@@ -275,6 +283,24 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
     }),
   setSelectedFlightId: (id) => set({ selectedFlightId: id }),
   setFlights: (f) => set({ flights: f }),
+  patchFlightAircraftTypeFromIndex: (flightId, aircraftType) => {
+    const t = aircraftType.trim();
+    if (!t) {
+      return;
+    }
+    set((s) => ({
+      flights: s.flights.map((f) => {
+        if (f.id !== flightId) {
+          return f;
+        }
+        const prev = f.aircraftType?.trim() ?? "";
+        if (prev) {
+          return f;
+        }
+        return { ...f, aircraftType: t };
+      }),
+    }));
+  },
   resetError: () => set({ error: null }),
   loadFlightsInBounds: async (bounds) => {
     set({ isLoading: true, error: null });
