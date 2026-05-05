@@ -12,8 +12,8 @@ import type { FlightQuery, FlightState } from "@/types/flight";
 import type { FlightProviderId } from "@/types/flight-provider";
 import type { GeoBounds } from "@/types/geo";
 
-/** Izvor je ograničen na ~1 req/s; predmemorija i debounce na karti smanjuju pritisak. */
-const CACHE_MS = 34_000;
+/** Izvor je ograničen na ~1 req/s; kratki cache drži prikaz glatkim bez burstova. */
+const CACHE_MS = 12_000;
 
 type CacheEntry = {
   readonly at: number;

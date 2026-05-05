@@ -2,6 +2,10 @@ import {
   getTimeSliderWindowMs,
   UTC_DAY_MS,
 } from "@/lib/domain/astro/astroService";
+import {
+  DEFAULT_CAMERA_PRESET_ID,
+  getCameraPresetById,
+} from "@/lib/camera/cameraPresets";
 import type { CameraSensorType } from "@/lib/domain/geometry/shotFeasibility";
 import { mergeLiveFlightLists } from "@/lib/flight/mergeLiveFlightLists";
 import {
@@ -54,8 +58,15 @@ type MoonTransitState = {
   addOpenSkyLatencySkewMs: (deltaMs: number) => void;
   cameraFocalLengthMm: number;
   cameraSensorType: CameraSensorType;
+  cameraPresetId: string;
+  /** Matches the active preset dimensions (or manual values when preset is Other). */
+  cameraFrameWidthPx: number;
+  cameraFrameHeightPx: number;
   setCameraFocalLengthMm: (mm: number) => void;
   setCameraSensorType: (sensor: CameraSensorType) => void;
+  setCameraPresetId: (presetId: string) => void;
+  setCameraFrameWidthPx: (widthPx: number) => void;
+  setCameraFrameHeightPx: (heightPx: number) => void;
   /**
    * Suncalc: izlaz / zlaz (UTC kalendaru dan u syncu) i polarna stanja
    * (`alwaysUp` / `alwaysDown` imaju `rise` / `set` = null).
@@ -104,6 +115,15 @@ type MoonTransitState = {
 };
 
 const MAX_LATENCY_SKEW_MS = 120_000;
+const MIN_CAMERA_FRAME_PX = 128;
+const MAX_CAMERA_FRAME_PX = 16384;
+
+function clampCameraFramePx(n: number): number {
+  return Math.max(
+    MIN_CAMERA_FRAME_PX,
+    Math.min(MAX_CAMERA_FRAME_PX, Math.round(n))
+  );
+}
 
 function utcCalendarDayStartMs(t: number): number {
   const d = new Date(t);
@@ -135,6 +155,9 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   openSkyLatencySkewMs: 0,
   cameraFocalLengthMm: 600,
   cameraSensorType: "fullFrame",
+  cameraPresetId: DEFAULT_CAMERA_PRESET_ID,
+  cameraFrameWidthPx: 6000,
+  cameraFrameHeightPx: 4000,
   ephemerisRefetchKey: 0,
   moonRise: null,
   moonSet: null,
@@ -152,6 +175,27 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
       cameraFocalLengthMm: Math.max(50, Math.min(2400, Math.round(mm))),
     }),
   setCameraSensorType: (sensor) => set({ cameraSensorType: sensor }),
+  setCameraPresetId: (presetId) => {
+    const preset = getCameraPresetById(presetId);
+    if (preset.kind === "manual") {
+      set({ cameraPresetId: preset.id });
+      return;
+    }
+    set({
+      cameraPresetId: preset.id,
+      cameraSensorType: preset.sensorType,
+      cameraFrameWidthPx: preset.frameWidthPx,
+      cameraFrameHeightPx: preset.frameHeightPx,
+    });
+  },
+  setCameraFrameWidthPx: (widthPx) =>
+    set({
+      cameraFrameWidthPx: clampCameraFramePx(widthPx),
+    }),
+  setCameraFrameHeightPx: (heightPx) =>
+    set({
+      cameraFrameHeightPx: clampCameraFramePx(heightPx),
+    }),
   setTimeOffsetMs: (offsetMs) => {
     const s = get();
     const riseSet = {

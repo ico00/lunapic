@@ -18,6 +18,7 @@ import {
 } from "react";
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+const LIVE_AUTO_REFRESH_MS = 12_000;
 
 function scheduleObserverGroundHeightFromTerrain(
   map: mapboxgl.Map,
@@ -204,6 +205,20 @@ export function useMoonTransitMap(
   useEffect(() => {
     onBoundsRefresh();
   }, [observer.lat, observer.lng, onBoundsRefresh, mapReadyTick]);
+
+  useEffect(() => {
+    const isLiveProvider =
+      flightProviderId === "opensky" || flightProviderId === "adsbone";
+    if (!isLiveProvider || mapReadyTick <= 0) {
+      return;
+    }
+    const id = setInterval(() => {
+      refreshFlightsNow();
+    }, LIVE_AUTO_REFRESH_MS);
+    return () => {
+      clearInterval(id);
+    };
+  }, [flightProviderId, mapReadyTick, refreshFlightsNow]);
 
   const applyPlaceObserverFromMapCenter = useCallback(() => {
     const m = mapRef.current;

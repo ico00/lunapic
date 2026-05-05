@@ -78,7 +78,7 @@ NEXT_PUBLIC_MAPBOX_TOKEN=pk.your_mapbox_token
 The sidebar **Provider** control is a combobox with **two checkboxes** (OpenSky and ADS-B One) on first load both are **on** (merged fetch; trigger **OpenSky + ADS-B One (merged)**). **Static** demo flights and **mock** are not listed in the UI; `routes.json` hull still drives OpenSky bbox logic in code (`StaticFlightProvider` for tests).
 
 - **opensky** — Live (best-effort) ADS-B via OpenSky: bounded **fetch bbox** around the **observer** and demo corridor rules (see `documentation/architecture.md`); **display** uses the union of **map bounds** and the **observer ~100 km disk**, plus short **retention** between snapshots for steadier symbols on mobile. **Not** the same dataset as FlightRadar24 or other trackers — different coverage is normal.
-- **adsbone** — Live ADS-B via [ADS-B One](https://adsb.one/faq): the **browser** calls `api.adsb.one` first (same query geometry as OpenSky), then falls back to same-origin `/api/adsbone/point` if needed — Cloudflare often blocks **server** IPs (e.g. Vercel). Community API; ~1 req/s; client cache + debounced map loads.
+- **adsbone** — Live ADS-B via [ADS-B One](https://adsb.one/faq): by default the app calls same-origin `/api/adsbone/point` (proxy-first, avoids browser CORS failures on non-whitelisted origins). Optional browser-direct fallback exists only with `NEXT_PUBLIC_ADSBONE_ALLOW_DIRECT=1` (debug/special deployments). Community API; ~1 req/s; periodic idle live refresh + short cache windows keep motion smooth.
 
 ## Continuous integration
 

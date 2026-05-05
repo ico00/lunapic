@@ -7,7 +7,7 @@ const CDN_CACHE_CONTROL = "s-maxage=20, stale-while-revalidate=40";
 export const maxDuration = 10;
 export const preferredRegion = "fra1";
 
-const PROXY_CACHE_TTL_MS = 30_000;
+const PROXY_CACHE_TTL_MS = 12_000;
 const PROXY_CACHE_MAX_KEYS = 48;
 
 type CacheEntry = { expiresAt: number; body: string };
@@ -128,7 +128,7 @@ export async function GET(req: Request) {
             error: `ADS-B live ${r.status}`,
             body: bodyText.slice(0, 500),
             hint:
-              "Upstream rate limit (~1 req/s per IP). Wait a few seconds; the app caches responses ~30s per area.",
+              "Upstream rate limit (~1 req/s per IP). Wait a few seconds; the app caches responses ~12s per area.",
           },
           { status: 429, headers: { "X-MoonTransit-AdsbOne-Cache": "none" } }
         );

@@ -52,7 +52,7 @@ For day-to-day architecture rules, see `documentation/architecture.md`. For the 
 | `hooks/useMapGeoJsonSync.ts`                        | Pushes GeoJSON to Mapbox when data or `mapReadyTick` changes (separate **effects** for moon layers, stand + stand spine, moon path, flights, routes) so `setData` stays targeted. **Flights** effect **throttles** `flights-geo` `setData` (~**300 ms** min interval) and **flushes immediately** when **`selectedFlightId`** changes. |
 | `hooks/useAstronomySync.ts`                         | Suncalc `getMoonTimes` → store; re-fetch on observer and `ephemerisRefetchKey` (after `syncTimeToNow`), not on every `referenceEpochMs` tick.                                     |
 | `hooks/useSelectedAircraftStandCorridorFeatures.ts` | One stand trapezoid (T=0) + spine `LineString`; strip axis from `horizontalToPoint` (aircraft at altitude) via `standCorridorQuads`.                                              |
-| `hooks/useMoonTransitMap.ts`                        | Mapbox `Map` instance, `moveend` / bounds refresh / flight load (**debounced** for OpenSky), **refetch when observer `lat`/`lng` or `flightProvider` change**, observer marker DOM (golden crosshair, lock ring, `setLngLat`, `flyTo` on focus nonce). |
+| `hooks/useMoonTransitMap.ts`                        | Mapbox `Map` instance, `moveend` / bounds refresh / flight load (**debounced** for live providers), periodic idle live refresh (~12 s), **refetch when observer `lat`/`lng` or `flightProvider` change**, observer marker DOM (golden crosshair, lock ring, `setLngLat`, `flyTo` on focus nonce). |
 | `components/map/MapObserverControlStrip.tsx`        | Bottom-left “Set my location here” / “Focus on me” controls.                                                                                                                      |
 | `components/map/MapContainer.tsx`                   | Composes map hooks, `useExtrapolatedFlightsForMap`, `useTransitFieldSounds` (when `fieldSoundsEnabled`), `useMapGeoJsonSync`, popups; shows missing-token message if env is unset. |
 
@@ -69,7 +69,7 @@ For day-to-day architecture rules, see `documentation/architecture.md`. For the 
 | `hooks/useHomeShellOrchestration.ts`        | All Zustand subscriptions, `usePhotographerTools`, `useTransitBeep`, `useGpsObserver`, time slider state, golden flash token, `beepOnTransit` / Field sounds toggle, derived lists.      |
 | `components/shell/HomePageClient.tsx`       | Layout: aside + map column; `useAstronomySync` + `useWeatherSync` + `useHomeShellOrchestration`; passes props from the orchestration hook into panels.                                 |
 | `components/shell/GoldenAlignmentFlash.tsx` | Full-screen flash on first “golden” alignment.                                                                                                                                         |
-| `components/shell/panels/*`                 | `FlightSourcePanel`, `ObserverLocationPanel`, `MoonEphemerisPanel`, `TimeSliderPanel`, `TransitCandidatesPanel`, `ActiveTransitsPanel`, `PhotographerToolsPanel`. |
+| `components/shell/panels/*`                 | `FlightSourcePanel`, `ObserverLocationPanel`, `MoonEphemerisPanel`, `TimeSliderPanel`, `TransitCandidatesPanel`, `ActiveTransitsPanel`, `PhotographerToolsPanel` (preset + focal + sensor + output frame px, **`ViewfinderPreview`**). |
 
 
 **Export:** `PhotographerToolPack` is exported from `hooks/usePhotographerTools.ts` for typing the photographer panel without importing `GeometryEngine` in UI.

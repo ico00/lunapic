@@ -11,59 +11,23 @@ import {
 } from "react";
 
 import { useHasMounted } from "@/hooks/useHasMounted";
-import {
-  CAMERA_SENSOR_ORDER,
-  type CameraSensorType,
-} from "@/lib/domain/geometry/shotFeasibility";
+import { CAMERA_PRESETS } from "@/lib/camera/cameraPresets";
 import { clampFloatingMenuLeft } from "@/lib/ui/clampFloatingMenuLeft";
 import {
   shellComboboxListboxPortalClass,
   shellComboboxTriggerClass,
 } from "@/lib/ui/shellComboboxStyles";
 
-/** Puni naziv u otvorenom izborniku. */
-function labelForSensor(id: CameraSensorType): string {
-  if (id === "fullFrame") {
-    return "Full Frame (1.0× crop)";
-  }
-  if (id === "apsC") {
-    return "APS-C (1.5× crop)";
-  }
-  if (id === "apsC16") {
-    return "APS-C (1.6× crop)";
-  }
-  return "Micro Four Thirds (2.0× crop)";
-}
-
-/** Kratki naziv na zatvorenom triggeru — bez skraćivanja. */
-function triggerLabelForSensor(id: CameraSensorType): string {
-  if (id === "fullFrame") {
-    return "Full Frame";
-  }
-  if (id === "apsC") {
-    return "APS-C 1.5×";
-  }
-  if (id === "apsC16") {
-    return "APS-C 1.6×";
-  }
-  return "Micro 4/3";
-}
-
-type CameraSensorSelectProps = {
-  value: CameraSensorType;
-  onChange: (id: CameraSensorType) => void;
-  /** When false, combobox reflects the preset and cannot be opened. */
-  disabled?: boolean;
+type CameraPresetSelectProps = {
+  value: string;
+  onChange: (id: string) => void;
 };
 
-/**
- * Same combobox pattern as `FlightProviderSelect` (portal listbox, sky glass).
- */
-export function CameraSensorSelect({
-  value,
-  onChange,
-  disabled = false,
-}: CameraSensorSelectProps) {
+function triggerLabel(value: string): string {
+  return CAMERA_PRESETS.find((p) => p.id === value)?.label ?? "Camera";
+}
+
+export function CameraPresetSelect({ value, onChange }: CameraPresetSelectProps) {
   const hasMounted = useHasMounted();
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -85,21 +49,11 @@ export function CameraSensorSelect({
   }, []);
 
   useLayoutEffect(() => {
-    if (!open || disabled) {
+    if (!open) {
       return;
     }
     updatePosition();
-  }, [open, disabled, updatePosition]);
-
-  useEffect(() => {
-    if (!disabled) {
-      return;
-    }
-    const id = requestAnimationFrame(() => {
-      setOpen(false);
-    });
-    return () => cancelAnimationFrame(id);
-  }, [disabled]);
+  }, [open, updatePosition]);
 
   useLayoutEffect(() => {
     if (!open || !pos) {
@@ -148,13 +102,13 @@ export function CameraSensorSelect({
     };
   }, [open, updatePosition]);
 
-  const onPick = (id: CameraSensorType) => {
+  const onPick = (id: string) => {
     onChange(id);
     setOpen(false);
   };
 
   const listbox =
-    !disabled && open && pos && hasMounted ? (
+    open && pos && hasMounted ? (
       <ul
         ref={menuRef}
         id={listboxId}
@@ -168,11 +122,11 @@ export function CameraSensorSelect({
           maxWidth: "min(calc(100vw - 1rem), 22rem)",
         }}
       >
-        {CAMERA_SENSOR_ORDER.map((id) => {
-          const isSel = id === value;
+        {CAMERA_PRESETS.map((preset) => {
+          const isSel = preset.id === value;
           return (
             <li
-              key={id}
+              key={preset.id}
               role="option"
               tabIndex={-1}
               aria-selected={isSel}
@@ -182,20 +136,9 @@ export function CameraSensorSelect({
                   : "cursor-pointer select-none whitespace-nowrap rounded-md px-2.5 py-1.5 text-left text-sm text-zinc-200 outline-none hover:bg-zinc-800 hover:text-zinc-50 focus:bg-zinc-900"
               }
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => onPick(id)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onPick(id);
-                }
-                if (e.key === "Escape") {
-                  e.stopPropagation();
-                  setOpen(false);
-                  triggerRef.current?.focus();
-                }
-              }}
+              onClick={() => onPick(preset.id)}
             >
-              {labelForSensor(id)}
+              {preset.label}
             </li>
           );
         })}
@@ -207,39 +150,18 @@ export function CameraSensorSelect({
       <button
         ref={triggerRef}
         type="button"
-        disabled={disabled}
-        data-testid="camera-sensor-select"
+        data-testid="camera-preset-select"
         data-value={value}
-        className={
-          disabled
-            ? `${shellComboboxTriggerClass} cursor-not-allowed opacity-55`
-            : shellComboboxTriggerClass
-        }
-        aria-label="Camera sensor type"
+        className={shellComboboxTriggerClass}
+        aria-label="Camera preset"
         aria-haspopup="listbox"
-        aria-expanded={disabled ? false : open}
-        aria-controls={disabled || !open ? undefined : listboxId}
+        aria-expanded={open}
+        aria-controls={open ? listboxId : undefined}
         onClick={() => {
-          if (disabled) {
-            return;
-          }
           setOpen((o) => !o);
         }}
-        onKeyDown={(e) => {
-          if (disabled) {
-            return;
-          }
-          if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            if (!open) {
-              setOpen(true);
-            }
-          }
-        }}
       >
-        <span className="min-w-0 flex-1 text-left">
-          {triggerLabelForSensor(value)}
-        </span>
+        <span className="min-w-0 flex-1 text-left">{triggerLabel(value)}</span>
         <svg
           className={`h-4 w-4 shrink-0 text-zinc-500 transition ${open ? "rotate-180" : ""}`}
           viewBox="0 0 24 24"
@@ -255,9 +177,7 @@ export function CameraSensorSelect({
           />
         </svg>
       </button>
-      {listbox && hasMounted
-        ? createPortal(listbox, document.body)
-        : null}
+      {listbox && hasMounted ? createPortal(listbox, document.body) : null}
     </div>
   );
 }

@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 
 /**
  * Top-down aircraft from `public/plane_5367346.svg`, rendered as a solid black silhouette
- * for the viewfinder preview (nose points right after −90° rotation).
+ * for the viewfinder preview (kept in its native orientation; nose points up).
  */
 type ViewfinderAircraftSilhouetteProps = {
   className?: string;
@@ -20,11 +20,7 @@ export function ViewfinderAircraftSilhouette({
       style={style}
       aria-hidden="true"
     >
-      <g
-        transform="rotate(-90 141.73 141.73)"
-        fill="#0a0a0a"
-        stroke="none"
-      >
+      <g fill="#0a0a0a" stroke="none">
         <path d="M85.89,106.67h13.89v28.65h-13.89s0-28.65,0-28.65Z" />
         <path d="M46,139.95h13.89v28.65h-13.89v-28.65Z" />
         <path d="M197.51,135.25h-13.89v-28.65h13.89v28.65Z" />

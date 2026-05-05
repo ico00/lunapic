@@ -166,14 +166,17 @@ Zustand: `create<MoonTransitState>(…)`.
 | `selectedFlightId` | `string \| null` | Odabrani let (HUD, trajektorija, popup). |
 | `openSkyLatencySkewMs` | `number` | ±120 s clamp; samo ekstrapolacija. |
 | `cameraFocalLengthMm` | `number` | 50–2400, default 600. |
-| `cameraSensorType` | `CameraSensorType` | `fullFrame \| apsC \| microFourThirds`. |
+| `cameraSensorType` | `CameraSensorType` | `fullFrame \| apsC \| apsC16 \| microFourThirds` (crop × u `CAMERA_SENSOR_CROP`). |
+| `cameraPresetId` | `string` | ID iz `CAMERA_PRESETS` u `src/lib/camera/cameraPresets.ts`; `other` = ručni senzor + rezolucija. |
+| `cameraFrameWidthPx` | `number` | Aktivna širina izlaza u px (128–16384); fixed preseti je postavljaju iz preseta. |
+| `cameraFrameHeightPx` | `number` | Aktivna visina izlaza u px (isto). |
 | `moonRise` / `moonSet` | `Date \| null` | suncalc za kalendar dan konteksta. |
 | `moonRiseSetKind` | `"normal" \| "alwaysUp" \| "alwaysDown"` | |
 | `ephemerisRefetchKey` | `number` | Sync + prijelaz **UTC dana** na klizaču. |
 
 ### 6.3 Akcije (sažeto)
 
-`setSelectedFlightId`, `setOpenSkyLatencySkewMs`, `addOpenSkyLatencySkewMs`, `setCameraFocalLengthMm`, `setCameraSensorType`, `setTimeOffsetMs` (UTC dan → `ephemerisRefetchKey++`), `setMoonRiseSet` (reclamp reference uz anchor), `syncTimeToNow`, `setMapView`, `setFlightProvider` (čisti retention, reset selection), `setFlights`, `resetError`, `loadFlightsInBounds` (observer iz `useObserverStore`).
+`setSelectedFlightId`, `setOpenSkyLatencySkewMs`, `addOpenSkyLatencySkewMs`, `setCameraFocalLengthMm`, `setCameraSensorType`, `setCameraPresetId` (fixed → senzor + `cameraFrame*`; `other` → samo id), `setCameraFrameWidthPx`, `setCameraFrameHeightPx`, `setTimeOffsetMs` (UTC dan → `ephemerisRefetchKey++`), `setMoonRiseSet` (reclamp reference uz anchor), `syncTimeToNow`, `setMapView`, `setFlightProvider` (čisti retention, reset selection), `setFlights`, `resetError`, `loadFlightsInBounds` (observer iz `useObserverStore`).
 
 ---
 
@@ -225,9 +228,10 @@ Fasada: `src/lib/domain/geometry/geometryEngine.ts` → `geometryEngineMoonRay.t
 
 - `aircraftLineOfSightKinematics`, `photographerPack` (gap, rateovi, ETA poravnanja, `transitDurationMs`).
 
-### 8.4 Shot feasibility
+### 8.4 Shot feasibility (`shotFeasibility.ts`)
 
-- Tieri `excellent | fair | poor`; vezano uz žarište, crop senzora, slant range.
+- Tieri `excellent | fair | poor`; slant range vs `maxShotRangeMetersForCamera` (bazno 120 km @ 600 mm full frame, skaliranje s efektivnom žarišnom).
+- **Moon na izlazu:** promjer Mjeseca na referentnoj **6000 px** širini (`moonDiameterPxAtReferenceSensor`); za proizvoljni kadar `moonDiameterPxOnOutputFrame` + `moonFrameFillForOutputFrame` (postotak širine/površine) koriste **`cameraFrameWidthPx` / `cameraFrameHeightPx`** iz storea u `PhotographerToolsPanel`.
 
 ---
 

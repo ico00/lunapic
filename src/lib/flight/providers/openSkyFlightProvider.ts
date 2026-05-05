@@ -11,8 +11,8 @@ import type { FlightQuery, FlightState } from "@/types/flight";
 import type { FlightProviderId } from "@/types/flight-provider";
 import type { GeoBounds } from "@/types/geo";
 
-/** Usklađeno s proxy predmemorijom (~30s); smanjuje ponovne pozive istog bbox-a. */
-const CACHE_MS = 32_000;
+/** Usklađeno s proxy predmemorijom (~12s); glatkiji update bez naglih skokova. */
+const CACHE_MS = 12_000;
 
 type CacheEntry = {
   readonly at: number;

@@ -25,7 +25,7 @@ export const maxDuration = 10;
 export const preferredRegion = "fra1";
 
 /** Koliko dugo isti (grub) bbox dijeli jedan upstream odgovor bez novog poziva. */
-const PROXY_CACHE_TTL_MS = 30_000;
+const PROXY_CACHE_TTL_MS = 12_000;
 const PROXY_CACHE_MAX_KEYS = 40;
 
 type CacheEntry = { expiresAt: number; body: string };

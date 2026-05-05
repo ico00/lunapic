@@ -8,7 +8,33 @@ where version bumps are made for releases (currently `0.x`).
 
 ## [Unreleased]
 
+### Changed
+
+- **Documentation** — Brought [`architecture.md`](./architecture.md), [`technicalconventions.md`](./technicalconventions.md), [`ui-generator-technical-spec.md`](./ui-generator-technical-spec.md), [`user-guide.md`](./user-guide.md), and [`src/stores/README.md`](../src/stores/README.md) in line with **camera presets** (fixed bodies + **Other**), store **`cameraFrame*`** fields, **`apsC16`**, **`shotFeasibility`** output-frame helpers, **Full frame / Zoom** viewfinder behaviour, and [`.cursorrules`](../.cursorrules) combobox references (`CameraPresetSelect`).
+
 ### Fixed
+
+- **Photographer — Viewfinder aircraft orientation** — The aircraft silhouette in `ViewfinderPreview` now rotates by live ADS-B heading (`trackDeg`) and applies a moon-sky correction using the observer/time-specific **parallactic angle**. This keeps the airplane orientation visually aligned with the moon disk tilt in the field viewfinder.
+
+- **Photographer — Viewfinder trajectory guide** — Added a thin yellow predicted trajectory line across the Moon disk in `ViewfinderPreview`, oriented by corrected ADS-B heading and scaled from current ground speed + slant range to estimate short-horizon on-sky motion.
+
+- **Photographer — Viewfinder trajectory styling** — The trajectory guide in `ViewfinderPreview` now uses a thicker dashed yellow stroke and an arrowhead marker to show travel direction at a glance.
+
+- **Photographer — Viewfinder size estimation fallback** — When API aircraft length is missing, `ViewfinderPreview` now estimates size from flight context: 40 m above 9000 m altitude, 12 m for low-and-slow (<3000 m and <300 km/h), otherwise a regional generic fallback from ICAO24 prefix heuristics. UI copy now shows **Size Estimated** instead of `N/A`.
+
+- **Photographer — focal-length framing metrics** — `Shot feasibility` now separates geometry ratio from framing scale: plane-vs-moon percent is labeled as focal-length independent, and the panel adds an estimated full-Moon pixel diameter / frame occupancy for a 6000×4000 reference frame (calibrated from 948 px at 600 mm full-frame).
+
+- **Photographer — Viewfinder 6000×4000 scale toggle** — Added a toggle in `ViewfinderPreview` to switch between normalized moon rendering and sensor-style framing scale (downscaled from 6000×4000 metrics at current effective focal length), so users can preview relative moon/aircraft footprint in practical capture terms. **Full frame** now activates the sensor-scale view; **Zoom** activates the normalized 0.5° comparison scale (previous button wiring was reversed). **Full frame** hides the trajectory line and arrow; they remain in **Zoom** for path/orientation preview.
+
+- **Photographer — camera preset selector** — Added a `Camera preset` combobox (default: **Canon R6 Mk II**, full-frame, 6000×4000) that auto-applies the sensor format and feeds frame-dimension metadata into `ViewfinderPreview` scale labels. Presets are centralized in `src/lib/camera/cameraPresets.ts` for easy manual expansion.
+
+- **Photographer — camera preset Other** — Added an **Other** preset: user-chosen **sensor type** and manual **frame width/height** (px). Fixed presets keep sensor and resolution **read-only** (disabled combobox/inputs). Shot-feasibility framing copy and the viewfinder use the active output dimensions from the store.
+
+- **Photographer — APS-C 1.6× crop** — `CameraSensorType` now includes **`apsC16`** (1.6× effective focal vs full frame, typical Canon APS-C) alongside **`apsC`** (1.5×). The Canon 7D Mk II preset uses `apsC16`. UI labels distinguish **APS-C 1.5×** vs **APS-C 1.6×**.
+
+- **Flights — live motion freeze then jump** — Smoothed live tracking by adding periodic in-place live refresh while the map is idle (`useMoonTransitMap`, every ~12 s for live providers), reducing client/provider/proxy cache windows from ~30 s to ~12 s (`openSkyFlightProvider`, `adsbOneFlightProvider`, `/api/opensky/states`, `/api/adsbone/point`), and extending extrapolation lead/cap (`extrapolateFlightForDisplay`: 40 s lead, 45 s cap). This removes the common “move, stop, then teleport” pattern on static map views.
+
+- **Flights — ADS-B One CORS console spam** — `fetchAdsbOnePointJson` now runs **proxy-only by default** (`/api/adsbone/point`). Browser-direct mirror fallback is disabled unless explicitly enabled with `NEXT_PUBLIC_ADSBONE_ALLOW_DIRECT=1` (debug/special deployments). This prevents repeated browser CORS `403` noise on hosts/origins that `api.adsb.one` does not whitelist.
 
 - **Photographer — Viewfinder moon disk halo** — Removed the light gray SVG underlay circle behind the clipped NASA SVS moon texture so a thin bright ring no longer appears at the circular clip edge (SVS frames include dark sky around the lunar limb).
 

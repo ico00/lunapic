@@ -13,8 +13,10 @@ function cloudflareBlockedMessage(status: number, bodySnippet: string): string {
 }
 
 /**
- * 1) U pregledniku: `fetch` na svaki live mirror (korisnikov IP).
- * 2) Inače: `GET /api/adsbone/point` (isti mirrori na poslužitelju, redom).
+ * Proxy-only by default:
+ * 1) `GET /api/adsbone/point` (isti origin, bez CORS šuma u konzoli).
+ * 2) Direktni browser fallback na live mirror je isključen osim uz
+ *    `NEXT_PUBLIC_ADSBONE_ALLOW_DIRECT=1` (debug / posebni deploymenti).
  */
 export async function fetchAdsbOnePointJson(
   lat: number,
@@ -25,28 +27,42 @@ export async function fetchAdsbOnePointJson(
   const disableDirect =
     typeof process !== "undefined" &&
     process.env.NEXT_PUBLIC_ADSBONE_DISABLE_DIRECT === "1";
-
-  if (typeof window !== "undefined" && !disableDirect) {
-    for (const base of ADSB_LIVE_POINT_BASES) {
-      try {
-        const r = await fetch(`${base}/${pathSeg}`, {
-          mode: "cors",
-          credentials: "omit",
-          cache: "no-store",
-          headers: { Accept: "application/json" },
-        });
-        if (r.ok) {
-          return (await r.json()) as AdsbOnePointResponse;
-        }
-      } catch {
-        /* CORS / mreža — sljedeći mirror */
-      }
+  const allowDirect =
+    typeof process !== "undefined" &&
+    process.env.NEXT_PUBLIC_ADSBONE_ALLOW_DIRECT === "1";
+  const proxyUrl = appPath(
+    `/api/adsbone/point?lat=${encodeURIComponent(String(lat))}&lng=${encodeURIComponent(String(lng))}&radiusNm=${encodeURIComponent(String(radiusNm))}`
+  );
+  try {
+    return await fetchViaProxy(proxyUrl);
+  } catch (proxyError) {
+    const shouldTryDirect =
+      typeof window !== "undefined" && !disableDirect && allowDirect;
+    if (!shouldTryDirect) {
+      throw proxyError;
     }
   }
 
-  const url = appPath(
-    `/api/adsbone/point?lat=${encodeURIComponent(String(lat))}&lng=${encodeURIComponent(String(lng))}&radiusNm=${encodeURIComponent(String(radiusNm))}`
-  );
+  for (const base of ADSB_LIVE_POINT_BASES) {
+    try {
+      const r = await fetch(`${base}/${pathSeg}`, {
+        mode: "cors",
+        credentials: "omit",
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+      });
+      if (r.ok) {
+        return (await r.json()) as AdsbOnePointResponse;
+      }
+    } catch {
+      /* CORS / mreža — sljedeći mirror */
+    }
+  }
+
+  return await fetchViaProxy(proxyUrl);
+}
+
+async function fetchViaProxy(url: string): Promise<AdsbOnePointResponse> {
   const res = await fetch(url);
   const text = await res.text();
   if (!res.ok) {

@@ -1,8 +1,8 @@
 import { destinationByAzimuthMeters } from "@/lib/domain/geometry/wgs84";
 import type { FlightState } from "@/types/flight";
 
-const EXTRAPOLATE_DT_CAP_SEC = 32;
-const MAX_LEAD_SEC = 30;
+const EXTRAPOLATE_DT_CAP_SEC = 45;
+const MAX_LEAD_SEC = 40;
 
 /**
  * Pomak OpenSky / ručni: ‚gurni‛ zrakoplov naprijed u vremenu (pozicija duž traga).
