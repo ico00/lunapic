@@ -5,6 +5,9 @@
 export const FLIGHTS_SOURCE = "flights-geo";
 /** Circle layer za pozicije zrakoplova (klik → odabir leta). */
 export const FLIGHTS_LAYER_ID = "flights-layer";
+export const FLIGHTS_ATC_LEADER_SOURCE = "flights-atc-leader-geo";
+export const FLIGHTS_ATC_PREDICTION_SOURCE = "flights-atc-prediction-geo";
+export const FLIGHTS_ATC_LABEL_SOURCE = "flights-atc-label-geo";
 export const ROUTES_SOURCE = "routes-geo";
 export const MOON_AZ_SOURCE = "moon-azimuth-geo";
 export const MOON_AZ_NOW_SOURCE = "moon-azimuth-now-geo";

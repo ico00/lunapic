@@ -17,6 +17,7 @@ import type { FlightAltitudeLegendUnit } from "@/lib/map/flightAltitudeColor";
 import { useObserverStore } from "@/stores/observer-store";
 import type { GeoBounds, MapViewState } from "@/types";
 import type { FlightState } from "@/types/flight";
+import type { MapDisplayMode } from "@/types/map-display";
 import type { FlightProviderId } from "@/types/flight-provider";
 
 /** Koji live REST izvori su uključeni (ICAO24 se spaja u jedan zapis po zrakoplovu). */
@@ -97,6 +98,9 @@ type MoonTransitState = {
   /** Samo prikaz oznaka ispod altitude legende (km MSL vs tisuće ft MSL). */
   flightAltitudeLegendUnit: FlightAltitudeLegendUnit;
   setFlightAltitudeLegendUnit: (unit: FlightAltitudeLegendUnit) => void;
+  /** Način crtanja karte/aviona: puni 3D ili pojednostavljeni ATC-like prikaz. */
+  mapDisplayMode: MapDisplayMode;
+  setMapDisplayMode: (mode: MapDisplayMode) => void;
   setFlightProvider: (id: FlightProviderId) => void;
   setLiveFlightFeeds: (patch: Partial<LiveFlightFeeds>) => void;
   /** Ako je još `static` (stari build), prebaci na live dual — static nije u comboboxu. */
@@ -258,6 +262,8 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   flightAltitudeLegendUnit: "km",
   setFlightAltitudeLegendUnit: (unit) =>
     set({ flightAltitudeLegendUnit: unit }),
+  mapDisplayMode: "default",
+  setMapDisplayMode: (mode) => set({ mapDisplayMode: mode }),
   setFlightProvider: (id) =>
     set((s) => {
       let liveFlightFeeds = s.liveFlightFeeds;

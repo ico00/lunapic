@@ -10,9 +10,34 @@ where version bumps are made for releases (currently `0.x`).
 
 ### Changed
 
+- **Map — display mode “Layers” control** — Replaced the segment control that lived in the altitude legend with a Mapbox-style **Layers** tile (square thumbnail + **Layers** footer) at the **bottom-left** of the map (`MapDisplayModeLayersControl` in `MapContainer`). Open it to choose **3D Model** (internal id `default`, formerly labeled “Default”) or **ATC Style** (`atc`). The **gumb / tile thumbnail shows the other mode** (the one you get if you switch), not the active mode — e.g. on **3D Model** the preview teases **ATC Style**, and vice versa. The **3D Model** card image is `public/images/flight-3d-model-thumb.png` via **`FLIGHT_3D_MODEL_UI_PREVIEW_PATH`** in `mapOverlayConstants.ts` (update the PNG when changing **`FLIGHT_3D_MODEL_URL`** / GLB). **`FlightAltitudeLegend`** now only covers **aircraft color by altitude (MSL)** and **km / ft** ticks (no display-mode switch).
+
+- **Filters — aircraft type options without map click** — `useFlightAircraftTypeIndexPrefetch` (wired from `HomePageClient`) batches lookups from **`openskyAircraftIndexClient`** (`fetchOpenSkyAircraftTypeLabel`) for flights missing `aircraftType` after each snapshot (debounced, limited concurrency), then **`patchFlightAircraftTypeFromIndex`**. The Filter panel’s **aircraft type** multi-select therefore fills with real labels instead of only **N/A** until the user clicks a plane on the map.
+
+- **Filters — shell card search + aircraft-type multi-select** — Replaced map-top search with a dedicated **Filter** shell card (`FlightFiltersPanel`) and a multi-select aircraft-type combobox (portal pattern). **`flightFilterCriteria`** flows from `HomePageClient` → `MapContainer` → `filterFlightsByCriteria` / map GeoJSON. Search/filter logic lives in **`src/lib/flight/flightSearch.ts`**.
+- **Map — flight search airline/type fallback labels** — Search now also indexes `flightAirlineDisplayLine` and `flightAircraftTypeDisplayLine`, so queries like **Turkish** match flights whose live feed has only ICAO operator code (e.g. `THY`) but no explicit `airlineName`.
+
+- **Map — display mode switch (3D Model / ATC Style)** — `mapDisplayMode` in `moon-transit-store` (`default` | `atc`, see `types/map-display.ts`) switches between the Mapbox **`model`** flight layer (same **`FLIGHT_3D_MODEL_URL`** GLB) and **ATC** 2D overlays (dot, labels, leader, prediction) plus a blue screen tint (`useMapDisplayMode`, `registerMoonTransitLayers`). UI copy uses **3D Model** and **ATC Style**. In **ATC Style**, the same **Aircraft color by altitude (MSL)** preference tints the ATC ring (`useMapFlightAltitudeColorsPaint`). Startup default remains **3D Model**.
+
 - **Documentation** — Brought [`architecture.md`](./architecture.md), [`technicalconventions.md`](./technicalconventions.md), [`ui-generator-technical-spec.md`](./ui-generator-technical-spec.md), [`user-guide.md`](./user-guide.md), and [`src/stores/README.md`](../src/stores/README.md) in line with **camera presets** (fixed bodies + **Other**), store **`cameraFrame*`** fields, **`apsC16`**, **`shotFeasibility`** output-frame helpers, **Full frame / Zoom** viewfinder behaviour, and [`.cursorrules`](../.cursorrules) combobox references (`CameraPresetSelect`).
 
+- **Documentation (map / filters)** — Refreshed [`architecture.md`](./architecture.md) ( **`mapDisplayMode`**, **`MapDisplayModeLayersControl`**, **`FlightFiltersPanel`**, **`useFlightAircraftTypeIndexPrefetch`**, **`FLIGHT_3D_MODEL_UI_PREVIEW_PATH`**, combobox scroll rule reference), [`user-guide.md`](./user-guide.md) (Filter + Layers workflow, dual-mode map table), [`technicalconventions.md`](./technicalconventions.md) (portal `scroll` must check `event.target`), and [`documentation/README.md`](./README.md) index blurb.
+
 ### Fixed
+
+- **Shell comboboxes — scroll closes menu** — `window` `scroll` listeners (capture phase) no longer close portaled listboxes when the scroll **`event.target`** is inside the **menu** or **trigger** (`FlightFiltersPanel`, `FlightProviderSelect`, `CameraPresetSelect`, `CameraSensorSelect`). Scrolling a long aircraft-type or option list no longer dismisses the panel.
+
+- **Map — ATC altitude tint first render** — `useMapFlightAltitudeColorsPaint` now keeps an `idle` listener (not one-shot) and reapplies `applyFlightLayerColorPaint` when `mapDisplayMode` changes, so ATC ring altitude colors appear immediately after switching to **ATC Style** without needing to toggle the checkbox off/on.
+
+- **Map — Default flights hidden after ATC switch** — `useMapDisplayMode` now resets default flight-layer filters to an explicit show-all expression (`["has","id"]`) when returning to **Default**, instead of relying on `null` filter clears during async layer/style transitions. This prevents cases where aircraft remained hidden after toggling ATC mode.
+
+- **Map — Default mode showing circles after ATC** — returning to **Default** now calls `ensureFlightLayerWith3dModel` from `useMapDisplayMode`, so the flight layer is re-upgraded from circle fallback to the 3D model layer after ATC transitions.
+
+- **Map — first-load Default circles before 3D** — `useMapDisplayMode` now schedules two short delayed retries of `ensureFlightLayerWith3dModel` in **Default** mode (`~700 ms`, `~1800 ms`) so startup timing races no longer leave the initial view on circle fallback until a manual mode switch.
+
+- **Map — display-mode bootstrap on initial style idle** — `useMapDisplayMode` no longer exits early when the map style is not yet loaded on first render; it now runs the first mode apply on the first `idle`, preventing startup sessions where Default stayed on fallback circles until a manual mode toggle.
+
+- **Map — ATC click/select and photo overlays** — `useMapFlightPick` now picks flights from both default and `atc-flights-dot-layer`, so selected-aircraft card opens in **ATC Style** as well. `useMapDisplayMode` no longer hides selected-aircraft stand / trajectory layers in ATC mode, so moon-photo planning overlays remain available after selecting a flight.
 
 - **Photographer — Viewfinder aircraft orientation** — The aircraft silhouette in `ViewfinderPreview` now rotates by live ADS-B heading (`trackDeg`) and applies a moon-sky correction using the observer/time-specific **parallactic angle**. This keeps the airplane orientation visually aligned with the moon disk tilt in the field viewfinder.
 

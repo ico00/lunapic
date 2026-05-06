@@ -37,5 +37,10 @@ export const SELECTED_STAND_SPINE_LINE_OPACITY_DIM = 0.22;
 export const FLIGHT_3D_MODEL_URL =
   "https://docs.mapbox.com/mapbox-gl-js/assets/airplane.glb";
 
+/**
+ * Statična minijatura istog 3D modela za UI (npr. Layers kontrola). Zamijeni PNG kad promijeniš `FLIGHT_3D_MODEL_URL`.
+ */
+export const FLIGHT_3D_MODEL_UI_PREVIEW_PATH = "/images/flight-3d-model-thumb.png";
+
 /** ID modela u stilu (`map.addModel` / layout `model-id`). */
 export const FLIGHT_3D_MODEL_ID = "lunapic-aircraft-3d";

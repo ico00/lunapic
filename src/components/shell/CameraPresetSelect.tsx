@@ -74,7 +74,14 @@ export function CameraPresetSelect({ value, onChange }: CameraPresetSelectProps)
     if (!open) {
       return;
     }
-    const onScroll = () => {
+    const onScroll = (e: Event) => {
+      const t = e.target as Node | null;
+      if (
+        t != null &&
+        (menuRef.current?.contains(t) || triggerRef.current?.contains(t))
+      ) {
+        return;
+      }
       setOpen(false);
     };
     const onDown = (e: MouseEvent) => {

@@ -1,6 +1,9 @@
 import type { MoonPathPack } from "@/hooks/useMapMoonOverlayFeatures";
 import { geoBoundsFromMapbox } from "@/lib/map/geoBoundsFromMapbox";
 import {
+  FLIGHTS_ATC_LEADER_SOURCE,
+  FLIGHTS_ATC_LABEL_SOURCE,
+  FLIGHTS_ATC_PREDICTION_SOURCE,
   FLIGHTS_SOURCE,
   GROUND_OPTIMAL_SOURCE,
   MOON_AZ_SOURCE,
@@ -26,6 +29,7 @@ import { useEffect, useRef, type RefObject } from "react";
 
 /** Smanjuje broj punih GeoJSON zamjena pri ekstrapolaciji (mobilni Safari). */
 const FLIGHTS_GEOJSON_MIN_INTERVAL_MS = 300;
+const MPS_TO_KNOTS = 1.9438444924406048;
 
 type UseMapGeoJsonSyncArgs = {
   mapRef: RefObject<mapboxgl.Map | null>;
@@ -260,6 +264,10 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
             properties: {
               id: f.id,
               name: f.callSign ?? f.id,
+              atcCallsign: (f.callSign ?? f.id).trim(),
+              atcLineFl: buildAtcFlightLevelLine(f),
+              atcLineSpd: buildAtcSpeedLine(f),
+              atcLineHdg: buildAtcHeadingLine(f),
               isShotFeasible: shotFeasibleFlightIds?.has(f.id) ?? false,
               altitudeMeters: Math.max(
                 0,
@@ -272,6 +280,36 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
             },
           })),
         });
+        const leaderSrc = m.getSource(FLIGHTS_ATC_LEADER_SOURCE) as
+          | mapboxgl.GeoJSONSource
+          | undefined;
+        const labelSrc = m.getSource(FLIGHTS_ATC_LABEL_SOURCE) as
+          | mapboxgl.GeoJSONSource
+          | undefined;
+        const leaderPack = visibleFlights.map((f) => buildAtcLeaderGeometry(f));
+        if (leaderSrc) {
+          leaderSrc.setData({
+            type: "FeatureCollection",
+            features: leaderPack.map((g) => g.line),
+          });
+        }
+        if (labelSrc) {
+          labelSrc.setData({
+            type: "FeatureCollection",
+            features: leaderPack.map((g) => g.label),
+          });
+        }
+        const predictionSrc = m.getSource(FLIGHTS_ATC_PREDICTION_SOURCE) as
+          | mapboxgl.GeoJSONSource
+          | undefined;
+        if (predictionSrc) {
+          predictionSrc.setData({
+            type: "FeatureCollection",
+            features: visibleFlights
+              .map((f) => buildAtcPredictionLineFeature(f))
+              .filter((x): x is Feature => x != null),
+          });
+        }
       });
     };
 
@@ -329,4 +367,103 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
     });
     });
   }, [flightProvider, mapRef, mapReadyTick]);
+}
+
+function buildAtcFlightLevelLine(f: FlightState): string {
+  const altitudeMeters = Math.max(0, f.geoAltitudeMeters ?? f.baroAltitudeMeters ?? 0);
+  const altitudeFeet = altitudeMeters * 3.280839895013123;
+  const fl = Math.round(altitudeFeet / 100);
+  return `FL ${String(fl).padStart(3, "0")}`;
+}
+
+function buildAtcSpeedLine(f: FlightState): string {
+  const speedKt =
+    typeof f.groundSpeedMps === "number" && Number.isFinite(f.groundSpeedMps)
+      ? Math.round(Math.max(0, f.groundSpeedMps) * MPS_TO_KNOTS)
+      : null;
+  const speedStr = speedKt == null ? "---" : String(speedKt).padStart(3, "0");
+  return `SPD ${speedStr}`;
+}
+
+function buildAtcHeadingLine(f: FlightState): string {
+  const heading =
+    typeof f.trackDeg === "number" && Number.isFinite(f.trackDeg)
+      ? Math.round(((f.trackDeg % 360) + 360) % 360)
+      : null;
+  return `HDG ${heading == null ? "---" : String(heading).padStart(3, "0")}`;
+}
+
+function buildAtcLeaderGeometry(f: FlightState): { line: Feature; label: Feature } {
+  const lat = f.position.lat;
+  const lng = f.position.lng;
+  const dLatDeg = 1350 / 111320;
+  const lonMetersPerDeg = 111320 * Math.max(0.15, Math.cos((lat * Math.PI) / 180));
+  const dLonDeg = 3000 / lonMetersPerDeg;
+  const endLng = lng + dLonDeg;
+  const endLat = lat + dLatDeg;
+  return {
+    line: {
+      type: "Feature",
+      geometry: {
+        type: "LineString",
+        coordinates: [
+          [lng, lat],
+          [lng + dLonDeg * 0.42, lat + dLatDeg * 0.46],
+          [endLng, endLat],
+        ],
+      },
+      properties: {
+        id: f.id,
+      },
+    },
+    label: {
+    type: "Feature",
+    geometry: {
+      type: "Point",
+      coordinates: [endLng, endLat],
+    },
+    properties: {
+      id: f.id,
+      name: f.callSign ?? f.id,
+      atcCallsign: (f.callSign ?? f.id).trim(),
+      atcLineFl: buildAtcFlightLevelLine(f),
+      atcLineSpd: buildAtcSpeedLine(f),
+      atcLineHdg: buildAtcHeadingLine(f),
+    },
+    },
+  }
+}
+
+function buildAtcPredictionLineFeature(f: FlightState): Feature | null {
+  if (
+    typeof f.groundSpeedMps !== "number" ||
+    !Number.isFinite(f.groundSpeedMps) ||
+    typeof f.trackDeg !== "number" ||
+    !Number.isFinite(f.trackDeg)
+  ) {
+    return null;
+  }
+  const speedMps = Math.max(0, f.groundSpeedMps);
+  const predictionDistanceMeters = Math.min(18000, Math.max(1200, speedMps * 90));
+  const headingRad = (f.trackDeg * Math.PI) / 180;
+  const dNorth = Math.cos(headingRad) * predictionDistanceMeters;
+  const dEast = Math.sin(headingRad) * predictionDistanceMeters;
+  const lat = f.position.lat;
+  const lng = f.position.lng;
+  const dLatDeg = dNorth / 111320;
+  const lonMetersPerDeg = 111320 * Math.max(0.15, Math.cos((lat * Math.PI) / 180));
+  const dLonDeg = dEast / lonMetersPerDeg;
+  return {
+    type: "Feature",
+    geometry: {
+      type: "LineString",
+      coordinates: [
+        [lng, lat],
+        [lng + dLonDeg, lat + dLatDeg],
+      ],
+    },
+    properties: {
+      id: f.id,
+    },
+  };
 }

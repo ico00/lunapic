@@ -29,7 +29,6 @@ export function FlightAltitudeLegend() {
   const setFlightAltitudeLegendUnit = useMoonTransitStore(
     (s) => s.setFlightAltitudeLegendUnit
   );
-
   const lastStopIndex = FLIGHT_ALTITUDE_LEGEND_STOPS.length - 1;
 
   return (

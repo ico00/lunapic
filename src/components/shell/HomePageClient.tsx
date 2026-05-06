@@ -5,6 +5,7 @@ import { FieldOverlaysSection } from "@/components/field/FieldOverlaysSection";
 import { AddToHomeScreenPrompt } from "@/components/shell/AddToHomeScreenPrompt";
 import { GoldenAlignmentFlash } from "@/components/shell/GoldenAlignmentFlash";
 import { ActiveTransitsPanel } from "@/components/shell/panels/ActiveTransitsPanel";
+import { FlightFiltersPanel } from "@/components/shell/panels/FlightFiltersPanel";
 import { FlightSourcePanel } from "@/components/shell/panels/FlightSourcePanel";
 import { MoonEphemerisPanel } from "@/components/shell/panels/MoonEphemerisPanel";
 import { ObserverLocationPanel } from "@/components/shell/panels/ObserverLocationPanel";
@@ -15,6 +16,7 @@ import { WeatherOverlay } from "@/components/weather/WeatherOverlay";
 import { useHomeShellOrchestration } from "@/hooks/useHomeShellOrchestration";
 import { useIsMdUp } from "@/hooks/useMediaQuery";
 import { useTransitCandidateNotifications } from "@/hooks/useTransitCandidateNotifications";
+import { useFlightAircraftTypeIndexPrefetch } from "@/hooks/useFlightAircraftTypeIndexPrefetch";
 import { useAstronomySync } from "@/hooks/useAstronomySync";
 import { useWeatherSync } from "@/hooks/useWeatherSync";
 import {
@@ -30,6 +32,11 @@ import {
 } from "@/components/shell/sectionCategoryIcons";
 import { resumeSharedAudioFromUserGesture } from "@/lib/audio/fieldAudio";
 import { appPath } from "@/lib/paths/appPath";
+import {
+  type FlightFilterCriteria,
+  uniqueAircraftTypeFilterOptions,
+} from "@/lib/flight/flightSearch";
+import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useObserverStore } from "@/stores/observer-store";
 import type { MapContainerProps } from "@/components/map/MapContainer";
 import dynamic from "next/dynamic";
@@ -312,7 +319,12 @@ function TimeAndWeatherBlock(props: ShellControls) {
 
 export function HomePageClient() {
   const s = useHomeShellOrchestration();
+  const flights = useMoonTransitStore((st) => st.flights);
   const isWide = useIsMdUp();
+  const [flightFilterCriteria, setFlightFilterCriteria] = useState<FlightFilterCriteria>({
+    query: "",
+    aircraftTypes: [],
+  });
   const [mobilePanelId, setMobilePanelId] = useState<MobileShellPanelId | null>(
     null
   );
@@ -344,6 +356,7 @@ export function HomePageClient() {
   );
   useWeatherSync();
   useAstronomySync();
+  useFlightAircraftTypeIndexPrefetch();
 
   const timeBlockProps: ShellControls = {
     referenceEpochMs: s.referenceEpochMs,
@@ -430,6 +443,10 @@ export function HomePageClient() {
     /** Peek: visina sadržaja do max ~42dvh — bez praznog „štapića“ kad je malo teksta. */
     return "h-fit max-h-[42dvh]";
   }, [sheetSnap]);
+  const aircraftTypeFilterOptions = useMemo(
+    () => uniqueAircraftTypeFilterOptions(flights),
+    [flights]
+  );
 
   const openMobilePanel = useCallback((panel: MobileShellPanelId) => {
     let next: MobileShellPanelId | null = null;
@@ -504,6 +521,17 @@ export function HomePageClient() {
         flightProviderId={s.flightProviderId}
         liveFlightFeeds={s.liveFlightFeeds}
         onLiveFlightFeedsChange={s.setLiveFlightFeeds}
+      />
+      <FlightFiltersPanel
+        searchQuery={flightFilterCriteria.query}
+        onSearchQueryChange={(next) =>
+          setFlightFilterCriteria((prev) => ({ ...prev, query: next }))
+        }
+        aircraftTypeOptions={aircraftTypeFilterOptions}
+        selectedAircraftTypes={flightFilterCriteria.aircraftTypes}
+        onSelectedAircraftTypesChange={(next) =>
+          setFlightFilterCriteria((prev) => ({ ...prev, aircraftTypes: [...next] }))
+        }
       />
       <ObserverLocationPanel
         observer={s.obs}
@@ -595,6 +623,7 @@ export function HomePageClient() {
               flightProvider={s.flightProvider}
               isGolden={s.isGolden}
               fieldSoundsEnabled={s.beepOnTransit}
+              flightFilterCriteria={flightFilterCriteria}
             />
           </div>
           <aside className="mt-side-rail min-h-0 min-w-0 overflow-y-auto border-l px-4 pb-4 pt-0 text-zinc-200 [scrollbar-gutter:stable] md:col-start-3 md:row-start-2">
@@ -615,6 +644,7 @@ export function HomePageClient() {
               isGolden={s.isGolden}
               fieldSoundsEnabled={s.beepOnTransit}
               suppressSelectedAircraftPopup={mobilePanelId != null}
+              flightFilterCriteria={flightFilterCriteria}
             />
           </div>
           {mobilePanelId ? (
@@ -668,11 +698,27 @@ export function HomePageClient() {
                 }`}
               >
                 {mobilePanelId === "flight" ? (
-                  <FlightSourcePanel
-                    flightProviderId={s.flightProviderId}
-                    liveFlightFeeds={s.liveFlightFeeds}
-                    onLiveFlightFeedsChange={s.setLiveFlightFeeds}
-                  />
+                  <div className="space-y-3">
+                    <FlightSourcePanel
+                      flightProviderId={s.flightProviderId}
+                      liveFlightFeeds={s.liveFlightFeeds}
+                      onLiveFlightFeedsChange={s.setLiveFlightFeeds}
+                    />
+                    <FlightFiltersPanel
+                      searchQuery={flightFilterCriteria.query}
+                      onSearchQueryChange={(next) =>
+                        setFlightFilterCriteria((prev) => ({ ...prev, query: next }))
+                      }
+                      aircraftTypeOptions={aircraftTypeFilterOptions}
+                      selectedAircraftTypes={flightFilterCriteria.aircraftTypes}
+                      onSelectedAircraftTypesChange={(next) =>
+                        setFlightFilterCriteria((prev) => ({
+                          ...prev,
+                          aircraftTypes: [...next],
+                        }))
+                      }
+                    />
+                  </div>
                 ) : null}
                 {mobilePanelId === "observer" ? (
                   <div className="space-y-3">

@@ -25,6 +25,15 @@ LunaPic helps you **line up a live ADS-B aircraft** with the **Moon** in the sky
   - Open the **Provider** menu to **toggle OpenSky and/or ADS-B One** (checkboxes); same aircraft (**ICAO24**) is shown once with merged data when both are on.
 5. **Pan / zoom the map**
   - The map starts in a **flat (2D) view** (no tilt). To **tilt or rotate in 3D**, use the **right mouse button** and drag on the map (Mapbox’s default), or the **+ / − pitch** controls on the map’s navigation widget; on touch devices a **two-finger** tilt still works. Flights re-load for the current bounds (and for OpenSky also when the **observer** moves). The observer stays where you set it unless you change it.
+5b. **Filter flights (sidebar “Filter” card)**  
+  - **Search** — narrow by callsign, airline, aircraft type text, ICAO24, etc.  
+  - **Aircraft type** — multi-select from types derived from the live snapshot plus the OpenSky aircraft index (so the list fills in without having to click each plane first).  
+  - Filters apply to what you see on the map in both display modes (below).
+5c. **Aircraft display mode (bottom-left “Layers” tile)**  
+  - Open the **Layers** control to choose **3D Model** or **ATC Style**. The **small picture on the closed tile** shows the *other* mode — i.e. what you get if you tap and switch — not a duplicate of what is already active.  
+  - **3D Model** — Mapbox **3D airplane** markers (same geometry and data as before); best when you care about alignment with the **photographer tools** and **shot feasibility**.  
+  - **ATC Style** — lighter **2D** radar-style dots, labels, and leaders; usually **snappier** on slower devices. **All moon / transit math still uses your observer and the same flight data** — only the **drawing style** changes.  
+  - **Altitude colors** — the **Aircraft color by altitude** bar elsewhere on the map still applies; in ATC it tints the ring around each dot.
 6. **Pick a flight (optional)**
   - Click an aircraft to select it. You get a **stand corridor** (cyan ground band) and a **pale center line** showing where to be on the ground, for the **current simulated time**, using the aircraft’s **altitude** in the line-of-sight model.
 7. **Read the “photographer” side** (wide layout: right column)
@@ -47,7 +56,8 @@ LunaPic helps you **line up a live ADS-B aircraft** with the **Moon** in the sky
 | **Amber dashed line + `+90s`** (when a flight is selected)    | Short **ground-track** prediction from speed and heading, not the moon.                                                                                                        |
 | **Purple route lines**                                       | **Hidden for now** — `routes.json` corridors were demo polylines, not live tracks. Re-enable via `ENABLE_STATIC_ROUTE_MAP_OVERLAY` in `staticRouteUtils.ts` when historic route data is wired in.                                                                                                                           |
 | **Yellow dots**                                              | Intersections of route geometry with the moon-azimuth idea (for static route analysis).                                                                                       |
-| **Aircraft model**                                           | Extrapolated position for the **simulated** time (and OpenSky display skew if you use it in the field tools). 3D orientation follows heading. **Color** = **altitude** (see the bottom legend: low = light green → high = dark blue) except **green** = shot-feasible in the camera tools. Symbol **size** also increases with cruise height. |
+| **Aircraft markers (3D Model)**                              | Extrapolated position for the **simulated** time (and OpenSky display skew if you use it in the field tools). **3D model** orientation follows heading. **Color** = **altitude** (see the altitude legend) except **green** = shot-feasible in the camera tools. **Model scale** increases with cruise height. Choose **ATC Style** from the **Layers** tile for a lighter 2D view — same data, different drawing. |
+| **ATC Style** (Layers → ATC Style)                           | **2D** radar-style markers (dots, labels, leaders). **Ring color** still follows **altitude** when aircraft color-by-altitude is enabled. Does **not** change observer or math — only how aircraft are drawn. |
 | **Cyan band + pale center line** (when a flight is selected) | **Stand corridor** for framing: a ground strip derived from 3D line of sight to the plane at the selected time; the **pale line** is the “zero offset” axis along that strip. |
 | **Green corridor + nested green volumes**                    | **Transit opportunity corridor** for your fixed observer position and current camera setup. LOW/MEDIUM/HIGH shades are confidence bands; shown only when moon visibility is **Optimal**. |
 | **Weather overlay** (if enabled)                             | Cloud layer from forecast — for context only.                                                                                                                                 |

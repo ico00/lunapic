@@ -2,6 +2,8 @@ import type { Map } from "mapbox-gl";
 
 import { FLIGHTS_LAYER_ID } from "@/lib/map/mapSourceIds";
 
+const ATC_FLIGHTS_DOT_LAYER_ID = "atc-flights-dot-layer";
+
 /**
  * Boja zrakoplova na karti prema **baro/geo visini** (GeoJSON `altitudeMeters`, m).
  * **Shot-feasible** (`isShotFeasible`) uvijek **#22c55e** (prioritet u `case` grani).
@@ -67,18 +69,23 @@ export function applyFlightLayerColorPaint(
   if (!map.isStyleLoaded()) {
     return;
   }
-  const layer = map.getLayer(FLIGHTS_LAYER_ID) as { type?: string } | undefined;
-  if (!layer) {
-    return;
-  }
   const ex = flightFeatureColorMapboxExpressionForAltitudeTint(
     useAltitudeTint
   ) as never;
   try {
-    if (layer.type === "circle") {
+    const layer = map.getLayer(FLIGHTS_LAYER_ID) as
+      | { type?: string }
+      | undefined;
+    if (layer?.type === "circle") {
       map.setPaintProperty(FLIGHTS_LAYER_ID, "circle-color", ex);
-    } else if (layer.type === "model") {
+    } else if (layer?.type === "model") {
       map.setPaintProperty(FLIGHTS_LAYER_ID, "model-color", ex);
+    }
+    const atcDotLayer = map.getLayer(ATC_FLIGHTS_DOT_LAYER_ID) as
+      | { type?: string }
+      | undefined;
+    if (atcDotLayer?.type === "circle") {
+      map.setPaintProperty(ATC_FLIGHTS_DOT_LAYER_ID, "circle-stroke-color", ex);
     }
   } catch {
     /* stil / sloj u tranziciji */

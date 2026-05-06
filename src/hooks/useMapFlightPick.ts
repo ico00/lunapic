@@ -1,4 +1,5 @@
 import { FLIGHTS_LAYER_ID } from "@/lib/map/mapSourceIds";
+import { ATC_FLIGHTS_DOT_LAYER_ID } from "@/lib/map/registerMoonTransitLayers";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import type { Map, MapMouseEvent } from "mapbox-gl";
 import { useEffect, type RefObject } from "react";
@@ -13,13 +14,19 @@ export function useMapFlightPick(
 ): void {
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.getLayer(FLIGHTS_LAYER_ID)) {
+    if (!map) {
+      return;
+    }
+    const pickableLayers = [FLIGHTS_LAYER_ID, ATC_FLIGHTS_DOT_LAYER_ID].filter(
+      (id) => !!map.getLayer(id)
+    );
+    if (pickableLayers.length === 0) {
       return;
     }
 
     const onClick = (e: MapMouseEvent) => {
       const hits = map.queryRenderedFeatures(e.point, {
-        layers: [FLIGHTS_LAYER_ID],
+        layers: pickableLayers,
       });
       if (hits.length > 0) {
         const raw = hits[0].properties?.id;
@@ -40,13 +47,25 @@ export function useMapFlightPick(
     };
 
     map.on("click", onClick);
-    map.on("mouseenter", FLIGHTS_LAYER_ID, onEnter);
-    map.on("mouseleave", FLIGHTS_LAYER_ID, onLeave);
+    if (map.getLayer(FLIGHTS_LAYER_ID)) {
+      map.on("mouseenter", FLIGHTS_LAYER_ID, onEnter);
+      map.on("mouseleave", FLIGHTS_LAYER_ID, onLeave);
+    }
+    if (map.getLayer(ATC_FLIGHTS_DOT_LAYER_ID)) {
+      map.on("mouseenter", ATC_FLIGHTS_DOT_LAYER_ID, onEnter);
+      map.on("mouseleave", ATC_FLIGHTS_DOT_LAYER_ID, onLeave);
+    }
 
     return () => {
       map.off("click", onClick);
-      map.off("mouseenter", FLIGHTS_LAYER_ID, onEnter);
-      map.off("mouseleave", FLIGHTS_LAYER_ID, onLeave);
+      if (map.getLayer(FLIGHTS_LAYER_ID)) {
+        map.off("mouseenter", FLIGHTS_LAYER_ID, onEnter);
+        map.off("mouseleave", FLIGHTS_LAYER_ID, onLeave);
+      }
+      if (map.getLayer(ATC_FLIGHTS_DOT_LAYER_ID)) {
+        map.off("mouseenter", ATC_FLIGHTS_DOT_LAYER_ID, onEnter);
+        map.off("mouseleave", ATC_FLIGHTS_DOT_LAYER_ID, onLeave);
+      }
     };
   }, [mapRef, mapReadyTick]);
 }

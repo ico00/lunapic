@@ -14,6 +14,7 @@ export function useMapFlightAltitudeColorsPaint(
   const mapAircraftAltitudeColors = useMoonTransitStore(
     (s) => s.mapAircraftAltitudeColors
   );
+  const mapDisplayMode = useMoonTransitStore((s) => s.mapDisplayMode);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -26,7 +27,7 @@ export function useMapFlightAltitudeColorsPaint(
         useMoonTransitStore.getState().mapAircraftAltitudeColors
       );
     run();
-    map.once("idle", run);
+    map.on("idle", run);
     return () => {
       map.off("idle", run);
     };
@@ -38,5 +39,5 @@ export function useMapFlightAltitudeColorsPaint(
       return;
     }
     applyFlightLayerColorPaint(map, mapAircraftAltitudeColors);
-  }, [mapRef, mapReadyTick, mapAircraftAltitudeColors]);
+  }, [mapRef, mapReadyTick, mapAircraftAltitudeColors, mapDisplayMode]);
 }

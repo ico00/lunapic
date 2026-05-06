@@ -1,6 +1,7 @@
 "use client";
 
 import { FlightAltitudeLegend } from "@/components/map/FlightAltitudeLegend";
+import { MapDisplayModeLayersControl } from "@/components/map/MapDisplayModeLayersControl";
 import { SelectedAircraftMapPopup } from "@/components/map/SelectedAircraftMapPopup";
 import { useCurrentMoonAzimuthFeature } from "@/hooks/useCurrentMoonAzimuthFeature";
 import { FieldPerfOverlay } from "@/components/perf/FieldPerfOverlay";
@@ -8,6 +9,7 @@ import { useExtrapolatedFlightsForMap } from "@/hooks/useExtrapolatedFlightsForM
 import { useMapFlightPick } from "@/hooks/useMapFlightPick";
 import { useMapFlightAltitudeColorsPaint } from "@/hooks/useMapFlightAltitudeColorsPaint";
 import { useMapGeoJsonSync } from "@/hooks/useMapGeoJsonSync";
+import { useMapDisplayMode } from "@/hooks/useMapDisplayMode";
 import { useMapMoonHorizonDeemphasis } from "@/hooks/useMapMoonHorizonDeemphasis";
 import { useMapMoonOverlayFeatures } from "@/hooks/useMapMoonOverlayFeatures";
 import { useMoonTransitMap } from "@/hooks/useMoonTransitMap";
@@ -19,11 +21,12 @@ import { useTransitFieldSounds } from "@/hooks/useTransitFieldSounds";
 import { isMoonVisibleFromMoonState } from "@/lib/domain/astro/moonVisibility";
 import { type CameraSensorType } from "@/lib/domain/geometry/shotFeasibility";
 import { computeShotFeasibleFlightIds } from "@/lib/domain/transit/computeShotFeasibleFlightIds";
+import { type FlightFilterCriteria, filterFlightsByCriteria } from "@/lib/flight/flightSearch";
 import { fieldPerfRecord, isFieldPerfEnabled } from "@/lib/perf/fieldPerf";
 import type { IFlightProvider } from "@/types";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useObserverStore } from "@/stores/observer-store";
-import { Profiler, useMemo } from "react";
+import { Profiler, useEffect, useMemo } from "react";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 export type MapContainerProps = {
@@ -34,6 +37,7 @@ export type MapContainerProps = {
   fieldSoundsEnabled?: boolean;
   /** Mobile shell: hide selected-aircraft Mapbox popup while a bottom sheet is open. */
   suppressSelectedAircraftPopup?: boolean;
+  flightFilterCriteria: FlightFilterCriteria;
 };
 
 export function MapContainer({
@@ -41,14 +45,31 @@ export function MapContainer({
   isGolden = false,
   fieldSoundsEnabled = false,
   suppressSelectedAircraftPopup = false,
+  flightFilterCriteria,
 }: MapContainerProps) {
   const flights = useExtrapolatedFlightsForMap();
   const observer = useObserverStore((s) => s.observer);
   const moon = useMoonStateComputed();
   const referenceEpochMs = useMoonTransitStore((s) => s.referenceEpochMs);
   const selectedFlightId = useMoonTransitStore((s) => s.selectedFlightId);
+  const setSelectedFlightId = useMoonTransitStore((s) => s.setSelectedFlightId);
   const cameraFocalLengthMm = useMoonTransitStore((s) => s.cameraFocalLengthMm);
   const cameraSensorType = useMoonTransitStore((s) => s.cameraSensorType);
+  const mapDisplayMode = useMoonTransitStore((s) => s.mapDisplayMode);
+
+  const filteredFlights = useMemo(
+    () => filterFlightsByCriteria(flights, flightFilterCriteria),
+    [flights, flightFilterCriteria]
+  );
+
+  useEffect(() => {
+    if (selectedFlightId == null) {
+      return;
+    }
+    if (!filteredFlights.some((f) => f.id === selectedFlightId)) {
+      setSelectedFlightId(null);
+    }
+  }, [filteredFlights, selectedFlightId, setSelectedFlightId]);
 
   const { moonPathPack, moonAzFeature, intersectionFeatures, optimalGroundFeatures } =
     useMapMoonOverlayFeatures(
@@ -72,11 +93,11 @@ export function MapContainer({
       computeShotFeasibleFlightIds(
         observer,
         moon,
-        flights,
+        filteredFlights,
         cameraFocalLengthMm,
         cameraSensorType as CameraSensorType
       ),
-    [cameraFocalLengthMm, cameraSensorType, flights, moon, observer]
+    [cameraFocalLengthMm, cameraSensorType, filteredFlights, moon, observer]
   );
 
   useTransitFieldSounds({
@@ -91,7 +112,7 @@ export function MapContainer({
   const { fillFeatures: standCorridorFeatures, spineFeature: standSpineFeature } =
     useSelectedAircraftStandCorridorFeatures({
       selectedFlightId,
-      extrapolatedFlights: flights,
+      extrapolatedFlights: filteredFlights,
       observer,
       moonAltitudeDeg: moon.altitudeDeg,
     });
@@ -104,10 +125,11 @@ export function MapContainer({
   const { lineFeature: selectedFlightTrajectoryFeature, labelFeature: selectedFlightTrajectoryLabelFeature } =
     useSelectedFlightTrajectoryFeature({
       selectedFlightId,
-      flights,
+      flights: filteredFlights,
     });
 
   useMapFlightAltitudeColorsPaint(mapRef, mapReadyTick);
+  useMapDisplayMode(mapRef, mapReadyTick);
 
   useMapGeoJsonSync({
     mapRef,
@@ -118,7 +140,7 @@ export function MapContainer({
     intersectionFeatures,
     optimalGroundFeatures,
     moonPathPack,
-    flights,
+    flights: filteredFlights,
     selectedFlightId,
     standCorridorFeatures: [
       ...standCorridorFeatures,
@@ -154,6 +176,10 @@ export function MapContainer({
       data-testid="map-surface"
     >
       <div ref={elRef} className="h-full w-full" />
+      {mapDisplayMode === "atc" ? (
+        <div className="pointer-events-none absolute inset-0 z-[8] bg-gradient-to-b from-sky-500/18 via-blue-700/22 to-indigo-950/30 mix-blend-screen" />
+      ) : null}
+      <MapDisplayModeLayersControl />
       <FlightAltitudeLegend />
       <FieldPerfOverlay />
       <SelectedAircraftMapPopup

@@ -11,6 +11,9 @@ import {
 import { ensureMapboxTerrain } from "@/lib/map/mapboxTerrainElevation";
 import {
   FLIGHTS_LAYER_ID,
+  FLIGHTS_ATC_LEADER_SOURCE,
+  FLIGHTS_ATC_LABEL_SOURCE,
+  FLIGHTS_ATC_PREDICTION_SOURCE,
   FLIGHTS_SOURCE,
   GROUND_OPTIMAL_SOURCE,
   MOON_AZ_SOURCE,
@@ -30,6 +33,10 @@ import {
 
 const MOON_INT_LAYER_ID = "moon-intersections";
 const FLIGHTS_SHADOW_LAYER_ID = "flights-shadow-layer";
+export const ATC_FLIGHTS_DOT_LAYER_ID = "atc-flights-dot-layer";
+export const ATC_FLIGHTS_LABEL_LAYER_ID = "atc-flights-label-layer";
+export const ATC_FLIGHTS_LEADER_LAYER_ID = "atc-flights-leader-layer";
+export const ATC_FLIGHTS_PREDICTION_LAYER_ID = "atc-flights-prediction-layer";
 const FLIGHT_MODEL_SCREEN_SIZE_REFERENCE_ZOOM = 11;
 const FLIGHT_MODEL_SCREEN_SIZE_MIN_FACTOR = 1.4;
 const FLIGHT_MODEL_SCREEN_SIZE_MAX_FACTOR = 260;
@@ -142,6 +149,124 @@ function addFlightsCircleFallback(map: Map): void {
   });
 }
 
+function addAtcFlightsLayers(map: Map): void {
+  if (!map.getSource(FLIGHTS_ATC_PREDICTION_SOURCE)) {
+    map.addSource(FLIGHTS_ATC_PREDICTION_SOURCE, {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] },
+    });
+  }
+  if (!map.getLayer(ATC_FLIGHTS_PREDICTION_LAYER_ID)) {
+    map.addLayer({
+      id: ATC_FLIGHTS_PREDICTION_LAYER_ID,
+      type: "line",
+      source: FLIGHTS_ATC_PREDICTION_SOURCE,
+      layout: {
+        visibility: "none",
+        "line-cap": "round",
+        "line-join": "round",
+      },
+      paint: {
+        "line-color": "#67e8f9",
+        "line-width": 1.6,
+        "line-opacity": 0.9,
+      },
+    });
+  }
+  if (!map.getSource(FLIGHTS_ATC_LEADER_SOURCE)) {
+    map.addSource(FLIGHTS_ATC_LEADER_SOURCE, {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] },
+    });
+  }
+  if (!map.getSource(FLIGHTS_ATC_LABEL_SOURCE)) {
+    map.addSource(FLIGHTS_ATC_LABEL_SOURCE, {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] },
+    });
+  }
+  if (!map.getLayer(ATC_FLIGHTS_LEADER_LAYER_ID)) {
+    map.addLayer({
+      id: ATC_FLIGHTS_LEADER_LAYER_ID,
+      type: "line",
+      source: FLIGHTS_ATC_LEADER_SOURCE,
+      layout: {
+        visibility: "none",
+        "line-cap": "round",
+        "line-join": "round",
+      },
+      paint: {
+        "line-color": "#bfdbfe",
+        "line-width": 1.1,
+        "line-opacity": 0.9,
+      },
+    });
+  }
+  if (!map.getLayer(ATC_FLIGHTS_DOT_LAYER_ID)) {
+    map.addLayer({
+      id: ATC_FLIGHTS_DOT_LAYER_ID,
+      type: "circle",
+      source: FLIGHTS_SOURCE,
+      layout: {
+        visibility: "none",
+      },
+      paint: {
+        "circle-radius": 9,
+        "circle-color": "rgba(0, 0, 0, 0)",
+        "circle-stroke-color": "#e0f2fe",
+        "circle-stroke-width": 2.4,
+        "circle-opacity": 0.98,
+      },
+    });
+  }
+  if (!map.getLayer(ATC_FLIGHTS_LABEL_LAYER_ID)) {
+    map.addLayer({
+      id: ATC_FLIGHTS_LABEL_LAYER_ID,
+      type: "symbol",
+      source: FLIGHTS_ATC_LABEL_SOURCE,
+      layout: {
+        visibility: "none",
+        "text-field": [
+          "format",
+          ["coalesce", ["get", "atcCallsign"], ["get", "name"]],
+          { "font-scale": 1.18 },
+          "\n",
+          {},
+          ["coalesce", ["get", "atcLineFl"], ""],
+          { "font-scale": 1.02 },
+          "\n",
+          {},
+          ["coalesce", ["get", "atcLineSpd"], ""],
+          { "font-scale": 1.02 },
+          "\n",
+          {},
+          ["coalesce", ["get", "atcLineHdg"], ""],
+          { "font-scale": 1.02 },
+        ],
+        "text-size": 13,
+        "text-font": [
+          "JetBrains Mono Bold",
+          "JetBrains Mono Regular",
+          "DIN Offc Pro Bold",
+          "Arial Unicode MS Bold",
+        ],
+        "text-anchor": "left",
+        "text-justify": "left",
+        "text-offset": [0.15, -0.05],
+        "text-letter-spacing": 0.04,
+        "text-allow-overlap": true,
+        "text-ignore-placement": true,
+      },
+      paint: {
+        "text-color": "#e0e7ff",
+        "text-halo-color": "#1e1b4b",
+        "text-halo-width": 1.2,
+        "text-opacity": 0.95,
+      },
+    });
+  }
+}
+
 function addFlightsModelLayer(map: Map): void {
   addFlightsShadowLayer(map);
   if (map.getLayer(FLIGHTS_LAYER_ID)) {
@@ -199,7 +324,7 @@ function addFlightsModelLayer(map: Map): void {
 /**
  * Učitava glTF i zamjenjuje kružni fallback model slojem (ili ostavlja krug ako API baci).
  */
-function scheduleFlightLayerWith3dModel(map: Map): void {
+export function ensureFlightLayerWith3dModel(map: Map): void {
   const finishStacking = () => {
     if (map.getLayer(FLIGHTS_LAYER_ID)) {
       map.moveLayer(FLIGHTS_LAYER_ID);
@@ -718,12 +843,25 @@ export function registerMoonTransitLayers(
   });
 
   addFlightsCircleFallback(map);
+  addAtcFlightsLayers(map);
   if (map.getLayer(FLIGHTS_SHADOW_LAYER_ID) && map.getLayer(FLIGHTS_LAYER_ID)) {
     map.moveLayer(FLIGHTS_SHADOW_LAYER_ID, FLIGHTS_LAYER_ID);
   }
   if (map.getLayer(FLIGHTS_LAYER_ID)) {
     map.moveLayer(FLIGHTS_LAYER_ID);
   }
-  scheduleFlightLayerWith3dModel(map);
+  if (map.getLayer(ATC_FLIGHTS_DOT_LAYER_ID)) {
+    map.moveLayer(ATC_FLIGHTS_DOT_LAYER_ID);
+  }
+  if (map.getLayer(ATC_FLIGHTS_PREDICTION_LAYER_ID)) {
+    map.moveLayer(ATC_FLIGHTS_PREDICTION_LAYER_ID);
+  }
+  if (map.getLayer(ATC_FLIGHTS_LEADER_LAYER_ID)) {
+    map.moveLayer(ATC_FLIGHTS_LEADER_LAYER_ID);
+  }
+  if (map.getLayer(ATC_FLIGHTS_LABEL_LAYER_ID)) {
+    map.moveLayer(ATC_FLIGHTS_LABEL_LAYER_ID);
+  }
+  ensureFlightLayerWith3dModel(map);
   onLayersReady?.();
 }
