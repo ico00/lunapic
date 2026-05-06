@@ -58,9 +58,9 @@ function PreviewAtcStyle() {
       className="relative flex h-full w-full items-center justify-center overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-950"
       aria-hidden
     >
-      <div className="absolute h-14 w-14 rounded-full border-2 border-sky-400/35" />
-      <div className="absolute h-9 w-9 rounded-full border-2 border-sky-200/45" />
-      <div className="absolute h-2.5 w-2.5 rounded-full bg-sky-100/90 shadow-[0_0_12px_rgba(224,242,254,0.55)]" />
+      <div className="absolute h-14 w-14 max-md:h-8 max-md:w-8 rounded-full border-2 border-sky-400/35" />
+      <div className="absolute h-9 w-9 max-md:h-5 max-md:w-5 rounded-full border-2 border-sky-200/45" />
+      <div className="absolute h-2.5 w-2.5 max-md:h-1.5 max-md:w-1.5 rounded-full bg-sky-100/90 shadow-[0_0_12px_rgba(224,242,254,0.55)]" />
     </div>
   );
 }
@@ -227,11 +227,11 @@ export function MapDisplayModeLayersControl() {
 
   return (
     <>
-      <div className="pointer-events-none absolute bottom-[max(0.5rem,env(safe-area-inset-bottom,0px))] left-3 z-[76] md:bottom-3 md:left-3 md:z-10">
+      <div className="pointer-events-none max-md:shrink-0 md:absolute md:bottom-3 md:left-3 md:z-10">
         <button
           ref={triggerRef}
           type="button"
-          className="pointer-events-auto flex w-[4.75rem] flex-col overflow-hidden rounded-xl border-2 border-white/90 bg-zinc-950 shadow-[0_10px_36px_rgba(0,0,0,0.45)] outline-none ring-1 ring-zinc-800/90 transition hover:border-sky-300/90 focus-visible:ring-2 focus-visible:ring-sky-500/50 active:scale-[0.98]"
+          className="pointer-events-auto flex h-full min-h-0 w-[4.75rem] flex-col overflow-hidden rounded-xl border-2 border-white/90 bg-zinc-950 shadow-[0_10px_36px_rgba(0,0,0,0.45)] outline-none ring-1 ring-zinc-800/90 transition hover:border-sky-300/90 focus-visible:ring-2 focus-visible:ring-sky-500/50 active:scale-[0.98] md:h-auto"
           aria-expanded={open}
           aria-haspopup="dialog"
           aria-controls={open ? menuId : undefined}
@@ -240,10 +240,10 @@ export function MapDisplayModeLayersControl() {
           data-value={mapDisplayMode}
           onClick={() => setOpen((v) => !v)}
         >
-          <div className="relative h-[4.5rem] w-full min-h-0 flex-1">
+          <div className="relative min-h-0 w-full flex-1 md:h-[4.5rem] md:flex-none">
             {previewForMode(alternateMapDisplayMode(mapDisplayMode))}
           </div>
-          <div className="flex min-h-[1.35rem] items-center justify-center gap-1 bg-black/70 px-1 py-0.5 text-[10px] font-semibold leading-none tracking-wide text-white">
+          <div className="flex shrink-0 min-h-[1.35rem] items-center justify-center gap-1 bg-black/70 px-1 py-0.5 text-[10px] font-semibold leading-none tracking-wide text-white">
             <LayersStackIcon className="h-3.5 w-3.5 shrink-0 text-zinc-200" />
             <span className="truncate">Layers</span>
           </div>

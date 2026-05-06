@@ -28,12 +28,10 @@ test.describe("flight source", () => {
     await expect(provider).toHaveAttribute("data-value", "opensky");
     await expect(provider).not.toContainText("merged");
 
-    await provider.click();
     await page.getByTestId("live-feed-adsbone").check();
     await expect(provider).toContainText("OpenSky + ADS-B One (merged)");
     await expect(provider).toHaveAttribute("data-value", "opensky");
 
-    await provider.click();
     await page.getByTestId("live-feed-opensky").uncheck();
     await expect(provider).toHaveAttribute("data-value", "adsbone");
 

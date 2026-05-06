@@ -57,15 +57,12 @@ export function useMapFlightPick(
     }
 
     return () => {
+      // Avoid getLayer in teardown — style may already be removed (narrow resize).
       map.off("click", onClick);
-      if (map.getLayer(FLIGHTS_LAYER_ID)) {
-        map.off("mouseenter", FLIGHTS_LAYER_ID, onEnter);
-        map.off("mouseleave", FLIGHTS_LAYER_ID, onLeave);
-      }
-      if (map.getLayer(ATC_FLIGHTS_DOT_LAYER_ID)) {
-        map.off("mouseenter", ATC_FLIGHTS_DOT_LAYER_ID, onEnter);
-        map.off("mouseleave", ATC_FLIGHTS_DOT_LAYER_ID, onLeave);
-      }
+      map.off("mouseenter", FLIGHTS_LAYER_ID, onEnter);
+      map.off("mouseleave", FLIGHTS_LAYER_ID, onLeave);
+      map.off("mouseenter", ATC_FLIGHTS_DOT_LAYER_ID, onEnter);
+      map.off("mouseleave", ATC_FLIGHTS_DOT_LAYER_ID, onLeave);
     };
   }, [mapRef, mapReadyTick]);
 }

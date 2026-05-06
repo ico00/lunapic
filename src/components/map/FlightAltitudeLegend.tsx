@@ -34,7 +34,7 @@ export function FlightAltitudeLegend() {
   return (
     <div
       data-testid="flight-altitude-legend"
-      className={`pointer-events-none flex max-w-md flex-col gap-1.5 ${shellGlassPanelClass} px-3 py-2 text-sm leading-normal text-zinc-200 max-md:fixed max-md:inset-x-3 max-md:bottom-[calc(4.35rem+env(safe-area-inset-bottom,0px))] max-md:z-[72] max-md:mx-auto max-md:max-w-md max-md:pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] md:absolute md:bottom-3 md:left-auto md:right-14 md:z-10 md:gap-2 md:py-2.5 md:pb-[max(0.625rem,env(safe-area-inset-bottom,0px))] ${selectedFlightId != null ? "max-md:hidden" : ""}`}
+      className={`pointer-events-none flex min-w-0 flex-1 flex-col gap-1.5 ${shellGlassPanelClass} px-3 py-2 text-sm leading-normal text-zinc-200 max-md:min-h-0 max-md:gap-1 max-md:py-1.5 max-md:pr-2.5 md:max-w-md md:gap-2 md:py-2.5 md:pb-[max(0.625rem,env(safe-area-inset-bottom,0px))] md:absolute md:bottom-3 md:left-auto md:right-14 md:z-10 ${selectedFlightId != null ? "max-md:hidden" : ""}`}
     >
       <div className="pointer-events-auto flex min-w-0 items-start gap-3 sm:items-center">
         <label className="flex min-w-0 flex-1 cursor-pointer touch-manipulation items-start gap-2 select-none sm:items-center">

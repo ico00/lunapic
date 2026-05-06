@@ -179,8 +179,10 @@ export function MapContainer({
       {mapDisplayMode === "atc" ? (
         <div className="pointer-events-none absolute inset-0 z-[8] bg-gradient-to-b from-sky-500/18 via-blue-700/22 to-indigo-950/30 mix-blend-screen" />
       ) : null}
-      <MapDisplayModeLayersControl />
-      <FlightAltitudeLegend />
+      <div className="pointer-events-none md:contents max-md:fixed max-md:bottom-[calc(4.35rem+env(safe-area-inset-bottom,0px))] max-md:left-3 max-md:right-3 max-md:z-[76] max-md:flex max-md:items-stretch max-md:gap-2 max-md:pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
+        <MapDisplayModeLayersControl />
+        <FlightAltitudeLegend />
+      </div>
       <FieldPerfOverlay />
       <SelectedAircraftMapPopup
         mapRef={mapRef}

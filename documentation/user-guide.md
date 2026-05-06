@@ -29,11 +29,12 @@ LunaPic helps you **line up a live ADS-B aircraft** with the **Moon** in the sky
   - **Search** — narrow by callsign, airline, aircraft type text, ICAO24, etc.  
   - **Aircraft type** — multi-select from types derived from the live snapshot plus the OpenSky aircraft index (so the list fills in without having to click each plane first).  
   - Filters apply to what you see on the map in both display modes (below).
-5c. **Aircraft display mode (bottom-left “Layers” tile)**  
+5c. **Aircraft display mode (“Layers” tile)**  
+  - On **phones and narrow layouts**, the **Layers** tile and the **Aircraft color by altitude** panel sit **side by side** in one band **just above** the bottom tab bar (same row height so they do not overlap). On **wider screens**, the Layers control stays toward the **bottom-left** of the map and the altitude panel toward the **bottom-right**.  
   - Open the **Layers** control to choose **3D Model** or **ATC Style**. The **small picture on the closed tile** shows the *other* mode — i.e. what you get if you tap and switch — not a duplicate of what is already active.  
   - **3D Model** — Mapbox **3D airplane** markers (same geometry and data as before); best when you care about alignment with the **photographer tools** and **shot feasibility**.  
   - **ATC Style** — lighter **2D** radar-style dots, labels, and leaders; usually **snappier** on slower devices. **All moon / transit math still uses your observer and the same flight data** — only the **drawing style** changes.  
-  - **Altitude colors** — the **Aircraft color by altitude** bar elsewhere on the map still applies; in ATC it tints the ring around each dot.
+  - **Altitude colors** — the **Aircraft color by altitude** bar in that same area still applies; in ATC it tints the ring around each dot.
 6. **Pick a flight (optional)**
   - Click an aircraft to select it. You get a **stand corridor** (cyan ground band) and a **pale center line** showing where to be on the ground, for the **current simulated time**, using the aircraft’s **altitude** in the line-of-sight model.
 7. **Read the “photographer” side** (wide layout: right column)
@@ -58,6 +59,7 @@ LunaPic helps you **line up a live ADS-B aircraft** with the **Moon** in the sky
 | **Yellow dots**                                              | Intersections of route geometry with the moon-azimuth idea (for static route analysis).                                                                                       |
 | **Aircraft markers (3D Model)**                              | Extrapolated position for the **simulated** time (and OpenSky display skew if you use it in the field tools). **3D model** orientation follows heading. **Color** = **altitude** (see the altitude legend) except **green** = shot-feasible in the camera tools. **Model scale** increases with cruise height. Choose **ATC Style** from the **Layers** tile for a lighter 2D view — same data, different drawing. |
 | **ATC Style** (Layers → ATC Style)                           | **2D** radar-style markers (dots, labels, leaders). **Ring color** still follows **altitude** when aircraft color-by-altitude is enabled. Does **not** change observer or math — only how aircraft are drawn. |
+| **Aircraft color by altitude (MSL)**                         | **Gradient + scale** next to **Layers** on narrow screens (above the tab bar), or bottom-right on desktop. **km** / **ft** only changes the **tick labels**; the color scale is the same. Checkbox turns altitude coloring on or off (neutral markers except **green** = shot-feasible). |
 | **Cyan band + pale center line** (when a flight is selected) | **Stand corridor** for framing: a ground strip derived from 3D line of sight to the plane at the selected time; the **pale line** is the “zero offset” axis along that strip. |
 | **Green corridor + nested green volumes**                    | **Transit opportunity corridor** for your fixed observer position and current camera setup. LOW/MEDIUM/HIGH shades are confidence bands; shown only when moon visibility is **Optimal**. |
 | **Weather overlay** (if enabled)                             | Cloud layer from forecast — for context only.                                                                                                                                 |
