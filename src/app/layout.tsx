@@ -1,4 +1,6 @@
 import { Geist, Geist_Mono, JetBrains_Mono, Outfit } from "next/font/google";
+import type { Metadata } from "next";
+import { getSiteUrl } from "@/lib/seo/site";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -23,10 +25,55 @@ const outfit = Outfit({
   weight: ["500", "600", "700"],
 });
 
-export const metadata = {
-  title: "LunaPic",
+const siteUrl = getSiteUrl();
+
+export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "LunaPic | Live Aircraft Moon Transit Predictor & Planner",
+    template: "%s | LunaPic",
+  },
   description:
-    "Track aircraft transits in front of the Moon — map, ephemeris, ADS-B strategies.",
+    "Plan and capture the perfect aircraft moon transit. Featuring real-time ADS-B flight feeds, precise sensor and lens simulation, and dynamic transit corridors. Don't just wait—intercept. Optimized for enthusiast aviation photography.",
+  applicationName: "LunaPic",
+  keywords: [
+    "moon transit planner",
+    "aircraft moon transit",
+    "astrophotography planner",
+    "moon photography",
+    "OpenSky flight tracking",
+    "transit timing",
+  ],
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: "LunaPic",
+    title: "LunaPic | Live Aircraft Moon Transit Predictor & Planner",
+    description:
+      "Plan and capture the perfect aircraft moon transit. Featuring real-time ADS-B flight feeds, precise sensor and lens simulation, and dynamic transit corridors. Don't just wait—intercept. Optimized for enthusiast aviation photography..",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "LunaPic | Live Aircraft Moon Transit Predictor & Planner",
+    description:
+      "Plan and capture the perfect aircraft moon transit. Featuring real-time ADS-B flight feeds, precise sensor and lens simulation, and dynamic transit corridors. Don't just wait—intercept. Optimized for enthusiast aviation photography..",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  category: "photography",
 };
 
 export const viewport = {

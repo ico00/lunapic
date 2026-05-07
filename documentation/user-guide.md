@@ -42,6 +42,11 @@ LunaPic helps you **line up a live ADS-B aircraft** with the **Moon** in the sky
   - Countdown, angular rates, **shot feasibility** (geometry vs moon + framing notes tied to your focal length, sensor crop, and active output size), compass aim.
   - **Viewfinder preview** (when a flight is selected and timing data is available): a **3:2 black frame** with toggles **Full frame** (moon and plane scaled like your **effective focal** and **output size**) vs **Zoom** (normalized **half-degree** sky scale for quick comparison). The moon **phase and libration** image comes from **NASA/GSFC Scientific Visualization Studio** hourly stills for the **simulated** time ([moon phase gallery](https://svs.gsfc.nasa.gov/gallery/moonphase.html)); if that image cannot load, the app uses a **static** moon texture instead. Footnote text under the preview explains scale, distance, and fallback behaviour.
   - **Field sounds** (after you pick a flight): on **iPhone**, disable the **silent** switch and use **ringer** volume; tap **Sounds on** — you should hear a **short unlock ping** (Safari only allows Web Audio after a gesture like this). **Sync time to now** also unlocks audio quietly. Then you get a **chime** when that aircraft enters the **green** map filter, a **soft hold tone** while it stays in the **moon-overlap** disc model, plus **countdown beeps** before and at alignment.
+8. **Optional AR field aid** (Field card → **Open AR sky overlay**)
+  - Opens a fullscreen **rear-camera** view with projected labels for your **selected flight**, any **watched flights** (from the candidate bell list), and top current candidates.
+  - Aircraft outside the camera frame get **edge arrows**, and the top-right **mini radar** shows quick relative bearing around your current heading.
+  - Use **Recenter heading** if the overlay drifts after moving around (normal on phone magnetometers).
+  - Treat it as **aiming guidance**, not precision surveying: sensor noise, local magnetic interference, and device-specific orientation behavior can shift alignment.
 
 **What you do *not* need for basic use:** reading `architecture.md` or the changelog — those are for developers.
 

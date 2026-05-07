@@ -93,6 +93,14 @@ Native `<select>` remains acceptable only for **non-shell** contexts where clipp
 - **New asset under `public/`** (Mapbox `Image`, `<img>`, etc.) — Use `appPath("/file.ext")` or the constant in `mapOverlayConstants.ts` that already does.
 - **Next `Link` / `next/router`** — `basePath` is applied automatically; no `appPath` for those.
 
+## SEO conventions (metadata / indexing)
+
+- **Metadata location** — Keep global defaults in `src/app/layout.tsx` and override per-route metadata in each route segment (`page.tsx` or nested `layout.tsx`) when snippets should differ.
+- **Canonical URL authority** — Use `src/lib/seo/site.ts` helpers (`getSiteUrl`, `getAbsoluteUrl`) instead of hardcoding domains in metadata/robots/sitemap.
+- **Environment requirement** — Set `NEXT_PUBLIC_SITE_URL` in production to the exact public app URL (include subpath if used). Example: `https://example.com/LunaPic`.
+- **Crawler files** — Keep `src/app/robots.ts` and `src/app/sitemap.ts` in sync with published routes; add new public pages there when introduced.
+- **Structured data** — Prefer JSON-LD for machine-readable sections (e.g. FAQ). Keep schema text sourced from local copy, not user input.
+
 ## Testing and quality
 
 - **Unit tests (domain)** — [Vitest](https://vitest.dev/) 3. Co-located `src/lib/domain/**/*.test.ts` (WGS84/ENU, `horizontal`, line-of-sight, sky separation, `screening`, `computeShotFeasibleFlightIds`, `balconyTransitWatchIdeal`, `getMoonState`, `nasaMoonPhaseFrame`, `standCorridorQuads`, `geometryEngineMoonRay` / `geometryEnginePhotographer`, `AstroService` moon path; `src/lib/format/moonFieldNote.test.ts`; `src/lib/audio/` has no tests but `fieldAudio.ts` backs field sounds). Run once: `npm run test:run`. Watch: `npm test`.

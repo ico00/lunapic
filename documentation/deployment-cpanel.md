@@ -56,6 +56,7 @@ The production host does **not** need to mirror the full git tree.
 - Application root in the Node UI should point at the app directory (may be **outside** `public_html`; that is normal).
 - Rebuild the app after any change to `cpanelBasePath.cjs` or to client/server code; restart the Node app when only runtime files change.
 - You may remove macOS `__MACOSX` directories if they appear in uploads.
+- For correct SEO canonicals/sitemap on production, set `NEXT_PUBLIC_SITE_URL` to the full public app URL (with subpath), e.g. `https://example.com/LunaPic`.
 
 ## E2E
 

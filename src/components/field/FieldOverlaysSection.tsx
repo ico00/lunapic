@@ -2,6 +2,7 @@
 
 import { ShellSectionCard } from "@/components/shell/ShellSectionCard";
 import { SectionIconField } from "@/components/shell/sectionCategoryIcons";
+import { ArSkyCameraPanel } from "@/components/field/ArSkyCameraPanel";
 import { usePhotographerTools } from "@/hooks/usePhotographerTools";
 import { useMoonStateComputed } from "@/hooks/useTransitCandidates";
 import {
@@ -184,6 +185,7 @@ export function FieldOverlaysSection() {
           </button>
         </div>
       </div>
+      <ArSkyCameraPanel />
     </ShellSectionCard>
   );
 }

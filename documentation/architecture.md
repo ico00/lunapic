@@ -155,6 +155,14 @@ Keep **pure functions** in `lib/domain` (no React, no `window` except where a mo
 - `**/api/opensky/states`** — Server-side `fetch` to `opensky-network.org` with `lamin, lomin, lamax, lomax` query params. Avoids CORS; returns JSON or 502 on upstream error. The **browser** must request this route with the app’s `basePath` prefix (via `appPath` in `OpenSkyFlightProvider`) when not hosted at `/`.
 - `**/api/adsbone/point`** — Primary ADS-B One path: server-side `fetch` to `https://api.adsb.one/v2/point/{lat}/{lon}/{radiusNm}` (plus mirror), with short TTL cache (~12 s). Browser-direct path is optional and off by default.
 
+## SEO / indexing (App Router metadata)
+
+- **Global metadata** — `src/app/layout.tsx` exports typed `Metadata`: `metadataBase`, title template, canonical root, robots directives, Open Graph, and Twitter cards.
+- **Page metadata** — `src/app/page.tsx` and `src/app/about/layout.tsx` define route-level title/description/canonical so `/` and `/about` do not share a generic snippet.
+- **Crawler endpoints** — `src/app/robots.ts` and `src/app/sitemap.ts` generate `robots.txt` and `sitemap.xml` from the same canonical site URL helper.
+- **Structured data** — `src/app/about/page.tsx` publishes `FAQPage` JSON-LD derived from the local FAQ array.
+- **Canonical URL source** — `src/lib/seo/site.ts` resolves absolute URLs from `NEXT_PUBLIC_SITE_URL` (or `SITE_URL` server-side). For production, set `NEXT_PUBLIC_SITE_URL` to the full public URL, including subpath when deployed under `basePath` (example: `https://example.com/LunaPic`).
+
 ## Map rendering (Mapbox)
 
 - **Aircraft display mode** — `**mapDisplayMode`** in `**moon-transit-store**`: `**default**` (product copy **3D Model**) uses the Mapbox `**model`** layer with `**FLIGHT_3D_MODEL_URL**` / `**FLIGHT_3D_MODEL_ID**` (`map.addModel` in `**registerMoonTransitLayers**`); `**atc**` (**ATC Style**) hides that layer and shows 2D `**circle`** / `**line**` / `**symbol**` sources (`FLIGHTS_ATC_*` in `**mapSourceIds.ts**`) filled by `**useMapGeoJsonSync**`, plus a blue tint `<div>` in `**MapContainer**`. Switching is `**useMapDisplayMode**` (visibility, filters, 3D layer bootstrap). `**MapDisplayModeLayersControl**` (Layers tile + portaled menu) replaces an earlier segment control; the **thumbnail on the closed tile previews the *other* mode** (invitation to switch). `**FlightAltitudeLegend`** only documents/controls **altitude-by-color** and **km/ft** legend ticks — not the display mode.
@@ -170,7 +178,8 @@ Keep **pure functions** in `lib/domain` (no React, no `window` except where a mo
 ## Field / export
 
 - `**lib/field/fieldPlanExport.ts`** — Plain-text “cheat sheet” and a simple PNG (canvas) derived from a snapshot; triggered from the field section in the shell.
-- `**components/field/FieldOverlaysSection.tsx`** — OpenSky latency skew, lock toggle, export actions. Camera focal length / sensor live under `**PhotographerToolsPanel`**.
+- `**components/field/FieldOverlaysSection.tsx`** — OpenSky latency skew, lock toggle, export actions, and AR entrypoint. Camera focal length / sensor live under `**PhotographerToolsPanel`**.
+- `**components/field/ArSkyCameraPanel.tsx`** — Fullscreen rear-camera **AR-lite** overlay: tracked aircraft labels (selected + watched + top candidates), off-screen edge arrows, and a mini radar ring. Projection is observer-centric (`horizontalToPoint`) with live device orientation; heading/pitch are smoothed and can be manually recentered in-field.
 - `**components/field/ViewfinderPreview.tsx`** / `**ViewfinderAircraftSilhouette.tsx`** — Photographer viewfinder moon disk + aircraft silhouette (see **Viewfinder preview** under *Optical feasibility model*).
 
 ## Extension points (checklist for new features)
@@ -196,6 +205,7 @@ Keep **pure functions** in `lib/domain` (no React, no `window` except where a mo
 - **Flights** are a **snapshot** per bounds load, not a streaming socket.
 - **Time slider** does not re-fetch history from OpenSky; it updates `referenceEpochMs` within the **anchored UTC calendar day** and uses the same flight snapshot (documented in UI for OpenSky use). **Suncalc** `moonRise` / `moonSet` re-fetch in `**useAstronomySync`** is tied to **Sync** and **observer** changes (`ephemerisRefetchKey`), not to every move of the slider, so crossing UTC midnight while scrubbing does not replace rise/set metadata used for the **visible** path arc. **Note:** `00:00` and `24:00` on the slider are not identical moon directions — a **lunar day** is about 24h 50m — so the path’s left and right ends intentionally differ slightly.
 - **Compass** uses device orientation where available; accuracy varies by device and environment.
+- **AR camera overlay** is intentionally **2D screen-space** (not full SLAM/WebXR world anchoring). Device sensors and magnetometer drift can shift overlay alignment; users may need to recenter heading and keep expectations at “field guidance”, not centimeter-accurate AR registration.
 
 ## Related files
 

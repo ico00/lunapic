@@ -19,3 +19,5 @@
 
 
 **Also:** [AGENTS.md](../AGENTS.md) — short note on this repo’s Next.js 16.
+
+SEO baseline (App Router metadata, `robots`, `sitemap`, FAQ structured data) is documented in **[architecture.md](./architecture.md)** and **[technicalconventions.md](./technicalconventions.md)**. Deployment note for canonical host env is in **[deployment-cpanel.md](./deployment-cpanel.md)** (`NEXT_PUBLIC_SITE_URL`).

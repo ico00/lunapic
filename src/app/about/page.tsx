@@ -92,6 +92,19 @@ const faqs = [
   },
 ];
 
+const faqStructuredData = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map((item) => ({
+    "@type": "Question",
+    name: item.question,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: item.answer.replace(/\*\*/g, ""),
+    },
+  })),
+};
+
 function normalizeSearch(s: string): string {
   return s.trim().toLowerCase();
 }
@@ -150,6 +163,11 @@ export default function AboutPage() {
 
   return (
     <div className="min-h-dvh w-full bg-[#070f2a] px-4 py-10 sm:px-6 lg:px-8">
+      <script
+        type="application/ld+json"
+        // Safe here: source is local static content, not user-generated.
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqStructuredData) }}
+      />
       <div className="mx-auto max-w-5xl">
         <header className="rounded-3xl border border-white/10 bg-[#0a1533]/85 px-7 py-7 shadow-[0_20px_80px_rgba(0,0,0,0.35)] backdrop-blur-xl">
           <p className="text-sm uppercase tracking-[0.22em] text-zinc-400">
