@@ -44,6 +44,8 @@ LunaPic helps you **line up a live ADS-B aircraft** with the **Moon** in the sky
   - **Field sounds** (after you pick a flight): on **iPhone**, disable the **silent** switch and use **ringer** volume; tap **Sounds on** — you should hear a **short unlock ping** (Safari only allows Web Audio after a gesture like this). **Sync time to now** also unlocks audio quietly. Then you get a **chime** when that aircraft enters the **green** map filter, a **soft hold tone** while it stays in the **moon-overlap** disc model, plus **countdown beeps** before and at alignment.
 8. **Optional AR field aid** (Field card → **Open AR sky overlay**)
   - Opens a fullscreen **rear-camera** view with projected labels for your **selected flight**, any **watched flights** (from the candidate bell list), and top current candidates.
+  - Default mode also includes nearby live flights so labels appear while you scan the sky without manual map selection.
+  - Use the AR mode toggle to switch between **Show all nearby** (wider live set) and **Only focused flights** (selected + watched + candidates only) when you want a cleaner overlay.
   - Aircraft outside the camera frame get **edge arrows**, and the top-right **mini radar** shows quick relative bearing around your current heading.
   - Use **Recenter heading** if the overlay drifts after moving around (normal on phone magnetometers).
   - Treat it as **aiming guidance**, not precision surveying: sensor noise, local magnetic interference, and device-specific orientation behavior can shift alignment.

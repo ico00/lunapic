@@ -22,6 +22,7 @@ type DevicePose = {
 };
 
 const WATCHED_IDS_STORAGE_KEY = "moonTransitWatchedCandidateFlightIds";
+const MAX_TRACKED_MARKERS = 24;
 
 function normalizeSignedAngleDeg(deg: number): number {
   return ((deg + 540) % 360) - 180;
@@ -81,6 +82,7 @@ export function ArSkyCameraPanel() {
   const [renderNowMs, setRenderNowMs] = useState(() => Date.now());
   const [viewport, setViewport] = useState({ w: 360, h: 640 });
   const [watchedFlightIds, setWatchedFlightIds] = useState<Set<string>>(new Set());
+  const [showAllNearbyFlights, setShowAllNearbyFlights] = useState(true);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
@@ -141,6 +143,15 @@ export function ArSkyCameraPanel() {
         orderedIds.push(candidate.flight.id);
       }
     }
+    // AR should remain useful without manual selection: optionally auto-include nearby live flights.
+    if (showAllNearbyFlights) {
+      for (const flight of flights) {
+        if (!ids.has(flight.id)) {
+          ids.add(flight.id);
+          orderedIds.push(flight.id);
+        }
+      }
+    }
     const at = Math.max(renderNowMs, referenceEpochMs);
     return orderedIds
       .map((id) => byId.get(id))
@@ -156,7 +167,9 @@ export function ArSkyCameraPanel() {
           ...marker,
           isSelected: marker.id === selectedFlightId,
         };
-      });
+      })
+      .filter((marker) => marker.altitudeDeg >= -5)
+      .slice(0, MAX_TRACKED_MARKERS);
   }, [
     candidates,
     flights,
@@ -165,6 +178,7 @@ export function ArSkyCameraPanel() {
     referenceEpochMs,
     renderNowMs,
     selectedFlightId,
+    showAllNearbyFlights,
     watchedFlightIds,
   ]);
 
@@ -264,11 +278,13 @@ export function ArSkyCameraPanel() {
   const requestOrientation = useCallback(async () => {
     setOrientationError(null);
     try {
-      const maybe = DeviceOrientationEvent as DeviceOrientationEvent & {
-        requestPermission?: () => Promise<"granted" | "denied">;
+      const orientationApi = globalThis as unknown as {
+        DeviceOrientationEvent?: {
+          requestPermission?: () => Promise<"granted" | "denied">;
+        };
       };
-      if (typeof maybe.requestPermission === "function") {
-        const r = await maybe.requestPermission();
+      if (typeof orientationApi.DeviceOrientationEvent?.requestPermission === "function") {
+        const r = await orientationApi.DeviceOrientationEvent.requestPermission();
         if (r !== "granted") {
           setOrientationError("Orientation permission denied.");
           return;
@@ -398,7 +414,7 @@ export function ArSkyCameraPanel() {
         Open AR sky overlay
       </button>
       <p className="mt-1 text-[0.6rem] leading-snug text-zinc-500">
-        Shows selected flight + top transit candidates as camera overlay markers.
+        Shows live flight labels directly in camera view (selection optional).
       </p>
       {open ? (
         <div className="fixed inset-0 z-[320] bg-black">
@@ -416,6 +432,7 @@ export function ArSkyCameraPanel() {
             <div className="absolute left-3 top-3 rounded-md border border-zinc-700/80 bg-black/65 px-2.5 py-2 font-[family-name:var(--font-jetbrains-mono)] text-[0.65rem] text-zinc-200 backdrop-blur">
               <p>Tracked: {trackedMarkers.length}</p>
               <p>Watched: {watchedFlightIds.size}</p>
+              <p>Mode: {showAllNearbyFlights ? "All nearby" : "Focused"}</p>
               <p>
                 Heading:{" "}
                 {cameraAzimuthDeg == null ? "—" : `${cameraAzimuthDeg.toFixed(0)}°`}
@@ -497,11 +514,21 @@ export function ArSkyCameraPanel() {
               <button
                 type="button"
                 onClick={() => {
-                  if (pose.headingDeg == null) {
+                  setShowAllNearbyFlights((prev) => !prev);
+                }}
+                className="rounded-md border border-zinc-600 bg-black/70 px-3 py-2 text-xs text-zinc-100 backdrop-blur"
+              >
+                {showAllNearbyFlights ? "Only focused flights" : "Show all nearby"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const headingDeg = pose.headingDeg;
+                  if (headingDeg == null) {
                     return;
                   }
                   setCalibrationOffsetDeg((prev) =>
-                    normalizeSignedAngleDeg(prev - pose.headingDeg)
+                    normalizeSignedAngleDeg(prev - headingDeg)
                   );
                 }}
                 className="rounded-md border border-zinc-600 bg-black/70 px-3 py-2 text-xs text-zinc-100 backdrop-blur"
