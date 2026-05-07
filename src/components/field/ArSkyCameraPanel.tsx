@@ -1,6 +1,7 @@
 "use client";
 
 import { useMoonStateComputed, useTransitCandidates } from "@/hooks/useTransitCandidates";
+import { mpsToKnots } from "@/lib/format/numbers";
 import { horizontalToPoint } from "@/lib/domain/geometry/horizontal";
 import { extrapolateFlightForDisplay } from "@/lib/flight/extrapolateFlightPosition";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
@@ -14,6 +15,7 @@ type TrackedMarker = {
   azimuthDeg: number;
   altitudeDeg: number;
   isSelected: boolean;
+  flight: FlightState;
 };
 
 type DevicePose = {
@@ -62,13 +64,22 @@ function markerFromFlight(
     azimuthDeg: horizontal.azimuthDeg,
     altitudeDeg: horizontal.altitudeDeg,
     isSelected: false,
+    flight,
   };
+}
+
+function formatMaybeNumber(n: number | null | undefined, digits = 0): string {
+  if (n == null || !Number.isFinite(n)) {
+    return "—";
+  }
+  return n.toFixed(digits);
 }
 
 export function ArSkyCameraPanel() {
   const observer = useObserverStore((s) => s.observer);
   const flights = useMoonTransitStore((s) => s.flights);
   const selectedFlightId = useMoonTransitStore((s) => s.selectedFlightId);
+  const setSelectedFlightId = useMoonTransitStore((s) => s.setSelectedFlightId);
   const referenceEpochMs = useMoonTransitStore((s) => s.referenceEpochMs);
   const openSkyLatencySkewMs = useMoonTransitStore((s) => s.openSkyLatencySkewMs);
   const candidates = useTransitCandidates();
@@ -83,6 +94,7 @@ export function ArSkyCameraPanel() {
   const [viewport, setViewport] = useState({ w: 360, h: 640 });
   const [watchedFlightIds, setWatchedFlightIds] = useState<Set<string>>(new Set());
   const [showAllNearbyFlights, setShowAllNearbyFlights] = useState(true);
+  const [infoFlightId, setInfoFlightId] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
@@ -181,6 +193,25 @@ export function ArSkyCameraPanel() {
     showAllNearbyFlights,
     watchedFlightIds,
   ]);
+
+  useEffect(() => {
+    if (trackedMarkers.length === 0) {
+      setInfoFlightId(null);
+      return;
+    }
+    if (infoFlightId == null) {
+      setInfoFlightId(trackedMarkers[0]?.id ?? null);
+      return;
+    }
+    if (!trackedMarkers.some((marker) => marker.id === infoFlightId)) {
+      setInfoFlightId(trackedMarkers[0]?.id ?? null);
+    }
+  }, [infoFlightId, trackedMarkers]);
+
+  const infoMarker = useMemo(
+    () => trackedMarkers.find((marker) => marker.id === infoFlightId) ?? null,
+    [infoFlightId, trackedMarkers]
+  );
 
   const cameraAzimuthDeg = useMemo(() => {
     if (pose.headingDeg == null) {
@@ -463,26 +494,82 @@ export function ArSkyCameraPanel() {
               </div>
             </div>
 
+            {infoMarker ? (
+              <div className="absolute left-1/2 top-3 w-[min(24rem,calc(100%-10.5rem))] -translate-x-1/2 rounded-md border border-zinc-700/80 bg-black/75 px-3 py-2 text-zinc-100 backdrop-blur">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold text-yellow-300">
+                      {infoMarker.label}
+                    </p>
+                    <p className="text-[0.62rem] text-zinc-400">
+                      {infoMarker.flight.aircraftType?.trim() || "Type N/A"} •{" "}
+                      {infoMarker.flight.icao24 || "ICAO24 N/A"}
+                    </p>
+                  </div>
+                  <span className="rounded border border-zinc-600/80 bg-zinc-900/70 px-1.5 py-0.5 text-[0.58rem] font-[family-name:var(--font-jetbrains-mono)] text-zinc-300">
+                    AR TRACK
+                  </span>
+                </div>
+                <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 text-[0.62rem] text-zinc-200">
+                  <p>
+                    Alt:{" "}
+                    {formatMaybeNumber(
+                      infoMarker.flight.baroAltitudeMeters ??
+                        infoMarker.flight.geoAltitudeMeters,
+                      0
+                    )}{" "}
+                    m
+                  </p>
+                  <p>
+                    GS:{" "}
+                    {infoMarker.flight.groundSpeedMps != null
+                      ? `${formatMaybeNumber(mpsToKnots(infoMarker.flight.groundSpeedMps), 0)} kt`
+                      : "—"}
+                  </p>
+                  <p>Track: {formatMaybeNumber(infoMarker.flight.trackDeg, 0)}°</p>
+                  <p>
+                    Sky: {formatMaybeNumber(infoMarker.azimuthDeg, 0)}° /{" "}
+                    {formatMaybeNumber(infoMarker.altitudeDeg, 1)}°
+                  </p>
+                  <p className="col-span-2 text-zinc-400">
+                    {infoMarker.flight.position.lat.toFixed(3)},{" "}
+                    {infoMarker.flight.position.lng.toFixed(3)}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
             {markerScreen.map((marker) =>
               marker.isVisible ? (
-                <div
+                <button
                   key={marker.id}
-                  className={`pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full border px-2 py-0.5 text-[0.65rem] font-semibold ${
+                  type="button"
+                  onClick={() => {
+                    setInfoFlightId(marker.id);
+                    setSelectedFlightId(marker.id);
+                  }}
+                  className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border px-2 py-0.5 text-[0.65rem] font-semibold ${
                     marker.isSelected
                       ? "border-yellow-400/90 bg-yellow-400/20 text-yellow-300"
                       : "border-sky-400/80 bg-sky-500/15 text-sky-200"
                   }`}
                   style={{ left: marker.x, top: marker.y }}
+                  title={`Open aircraft card: ${marker.label}`}
                 >
                   {marker.label}
-                </div>
+                </button>
               ) : null
             )}
 
             {offscreenArrows.map((marker) => (
-              <div
+              <button
                 key={`off-${marker.id}`}
-                className={`pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-md border px-1.5 py-0.5 text-[0.6rem] ${
+                type="button"
+                onClick={() => {
+                  setInfoFlightId(marker.id);
+                  setSelectedFlightId(marker.id);
+                }}
+                className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-md border px-1.5 py-0.5 text-[0.6rem] ${
                   marker.isSelected
                     ? "border-yellow-400/90 bg-yellow-400/20 text-yellow-200"
                     : "border-sky-400/80 bg-sky-500/15 text-sky-200"
@@ -497,7 +584,7 @@ export function ArSkyCameraPanel() {
                   ▲
                 </span>{" "}
                 {marker.label}
-              </div>
+              </button>
             ))}
 
             {moonScreen?.visible ? (

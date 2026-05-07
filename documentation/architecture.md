@@ -179,7 +179,7 @@ Keep **pure functions** in `lib/domain` (no React, no `window` except where a mo
 
 - `**lib/field/fieldPlanExport.ts`** — Plain-text “cheat sheet” and a simple PNG (canvas) derived from a snapshot; triggered from the field section in the shell.
 - `**components/field/FieldOverlaysSection.tsx`** — OpenSky latency skew, lock toggle, export actions, and AR entrypoint. Camera focal length / sensor live under `**PhotographerToolsPanel`**.
-- `**components/field/ArSkyCameraPanel.tsx`** — Fullscreen rear-camera **AR-lite** overlay: tracked aircraft labels (selected + watched + top candidates) plus optional nearby live flights, off-screen edge arrows, and a mini radar ring. Projection is observer-centric (`horizontalToPoint`) with live device orientation; heading/pitch are smoothed and can be manually recentered in-field. Runtime toggle switches between **Show all nearby** and **Only focused flights**.
+- `**components/field/ArSkyCameraPanel.tsx`** — Fullscreen rear-camera **AR-lite** overlay: tracked aircraft labels (selected + watched + top candidates) plus optional nearby live flights, off-screen edge arrows, and a mini radar ring. Projection is observer-centric (`horizontalToPoint`) with live device orientation; heading/pitch are smoothed and can be manually recentered in-field. Runtime toggle switches between **Show all nearby** and **Only focused flights**. Tapping a callsign (or off-screen arrow marker) opens an aircraft info card in the top AR HUD and syncs `selectedFlightId`.
 - `**components/field/ViewfinderPreview.tsx`** / `**ViewfinderAircraftSilhouette.tsx`** — Photographer viewfinder moon disk + aircraft silhouette (see **Viewfinder preview** under *Optical feasibility model*).
 
 ## Extension points (checklist for new features)

@@ -46,6 +46,7 @@ LunaPic helps you **line up a live ADS-B aircraft** with the **Moon** in the sky
   - Opens a fullscreen **rear-camera** view with projected labels for your **selected flight**, any **watched flights** (from the candidate bell list), and top current candidates.
   - Default mode also includes nearby live flights so labels appear while you scan the sky without manual map selection.
   - Use the AR mode toggle to switch between **Show all nearby** (wider live set) and **Only focused flights** (selected + watched + candidates only) when you want a cleaner overlay.
+  - Tap a callsign label (or off-screen arrow label) to open an **aircraft data card** in the top AR area; this also syncs that aircraft as the active selection.
   - Aircraft outside the camera frame get **edge arrows**, and the top-right **mini radar** shows quick relative bearing around your current heading.
   - Use **Recenter heading** if the overlay drifts after moving around (normal on phone magnetometers).
   - Treat it as **aiming guidance**, not precision surveying: sensor noise, local magnetic interference, and device-specific orientation behavior can shift alignment.
