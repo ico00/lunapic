@@ -70,7 +70,7 @@ export function FlightAltitudeLegend() {
   return (
     <div
       data-testid="flight-altitude-legend"
-      className={`pointer-events-none flex min-w-0 flex-1 flex-col gap-1.5 mt-glass-elevated rounded-[var(--r-xl)] px-3 py-2 text-[length:var(--fs-meta)] leading-normal text-[color:var(--t-secondary)] max-md:min-h-0 max-md:gap-1 max-md:py-1.5 max-md:pr-2.5 md:w-80 md:gap-2 md:py-2.5 md:pb-[max(0.625rem,env(safe-area-inset-bottom,0px))] md:absolute md:bottom-[4.5rem] md:left-[6rem] md:right-auto md:z-10 ${selectedFlightId != null ? "max-md:hidden" : ""}`}
+      className={`pointer-events-none relative flex min-w-0 flex-1 flex-col gap-1.5 mt-glass-elevated rounded-[var(--r-xl)] px-3 py-2 text-[length:var(--fs-meta)] leading-normal text-[color:var(--t-secondary)] max-md:min-h-0 max-md:gap-1 max-md:py-1.5 max-md:pr-2.5 md:w-80 md:gap-2 md:py-2.5 md:pb-[max(0.625rem,env(safe-area-inset-bottom,0px))] md:absolute md:bottom-[4.5rem] md:left-[6rem] md:right-auto md:z-10 ${selectedFlightId != null ? "max-md:hidden" : ""}`}
     >
       {/* Row: checkbox + unit toggle */}
       <div className="pointer-events-auto flex min-w-0 items-start gap-2 sm:items-center">
@@ -117,24 +117,24 @@ export function FlightAltitudeLegend() {
         </div>
       </div>
 
-      {/* Band tooltip — appears above the thumb, auto-hides */}
-      <div className="relative h-0 w-full overflow-visible" aria-live="polite" aria-atomic>
-        {activeBand && (
-          <div
-            className={`pointer-events-none absolute bottom-1 z-20 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-[var(--r-md)] border border-[color:var(--glass-stroke)] bg-[color:var(--glass-2)] px-2 py-1 text-[length:var(--fs-label)] shadow-[var(--shadow-2)] backdrop-blur-md transition-all duration-200 ${tooltipVisible ? "opacity-100 translate-y-0" : "pointer-events-none opacity-0 translate-y-1"}`}
-            style={{ left: `clamp(3rem, ${thumbPct}%, calc(100% - 3rem))` }}
-          >
-            <span
-              className="h-2 w-2 shrink-0 rounded-full"
-              style={{ background: activeBand.color }}
-              aria-hidden
-            />
-            <span className="font-medium text-[color:var(--t-primary)]">{activeBand.category}</span>
-            <span className="text-[color:var(--t-tertiary)]">·</span>
-            <span className="text-[color:var(--t-secondary)]">{activeBand.ftLabel}</span>
-          </div>
-        )}
-      </div>
+      {/* Band tooltip — floats above the legend card, auto-hides */}
+      {activeBand && (
+        <div
+          aria-live="polite"
+          aria-atomic
+          className={`pointer-events-none absolute bottom-full z-20 mb-2 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-[var(--r-md)] border border-[color:var(--glass-stroke)] bg-[color:var(--glass-2)] px-2.5 py-1 text-[length:var(--fs-label)] shadow-[var(--shadow-2)] backdrop-blur-md transition-all duration-200 ${tooltipVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"}`}
+          style={{ left: `clamp(4rem, ${thumbPct}%, calc(100% - 4rem))` }}
+        >
+          <span
+            className="h-2 w-2 shrink-0 rounded-full"
+            style={{ background: activeBand.color }}
+            aria-hidden
+          />
+          <span className="font-medium text-[color:var(--t-primary)]">{activeBand.category}</span>
+          <span className="text-[color:var(--t-tertiary)]">·</span>
+          <span className="text-[color:var(--t-secondary)]">{activeBand.ftLabel}</span>
+        </div>
+      )}
 
       {/* Gradient bar + overlaid slider */}
       <div
