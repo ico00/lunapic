@@ -5,6 +5,7 @@ import {
   flightAltitudeLegendGradientCss,
   type FlightAltitudeLegendUnit,
 } from "@/lib/map/flightAltitudeColor";
+import { useEffect, useRef, useState } from "react";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 
 const legendCheckboxClass =
@@ -48,6 +49,23 @@ export function FlightAltitudeLegend() {
   );
 
   const activeBand = altitudeBandIndex > 0 ? ALTITUDE_BANDS[altitudeBandIndex - 1] : null;
+
+  const [tooltipVisible, setTooltipVisible] = useState(false);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    if (altitudeBandIndex > 0) {
+      setTooltipVisible(true);
+      hideTimer.current = setTimeout(() => setTooltipVisible(false), 1800);
+    } else {
+      setTooltipVisible(false);
+    }
+    return () => { if (hideTimer.current) clearTimeout(hideTimer.current); };
+  }, [altitudeBandIndex]);
+
+  // Thumb position as % of slider width (accounts for native thumb inset ~10px each side)
+  const thumbPct = (altitudeBandIndex / SLIDER_MAX) * 100;
 
   return (
     <div
@@ -97,6 +115,25 @@ export function FlightAltitudeLegend() {
             })}
           </div>
         </div>
+      </div>
+
+      {/* Band tooltip — appears above the thumb, auto-hides */}
+      <div className="relative h-0 w-full overflow-visible" aria-live="polite" aria-atomic>
+        {activeBand && (
+          <div
+            className={`pointer-events-none absolute bottom-1 z-20 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-[var(--r-md)] border border-[color:var(--glass-stroke)] bg-[color:var(--glass-2)] px-2 py-1 text-[length:var(--fs-label)] shadow-[var(--shadow-2)] backdrop-blur-md transition-all duration-200 ${tooltipVisible ? "opacity-100 translate-y-0" : "pointer-events-none opacity-0 translate-y-1"}`}
+            style={{ left: `clamp(3rem, ${thumbPct}%, calc(100% - 3rem))` }}
+          >
+            <span
+              className="h-2 w-2 shrink-0 rounded-full"
+              style={{ background: activeBand.color }}
+              aria-hidden
+            />
+            <span className="font-medium text-[color:var(--t-primary)]">{activeBand.category}</span>
+            <span className="text-[color:var(--t-tertiary)]">·</span>
+            <span className="text-[color:var(--t-secondary)]">{activeBand.ftLabel}</span>
+          </div>
+        )}
       </div>
 
       {/* Gradient bar + overlaid slider */}
