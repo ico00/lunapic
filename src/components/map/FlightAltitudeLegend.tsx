@@ -126,7 +126,6 @@ export function FlightAltitudeLegend() {
           value={altitudeBandIndex}
           onChange={(e) => setAltitudeBandIndex(Number(e.target.value))}
           className="absolute inset-0 h-full w-full cursor-grab active:cursor-grabbing appearance-none bg-transparent
-            [&::-webkit-slider-runnable-track]:h-full
             [&::-webkit-slider-runnable-track]:bg-transparent
             [&::-webkit-slider-thumb]:appearance-none
             [&::-webkit-slider-thumb]:h-5
@@ -134,7 +133,6 @@ export function FlightAltitudeLegend() {
             [&::-webkit-slider-thumb]:rounded-full
             [&::-webkit-slider-thumb]:bg-white
             [&::-webkit-slider-thumb]:shadow-[0_1px_4px_rgba(0,0,0,0.45),0_0_0_1px_rgba(0,0,0,0.12)]
-            [&::-moz-range-track]:h-full
             [&::-moz-range-track]:bg-transparent
             [&::-moz-range-thumb]:h-5
             [&::-moz-range-thumb]:w-5
