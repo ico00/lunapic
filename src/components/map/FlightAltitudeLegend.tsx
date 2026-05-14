@@ -65,8 +65,8 @@ export function FlightAltitudeLegend() {
             data-testid="flight-altitude-colors-toggle"
             aria-label="Color aircraft markers by altitude (MSL). When off, a single neutral tone is used except shot-feasible flights stay green."
           />
-          <span className="min-w-0 text-[length:var(--fs-body-strong)] font-semibold leading-snug tracking-wide text-[color:var(--t-primary)] sm:text-[length:var(--fs-body)]">
-            Aircraft color by altitude (MSL)
+          <span className="min-w-0 text-[length:var(--fs-body)] leading-snug text-[color:var(--t-primary)]">
+            Altitude (MSL)
           </span>
         </label>
         <div
@@ -75,7 +75,7 @@ export function FlightAltitudeLegend() {
           aria-label="Altitude legend tick unit"
         >
           <div className="inline-flex rounded-[var(--r-sm)] border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)] p-0.5 shadow-[var(--shadow-1)]">
-            {(["km", "ft"] as const).map((u) => {
+            {(["ft", "km"] as const).map((u) => {
               const active = flightAltitudeLegendUnit === u;
               return (
                 <button

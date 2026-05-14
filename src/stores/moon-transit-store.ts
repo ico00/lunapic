@@ -262,7 +262,7 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   mapAircraftAltitudeColors: true,
   setMapAircraftAltitudeColors: (enabled) =>
     set({ mapAircraftAltitudeColors: enabled }),
-  flightAltitudeLegendUnit: "km",
+  flightAltitudeLegendUnit: "ft",
   setFlightAltitudeLegendUnit: (unit) =>
     set({ flightAltitudeLegendUnit: unit }),
   altitudeBandIndex: 0,
