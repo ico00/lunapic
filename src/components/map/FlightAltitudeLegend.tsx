@@ -52,7 +52,7 @@ export function FlightAltitudeLegend() {
   return (
     <div
       data-testid="flight-altitude-legend"
-      className={`pointer-events-none flex min-w-0 flex-1 flex-col gap-1.5 mt-glass-elevated rounded-[var(--r-xl)] px-3 py-2 text-[length:var(--fs-meta)] leading-normal text-[color:var(--t-secondary)] max-md:min-h-0 max-md:gap-1 max-md:py-1.5 max-md:pr-2.5 md:max-w-md md:gap-2 md:py-2.5 md:pb-[max(0.625rem,env(safe-area-inset-bottom,0px))] md:absolute md:bottom-[4.5rem] md:left-[6rem] md:right-auto md:z-10 ${selectedFlightId != null ? "max-md:hidden" : ""}`}
+      className={`pointer-events-none flex min-w-0 flex-1 flex-col gap-1.5 mt-glass-elevated rounded-[var(--r-xl)] px-3 py-2 text-[length:var(--fs-meta)] leading-normal text-[color:var(--t-secondary)] max-md:min-h-0 max-md:gap-1 max-md:py-1.5 max-md:pr-2.5 md:w-80 md:gap-2 md:py-2.5 md:pb-[max(0.625rem,env(safe-area-inset-bottom,0px))] md:absolute md:bottom-[4.5rem] md:left-[6rem] md:right-auto md:z-10 ${selectedFlightId != null ? "max-md:hidden" : ""}`}
     >
       {/* Row: checkbox + unit toggle */}
       <div className="pointer-events-auto flex min-w-0 items-start gap-2 sm:items-center">
