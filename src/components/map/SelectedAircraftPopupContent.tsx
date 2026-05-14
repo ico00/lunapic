@@ -7,6 +7,11 @@ import {
 } from "@/lib/flight/flightDisplayLabels";
 import { formatFixed, mpsToKnots } from "@/lib/format/numbers";
 import { useHasMounted } from "@/hooks/useHasMounted";
+import {
+  computeContrailLikelihood,
+  type ContrailLikelihood,
+} from "@/lib/domain/contrail/contrailService";
+import { useWeatherStore } from "@/stores/weather-store";
 import type { FlightState } from "@/types/flight";
 
 function fmtDataTimestamp(ms: number): string {
@@ -36,12 +41,12 @@ function AirlineLogoSlot({ iata }: { readonly iata: string | null }) {
 
   return (
     <div
-      className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-zinc-900/90 md:h-[3.75rem] md:w-[3.75rem]"
+      className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)] md:h-[3.75rem] md:w-[3.75rem]"
       data-testid="selected-flight-airline-logo-slot"
       aria-hidden
     >
       {placeholder ? (
-        <span className="absolute inset-1 rounded border border-dashed border-zinc-600/80 bg-zinc-950/40" />
+        <span className="absolute inset-1 rounded-xl border border-dashed border-[color:var(--glass-stroke-strong)] bg-[color:var(--glass-1)]/50" />
       ) : (
         <img
           src={src}
@@ -82,27 +87,17 @@ export type SelectedAircraftPopupContentProps = {
   onRefreshFlights?: () => void;
 };
 
-const clearSelectionButtonClass =
-  "shrink-0 rounded-lg px-2 py-1 text-[0.65rem] text-zinc-500 hover:bg-zinc-800/80 hover:text-zinc-300 max-md:border max-md:border-white/10 max-md:bg-zinc-900/60 max-md:py-0.5";
+const CONTRAIL_LABEL: Record<ContrailLikelihood, string> = {
+  none: "Unlikely",
+  transient: "Possible (short-lived)",
+  persistent: "Likely (persistent)",
+};
 
-function IconRefreshFlights(props: { readonly className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      className={props.className}
-      aria-hidden
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
-      />
-    </svg>
-  );
-}
+const CONTRAIL_COLOR: Record<ContrailLikelihood, string> = {
+  none: "text-[color:var(--t-secondary)]",
+  transient: "text-yellow-400",
+  persistent: "text-orange-400",
+};
 
 /** Sadržaj za Mapbox `Popup` / odabranog zrakoplova (bez podloge karte). */
 export function SelectedAircraftPopupContent({
@@ -110,7 +105,11 @@ export function SelectedAircraftPopupContent({
   onDismiss,
   onRefreshFlights,
 }: SelectedAircraftPopupContentProps) {
+  // onRefreshFlights ostaje u props tipu radi kompatibilnosti, ali se ne koristi
+  // — refresh ikonica je uklonjena, live feed sam osvježava podatke.
+  void onRefreshFlights;
   const hasMounted = useHasMounted();
+  const atmosphericLevels = useWeatherStore((s) => s.atmosphericLevels);
   const typeDisplay = flight
     ? flight.aircraftType?.trim() || AIRCRAFT_TYPE_FALLBACK
     : "";
@@ -118,10 +117,14 @@ export function SelectedAircraftPopupContent({
     ? flight.icao24?.trim().toUpperCase() || ICAO24_FALLBACK
     : "";
   const logoIata = flight ? flightAirlineLogoKiwiIata(flight) : null;
+  const contrail =
+    flight != null && atmosphericLevels != null
+      ? computeContrailLikelihood(flight.baroAltitudeMeters, atmosphericLevels)
+      : null;
 
   return (
     <div
-      className="pointer-events-auto box-border overflow-y-auto rounded-md border border-zinc-700 bg-zinc-950/98 p-2.5 text-zinc-200 shadow-xl shadow-black/45 backdrop-blur max-md:max-h-[min(52dvh,24rem)] max-md:w-full max-md:min-w-0 max-md:max-w-none max-md:rounded-b-none max-md:rounded-t-lg max-md:border-x-0 max-md:border-t max-md:border-b-0 max-md:border-zinc-800 max-md:bg-black/92 max-md:pb-1 max-md:shadow-none max-md:backdrop-blur-2xl md:max-h-[34rem] md:w-[min(18rem,calc(100vw-2.25rem))] md:p-3"
+      className="pointer-events-auto mt-glass-elevated box-border max-md:max-h-[min(50dvh,22rem)] max-md:w-full max-md:min-w-0 max-md:max-w-none max-md:rounded-b-[var(--r-xl)] max-md:pb-2 md:max-h-[34rem] md:w-[min(20rem,calc(100vw-2.25rem))] overflow-y-auto rounded-[var(--r-xl)] p-2.5 text-[color:var(--t-secondary)] [scrollbar-width:none] md:p-3 [&::-webkit-scrollbar]:hidden"
       data-testid="selected-flight-card"
     >
       <div className="flex items-center justify-between gap-2">
@@ -135,195 +138,128 @@ export function SelectedAircraftPopupContent({
                 />
               </div>
               <div className="min-w-0 flex-1 flex flex-col gap-0.5 leading-tight">
-                <p className="break-words text-[0.72rem] text-zinc-400 md:text-[0.8rem]">
+                <p className="break-words text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">
                   {flightAirlineDisplayLine(flight) ?? "—"}
                 </p>
-                <p className="break-all font-mono text-[1.05rem] font-bold tracking-tight text-yellow-400 md:text-[1.15rem]">
+                <p className="break-all text-[length:var(--fs-h2)] font-bold tracking-tight text-sky-300 md:text-[length:var(--fs-h1)] md:font-bold">
                   {flight.callSign?.trim() || "—"}
                 </p>
               </div>
             </div>
           </div>
         ) : (
-          <h2 className="text-xs font-medium uppercase tracking-wide text-blue-400/90">
+          <h2 className="mt-section-label border-0 pb-0 text-sky-400/90">
             Selected aircraft
           </h2>
         )}
-        {flight && onRefreshFlights ? (
-          <div className="flex shrink-0 items-center gap-1">
-            <button
-              type="button"
-              onClick={onRefreshFlights}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-zinc-900/60 text-zinc-400 hover:bg-zinc-800/80 hover:text-sky-300 md:hidden"
-              aria-label="Refresh flight data"
-              title="Refresh flight data"
-              data-testid="selected-flight-refresh-flights"
-            >
-              <IconRefreshFlights className="h-4 w-4" />
-            </button>
-          </div>
-        ) : null}
+        {/* X close gumb — top-right header (zamjenjuje stari "Clear" tekst gumb dolje). */}
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Clear aircraft selection"
+          title="Close"
+          data-testid="selected-flight-clear"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)] text-[color:var(--t-secondary)] transition hover:border-sky-400/35 hover:bg-[color:var(--glass-2)] hover:text-[color:var(--t-primary)] active:scale-[0.95]"
+        >
+          <svg
+            className="h-4 w-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
       </div>
       {!flight ? (
         <div className="mt-2">
-          <p className="text-sm text-zinc-500">
+          <p className="text-[length:var(--fs-meta)] leading-relaxed text-[color:var(--t-tertiary)]">
             No live data for this id (moved off map or stale selection). Pick
             another track or refresh flights.
           </p>
-          <div className="mt-2 flex justify-end">
-            <button
-              type="button"
-              onClick={onDismiss}
-              className={clearSelectionButtonClass}
-              aria-label="Clear aircraft selection"
-              data-testid="selected-flight-clear"
-            >
-              Clear
-            </button>
-          </div>
         </div>
       ) : (
         <>
-          <dl className="mt-2 hidden space-y-1.5 text-sm md:block">
-            <div className="flex flex-wrap justify-between gap-x-3 gap-y-0.5">
-              <dt className="shrink-0 text-zinc-500">Aircraft type</dt>
-              <dd className="min-w-0 break-words text-end font-mono text-[0.7rem] tabular-nums text-zinc-300">
-                {typeDisplay}
-              </dd>
-            </div>
-            <div className="flex flex-wrap justify-between gap-x-3 gap-y-0.5">
-              <dt className="shrink-0 text-zinc-500">ICAO24</dt>
-              <dd className="min-w-0 break-all text-end font-mono text-[0.7rem] tabular-nums text-zinc-300">
-                {icaoDisplay}
-              </dd>
-            </div>
-            <div className="flex flex-wrap justify-between gap-x-3 gap-y-0.5">
-              <dt className="text-zinc-500">Position (on map)</dt>
-              <dd className="font-mono text-[0.7rem] tabular-nums text-zinc-300">
-                {formatFixed(flight.position.lat, 4)}°,{" "}
-                {formatFixed(flight.position.lng, 4)}°
-              </dd>
-            </div>
-            <div className="flex flex-wrap justify-between gap-x-3 gap-y-0.5">
-              <dt className="text-zinc-500">Altitude</dt>
-              <dd className="font-mono text-[0.7rem] text-zinc-300">
-                {altBlock(flight)}
-              </dd>
-            </div>
-            <div className="flex flex-wrap justify-between gap-x-3 gap-y-0.5">
-              <dt className="text-zinc-500">Ground speed</dt>
-              <dd className="font-mono text-[0.7rem] tabular-nums text-zinc-300">
-                {flight.groundSpeedMps != null
-                  ? `${formatFixed(mpsToKnots(flight.groundSpeedMps), 0)} kt`
-                  : "—"}
-              </dd>
-            </div>
-            <div className="flex flex-wrap justify-between gap-x-3 gap-y-0.5">
-              <dt className="text-zinc-500">Track</dt>
-              <dd className="font-mono text-[0.7rem] tabular-nums text-zinc-300">
-                {flight.trackDeg != null
-                  ? `${formatFixed(flight.trackDeg, 1)}°`
-                  : "—"}
-              </dd>
-            </div>
-            <div className="border-t border-zinc-800/80 pt-2">
-              <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
-                <div className="min-w-0">
-                  <dt className="text-[0.65rem] text-zinc-500">State time</dt>
-                  <dd
-                    className="mt-0.5 font-mono text-[0.7rem] tabular-nums text-zinc-400"
-                    suppressHydrationWarning
-                  >
-                    {hasMounted ? fmtDataTimestamp(flight.timestamp) : "—"}
-                  </dd>
-                </div>
-                <button
-                  type="button"
-                  onClick={onDismiss}
-                  className={clearSelectionButtonClass}
-                  aria-label="Clear aircraft selection"
-                  data-testid="selected-flight-clear"
-                >
-                  Clear
-                </button>
-              </div>
-            </div>
-          </dl>
-
-          {/* Mobile: compact Flightradar-style strip */}
-          <div className="mt-2 md:hidden">
-            <div className="grid grid-cols-2 gap-1.5">
-              <div className="col-span-2 rounded-lg border border-white/[0.06] bg-zinc-900/70 px-2 py-1">
-                <div className="text-[0.55rem] font-medium uppercase tracking-wide text-zinc-500">
+          <div className="mt-2 md:mt-2.5">
+            <div className="grid grid-cols-2 gap-1.5 md:gap-2">
+              <div className="min-w-0 rounded-xl border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/80 px-2.5 py-1.5 md:px-3 md:py-2">
+                <div className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
                   Aircraft type
                 </div>
-                <div className="mt-0.5 break-all font-mono text-[0.68rem] tabular-nums leading-snug text-zinc-100">
+                <div
+                  className="mt-0.5 break-words font-mono text-[length:var(--fs-meta)] leading-snug text-[color:var(--t-primary)]"
+                  title={typeDisplay}
+                >
                   {typeDisplay}
                 </div>
               </div>
-              <div className="col-span-2 rounded-lg border border-white/[0.06] bg-zinc-900/70 px-2 py-1">
-                <div className="text-[0.55rem] font-medium uppercase tracking-wide text-zinc-500">
+              <div className="min-w-0 rounded-xl border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/80 px-2.5 py-1.5 md:px-3 md:py-2">
+                <div className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
                   ICAO24
                 </div>
-                <div className="mt-0.5 break-all font-mono text-[0.68rem] tabular-nums leading-snug text-zinc-100">
+                <div className="mt-0.5 truncate font-mono text-[length:var(--fs-meta)] tabular-nums leading-snug text-[color:var(--t-primary)]">
                   {icaoDisplay}
                 </div>
               </div>
-              <div className="col-span-2 rounded-lg border border-white/[0.06] bg-zinc-900/70 px-2 py-1">
-                <div className="text-[0.55rem] font-medium uppercase tracking-wide text-zinc-500">
-                  Altitude
+              <div className="min-w-0 rounded-xl border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/80 px-2.5 py-1.5 md:px-3 md:py-2">
+                <div className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
+                  Speed
                 </div>
-                <div className="mt-0.5 break-words font-mono text-[0.68rem] tabular-nums leading-snug text-zinc-100">
-                  {altBlock(flight)}
-                </div>
-              </div>
-              <div className="rounded-lg border border-white/[0.06] bg-zinc-900/70 px-2 py-1">
-                <div className="text-[0.55rem] font-medium uppercase tracking-wide text-zinc-500">
-                  Ground speed
-                </div>
-                <div className="mt-0.5 font-mono text-[0.68rem] tabular-nums leading-none text-zinc-100">
+                <div className="mt-0.5 truncate font-mono text-[length:var(--fs-meta)] tabular-nums leading-snug text-[color:var(--t-primary)]">
                   {flight.groundSpeedMps != null
                     ? `${formatFixed(mpsToKnots(flight.groundSpeedMps), 0)} kt`
                     : "—"}
                 </div>
               </div>
-              <div className="rounded-lg border border-white/[0.06] bg-zinc-900/70 px-2 py-1">
-                <div className="text-[0.55rem] font-medium uppercase tracking-wide text-zinc-500">
+              <div className="min-w-0 rounded-xl border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/80 px-2.5 py-1.5 md:px-3 md:py-2">
+                <div className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
                   Track
                 </div>
-                <div className="mt-0.5 font-mono text-[0.68rem] tabular-nums leading-none text-zinc-100">
+                <div className="mt-0.5 truncate font-mono text-[length:var(--fs-meta)] tabular-nums leading-snug text-[color:var(--t-primary)]">
                   {flight.trackDeg != null
                     ? `${formatFixed(flight.trackDeg, 1)}°`
                     : "—"}
                 </div>
               </div>
-              <div className="col-span-2 rounded-lg border border-white/[0.06] bg-zinc-900/70 px-2 py-1">
-                <div className="text-[0.55rem] font-medium uppercase tracking-wide text-zinc-500">
+              <div className="col-span-2 min-w-0 rounded-xl border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/80 px-2.5 py-1.5 md:px-3 md:py-2">
+                <div className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
+                  Altitude
+                </div>
+                <div className="mt-0.5 break-words font-mono text-[length:var(--fs-meta)] tabular-nums leading-snug text-[color:var(--t-primary)]">
+                  {altBlock(flight)}
+                </div>
+              </div>
+              <div className="col-span-2 min-w-0 rounded-xl border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/80 px-2.5 py-1.5 md:px-3 md:py-2">
+                <div className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
+                  Contrails
+                </div>
+                <div
+                  className={`mt-0.5 font-mono text-[length:var(--fs-meta)] leading-snug ${contrail != null ? CONTRAIL_COLOR[contrail] : "text-[color:var(--t-tertiary)]"}`}
+                >
+                  {contrail != null ? CONTRAIL_LABEL[contrail] : "—"}
+                </div>
+              </div>
+              <div className="col-span-2 min-w-0 rounded-xl border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/80 px-2.5 py-1.5 md:px-3 md:py-2">
+                <div className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
                   Position
                 </div>
-                <div className="mt-0.5 break-words font-mono text-[0.62rem] tabular-nums leading-snug text-zinc-300">
+                <div className="mt-0.5 break-words font-mono text-[length:var(--fs-meta)] tabular-nums leading-snug text-[color:var(--t-secondary)]">
                   {formatFixed(flight.position.lat, 3)}°,{" "}
                   {formatFixed(flight.position.lng, 3)}°
                 </div>
               </div>
             </div>
-            <div className="mt-1 flex items-center justify-between gap-2 border-t border-white/[0.06] pt-1">
-              <p
-                className="min-w-0 font-mono text-[0.58rem] tabular-nums text-zinc-500"
-                suppressHydrationWarning
-              >
-                {hasMounted ? fmtDataTimestamp(flight.timestamp) : "—"}
-              </p>
-              <button
-                type="button"
-                onClick={onDismiss}
-                className={clearSelectionButtonClass}
-                aria-label="Clear aircraft selection"
-                data-testid="selected-flight-clear"
-              >
-                Clear
-              </button>
-            </div>
+            <p
+              className="mt-2 border-t border-[color:var(--glass-stroke)] pt-2 text-center font-mono text-[length:var(--fs-label)] tabular-nums text-[color:var(--t-tertiary)]"
+              suppressHydrationWarning
+              title="Time when this aircraft state was reported by the feed"
+            >
+              {hasMounted ? fmtDataTimestamp(flight.timestamp) : "—"}
+            </p>
           </div>
         </>
       )}
