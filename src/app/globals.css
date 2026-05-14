@@ -1,15 +1,82 @@
 @import "tailwindcss";
 
+/* ============================================================
+   LunaPic — design system tokens (refresh v1)
+   Mobile-first, glassmorphism dark, čitljiva tipografija.
+   ============================================================ */
+
 :root {
-  --background: #000000;
-  --foreground: #e4e4e7;
-  --mt-accent-blue: #3b82f6;
-  --mt-accent-yellow: #eab308;
-  --mt-surface: #18181b;
-  /* Suptilne plave / žute zrake — niska zasićenost */
-  --mt-glow-a: rgba(59, 130, 246, 0.06);
-  --mt-glow-b: rgba(234, 179, 8, 0.04);
-  --mt-glow-c: rgba(113, 113, 122, 0.05);
+  /* — Pozadinske plohe ——————————————————————— */
+  --bg-0: #050714;          /* dno svemira */
+  --bg-1: #0a0e1f;          /* osnovna ploha */
+  --bg-2: #111531;          /* uzdignuta ploha */
+
+  /* legacy tokeni (čuvani radi kompatibilnosti) */
+  --background: #06060d;
+  --foreground: #f4f5fb;
+  --mt-accent-blue: #60a5fa;
+  --mt-accent-yellow: #fbbf24;
+  --mt-surface: #161a32;
+  --mt-glow-a: rgba(96, 165, 250, 0.07);
+  --mt-glow-b: rgba(251, 191, 36, 0.05);
+  --mt-glow-c: rgba(167, 139, 250, 0.06);
+
+  /* — Glass slojevi ——————————————————————— */
+  --glass-1: rgba(22, 26, 50, 0.55);
+  --glass-2: rgba(28, 32, 60, 0.72);
+  --glass-3: rgba(38, 42, 78, 0.85);
+  --glass-stroke: rgba(255, 255, 255, 0.08);
+  --glass-stroke-strong: rgba(255, 255, 255, 0.14);
+  --glass-highlight: rgba(255, 255, 255, 0.06);
+
+  /* — Tekst (jasna kontrastna skala) ———————————————— */
+  --t-primary: #f4f5fb;     /* naslovi i brojevi */
+  --t-secondary: #c4c7d6;   /* glavni body — značajno čitljiviji od starog zinc-500 */
+  --t-tertiary: #8b90a8;    /* metadata / pomoćni */
+  --t-disabled: #545872;
+
+  /* — Akcentne boje (semantika) ————————————————— */
+  --moon: #fbbf24;          /* mjesec / yellow ray */
+  --moon-soft: rgba(251, 191, 36, 0.16);
+  --moon-line: rgba(251, 191, 36, 0.32);
+  --sky: #60a5fa;           /* observer / pravac / vrijeme */
+  --sky-soft: rgba(96, 165, 250, 0.14);
+  --sky-line: rgba(96, 165, 250, 0.30);
+  --aurora: #a78bfa;        /* atmosfera / zona */
+  --aurora-soft: rgba(167, 139, 250, 0.14);
+  --mint: #34d399;          /* aktivno / spreman / live */
+  --mint-soft: rgba(52, 211, 153, 0.16);
+  --mint-line: rgba(52, 211, 153, 0.30);
+  --rose: #fb7185;          /* upozorenje / nedostupno */
+  --rose-soft: rgba(251, 113, 133, 0.16);
+
+  /* — Tipografska skala (mobile-first) ————————————— */
+  --fs-display: clamp(28px, 4vw, 36px);
+  --fs-h1: clamp(20px, 2.4vw, 24px);
+  --fs-h2: 17px;
+  --fs-body: 15.5px;
+  --fs-body-strong: 16px;
+  --fs-meta: 13px;
+  --fs-label: 12px;
+
+  /* — Razmaci (8pt grid) ——————————————————— */
+  --s-1: 4px;  --s-2: 8px;   --s-3: 12px;  --s-4: 16px;
+  --s-5: 20px; --s-6: 24px;  --s-7: 32px;  --s-8: 48px;
+
+  /* — Radius / sjenke ——————————————————————— */
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 18px;
+  --r-xl: 24px;
+  --r-pill: 999px;
+
+  --shadow-1: 0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 24px -8px rgba(0,0,0,0.55);
+  --shadow-2: 0 1px 0 rgba(255,255,255,0.06) inset, 0 18px 48px -12px rgba(0,0,0,0.7);
+  --shadow-glow-moon: 0 0 32px -8px rgba(251, 191, 36, 0.35);
+
+  /* — Touch targeti ——————————————————————— */
+  --target-min: 48px;
+  --target-comfort: 56px;
 }
 
 @theme inline {
@@ -21,8 +88,7 @@
 
 html {
   color-scheme: dark;
-  /* Preglednici inače ostave svijetlu „canvas” podlogu (npr. izvan body / pri overscrollu). */
-  background-color: #000000;
+  background-color: var(--bg-0);
 }
 
 html,
@@ -31,21 +97,29 @@ body {
 }
 
 body {
-  /* Osnova ispod gradijenta u `.mt-app-bg` ako preflight kasnije dira `background`. */
-  background-color: #000000;
+  background-color: var(--bg-0);
+  /* Mobile-first: 17px na uskim ekranima (lakše čitanje), 16px iznad. */
+  font-size: 17px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Crna + siva podloga, blaga plava/žuta atmosfera, diskretna mreža */
+@media (min-width: 768px) {
+  body { font-size: 16px; }
+}
+
+/* — Pozadina aplikacije s aurora svjetlima — */
 .mt-app-bg {
   position: relative;
-  background-color: #000000;
+  background-color: var(--bg-0);
   background-image:
-    radial-gradient(ellipse 100% 90% at 50% -25%, var(--mt-glow-a), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 100% 30%, var(--mt-glow-b), transparent 50%),
-    radial-gradient(ellipse 55% 45% at 0% 85%, var(--mt-glow-c), transparent 50%),
-    linear-gradient(180deg, #0a0a0b 0%, #000000 40%, #000000 100%),
-    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.03) 1px, transparent 0);
-  background-size: auto, auto, auto, auto, 16px 16px;
+    radial-gradient(ellipse 90% 60% at 30% -10%, var(--aurora-soft), transparent 55%),
+    radial-gradient(ellipse 75% 50% at 110% 20%, var(--sky-soft), transparent 50%),
+    radial-gradient(ellipse 60% 40% at -10% 90%, var(--moon-soft), transparent 55%),
+    linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 60%, var(--bg-0) 100%),
+    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.025) 1px, transparent 0);
+  background-size: auto, auto, auto, auto, auto, 18px 18px;
 }
 
 .mt-app-bg-main {
@@ -56,19 +130,17 @@ body {
 
 @supports (backdrop-filter: blur(1px)) {
   .mt-glass-elevated {
-    background: linear-gradient(
-      165deg,
-      rgba(24, 24, 27, 0.88) 0%,
-      rgba(9, 9, 11, 0.94) 100%
-    );
-    backdrop-filter: blur(18px) saturate(1.1);
-    box-shadow:
-      0 1px 0 0 rgba(255, 255, 255, 0.04) inset,
-      0 12px 40px -8px rgba(0, 0, 0, 0.5);
+    background: var(--glass-2);
+    backdrop-filter: blur(28px) saturate(1.5);
+    -webkit-backdrop-filter: blur(28px) saturate(1.5);
+    border: 1px solid var(--glass-stroke);
+    box-shadow: var(--shadow-2);
   }
 }
 
 @layer components {
+
+  /* — Brand "LunaPic" gradient — */
   .mt-title {
     font-family: var(--font-outfit), var(--font-geist-sans), system-ui, sans-serif;
     @apply font-semibold tracking-tight text-balance;
@@ -84,23 +156,51 @@ body {
   }
 
   .mt-subtitle {
-    @apply text-pretty text-zinc-500;
+    @apply text-pretty;
+    color: var(--t-tertiary);
+    font-size: var(--fs-meta);
   }
 
+  /* — Top status traka (desktop) i bočne trake — */
   .mt-chrome-bar {
-    @apply border-b border-zinc-800 bg-zinc-950/80 shadow-[0_1px_0_0_rgba(255,255,255,0.03)] backdrop-blur-2xl;
+    border-bottom: 1px solid var(--glass-stroke);
+    background: rgba(10, 14, 31, 0.78);
+    box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(24px) saturate(1.4);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
   }
 
   .mt-side-rail {
-    @apply border-zinc-800 bg-zinc-950/70 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.03)] backdrop-blur-2xl;
+    border-color: var(--glass-stroke);
+    background: rgba(10, 14, 31, 0.55);
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(24px) saturate(1.4);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
   }
 
+  /* — Floating toolbar gumbi — */
   .mt-toolbar-btn {
-    @apply flex h-9 shrink-0 items-center justify-center rounded-md border border-zinc-700/80 bg-zinc-900/60 text-zinc-200 shadow-sm backdrop-blur-sm transition duration-200 will-change-transform;
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    height: 2.5rem;             /* 40px — bilo 36px */
+    min-width: 2.5rem;
+    border-radius: 14px;
+    border: 1px solid var(--glass-stroke);
+    background: var(--glass-1);
+    color: var(--t-primary);
+    box-shadow: var(--shadow-1);
+    backdrop-filter: blur(14px) saturate(1.3);
+    -webkit-backdrop-filter: blur(14px) saturate(1.3);
+    transition: transform 200ms, border-color 200ms, background 200ms, box-shadow 200ms;
+    will-change: transform;
   }
 
   .mt-toolbar-btn:hover {
-    @apply border-zinc-600 bg-zinc-800/70 shadow-md;
+    border-color: var(--glass-stroke-strong);
+    background: var(--glass-2);
+    box-shadow: var(--shadow-2);
   }
 
   .mt-toolbar-btn:active:not(:disabled) {
@@ -114,7 +214,9 @@ body {
   }
 
   .mt-toolbar-btn:focus-visible {
-    @apply z-10 outline-none ring-2 ring-blue-500/40 ring-offset-2 ring-offset-zinc-950;
+    @apply z-10 outline-none ring-2 ring-offset-2;
+    --tw-ring-color: rgba(52, 211, 153, 0.5);
+    --tw-ring-offset-color: var(--bg-0);
   }
 
   .mt-toolbar-btn:disabled {
@@ -122,32 +224,110 @@ body {
   }
 
   .mt-toolbar-btn-primary {
-    @apply border-blue-500/40 bg-blue-500/10 text-yellow-400 shadow-blue-950/20;
+    border-color: rgba(52, 211, 153, 0.35);
+    color: var(--mint);
   }
 
   .mt-toolbar-btn-primary:hover {
-    @apply border-blue-400/55 bg-blue-500/18 shadow-lg;
+    border-color: rgba(52, 211, 153, 0.55);
+    background: rgba(52, 211, 153, 0.10);
   }
 
+  /* — Section labela (UPPERCASE) — bila 0.63rem (10px), sad 12px — */
   .mt-section-label {
-    font-family: var(--font-jetbrains-mono), var(--font-geist-mono), ui-monospace, monospace;
-    @apply text-xs font-semibold uppercase tracking-[0.18em] text-zinc-50;
+    font-family: var(--font-outfit), var(--font-geist-sans), system-ui, sans-serif;
+    font-size: var(--fs-label);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--t-secondary);
   }
 
   .mt-section-label-emerald {
-    font-family: var(--font-jetbrains-mono), var(--font-geist-mono), ui-monospace, monospace;
-    @apply text-xs font-semibold uppercase tracking-[0.18em] text-zinc-50;
+    font-family: var(--font-outfit), var(--font-geist-sans), system-ui, sans-serif;
+    font-size: var(--fs-label);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--mint);
   }
 
+  /* — Naslovi panela / sheet headera (17px, Outfit) — */
+  .mt-panel-title {
+    font-family: var(--font-outfit), var(--font-geist-sans), system-ui, sans-serif;
+    font-size: var(--fs-h2);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--t-primary);
+  }
+
+  /* — Body text u panelima (15.5px) — */
+  .mt-panel-body {
+    font-size: var(--fs-body);
+    line-height: 1.55;
+    color: var(--t-secondary);
+  }
+
+  .mt-meta {
+    font-size: var(--fs-meta);
+    color: var(--t-tertiary);
+  }
+
+  /* — Brojčani / data tekst (monospace, jasan, 16px) — */
+  .mt-data {
+    font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+    font-size: var(--fs-body-strong);
+    font-weight: 600;
+    color: var(--t-primary);
+    letter-spacing: 0.01em;
+  }
+
+  .mt-data-moon  { color: var(--moon); }
+  .mt-data-sky   { color: var(--sky); }
+  .mt-data-mint  { color: var(--mint); }
+  .mt-data-rose  { color: var(--rose); }
+
+  /* — Native select polja u bočnoj traci / mobile decku — */
   .mt-app-root aside select,
   .mt-app-root [data-testid="mobile-deck-content"] select {
-    @apply rounded-md border border-zinc-700 bg-zinc-900/80 py-1.5 pl-2 pr-2 text-sm text-zinc-200 shadow-inner backdrop-blur-sm transition;
+    border-radius: 12px;
+    border: 1px solid var(--glass-stroke);
+    background: var(--glass-1);
+    padding: 8px 10px;
+    font-size: var(--fs-body);
+    color: var(--t-primary);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset;
+    backdrop-filter: blur(8px);
+    transition: border-color 150ms, background 150ms;
   }
 
   .mt-app-root aside select:focus,
   .mt-app-root [data-testid="mobile-deck-content"] select:focus {
-    @apply border-blue-500/40 outline-none ring-2 ring-blue-500/20;
+    outline: none;
+    border-color: rgba(52, 211, 153, 0.4);
+    box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.18);
   }
+}
+
+/* — Mobile sheet panel kartice — sada s blagom glass podlogom — */
+.mt-panel-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  padding: 14px;
+  border: 1px solid var(--glass-stroke);
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(8px);
+}
+
+.mt-panel-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 12px;
+  right: 12px;
+  height: 1px;
+  border-radius: 1px;
 }
 
 @keyframes golden-ui-flash {
@@ -155,7 +335,7 @@ body {
     background-color: transparent;
   }
   45% {
-    background-color: rgba(234, 179, 8, 0.12);
+    background-color: rgba(251, 191, 36, 0.14);
   }
   100% {
     background-color: transparent;
@@ -230,7 +410,7 @@ body {
 .mt-map-loading {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(145deg, #000000 0%, #18181b 50%, #27272a 100%);
+  background: linear-gradient(145deg, var(--bg-0) 0%, var(--bg-1) 50%, var(--bg-2) 100%);
 }
 
 .mt-map-loading::after {
@@ -240,8 +420,8 @@ body {
   background: linear-gradient(
     120deg,
     transparent 0%,
-    rgba(59, 130, 246, 0.05) 45%,
-    rgba(234, 179, 8, 0.04) 55%,
+    rgba(96, 165, 250, 0.06) 45%,
+    rgba(251, 191, 36, 0.05) 55%,
     transparent 100%
   );
   background-size: 200% 200%;
@@ -260,5 +440,25 @@ body {
   }
   100% {
     background-position: 200% 50%;
+  }
+}
+
+/* ============================================================
+   Mapbox NavigationControl — mobile prilagodba pozicije.
+   Desktop: `bottom-right` (default kako je dodano u useMoonTransitMap).
+   Mobile: bottom-right kut sukobljava s TimeRibbon-om, FlightAltitudeLegend-om
+   i mobilnim dockom — pa premjestimo cijeli `.mapboxgl-ctrl-bottom-right` kontejner
+   ispod focus-on-me dugmeta (stack desno gore: 2 × h-11 + gap-2 + safe-area-top).
+   ============================================================ */
+@media (max-width: 767px) {
+  .mapboxgl-ctrl-bottom-right {
+    bottom: auto;
+    right: 0.5rem;
+    /* max(0.5rem, safe-area) je top inseta gornjeg flex-rowa s dugmetima;
+       + 6rem (visina stack-a: 2 × h-11 = 5.5rem + gap-2 = 0.5rem) + 0.5rem zraka. */
+    top: calc(max(0.5rem, env(safe-area-inset-top, 0px)) + 6.5rem);
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
   }
 }

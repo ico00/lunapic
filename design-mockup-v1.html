@@ -1,0 +1,1390 @@
+<!doctype html>
+<html lang="hr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>LunaPic — Design refresh prijedlog v1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     NOVI DIZAJN-SYSTEM TOKENI (prijedlog v1)
+     ============================================================ */
+  :root {
+    /* Pozadinske plohe */
+    --bg-0: #050714;        /* dno svemira */
+    --bg-1: #0a0e1f;        /* osnovna ploha */
+    --bg-2: #111531;        /* uzdignuta ploha */
+
+    /* Glass površine (poluprozirne, idu preko bg-a + backdrop-filter) */
+    --glass-1: rgba(22, 26, 50, 0.55);
+    --glass-2: rgba(28, 32, 60, 0.72);
+    --glass-3: rgba(38, 42, 78, 0.85);
+    --glass-stroke: rgba(255, 255, 255, 0.08);
+    --glass-stroke-strong: rgba(255, 255, 255, 0.14);
+    --glass-highlight: rgba(255, 255, 255, 0.06);
+
+    /* Tekst (jasna kontrastna skala — minimum 14px na mobitelu) */
+    --t-primary: #f4f5fb;     /* Bijela-bijela za naslove i brojeve */
+    --t-secondary: #c4c7d6;   /* Glavni body — bilo je #71717a (zinc-500), preslabo */
+    --t-tertiary: #8b90a8;    /* Pomoćni / metadata — bilo je 0.7rem zinc-500 */
+    --t-disabled: #545872;
+
+    /* Akcenti (lunar narrative) */
+    --moon: #fbbf24;          /* Mjesec / yellow ray — zlatno toplo */
+    --moon-soft: rgba(251, 191, 36, 0.16);
+    --sky: #60a5fa;           /* Plave linije, vrijeme, observer */
+    --sky-soft: rgba(96, 165, 250, 0.14);
+    --aurora: #a78bfa;        /* Atmosfera, zona */
+    --mint: #34d399;          /* Live/aktivno/spreman */
+    --mint-soft: rgba(52, 211, 153, 0.16);
+    --rose: #fb7185;          /* Upozorenje, nedostupno */
+
+    /* Tipografska skala — fluid clamp (mobile-first) */
+    --fs-display: clamp(28px, 4vw, 36px);   /* App brand */
+    --fs-h1: clamp(20px, 2.4vw, 24px);      /* Section title */
+    --fs-h2: 17px;                          /* Card title */
+    --fs-body: 15.5px;                      /* Standard tekst (bilo 12px text-xs!) */
+    --fs-body-strong: 16px;                 /* Brojevi / data */
+    --fs-meta: 13px;                        /* Pomoćni (bilo 11.2px) */
+    --fs-label: 12.5px;                     /* UPPERCASE labela (bilo 10.1px!) */
+
+    /* Razmaci (8pt grid) */
+    --s-1: 4px;  --s-2: 8px;  --s-3: 12px;  --s-4: 16px;
+    --s-5: 20px; --s-6: 24px; --s-7: 32px;  --s-8: 48px;
+
+    /* Radius / sjenke */
+    --r-sm: 10px;
+    --r-md: 14px;
+    --r-lg: 18px;
+    --r-xl: 24px;
+    --r-pill: 999px;
+
+    --shadow-1: 0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 24px -8px rgba(0,0,0,0.55);
+    --shadow-2: 0 1px 0 rgba(255,255,255,0.06) inset, 0 18px 48px -12px rgba(0,0,0,0.7);
+    --shadow-glow-moon: 0 0 32px -8px rgba(251, 191, 36, 0.35);
+
+    /* Touch targeti — minimum 44, preferirano 48–56 */
+    --target-min: 48px;
+    --target-comfort: 56px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: var(--bg-0);
+    color: var(--t-primary);
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Stranica oko mockupa — sama nije dio dizajna, samo "studio" */
+  .studio {
+    min-height: 100dvh;
+    padding: 32px clamp(16px, 4vw, 64px);
+    background:
+      radial-gradient(ellipse 80% 60% at 80% 0%, rgba(96, 165, 250, 0.06), transparent 60%),
+      radial-gradient(ellipse 80% 60% at 20% 100%, rgba(251, 191, 36, 0.04), transparent 60%),
+      var(--bg-0);
+  }
+
+  .studio-header {
+    max-width: 1280px;
+    margin: 0 auto 32px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: end;
+    justify-content: space-between;
+  }
+  .studio-header h1 {
+    font-family: "Outfit", "Inter", sans-serif;
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0 0 4px;
+    background: linear-gradient(120deg, #fafafa 0%, #93c5fd 45%, #fde047 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .studio-header p {
+    color: var(--t-tertiary);
+    margin: 0;
+    font-size: 14px;
+    max-width: 520px;
+  }
+  .studio-header .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: var(--r-pill);
+    background: var(--mint-soft);
+    color: var(--mint);
+    border: 1px solid rgba(52, 211, 153, 0.3);
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .studio-header .badge::before {
+    content: "";
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--mint);
+    box-shadow: 0 0 8px var(--mint);
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(280px, 360px) minmax(280px, 360px) minmax(280px, 1fr);
+    gap: 32px;
+    max-width: 1280px;
+    margin: 0 auto;
+    align-items: start;
+  }
+  @media (max-width: 1100px) {
+    .layout { grid-template-columns: 1fr 1fr; }
+    .layout .specs { grid-column: span 2; }
+  }
+  @media (max-width: 720px) {
+    .layout { grid-template-columns: 1fr; }
+    .layout .specs { grid-column: 1; }
+  }
+
+  .frame-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .frame-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--t-tertiary);
+    font-weight: 500;
+  }
+  .frame-label .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .frame-label .dot.before { background: #6b7280; }
+  .frame-label .dot.after { background: var(--mint); box-shadow: 0 0 8px var(--mint); }
+  .frame-label strong { color: var(--t-primary); font-weight: 600; }
+
+  /* Telefonski okvir */
+  .phone {
+    aspect-ratio: 9 / 19.5;
+    width: 100%;
+    max-width: 360px;
+    border-radius: 38px;
+    padding: 12px;
+    background: linear-gradient(180deg, #1a1a1f, #0a0a0f);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.03),
+      0 30px 60px -20px rgba(0,0,0,0.6),
+      0 12px 30px -10px rgba(0,0,0,0.4);
+    position: relative;
+    overflow: hidden;
+  }
+  .phone::after {
+    content: "";
+    position: absolute;
+    top: 18px; left: 50%;
+    transform: translateX(-50%);
+    width: 80px; height: 22px;
+    border-radius: var(--r-pill);
+    background: #000;
+    z-index: 50;
+  }
+  .screen {
+    width: 100%; height: 100%;
+    border-radius: 28px;
+    overflow: hidden;
+    position: relative;
+    isolation: isolate;
+  }
+
+  /* ============================================================
+     PRIJE — pojednostavljena reprodukcija trenutnog stanja
+     ============================================================ */
+  .before .screen {
+    background:
+      radial-gradient(ellipse 100% 90% at 50% -25%, rgba(59, 130, 246, 0.06), transparent 55%),
+      radial-gradient(ellipse 70% 50% at 100% 30%, rgba(234, 179, 8, 0.04), transparent 50%),
+      linear-gradient(180deg, #0a0a12 0%, #06060d 40%, #06060d 100%);
+    color: #e4e4e7;
+    font-family: "Inter", system-ui, sans-serif;
+  }
+  .before .header-pill {
+    position: absolute; top: 12px; left: 10px;
+    background: rgba(9, 9, 11, 0.88);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 16px;
+    padding: 6px 10px;
+    display: flex; align-items: center; gap: 8px;
+    backdrop-filter: blur(16px);
+    box-shadow: 0 8px 24px -8px rgba(0,0,0,0.5);
+  }
+  .before .header-pill .logo {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #93c5fd, #fde047);
+    box-shadow: 0 0 12px rgba(253, 224, 71, 0.4);
+  }
+  .before .header-pill .word {
+    font-family: "Outfit"; font-weight: 600; font-size: 18px;
+    letter-spacing: -0.02em;
+    background: linear-gradient(120deg, #fafafa, #93c5fd 45%, #fde047);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .before .map-area {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 60% 35%, rgba(96, 165, 250, 0.12), transparent 40%),
+      linear-gradient(145deg, #0d1018 0%, #18181b 100%);
+  }
+  .before .map-area::before {
+    content: ""; position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  .before .moon-arc {
+    position: absolute; top: 24%; left: 5%; width: 90%; height: 50%;
+    border-radius: 50%;
+    border: 1px dashed rgba(234, 179, 8, 0.45);
+    border-bottom: none;
+  }
+  .before .moon-dot {
+    position: absolute; top: 35%; right: 22%;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #eab308;
+    box-shadow: 0 0 10px #eab308;
+  }
+
+  .before .toolbar-row {
+    position: absolute; top: 64px; right: 8px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .before .toolbar-row button {
+    width: 36px; height: 36px;
+    border-radius: 12px;
+    background: rgba(24, 24, 27, 0.6);
+    border: 1px solid rgba(255,255,255,0.09);
+    color: #e4e4e7;
+    backdrop-filter: blur(8px);
+    font-size: 14px;
+  }
+  .before .weather-chip {
+    position: absolute; top: 14px; right: 14px;
+    background: rgba(24, 24, 27, 0.6);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 10px;
+    padding: 4px 6px;
+    font-size: 10px;
+    color: #a1a1aa;
+    display: flex; gap: 4px; align-items: center;
+  }
+
+  .before .panel {
+    position: absolute; left: 0; right: 0; bottom: 60px;
+    background: rgba(9, 9, 11, 0.98);
+    border-top: 1px solid rgba(255,255,255,0.07);
+    border-radius: 16px 16px 0 0;
+    padding: 10px 12px 12px;
+    backdrop-filter: blur(20px);
+  }
+  .before .panel-handle {
+    width: 32px; height: 3px; border-radius: 2px;
+    background: rgba(113, 113, 122, 0.7);
+    margin: 0 auto 8px;
+  }
+  .before .panel-title {
+    font-size: 13px; font-weight: 600; color: #f4f4f5;
+    letter-spacing: -0.2px;
+    margin: 0 0 6px;
+  }
+  .before .panel-card {
+    border: 1px solid rgba(234, 179, 8, 0.18);
+    background: rgba(234, 179, 8, 0.04);
+    border-radius: 14px;
+    padding: 8px 10px;
+    margin-top: 6px;
+  }
+  .before .section-label {
+    font-size: 10px; color: rgba(234, 179, 8, 0.75);
+    font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.14em;
+    border-bottom: 1px solid rgba(234, 179, 8, 0.12);
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+  }
+  .before .panel-card p {
+    font-size: 11px; color: #a1a1aa;
+    line-height: 1.35;
+    margin: 0;
+  }
+  .before .row {
+    margin-top: 6px;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 7px 9px;
+    background: rgba(255,255,255,0.03);
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .before .row .top {
+    display: flex; justify-content: space-between;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+  }
+  .before .row .top .id { color: rgba(252, 211, 77, 0.9); }
+  .before .row .top .delta { color: rgba(96, 165, 250, 0.85); }
+  .before .row .meta {
+    font-size: 10.5px;
+    color: rgba(212, 212, 216, 0.85);
+    line-height: 1.3;
+  }
+
+  .before .tabs {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    background: rgba(9, 9, 11, 0.96);
+    border-top: 1px solid rgba(255,255,255,0.07);
+    padding: 6px 8px calc(10px + 4px);
+    display: flex; gap: 6px;
+    overflow-x: auto;
+    backdrop-filter: blur(20px);
+  }
+  .before .tabs::-webkit-scrollbar { display: none; }
+  .before .tab {
+    flex: 0 0 auto; min-width: calc((100% - 40px)/5);
+    padding: 8px 6px;
+    border-radius: 10px;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    color: #71717a;
+    font-size: 11px; font-weight: 600;
+    background: transparent;
+    border: none;
+  }
+  .before .tab.active {
+    background: rgba(24, 24, 27, 0.9);
+    color: #fafafa;
+    outline: 1px solid rgba(52, 211, 153, 0.4);
+    outline-offset: -1px;
+  }
+  .before .tab svg { width: 18px; height: 18px; }
+
+  /* ============================================================
+     POSLIJE — predloženi novi dizajn
+     ============================================================ */
+  .after .screen {
+    background:
+      radial-gradient(ellipse 90% 60% at 30% -10%, rgba(167, 139, 250, 0.18), transparent 55%),
+      radial-gradient(ellipse 75% 50% at 110% 20%, rgba(96, 165, 250, 0.14), transparent 50%),
+      radial-gradient(ellipse 60% 40% at -10% 90%, rgba(251, 191, 36, 0.10), transparent 55%),
+      linear-gradient(180deg, #0a0e1f 0%, #050714 100%);
+    color: var(--t-primary);
+    font-family: "Inter", system-ui, sans-serif;
+  }
+
+  /* Subtle starfield + grid u "mapi" */
+  .after .map-area {
+    position: absolute; inset: 0;
+    background-image:
+      radial-gradient(circle at 17% 22%, rgba(255,255,255,0.5) 0.6px, transparent 1.2px),
+      radial-gradient(circle at 83% 14%, rgba(255,255,255,0.35) 0.6px, transparent 1.2px),
+      radial-gradient(circle at 42% 58%, rgba(255,255,255,0.4) 0.6px, transparent 1.2px),
+      radial-gradient(circle at 65% 70%, rgba(255,255,255,0.3) 0.6px, transparent 1.2px),
+      radial-gradient(circle at 25% 45%, rgba(255,255,255,0.25) 0.5px, transparent 1px),
+      linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+    background-size: auto, auto, auto, auto, auto, 28px 28px, 28px 28px;
+  }
+  .after .moon-arc {
+    position: absolute; top: 18%; left: -10%; width: 120%; height: 60%;
+    border-radius: 50%;
+    border: 1.5px dashed rgba(251, 191, 36, 0.55);
+    border-bottom: none;
+    filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.2));
+  }
+  .after .moon-glyph {
+    position: absolute; top: 22%; right: 18%;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fff8d6 0%, #fbbf24 60%, #d97706 100%);
+    box-shadow: var(--shadow-glow-moon);
+  }
+  .after .plane-glyph {
+    position: absolute; top: 48%; left: 38%;
+    color: var(--mint);
+    font-size: 22px;
+    transform: rotate(-25deg);
+    filter: drop-shadow(0 0 8px rgba(52, 211, 153, 0.5));
+  }
+  .after .corridor {
+    position: absolute; top: 30%; left: 25%;
+    width: 50%; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--moon), transparent);
+    transform: rotate(-12deg);
+    transform-origin: 0 50%;
+    opacity: 0.6;
+    filter: blur(0.4px);
+  }
+
+  /* Glass utility */
+  .after .glass {
+    background: var(--glass-1);
+    border: 1px solid var(--glass-stroke);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    box-shadow: var(--shadow-1);
+  }
+  .after .glass-strong {
+    background: var(--glass-2);
+    border: 1px solid var(--glass-stroke-strong);
+    backdrop-filter: blur(28px) saturate(1.5);
+    -webkit-backdrop-filter: blur(28px) saturate(1.5);
+    box-shadow: var(--shadow-2);
+  }
+
+  /* Top brand pill */
+  .after .brand {
+    position: absolute; top: 50px; left: 14px;
+    height: 52px;
+    padding: 0 16px 0 10px;
+    display: inline-flex; align-items: center; gap: 12px;
+    border-radius: var(--r-pill);
+    z-index: 10;
+  }
+  .after .brand .logo {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fff 0%, #93c5fd 50%, #fbbf24 100%);
+    box-shadow: 0 0 16px rgba(96, 165, 250, 0.5), inset 0 0 0 1px rgba(255,255,255,0.3);
+  }
+  .after .brand .word {
+    font-family: "Outfit", sans-serif;
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: -0.01em;
+    background: linear-gradient(120deg, #fafafa 0%, #93c5fd 45%, #fde047 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Weather chip — gore desno */
+  .after .weather {
+    position: absolute; top: 50px; right: 14px;
+    height: 52px; min-width: 96px;
+    border-radius: var(--r-lg);
+    padding: 6px 12px;
+    display: flex; flex-direction: column; justify-content: center;
+    z-index: 10;
+  }
+  .after .weather .row1 {
+    display: flex; align-items: center; gap: 6px;
+    color: var(--t-primary);
+    font-size: 14px; font-weight: 600;
+  }
+  .after .weather .row2 {
+    color: var(--t-tertiary);
+    font-size: 11.5px; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+
+  /* Floating action stack — desno ispod weather-a */
+  .after .actions {
+    position: absolute; right: 14px; top: 116px;
+    display: flex; flex-direction: column; gap: 10px;
+    z-index: 10;
+  }
+  .after .action {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--t-primary);
+    cursor: pointer;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+  }
+  .after .action.primary {
+    border-color: rgba(52, 211, 153, 0.45);
+    color: var(--mint);
+  }
+  .after .action.warm {
+    color: var(--moon);
+    border-color: rgba(251, 191, 36, 0.4);
+  }
+  .after .action svg { width: 22px; height: 22px; stroke-width: 1.8; }
+  .after .action:hover { transform: scale(1.06); }
+  .after .action:active { transform: scale(0.94); }
+
+  /* Bottom sheet (peek/half/full) */
+  .after .sheet {
+    position: absolute;
+    left: 8px; right: 8px;
+    bottom: calc(80px + 8px);
+    border-radius: 24px;
+    padding: 8px 4px 4px;
+    overflow: hidden;
+    z-index: 20;
+    transition: max-height 0.32s cubic-bezier(0.2, 0.9, 0.2, 1.06);
+  }
+  .after .sheet[data-snap="peek"] { max-height: 220px; }
+  .after .sheet[data-snap="half"] { max-height: 380px; }
+  .after .sheet[data-snap="full"] { max-height: 540px; }
+
+  .after .sheet-handle-zone {
+    height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .after .sheet-handle {
+    width: 44px; height: 5px; border-radius: 3px;
+    background: rgba(255,255,255,0.22);
+    transition: background 0.15s;
+  }
+  .after .sheet-handle-zone:hover .sheet-handle { background: rgba(255,255,255,0.4); }
+
+  .after .sheet-head {
+    padding: 0 16px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .after .sheet-title {
+    font-family: "Outfit", sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--t-primary);
+    margin: 0;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .after .sheet-title .accent-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--moon);
+    box-shadow: 0 0 10px var(--moon);
+  }
+  .after .sheet-close {
+    height: 36px; padding: 0 14px;
+    border-radius: var(--r-pill);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--glass-stroke);
+    color: var(--t-secondary);
+    font-size: 13px; font-weight: 600;
+  }
+  .after .sheet-body {
+    padding: 0 12px 12px;
+    overflow-y: auto;
+    max-height: calc(100% - 44px);
+  }
+
+  /* Sheet sadržaj — kartice */
+  .after .panel-card {
+    border-radius: var(--r-lg);
+    padding: 14px;
+    margin-bottom: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--glass-stroke);
+    position: relative;
+    overflow: hidden;
+  }
+  .after .panel-card::before {
+    content: "";
+    position: absolute; top: 0; left: 12px; right: 12px;
+    height: 1px;
+    background: linear-gradient(90deg, var(--moon) 0%, rgba(251,191,36,0.3) 60%, transparent);
+  }
+  .after .panel-card.sky::before {
+    background: linear-gradient(90deg, var(--sky) 0%, rgba(96,165,250,0.3) 60%, transparent);
+  }
+  .after .panel-card.mint::before {
+    background: linear-gradient(90deg, var(--mint) 0%, rgba(52,211,153,0.3) 60%, transparent);
+  }
+
+  .after .label {
+    font-family: "Outfit", sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--moon);
+    margin: 0 0 6px;
+  }
+  .after .panel-card.sky .label { color: var(--sky); }
+  .after .panel-card.mint .label { color: var(--mint); }
+
+  .after .desc {
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--t-secondary);
+    margin: 0 0 10px;
+  }
+
+  .after .transit-row {
+    width: 100%;
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 12px;
+    border-radius: var(--r-md);
+    background: rgba(251, 191, 36, 0.08);
+    border: 1px solid rgba(251, 191, 36, 0.25);
+    color: var(--t-primary);
+    text-align: left;
+    cursor: pointer;
+    margin-top: 8px;
+    min-height: 56px;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  }
+  .after .transit-row:hover {
+    background: rgba(251, 191, 36, 0.12);
+    border-color: rgba(251, 191, 36, 0.4);
+  }
+  .after .transit-row:active { transform: scale(0.98); }
+
+  .after .transit-row .top {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 8px;
+  }
+  .after .transit-row .callsign {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--moon);
+    letter-spacing: 0.02em;
+  }
+  .after .transit-row .delta {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--sky);
+  }
+  .after .transit-row .nudge {
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: var(--t-secondary);
+    margin: 0;
+  }
+
+  /* Moon ephemeris primjer (kad je tab "moon" odabran) */
+  .after .ephemeris-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 8px;
+  }
+  .after .ephemeris-tile {
+    padding: 12px;
+    border-radius: var(--r-md);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--glass-stroke);
+  }
+  .after .ephemeris-tile .k {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--t-tertiary);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .after .ephemeris-tile .v {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 19px;
+    font-weight: 600;
+    color: var(--t-primary);
+    margin-top: 4px;
+  }
+  .after .ephemeris-tile .v small {
+    font-size: 13px;
+    color: var(--t-tertiary);
+    font-weight: 500;
+  }
+
+  /* Photo Tools primjer */
+  .after .photo-cta {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px;
+    border-radius: var(--r-md);
+    background: rgba(52, 211, 153, 0.08);
+    border: 1px solid rgba(52, 211, 153, 0.25);
+    margin-top: 8px;
+    min-height: 64px;
+  }
+  .after .photo-cta .icon {
+    width: 40px; height: 40px;
+    border-radius: 12px;
+    background: rgba(52, 211, 153, 0.18);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--mint);
+    flex-shrink: 0;
+  }
+  .after .photo-cta .icon svg { width: 22px; height: 22px; }
+  .after .photo-cta .body { flex: 1; min-width: 0; }
+  .after .photo-cta .body strong {
+    display: block;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--t-primary);
+  }
+  .after .photo-cta .body span {
+    display: block;
+    font-size: 12.5px;
+    color: var(--t-tertiary);
+    margin-top: 2px;
+  }
+  .after .photo-cta .switch {
+    width: 44px; height: 26px; border-radius: var(--r-pill);
+    background: var(--mint);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .after .photo-cta .switch::after {
+    content: "";
+    position: absolute; top: 3px; right: 3px;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  }
+
+  /* Bottom tab bar — POVEĆANI targeti */
+  .after .tabs {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    height: 80px;
+    padding: 8px 8px 16px;
+    background: rgba(5, 7, 20, 0.85);
+    border-top: 1px solid var(--glass-stroke);
+    backdrop-filter: blur(28px) saturate(1.4);
+    -webkit-backdrop-filter: blur(28px) saturate(1.4);
+    z-index: 30;
+    display: flex; gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .after .tabs::-webkit-scrollbar { display: none; }
+  .after .tab {
+    flex: 0 0 auto;
+    min-width: 64px;
+    height: 56px;
+    padding: 8px 6px;
+    border-radius: var(--r-md);
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--t-tertiary);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    position: relative;
+  }
+  .after .tab svg {
+    width: 22px; height: 22px;
+    stroke-width: 1.7;
+    transition: transform 0.18s;
+  }
+  .after .tab .lbl {
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+  .after .tab[aria-selected="true"] {
+    background: rgba(96, 165, 250, 0.12);
+    border-color: rgba(96, 165, 250, 0.32);
+    color: var(--t-primary);
+  }
+  .after .tab[aria-selected="true"] svg {
+    color: var(--sky);
+    transform: translateY(-1px);
+  }
+  .after .tab[aria-selected="true"]::after {
+    content: "";
+    position: absolute; bottom: 4px; left: 50%;
+    transform: translateX(-50%);
+    width: 16px; height: 3px;
+    border-radius: 2px;
+    background: var(--sky);
+    box-shadow: 0 0 8px var(--sky);
+  }
+  .after .tab:hover:not([aria-selected="true"]) {
+    background: rgba(255,255,255,0.04);
+    color: var(--t-secondary);
+  }
+
+  /* ============================================================
+     SPECS PANEL — desno
+     ============================================================ */
+  .specs {
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .specs h2 {
+    font-family: "Outfit", sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0 0 4px;
+    color: var(--t-primary);
+  }
+  .specs .card {
+    background: rgba(22, 26, 50, 0.4);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--r-lg);
+    padding: 16px;
+    backdrop-filter: blur(8px);
+  }
+  .specs .card h3 {
+    font-family: "Outfit", sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--t-tertiary);
+    margin: 0 0 12px;
+  }
+
+  .scale-row {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .scale-row:last-child { border-bottom: none; }
+  .scale-row .name { color: var(--t-secondary); font-size: 12.5px; font-weight: 500; }
+  .scale-row .demo { color: var(--t-primary); flex: 1; text-align: right; }
+  .scale-row .px { color: var(--t-tertiary); font-family: "JetBrains Mono", monospace; font-size: 11.5px; }
+
+  .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .swatch {
+    aspect-ratio: 1;
+    border-radius: var(--r-md);
+    border: 1px solid rgba(255,255,255,0.1);
+    display: flex; align-items: end;
+    padding: 8px;
+    color: rgba(0,0,0,0.7);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  .swatch.dark { color: rgba(255,255,255,0.85); }
+
+  .targets { display: flex; flex-direction: column; gap: 8px; }
+  .target-row {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 13px;
+    color: var(--t-secondary);
+  }
+  .target-row .box {
+    border: 1px dashed rgba(255,255,255,0.18);
+    border-radius: 10px;
+    color: var(--t-tertiary);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+  }
+  .target-row .label-text strong { color: var(--t-primary); font-weight: 600; }
+
+  .controls {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .controls button {
+    padding: 8px 14px;
+    border-radius: var(--r-pill);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--t-secondary);
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .controls button:hover {
+    background: rgba(255,255,255,0.08);
+    color: var(--t-primary);
+  }
+  .controls button[aria-pressed="true"] {
+    background: rgba(96, 165, 250, 0.18);
+    border-color: rgba(96, 165, 250, 0.4);
+    color: var(--sky);
+  }
+
+  .compare-note {
+    font-size: 12.5px;
+    color: var(--t-tertiary);
+    line-height: 1.5;
+  }
+  .compare-note strong { color: var(--t-secondary); font-weight: 600; }
+
+  /* Sr-only */
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0;
+    margin: -1px; overflow: hidden; clip: rect(0,0,0,0);
+    white-space: nowrap; border: 0;
+  }
+</style>
+</head>
+<body>
+<div class="studio">
+
+  <header class="studio-header">
+    <div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+        <span class="badge">Prijedlog v1</span>
+        <span style="font-size:12.5px;color:var(--t-tertiary);font-family:'JetBrains Mono',monospace;">design-mockup-v1.html</span>
+      </div>
+      <h1>LunaPic — vizualni refresh</h1>
+      <p>Mobile-first, glassmorphism dark, povećana tipografija (15.5–17px body), dodirne mete ≥48px. Lijevo: trenutni izgled. Desno: prijedlog. Klikaj tabove i toggle ispod da vidiš živo kako se ponaša.</p>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <!-- ============== PRIJE ============== -->
+    <div class="frame-wrap before">
+      <span class="frame-label"><span class="dot before"></span><strong>Prije</strong> — trenutni izgled</span>
+      <div class="phone">
+        <div class="screen">
+          <div class="map-area"></div>
+          <div class="moon-arc"></div>
+          <div class="moon-dot"></div>
+
+          <div class="header-pill">
+            <div class="logo"></div>
+            <span class="word">LunaPic</span>
+          </div>
+
+          <div class="weather-chip">
+            <span>☀</span><span>14°</span><span>· 12 km/h</span>
+          </div>
+
+          <div class="toolbar-row">
+            <button title="Sync" aria-label="Sync time">⟳</button>
+            <button title="Set location" aria-label="Set location">⌖</button>
+            <button title="Focus" aria-label="Focus">◎</button>
+          </div>
+
+          <section class="panel">
+            <div class="panel-handle"></div>
+            <h2 class="panel-title">Active transits</h2>
+            <div class="panel-card">
+              <div class="section-label">Active transits</div>
+              <p>Moon and aircraft azimuth (from altitude) within 0.5° — on the "yellow ray."</p>
+              <div class="row">
+                <div class="top">
+                  <span class="id">RYR4321</span>
+                  <span class="delta">Δ 0.18°</span>
+                </div>
+                <div class="meta">Right edge of frame · 22s · keep panning ¼° east</div>
+              </div>
+              <div class="row">
+                <div class="top">
+                  <span class="id">DLH8XK</span>
+                  <span class="delta">Δ 0.42°</span>
+                </div>
+                <div class="meta">Slightly above moon · 38s · raise camera 0.6°</div>
+              </div>
+            </div>
+          </section>
+
+          <nav class="tabs">
+            <button class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h20M12 2v20"/></svg>Flight</button>
+            <button class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Observer</button>
+            <button class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>Moon</button>
+            <button class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg>Tracks</button>
+            <button class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l18 18M3 21l18-18"/></svg>Active</button>
+            <button class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg>Time</button>
+            <button class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="13" rx="2"/><circle cx="12" cy="13" r="3"/></svg>Photo</button>
+          </nav>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============== POSLIJE ============== -->
+    <div class="frame-wrap after">
+      <span class="frame-label"><span class="dot after"></span><strong>Poslije</strong> — prijedlog (interaktivno)</span>
+      <div class="phone">
+        <div class="screen">
+          <h2 class="sr-only">LunaPic prijedlog redizajna — mobitel</h2>
+
+          <div class="map-area"></div>
+          <div class="moon-arc"></div>
+          <div class="corridor"></div>
+          <div class="moon-glyph"></div>
+          <div class="plane-glyph">✈︎</div>
+
+          <div class="brand glass-strong">
+            <div class="logo"></div>
+            <span class="word">LunaPic</span>
+          </div>
+
+          <div class="weather glass">
+            <div class="row1">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--moon);"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+              <span>14°<small style="font-weight:500;color:var(--t-tertiary);font-size:11.5px;margin-left:3px;">/ vedro</small></span>
+            </div>
+            <div class="row2">12 km/h · NW</div>
+          </div>
+
+          <div class="actions">
+            <button class="action glass primary" aria-label="Sync time">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3.5-7.1"/><path d="M21 4v5h-5"/></svg>
+            </button>
+            <button class="action glass warm" aria-label="Set my location">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s7-7.5 7-12a7 7 0 0 0-14 0c0 4.5 7 12 7 12z"/><circle cx="12" cy="10" r="3"/></svg>
+            </button>
+            <button class="action glass" aria-label="Focus on me">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>
+            </button>
+          </div>
+
+          <section class="sheet glass-strong" data-snap="peek" id="sheet">
+            <div class="sheet-handle-zone" id="handleZone" aria-label="Promijeni visinu panela">
+              <div class="sheet-handle"></div>
+            </div>
+            <header class="sheet-head">
+              <h3 class="sheet-title" id="sheetTitle">
+                <span class="accent-dot" id="sheetDot"></span>
+                <span id="sheetTitleText">Active transits</span>
+              </h3>
+              <button class="sheet-close" aria-label="Zatvori">Gotovo</button>
+            </header>
+            <div class="sheet-body" id="sheetBody">
+              <!-- popunjava JS -->
+            </div>
+          </section>
+
+          <nav class="tabs" role="tablist" aria-label="Glavna navigacija">
+            <button class="tab" role="tab" data-panel="flight" aria-selected="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+              <span class="lbl">Flight</span>
+            </button>
+            <button class="tab" role="tab" data-panel="observer" aria-selected="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s7-7.5 7-12a7 7 0 0 0-14 0c0 4.5 7 12 7 12z"/><circle cx="12" cy="10" r="3"/></svg>
+              <span class="lbl">Observer</span>
+            </button>
+            <button class="tab" role="tab" data-panel="moon" aria-selected="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+              <span class="lbl">Moon</span>
+            </button>
+            <button class="tab" role="tab" data-panel="tracks" aria-selected="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg>
+              <span class="lbl">Tracks</span>
+            </button>
+            <button class="tab" role="tab" data-panel="active" aria-selected="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+              <span class="lbl">Active</span>
+            </button>
+            <button class="tab" role="tab" data-panel="time" aria-selected="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              <span class="lbl">Time</span>
+            </button>
+            <button class="tab" role="tab" data-panel="photo" aria-selected="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              <span class="lbl">Photo</span>
+            </button>
+          </nav>
+        </div>
+      </div>
+      <div class="controls" role="group" aria-label="Sheet visina">
+        <span style="font-size:12px;color:var(--t-tertiary);align-self:center;margin-right:4px;">Sheet visina:</span>
+        <button data-snap="peek" aria-pressed="true">Peek</button>
+        <button data-snap="half" aria-pressed="false">Half</button>
+        <button data-snap="full" aria-pressed="false">Full</button>
+      </div>
+    </div>
+
+    <!-- ============== SPECS / TOKENI ============== -->
+    <aside class="specs">
+      <div>
+        <h2>Što se promijenilo</h2>
+        <p class="compare-note" style="margin:8px 0 0;">
+          Tipografija je narasla na <strong>15.5–17px body</strong> (bilo 11–12px).
+          Tabovi su <strong>56px visoki</strong> (bilo ~40px). Glass paneli s mekanom
+          atmosferom umjesto pune crne. Boje akcenata nose značenje:
+          <span style="color:var(--moon);">zlatna = mjesec</span>,
+          <span style="color:var(--sky);">plava = pravac/observer</span>,
+          <span style="color:var(--mint);">menta = aktivno/spreman</span>.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>Tipografska skala</h3>
+        <div class="scale-row">
+          <span class="name">Brand</span>
+          <span class="demo" style="font-family:'Outfit';font-weight:600;font-size:24px;letter-spacing:-0.01em;">LunaPic</span>
+          <span class="px">22–24px</span>
+        </div>
+        <div class="scale-row">
+          <span class="name">Sheet title</span>
+          <span class="demo" style="font-family:'Outfit';font-weight:600;font-size:17px;">Active transits</span>
+          <span class="px">17px</span>
+        </div>
+        <div class="scale-row">
+          <span class="name">Data / brojevi</span>
+          <span class="demo" style="font-family:'JetBrains Mono';font-weight:700;font-size:16px;color:var(--sky);">Δ 0.18°</span>
+          <span class="px">16px</span>
+        </div>
+        <div class="scale-row">
+          <span class="name">Body</span>
+          <span class="demo" style="font-size:15.5px;color:var(--t-secondary);">Right edge of frame · 22s</span>
+          <span class="px">15.5px</span>
+        </div>
+        <div class="scale-row">
+          <span class="name">Meta</span>
+          <span class="demo" style="font-size:13px;color:var(--t-tertiary);">12 km/h · NW</span>
+          <span class="px">13px</span>
+        </div>
+        <div class="scale-row">
+          <span class="name">Label (caps)</span>
+          <span class="demo" style="font-family:'Outfit';font-size:12px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--moon);">Active transits</span>
+          <span class="px">12px</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Boje &amp; značenje</h3>
+        <div class="swatches">
+          <div class="swatch" style="background:#fbbf24;">MOON</div>
+          <div class="swatch" style="background:#60a5fa;">SKY</div>
+          <div class="swatch" style="background:#34d399;">MINT</div>
+          <div class="swatch dark" style="background:#a78bfa;">AURORA</div>
+          <div class="swatch dark" style="background:#fb7185;">ROSE</div>
+          <div class="swatch dark" style="background:rgba(22,26,50,0.85);border-color:rgba(255,255,255,0.15);">GLASS</div>
+          <div class="swatch dark" style="background:#0a0e1f;">BG-1</div>
+          <div class="swatch dark" style="background:#050714;">BG-0</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Dodirne mete</h3>
+        <div class="targets">
+          <div class="target-row">
+            <div class="box" style="width:32px;height:32px;">32</div>
+            <div class="label-text"><strong style="color:var(--rose);">Premaleno</strong> — sad. ikone tabova ~32px klikabilno</div>
+          </div>
+          <div class="target-row">
+            <div class="box" style="width:48px;height:48px;">48</div>
+            <div class="label-text"><strong style="color:var(--moon);">Minimum</strong> — floating akcijski gumbi</div>
+          </div>
+          <div class="target-row">
+            <div class="box" style="width:56px;height:56px;">56</div>
+            <div class="label-text"><strong style="color:var(--mint);">Komforno</strong> — tabovi, transit retci</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Sljedeći korak</h3>
+        <p class="compare-note" style="margin:0;">
+          Ako ti se smjer sviđa, sljedeće idem u stvarni kod:
+          osvježim <code style="font-family:'JetBrains Mono';font-size:11.5px;background:rgba(255,255,255,0.06);padding:1px 6px;border-radius:4px;">globals.css</code>
+          s ovim tokenima, pa <code style="font-family:'JetBrains Mono';font-size:11.5px;background:rgba(255,255,255,0.06);padding:1px 6px;border-radius:4px;">ShellSectionCard</code> i tab bar
+          dobiju nove veličine. Postojeće stranice se ne razbijaju — sve ide kroz
+          tokene.
+        </p>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+  // Sheet sadržaji za "Poslije" frame
+  const SHEET_CONTENT = {
+    active: {
+      title: "Active transits",
+      dot: "var(--moon)",
+      html: `
+        <div class="panel-card">
+          <p class="label">Active transits</p>
+          <p class="desc">Avioni i Mjesec u istoj azimutalnoj liniji unutar <strong style="color:var(--moon);">0.5°</strong> — na "zlatnoj zraci".</p>
+          <button class="transit-row">
+            <div class="top">
+              <span class="callsign">RYR4321</span>
+              <span class="delta">Δ 0.18°</span>
+            </div>
+            <p class="nudge">Desni rub kadra · 22s · pomakni kameru ¼° istok</p>
+          </button>
+          <button class="transit-row">
+            <div class="top">
+              <span class="callsign">DLH8XK</span>
+              <span class="delta">Δ 0.42°</span>
+            </div>
+            <p class="nudge">Tik iznad Mjeseca · 38s · podigni kameru 0.6°</p>
+          </button>
+        </div>
+      `
+    },
+    moon: {
+      title: "Moon — nowcast",
+      dot: "var(--moon)",
+      html: `
+        <div class="panel-card">
+          <p class="label">Pozicija mjeseca</p>
+          <p class="desc">Trenutni nowcast za odabranu poziciju promatrača.</p>
+          <div class="ephemeris-grid">
+            <div class="ephemeris-tile">
+              <div class="k">Azimut</div>
+              <div class="v">128.4<small>°</small></div>
+            </div>
+            <div class="ephemeris-tile">
+              <div class="k">Visina</div>
+              <div class="v">42.7<small>°</small></div>
+            </div>
+            <div class="ephemeris-tile">
+              <div class="k">Faza</div>
+              <div class="v">73<small>%</small></div>
+            </div>
+            <div class="ephemeris-tile">
+              <div class="k">Zalazak</div>
+              <div class="v">02:14</div>
+            </div>
+          </div>
+        </div>
+      `
+    },
+    photo: {
+      title: "Photographer — alati",
+      dot: "var(--mint)",
+      html: `
+        <div class="panel-card mint">
+          <p class="label">Tools</p>
+          <div class="photo-cta">
+            <div class="icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+            </div>
+            <div class="body">
+              <strong>Beep on transit</strong>
+              <span>Audio signal kad avion uđe u zlatnu zraku</span>
+            </div>
+            <div class="switch" aria-checked="true" role="switch"></div>
+          </div>
+          <div class="photo-cta" style="background:rgba(96,165,250,0.06);border-color:rgba(96,165,250,0.18);">
+            <div class="icon" style="background:rgba(96,165,250,0.18);color:var(--sky);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><circle cx="12" cy="13" r="3.5"/></svg>
+            </div>
+            <div class="body">
+              <strong>Camera preset · Sony 200–600 @ 600mm</strong>
+              <span>Field of view ≈ 4.1° · vidljivi mjesec ~12% kadra</span>
+            </div>
+          </div>
+        </div>
+      `
+    },
+    flight: {
+      title: "Flight source",
+      dot: "var(--sky)",
+      html: `
+        <div class="panel-card sky">
+          <p class="label">Live feed</p>
+          <p class="desc">Trenutno aktivni izvori podataka o letovima.</p>
+          <div class="ephemeris-grid">
+            <div class="ephemeris-tile" style="border-color:rgba(52,211,153,0.3);background:rgba(52,211,153,0.06);">
+              <div class="k" style="color:var(--mint);">OpenSky</div>
+              <div class="v" style="font-size:14px;color:var(--mint);">● Live · 247 letova</div>
+            </div>
+            <div class="ephemeris-tile">
+              <div class="k">ADS-B One</div>
+              <div class="v" style="font-size:14px;color:var(--t-tertiary);">○ Pripremljeno</div>
+            </div>
+          </div>
+        </div>
+      `
+    },
+    observer: {
+      title: "Observer",
+      dot: "var(--moon)",
+      html: `
+        <div class="panel-card">
+          <p class="label">Pozicija</p>
+          <p class="desc">Lat 45.815°  ·  Lng 15.982°  ·  Zagreb · Hrvatska</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;">
+            <button style="min-height:48px;border-radius:14px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);color:var(--moon);font-size:14px;font-weight:600;cursor:pointer;">Postavi tu</button>
+            <button style="min-height:48px;border-radius:14px;background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.3);color:var(--sky);font-size:14px;font-weight:600;cursor:pointer;">Fokusiraj me</button>
+          </div>
+        </div>
+      `
+    },
+    tracks: {
+      title: "Transit candidates",
+      dot: "var(--sky)",
+      html: `
+        <div class="panel-card sky">
+          <p class="label">Kandidati</p>
+          <p class="desc">Letovi koji bi mogli proletjeti ispred Mjeseca u sljedećih 30 min.</p>
+          <button class="transit-row" style="background:rgba(96,165,250,0.08);border-color:rgba(96,165,250,0.25);">
+            <div class="top">
+              <span class="callsign" style="color:var(--sky);">EZY52KT</span>
+              <span class="delta" style="color:var(--mint);">u 4m 12s</span>
+            </div>
+            <p class="nudge">FL340 · A320 · prolazi sjeverno od mjeseca, Δ 0.31°</p>
+          </button>
+        </div>
+      `
+    },
+    time: {
+      title: "Vrijeme",
+      dot: "var(--sky)",
+      html: `
+        <div class="panel-card sky">
+          <p class="label">Vremenski rez</p>
+          <p class="desc">Sada: <strong style="color:var(--t-primary);">22:47</strong> · pomak <strong style="color:var(--sky);">+0h</strong></p>
+          <div style="height:6px;background:rgba(255,255,255,0.08);border-radius:3px;margin:14px 0;position:relative;">
+            <div style="position:absolute;left:50%;top:-6px;width:18px;height:18px;border-radius:50%;background:var(--sky);box-shadow:0 0 12px var(--sky);transform:translateX(-50%);"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t-tertiary);font-family:'JetBrains Mono';">
+            <span>−12h</span><span>sad</span><span>+12h</span>
+          </div>
+        </div>
+      `
+    }
+  };
+
+  function setSheet(panelId) {
+    const data = SHEET_CONTENT[panelId];
+    if (!data) return;
+    document.getElementById("sheetTitleText").textContent = data.title;
+    document.getElementById("sheetDot").style.background = data.dot;
+    document.getElementById("sheetDot").style.boxShadow = `0 0 10px ${data.dot}`;
+    document.getElementById("sheetBody").innerHTML = data.html;
+  }
+
+  // Tabovi
+  document.querySelectorAll(".after .tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".after .tab").forEach(b => b.setAttribute("aria-selected", "false"));
+      btn.setAttribute("aria-selected", "true");
+      setSheet(btn.dataset.panel);
+    });
+  });
+
+  // Snap toggle
+  document.querySelectorAll(".controls button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".controls button").forEach(b => b.setAttribute("aria-pressed", "false"));
+      btn.setAttribute("aria-pressed", "true");
+      document.getElementById("sheet").dataset.snap = btn.dataset.snap;
+    });
+  });
+
+  // Klik na handle ciklira snap
+  document.getElementById("handleZone").addEventListener("click", () => {
+    const sheet = document.getElementById("sheet");
+    const order = ["peek", "half", "full"];
+    const next = order[(order.indexOf(sheet.dataset.snap) + 1) % 3];
+    sheet.dataset.snap = next;
+    document.querySelectorAll(".controls button").forEach(b => {
+      b.setAttribute("aria-pressed", b.dataset.snap === next ? "true" : "false");
+    });
+  });
+
+  // Inicijalno popuni
+  setSheet("active");
+</script>
+</body>
+</html>

@@ -8,6 +8,7 @@ import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useObserverStore } from "@/stores/observer-store";
 import type { FlightState } from "@/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type TrackedMarker = {
   id: string;
@@ -195,16 +196,8 @@ export function ArSkyCameraPanel() {
   ]);
 
   useEffect(() => {
-    if (trackedMarkers.length === 0) {
+    if (infoFlightId != null && !trackedMarkers.some((m) => m.id === infoFlightId)) {
       setInfoFlightId(null);
-      return;
-    }
-    if (infoFlightId == null) {
-      setInfoFlightId(trackedMarkers[0]?.id ?? null);
-      return;
-    }
-    if (!trackedMarkers.some((marker) => marker.id === infoFlightId)) {
-      setInfoFlightId(trackedMarkers[0]?.id ?? null);
     }
   }, [infoFlightId, trackedMarkers]);
 
@@ -433,21 +426,20 @@ export function ArSkyCameraPanel() {
   }, [open]);
 
   return (
-    <div className="border-t border-zinc-800/80 pt-2">
-      <p className="text-[0.65rem] text-zinc-500">AR preview</p>
+    <div>
       <button
         type="button"
         onClick={() => {
           setOpen(true);
         }}
-        className="mt-1 w-full rounded-md border border-blue-500/35 bg-blue-500/10 py-1.5 text-sm text-yellow-400/90"
+        className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-1.5 text-sm font-medium text-emerald-100"
       >
         Open AR sky overlay
       </button>
-      <p className="mt-1 text-[0.6rem] leading-snug text-zinc-500">
-        Shows live flight labels directly in camera view (selection optional).
+      <p className="mt-2 text-[length:var(--fs-meta)] leading-snug text-[color:var(--t-tertiary)]">
+        Shows traffic in the camera view. Tap an aircraft label for details.
       </p>
-      {open ? (
+      {open ? createPortal(
         <div className="fixed inset-0 z-[320] bg-black">
           <video
             ref={videoRef}
@@ -460,81 +452,31 @@ export function ArSkyCameraPanel() {
             ref={overlayRef}
             className="absolute inset-0 overflow-hidden"
           >
-            <div className="absolute left-3 top-3 rounded-md border border-zinc-700/80 bg-black/65 px-2.5 py-2 font-[family-name:var(--font-jetbrains-mono)] text-[0.65rem] text-zinc-200 backdrop-blur">
-              <p>Tracked: {trackedMarkers.length}</p>
-              <p>Watched: {watchedFlightIds.size}</p>
-              <p>Mode: {showAllNearbyFlights ? "All nearby" : "Focused"}</p>
-              <p>
-                Heading:{" "}
-                {cameraAzimuthDeg == null ? "—" : `${cameraAzimuthDeg.toFixed(0)}°`}
-              </p>
-              <p>Pitch: {pose.pitchDeg.toFixed(0)}°</p>
-            </div>
-            <div className="absolute right-3 top-3 rounded-md border border-zinc-700/80 bg-black/65 px-2 py-2 text-zinc-200 backdrop-blur">
-              <p className="mb-1 text-center font-[family-name:var(--font-jetbrains-mono)] text-[0.55rem] text-zinc-400">
-                RADAR
-              </p>
-              <div className="relative h-20 w-20 rounded-full border border-zinc-600/80 bg-zinc-950/80">
-                <div className="absolute left-1/2 top-1/2 h-[1px] w-[78%] -translate-x-1/2 -translate-y-1/2 bg-zinc-700/80" />
-                <div className="absolute left-1/2 top-1/2 h-[78%] w-[1px] -translate-x-1/2 -translate-y-1/2 bg-zinc-700/80" />
-                <div className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-blue-400/75 bg-blue-500/25" />
-                {radarBlips.map((blip) => (
-                  <div
-                    key={`radar-${blip.id}`}
-                    className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ${
-                      blip.isSelected ? "h-2.5 w-2.5 bg-yellow-300" : "h-2 w-2 bg-sky-300"
-                    }`}
-                    style={{
-                      transform: `translate(calc(-50% + ${blip.x}px), calc(-50% + ${blip.y}px))`,
-                    }}
-                    title={blip.label}
-                  />
-                ))}
-                <div className="pointer-events-none absolute left-1/2 top-1 h-0 w-0 -translate-x-1/2 border-l-[5px] border-r-[5px] border-b-[8px] border-l-transparent border-r-transparent border-b-yellow-400/95" />
-              </div>
-            </div>
-
+            {/* Info kartica gore — prikazuje se samo kad korisnik tapne callsign */}
             {infoMarker ? (
-              <div className="absolute left-1/2 top-3 w-[min(24rem,calc(100%-10.5rem))] -translate-x-1/2 rounded-md border border-zinc-700/80 bg-black/75 px-3 py-2 text-zinc-100 backdrop-blur">
+              <div className="absolute left-3 right-3 top-[max(0.75rem,env(safe-area-inset-top))] rounded-2xl border border-white/[0.14] bg-black/80 px-3 py-2.5 text-zinc-100 backdrop-blur-md">
                 <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-semibold text-yellow-300">
+                  <div className="min-w-0">
+                    <p className="text-base font-bold text-amber-300 leading-tight">
                       {infoMarker.label}
                     </p>
-                    <p className="text-[0.62rem] text-zinc-400">
-                      {infoMarker.flight.aircraftType?.trim() || "Type N/A"} •{" "}
-                      {infoMarker.flight.icao24 || "ICAO24 N/A"}
+                    <p className="text-[length:var(--fs-label)] text-[color:var(--t-tertiary)] truncate">
+                      {infoMarker.flight.aircraftType?.trim() || "—"} · {infoMarker.flight.icao24 || "—"}
                     </p>
                   </div>
-                  <span className="rounded border border-zinc-600/80 bg-zinc-900/70 px-1.5 py-0.5 text-[0.58rem] font-[family-name:var(--font-jetbrains-mono)] text-zinc-300">
-                    AR TRACK
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setInfoFlightId(null)}
+                    className="shrink-0 rounded-full border border-white/[0.15] bg-white/[0.08] px-2 py-0.5 text-[length:var(--fs-label)] text-[color:var(--t-secondary)]"
+                  >
+                    ✕
+                  </button>
                 </div>
-                <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 text-[0.62rem] text-zinc-200">
-                  <p>
-                    Alt:{" "}
-                    {formatMaybeNumber(
-                      infoMarker.flight.baroAltitudeMeters ??
-                        infoMarker.flight.geoAltitudeMeters,
-                      0
-                    )}{" "}
-                    m
-                  </p>
-                  <p>
-                    GS:{" "}
-                    {infoMarker.flight.groundSpeedMps != null
-                      ? `${formatMaybeNumber(mpsToKnots(infoMarker.flight.groundSpeedMps), 0)} kt`
-                      : "—"}
-                  </p>
+                <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[length:var(--fs-label)] text-[color:var(--t-secondary)]">
+                  <p>Alt: {formatMaybeNumber(infoMarker.flight.baroAltitudeMeters ?? infoMarker.flight.geoAltitudeMeters, 0)} m</p>
+                  <p>GS: {infoMarker.flight.groundSpeedMps != null ? `${formatMaybeNumber(mpsToKnots(infoMarker.flight.groundSpeedMps), 0)} kt` : "—"}</p>
                   <p>Track: {formatMaybeNumber(infoMarker.flight.trackDeg, 0)}°</p>
-                  <p>
-                    Sky: {formatMaybeNumber(infoMarker.azimuthDeg, 0)}° /{" "}
-                    {formatMaybeNumber(infoMarker.altitudeDeg, 1)}°
-                  </p>
-                  <p className="col-span-2 text-zinc-400">
-                    {infoMarker.flight.position.lat.toFixed(3)},{" "}
-                    {infoMarker.flight.position.lng.toFixed(3)}
-                  </p>
+                  <p>Sky: {formatMaybeNumber(infoMarker.azimuthDeg, 0)}° / {formatMaybeNumber(infoMarker.altitudeDeg, 1)}°</p>
                 </div>
               </div>
             ) : null}
@@ -548,13 +490,12 @@ export function ArSkyCameraPanel() {
                     setInfoFlightId(marker.id);
                     setSelectedFlightId(marker.id);
                   }}
-                  className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border px-2 py-0.5 text-[0.65rem] font-semibold ${
+                  className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border px-2 py-0.5 text-[length:var(--fs-label)] font-semibold ${
                     marker.isSelected
-                      ? "border-yellow-400/90 bg-yellow-400/20 text-yellow-300"
+                      ? "border-amber-400/90 bg-amber-400/20 text-amber-300"
                       : "border-sky-400/80 bg-sky-500/15 text-sky-200"
                   }`}
                   style={{ left: marker.x, top: marker.y }}
-                  title={`Open aircraft card: ${marker.label}`}
                 >
                   {marker.label}
                 </button>
@@ -569,13 +510,12 @@ export function ArSkyCameraPanel() {
                   setInfoFlightId(marker.id);
                   setSelectedFlightId(marker.id);
                 }}
-                className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-md border px-1.5 py-0.5 text-[0.6rem] ${
+                className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-md border px-1.5 py-0.5 text-[length:var(--fs-label)] ${
                   marker.isSelected
-                    ? "border-yellow-400/90 bg-yellow-400/20 text-yellow-200"
+                    ? "border-amber-400/90 bg-amber-400/20 text-amber-200"
                     : "border-sky-400/80 bg-sky-500/15 text-sky-200"
                 }`}
                 style={{ left: marker.x, top: marker.y }}
-                title={`${marker.label} is off-screen`}
               >
                 <span
                   className="inline-block text-[0.7rem]"
@@ -589,57 +529,69 @@ export function ArSkyCameraPanel() {
 
             {moonScreen?.visible ? (
               <div
-                className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 text-lg text-yellow-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]"
+                className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 text-lg text-amber-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]"
                 style={{ left: moonScreen.x, top: moonScreen.y }}
-                title="Moon"
               >
                 ○
               </div>
             ) : null}
 
-            <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2">
+            {/* Kompas — dolje desno */}
+            <div className="absolute bottom-16 right-3 flex h-14 w-14 items-center justify-center rounded-full border border-white/[0.18] bg-black/65 backdrop-blur-md">
+              <div
+                className="relative flex h-full w-full items-center justify-center"
+                style={{
+                  transform: cameraAzimuthDeg != null
+                    ? `rotate(${-cameraAzimuthDeg}deg)`
+                    : undefined,
+                }}
+              >
+                <span className="absolute top-1 text-[0.5rem] font-bold text-amber-300">N</span>
+                <span className="absolute bottom-1 text-[0.45rem] text-zinc-400">S</span>
+                <span className="absolute left-1 text-[0.45rem] text-zinc-400">W</span>
+                <span className="absolute right-1 text-[0.45rem] text-zinc-400">E</span>
+                <div className="h-5 w-[2px] rounded-full bg-gradient-to-b from-amber-300 to-zinc-600" />
+              </div>
+            </div>
+
+            {/* Kontrole dole */}
+            <div className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 right-20 flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  setShowAllNearbyFlights((prev) => !prev);
-                }}
-                className="rounded-md border border-zinc-600 bg-black/70 px-3 py-2 text-xs text-zinc-100 backdrop-blur"
+                onClick={() => setShowAllNearbyFlights((prev) => !prev)}
+                className="flex-1 rounded-xl border border-white/[0.12] bg-black/70 px-2 py-2 text-xs text-zinc-100 backdrop-blur-md"
               >
-                {showAllNearbyFlights ? "Only focused flights" : "Show all nearby"}
+                {showAllNearbyFlights ? "Only focused" : "All nearby"}
               </button>
               <button
                 type="button"
                 onClick={() => {
-                  const headingDeg = pose.headingDeg;
-                  if (headingDeg == null) {
-                    return;
-                  }
+                  if (pose.headingDeg == null) return;
                   setCalibrationOffsetDeg((prev) =>
-                    normalizeSignedAngleDeg(prev - headingDeg)
+                    normalizeSignedAngleDeg(prev - pose.headingDeg!)
                   );
                 }}
-                className="rounded-md border border-zinc-600 bg-black/70 px-3 py-2 text-xs text-zinc-100 backdrop-blur"
+                className="flex-1 rounded-xl border border-white/[0.12] bg-black/70 px-2 py-2 text-xs text-zinc-100 backdrop-blur-md"
               >
-                Recenter heading
+                Recenter
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setOpen(false);
-                }}
-                className="rounded-md border border-red-400/45 bg-red-500/20 px-3 py-2 text-xs font-semibold text-red-100 backdrop-blur"
+                onClick={() => setOpen(false)}
+                className="flex-1 rounded-xl border border-rose-400/45 bg-rose-500/20 px-2 py-2 text-xs font-semibold text-rose-100 backdrop-blur-md"
               >
                 Close AR
               </button>
             </div>
 
             {cameraError || orientationError ? (
-              <div className="absolute left-3 right-3 top-24 rounded-md border border-red-500/60 bg-black/75 px-3 py-2 text-xs text-red-200">
+              <div className="absolute left-3 right-3 top-24 rounded-2xl border border-rose-500/50 bg-black/80 px-3 py-2 text-xs text-rose-200 backdrop-blur-md">
                 {cameraError || orientationError}
               </div>
             ) : null}
           </div>
-        </div>
+        </div>,
+        document.body
       ) : null}
     </div>
   );

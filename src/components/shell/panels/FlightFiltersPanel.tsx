@@ -1,7 +1,5 @@
 "use client";
 
-import { ShellSectionCard } from "@/components/shell/ShellSectionCard";
-import { SectionIconTarget } from "@/components/shell/sectionCategoryIcons";
 import { useHasMounted } from "@/hooks/useHasMounted";
 import { clampFloatingMenuLeft } from "@/lib/ui/clampFloatingMenuLeft";
 import {
@@ -132,10 +130,10 @@ export function FlightFiltersPanel({
             <li
               key={typeLabel}
               role="presentation"
-              className={`cursor-pointer select-none rounded-md px-2.5 py-1.5 text-left text-sm outline-none ${
+              className={`cursor-pointer select-none rounded-xl px-2.5 py-1.5 text-left text-sm outline-none ${
                 checked
-                  ? "bg-blue-500/20 text-yellow-400"
-                  : "text-zinc-200 hover:bg-zinc-800 hover:text-zinc-50"
+                  ? "bg-violet-500/15 text-violet-200"
+                  : "text-zinc-200 hover:bg-zinc-800/70 hover:text-zinc-50"
               }`}
               onMouseDown={(e) => e.preventDefault()}
             >
@@ -156,21 +154,21 @@ export function FlightFiltersPanel({
     ) : null;
 
   return (
-    <ShellSectionCard title="Filter" accent="violet" icon={<SectionIconTarget />}>
-      <label className="block text-xs text-zinc-500">
+    <div>
+      <label className="block text-[length:var(--fs-meta)] font-medium text-[color:var(--t-secondary)]">
         Search flights
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => onSearchQueryChange(e.target.value)}
           placeholder="callsign, airline, type, ICAO24..."
-          className="mt-1 h-9 w-full rounded-md border border-zinc-700 bg-zinc-900/80 px-2.5 text-sm text-zinc-100 outline-none ring-inset placeholder:text-zinc-500 focus:ring-2 focus:ring-blue-500/25"
+          className="mt-1.5 h-11 w-full rounded-2xl border border-white/[0.10] bg-white/[0.04] px-3.5 text-[16px] text-zinc-100 outline-none ring-inset placeholder:text-zinc-500 focus:ring-2 focus:ring-violet-500/35"
           data-testid="flight-filter-search-input"
         />
       </label>
-      <label className="mt-3 block text-xs text-zinc-500">
+      <label className="mt-3.5 block text-[length:var(--fs-meta)] font-medium text-[color:var(--t-secondary)]">
         Aircraft type (multi-select)
-        <div className="mt-1">
+        <div className="mt-1.5">
           <button
             ref={triggerRef}
             type="button"
@@ -196,9 +194,9 @@ export function FlightFiltersPanel({
           </button>
         </div>
       </label>
-      <div className="mt-3 flex items-center justify-between gap-2">
-        <span className="font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-400">
-          Active filters: {activeFilterCount}
+      <div className="mt-4 flex items-center justify-between gap-2">
+        <span className="text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">
+          Active filters: <strong className="font-semibold text-[color:var(--t-primary)]">{activeFilterCount}</strong>
         </span>
         <button
           type="button"
@@ -206,13 +204,13 @@ export function FlightFiltersPanel({
             onSearchQueryChange("");
             onSelectedAircraftTypesChange([]);
           }}
-          className="rounded-md border border-zinc-700 bg-zinc-900/70 px-2 py-1 text-xs font-semibold text-zinc-200 hover:border-zinc-500"
+          className="h-9 rounded-full border border-white/[0.10] bg-white/[0.05] px-4 text-[length:var(--fs-meta)] font-semibold text-[color:var(--t-secondary)] transition hover:border-white/[0.20] hover:bg-white/[0.10]"
         >
           Clear all
         </button>
       </div>
       {listbox && hasMounted ? createPortal(listbox, document.body) : null}
-    </ShellSectionCard>
+    </div>
   );
 }
 

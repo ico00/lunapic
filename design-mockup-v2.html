@@ -1,0 +1,1836 @@
+<!doctype html>
+<html lang="hr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>LunaPic v2 — map-first command center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     LUNA PIC v2 — DRASTIC REDESIGN
+     Filozofija: mapa je proizvod. Sve ostalo plovi preko nje.
+     ============================================================ */
+  :root {
+    --bg-0: #02030c;
+    --bg-1: #060919;
+    --bg-2: #0c1029;
+
+    --glass-1: rgba(12, 16, 41, 0.45);
+    --glass-2: rgba(18, 22, 50, 0.65);
+    --glass-3: rgba(24, 28, 60, 0.80);
+    --glass-stroke: rgba(255, 255, 255, 0.08);
+    --glass-stroke-strong: rgba(255, 255, 255, 0.16);
+    --glass-highlight: rgba(255, 255, 255, 0.10);
+
+    --t-primary: #ffffff;
+    --t-secondary: #c9ccdc;
+    --t-tertiary: #8990a8;
+    --t-quaternary: #5a6080;
+
+    --moon: #ffc940;
+    --moon-2: #ff9a3c;
+    --sky: #5b9bff;
+    --sky-2: #7fb6ff;
+    --aurora: #b794ff;
+    --mint: #3ddcaa;
+    --rose: #ff6b8a;
+
+    --r-sm: 10px;
+    --r-md: 14px;
+    --r-lg: 20px;
+    --r-xl: 28px;
+    --r-pill: 999px;
+
+    --shadow-float: 0 1px 0 rgba(255,255,255,0.06) inset, 0 18px 48px -16px rgba(0,0,0,0.7), 0 4px 12px -4px rgba(0,0,0,0.4);
+    --shadow-card: 0 1px 0 rgba(255,255,255,0.08) inset, 0 24px 64px -16px rgba(0,0,0,0.7);
+    --shadow-glow-moon: 0 0 28px -4px rgba(255, 201, 64, 0.55);
+    --shadow-glow-sky: 0 0 28px -4px rgba(91, 155, 255, 0.55);
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: var(--bg-0);
+    color: var(--t-primary);
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* — Studio okvir — */
+  .studio {
+    min-height: 100dvh;
+    padding: 32px clamp(16px, 4vw, 64px);
+    background: var(--bg-0);
+  }
+  .studio-header {
+    max-width: 1480px;
+    margin: 0 auto 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: end;
+    justify-content: space-between;
+  }
+  .studio-header h1 {
+    font-family: "Outfit", "Inter", sans-serif;
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    margin: 0 0 6px;
+    background: linear-gradient(120deg, #fafafa 0%, #93c5fd 35%, #c084fc 65%, #fde047 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .studio-header .sub {
+    color: var(--t-tertiary);
+    margin: 0;
+    font-size: 14.5px;
+    max-width: 640px;
+    line-height: 1.55;
+  }
+  .studio-header .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: var(--r-pill);
+    background: rgba(61, 220, 170, 0.14);
+    color: var(--mint);
+    border: 1px solid rgba(61, 220, 170, 0.32);
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    font-family: "Outfit", sans-serif;
+  }
+  .studio-header .badge::before {
+    content: "";
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--mint);
+    box-shadow: 0 0 10px var(--mint);
+  }
+
+  /* — Main canvas area — */
+  .canvas {
+    max-width: 1480px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  .frame-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: var(--t-tertiary);
+    font-weight: 500;
+    margin-bottom: 12px;
+  }
+  .frame-label strong { color: var(--t-primary); font-weight: 600; }
+  .frame-label .pill {
+    display: inline-flex;
+    padding: 3px 10px;
+    border-radius: var(--r-pill);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .pill.before { background: rgba(255,255,255,0.08); color: var(--t-tertiary); }
+  .pill.after { background: rgba(61, 220, 170, 0.18); color: var(--mint); }
+
+  /* ============================================================
+     DESKTOP FRAME (fake browser viewport)
+     ============================================================ */
+  .desk {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    max-height: 760px;
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.04),
+      0 40px 80px -20px rgba(0,0,0,0.6);
+    position: relative;
+    isolation: isolate;
+    background: var(--bg-1);
+  }
+
+  /* "Browser chrome" suptilan */
+  .browser-chrome {
+    height: 32px;
+    background: rgba(0,0,0,0.4);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .browser-chrome .dot {
+    width: 11px; height: 11px; border-radius: 50%;
+  }
+  .browser-chrome .dot.r { background: #ff5f56; }
+  .browser-chrome .dot.y { background: #ffbd2e; }
+  .browser-chrome .dot.g { background: #27c93f; }
+  .browser-chrome .url {
+    flex: 1;
+    margin-left: 12px;
+    height: 22px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.04);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    font-size: 11.5px;
+    color: var(--t-tertiary);
+    font-family: "JetBrains Mono", monospace;
+  }
+  .browser-chrome .url::before {
+    content: "";
+    width: 11px; height: 11px;
+    margin-right: 8px;
+    border: 1.4px solid currentColor;
+    border-radius: 50%;
+    opacity: 0.5;
+  }
+
+  /* — VIEWPORT — */
+  .vp {
+    position: relative;
+    width: 100%;
+    height: calc(100% - 32px);
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  /* ============== "PRIJE" THUMBNAIL ============== */
+  .before-thumb {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    max-height: 320px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.06);
+    background: linear-gradient(180deg, #0a0a12 0%, #06060d 100%);
+    opacity: 0.85;
+  }
+  .before-thumb .layout {
+    position: absolute; inset: 0;
+    display: grid;
+    grid-template-columns: 200px 1fr 200px;
+    grid-template-rows: 56px 1fr;
+  }
+  .before-thumb .layout > div {
+    border: 1px solid rgba(255,255,255,0.05);
+    background: rgba(20, 20, 30, 0.6);
+    padding: 8px;
+    font-size: 9px;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-family: "Outfit", sans-serif;
+    font-weight: 600;
+  }
+  .before-thumb .header { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; }
+  .before-thumb .header span:first-child {
+    font-size: 14px; font-weight: 600;
+    background: linear-gradient(120deg, #fafafa 0%, #93c5fd 50%, #fde047 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    letter-spacing: -0.01em; text-transform: none;
+  }
+  .before-thumb .left, .before-thumb .right {
+    background: rgba(20, 20, 30, 0.82);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .before-thumb .panel-stub {
+    height: 50px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+  .before-thumb .panel-stub.amber { border-color: rgba(234,179,8,0.18); }
+  .before-thumb .panel-stub.sky { border-color: rgba(96,165,250,0.18); }
+  .before-thumb .panel-stub.violet { border-color: rgba(167,139,250,0.18); }
+  .before-thumb .map {
+    background:
+      radial-gradient(circle at 50% 30%, rgba(96,165,250,0.08), transparent 50%),
+      linear-gradient(145deg, #0d1018 0%, #18181b 100%);
+    color: rgba(255,255,255,0.25);
+    text-transform: none;
+    font-family: "Inter";
+    font-size: 8px;
+    text-align: center;
+    padding-top: 20px;
+  }
+
+  /* ============================================================
+     "POSLIJE" — DESKTOP MAP-FIRST COMMAND CENTER
+     ============================================================ */
+
+  .map-bg {
+    position: absolute; inset: 0;
+    background:
+      /* atmospheric glows */
+      radial-gradient(ellipse 70% 45% at 78% 18%, rgba(255, 201, 64, 0.16), transparent 55%),
+      radial-gradient(ellipse 60% 40% at 12% 60%, rgba(183, 148, 255, 0.13), transparent 55%),
+      radial-gradient(ellipse 80% 50% at 50% 100%, rgba(91, 155, 255, 0.10), transparent 60%),
+      /* deep-night base */
+      radial-gradient(circle at 20% 30%, #0a1230 0%, transparent 40%),
+      radial-gradient(circle at 80% 70%, #0f1538 0%, transparent 40%),
+      linear-gradient(180deg, #050912 0%, #02030c 60%, #060a18 100%);
+  }
+  /* fake topo & cities */
+  .map-bg::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image:
+      /* faint topo lines */
+      linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px),
+      /* stars */
+      radial-gradient(circle at 12% 22%, rgba(255,255,255,0.45) 0.7px, transparent 1.5px),
+      radial-gradient(circle at 88% 14%, rgba(255,255,255,0.35) 0.7px, transparent 1.5px),
+      radial-gradient(circle at 42% 52%, rgba(255,255,255,0.4) 0.7px, transparent 1.5px),
+      radial-gradient(circle at 65% 68%, rgba(255,255,255,0.3) 0.7px, transparent 1.5px),
+      radial-gradient(circle at 25% 78%, rgba(255,255,255,0.3) 0.6px, transparent 1.2px),
+      radial-gradient(circle at 95% 48%, rgba(255,255,255,0.4) 0.7px, transparent 1.5px);
+    background-size: 36px 36px, 36px 36px, auto, auto, auto, auto, auto, auto;
+    pointer-events: none;
+  }
+  /* SVG-ish curved coast/road overlay using gradients */
+  .map-bg::after {
+    content: "";
+    position: absolute;
+    top: 30%; left: 8%;
+    width: 90%; height: 50%;
+    border-radius: 60% 40% 70% 30% / 50% 60% 40% 50%;
+    border: 1.5px solid rgba(255,255,255,0.04);
+    transform: rotate(-15deg);
+    pointer-events: none;
+  }
+
+  .city-label {
+    position: absolute;
+    color: rgba(255,255,255,0.45);
+    font-size: 10.5px;
+    font-weight: 500;
+    font-family: "Outfit", sans-serif;
+    letter-spacing: 0.04em;
+    pointer-events: none;
+  }
+  .city-label::before {
+    content: "•";
+    margin-right: 4px;
+    color: rgba(255,255,255,0.6);
+  }
+
+  /* Moon path arc on map */
+  .moon-path {
+    position: absolute;
+    top: 6%;
+    left: -10%;
+    width: 120%;
+    height: 70%;
+    border-radius: 50%;
+    border: 2px dashed rgba(255, 201, 64, 0.55);
+    border-bottom: none;
+    pointer-events: none;
+    filter: drop-shadow(0 0 12px rgba(255, 201, 64, 0.2));
+  }
+  .moon-glyph {
+    position: absolute;
+    top: 24%;
+    right: 22%;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 32% 30%, #ffffff 0%, #fff5b8 28%, #ffc940 60%, #ff9a3c 100%);
+    box-shadow:
+      var(--shadow-glow-moon),
+      0 0 60px -10px rgba(255, 201, 64, 0.55),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+    z-index: 2;
+  }
+  .moon-glyph::after {
+    content: "MOON";
+    position: absolute;
+    bottom: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--moon);
+    letter-spacing: 0.18em;
+    text-shadow: 0 0 8px rgba(255,201,64,0.5);
+  }
+
+  /* Yellow ray corridor */
+  .ray {
+    position: absolute;
+    top: 38%; left: 18%;
+    width: 56%; height: 3px;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255, 201, 64, 0.05) 8%,
+      rgba(255, 201, 64, 0.55) 50%,
+      rgba(255, 201, 64, 0.05) 92%,
+      transparent 100%);
+    transform: rotate(-12deg);
+    transform-origin: 0 50%;
+    filter: blur(0.4px);
+    z-index: 1;
+  }
+  .ray::after {
+    content: "";
+    position: absolute;
+    inset: -1.5px;
+    background: inherit;
+    filter: blur(6px);
+    opacity: 0.6;
+  }
+
+  /* Plane on the ray */
+  .plane {
+    position: absolute;
+    top: 41%;
+    left: 36%;
+    color: var(--mint);
+    z-index: 3;
+    filter: drop-shadow(0 0 12px rgba(61, 220, 170, 0.6));
+  }
+  .plane svg { width: 28px; height: 28px; transform: rotate(-22deg); }
+  .plane-label {
+    position: absolute;
+    top: 48%;
+    left: 38%;
+    background: rgba(61, 220, 170, 0.14);
+    border: 1px solid rgba(61, 220, 170, 0.4);
+    padding: 4px 10px;
+    border-radius: var(--r-pill);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--mint);
+    letter-spacing: 0.06em;
+    box-shadow: var(--shadow-glow-sky);
+    z-index: 3;
+  }
+
+  /* ============== FLOATING UI ============== */
+
+  .glass {
+    background: var(--glass-2);
+    border: 1px solid var(--glass-stroke);
+    backdrop-filter: blur(24px) saturate(1.5);
+    -webkit-backdrop-filter: blur(24px) saturate(1.5);
+    box-shadow: var(--shadow-float);
+  }
+  .glass-strong {
+    background: var(--glass-3);
+    border: 1px solid var(--glass-stroke-strong);
+    backdrop-filter: blur(32px) saturate(1.6);
+    -webkit-backdrop-filter: blur(32px) saturate(1.6);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Top brand pill — minimalna */
+  .v-brand {
+    position: absolute;
+    top: 16px; left: 16px;
+    height: 44px;
+    padding: 0 14px 0 8px;
+    display: flex; align-items: center; gap: 10px;
+    border-radius: var(--r-pill);
+    z-index: 10;
+  }
+  .v-brand .logo {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #fff 0%, #93c5fd 50%, #ffc940 100%);
+    box-shadow: 0 0 16px rgba(91, 155, 255, 0.6),
+                inset 0 0 0 1px rgba(255,255,255,0.4);
+  }
+  .v-brand .word {
+    font-family: "Outfit", sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    background: linear-gradient(120deg, #fff 0%, #93c5fd 50%, #ffc940 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Top center command bar (Cmd+K style) */
+  .v-cmdbar {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    height: 44px;
+    width: min(420px, 50vw);
+    border-radius: var(--r-pill);
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 10;
+    cursor: text;
+    transition: border-color 0.18s, background 0.18s;
+  }
+  .v-cmdbar:hover { border-color: var(--glass-stroke-strong); }
+  .v-cmdbar .icon {
+    color: var(--t-tertiary);
+    width: 18px; height: 18px;
+    flex-shrink: 0;
+  }
+  .v-cmdbar .placeholder {
+    flex: 1;
+    color: var(--t-tertiary);
+    font-size: 14px;
+  }
+  .v-cmdbar .kbd {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--t-quaternary);
+    padding: 3px 7px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--glass-stroke);
+  }
+
+  /* Top right cluster — weather + sync */
+  .v-topright {
+    position: absolute;
+    top: 16px; right: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 10;
+  }
+  .v-weather {
+    height: 44px;
+    padding: 0 14px;
+    border-radius: var(--r-pill);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .v-weather .ico {
+    width: 22px; height: 22px;
+    color: var(--moon);
+  }
+  .v-weather .temp {
+    font-family: "Outfit", sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--t-primary);
+  }
+  .v-weather .meta {
+    font-size: 12px;
+    color: var(--t-tertiary);
+    border-left: 1px solid var(--glass-stroke);
+    padding-left: 10px;
+    line-height: 1.2;
+  }
+  .v-weather .meta strong {
+    display: block;
+    color: var(--t-secondary);
+    font-weight: 500;
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .v-iconbtn {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--t-primary);
+    cursor: pointer;
+    transition: all 0.18s;
+  }
+  .v-iconbtn:hover {
+    transform: scale(1.06);
+    border-color: var(--glass-stroke-strong);
+  }
+  .v-iconbtn:active { transform: scale(0.94); }
+  .v-iconbtn svg { width: 20px; height: 20px; stroke-width: 1.7; }
+  .v-iconbtn.primary { color: var(--mint); border-color: rgba(61, 220, 170, 0.4); }
+  .v-iconbtn.warm { color: var(--moon); border-color: rgba(255, 201, 64, 0.4); }
+
+  /* ============== RIGHT RAIL (collapsible) ============== */
+  .v-rail {
+    position: absolute;
+    top: 80px;
+    right: 16px;
+    bottom: 110px;
+    width: 64px;
+    border-radius: var(--r-xl);
+    padding: 12px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    z-index: 9;
+    transition: width 0.32s cubic-bezier(0.2, 0.9, 0.2, 1.06);
+  }
+  .v-rail.expanded { width: 360px; }
+
+  .v-rail-btn {
+    width: 48px; height: 48px;
+    border-radius: var(--r-md);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--t-tertiary);
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.18s;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .v-rail-btn:hover {
+    background: rgba(255,255,255,0.05);
+    color: var(--t-primary);
+  }
+  .v-rail-btn[aria-pressed="true"] {
+    background: rgba(91, 155, 255, 0.12);
+    border-color: rgba(91, 155, 255, 0.35);
+    color: var(--sky);
+    box-shadow: var(--shadow-glow-sky);
+  }
+  .v-rail-btn[aria-pressed="true"]::after {
+    content: "";
+    position: absolute;
+    left: -10px; top: 50%; transform: translateY(-50%);
+    width: 4px; height: 24px;
+    border-radius: 2px;
+    background: var(--sky);
+    box-shadow: 0 0 8px var(--sky);
+  }
+  .v-rail-btn svg { width: 22px; height: 22px; stroke-width: 1.7; }
+  .v-rail-btn .badge {
+    position: absolute;
+    top: 4px; right: 4px;
+    min-width: 16px; height: 16px;
+    padding: 0 4px;
+    background: var(--moon);
+    color: #1a1a1a;
+    border-radius: var(--r-pill);
+    font-size: 9.5px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    font-family: "JetBrains Mono", monospace;
+  }
+
+  .v-rail-divider {
+    width: 24px; height: 1px;
+    background: var(--glass-stroke);
+    margin: 4px 0;
+    flex-shrink: 0;
+  }
+
+  /* Expanded rail content */
+  .v-rail-content {
+    position: absolute;
+    top: 12px; left: 80px; right: 12px; bottom: 12px;
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .v-rail.expanded .v-rail-content { display: flex; }
+
+  .v-rail-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--glass-stroke);
+    flex-shrink: 0;
+  }
+  .v-rail-head h3 {
+    font-family: "Outfit", sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.01em;
+    color: var(--t-primary);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .v-rail-head h3 .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--moon);
+    box-shadow: 0 0 10px currentColor;
+    color: var(--moon);
+  }
+
+  .v-card {
+    border-radius: var(--r-md);
+    padding: 14px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--glass-stroke);
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .v-card::before {
+    content: "";
+    position: absolute; top: 0; left: 12px; right: 12px;
+    height: 1.5px;
+    background: linear-gradient(90deg, var(--moon), rgba(255,201,64,0.3) 60%, transparent);
+  }
+  .v-card.sky::before { background: linear-gradient(90deg, var(--sky), rgba(91,155,255,0.3) 60%, transparent); }
+  .v-card.mint::before { background: linear-gradient(90deg, var(--mint), rgba(61,220,170,0.3) 60%, transparent); }
+
+  .v-card-label {
+    font-family: "Outfit", sans-serif;
+    font-size: 11.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--moon);
+    margin: 0 0 8px;
+  }
+  .v-card.sky .v-card-label { color: var(--sky); }
+  .v-card.mint .v-card-label { color: var(--mint); }
+
+  .v-data-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .v-data-tile {
+    padding: 10px 12px;
+    border-radius: var(--r-sm);
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--glass-stroke);
+  }
+  .v-data-tile .k {
+    font-size: 11.5px;
+    color: var(--t-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 500;
+  }
+  .v-data-tile .v {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--t-primary);
+    margin-top: 2px;
+    letter-spacing: -0.01em;
+  }
+  .v-data-tile .v small {
+    font-size: 13px;
+    color: var(--t-tertiary);
+    font-weight: 500;
+  }
+
+  .v-transit-row {
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 12px;
+    border-radius: var(--r-md);
+    background: rgba(255, 201, 64, 0.07);
+    border: 1px solid rgba(255, 201, 64, 0.22);
+    margin-top: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .v-transit-row:hover {
+    background: rgba(255, 201, 64, 0.12);
+    border-color: rgba(255, 201, 64, 0.4);
+    transform: translateX(-2px);
+  }
+  .v-transit-row .top {
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .v-transit-row .callsign {
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 700;
+    font-size: 15.5px;
+    color: var(--moon);
+    letter-spacing: 0.04em;
+  }
+  .v-transit-row .delta {
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--sky);
+  }
+  .v-transit-row .nudge {
+    font-size: 13px;
+    color: var(--t-secondary);
+    line-height: 1.4;
+    margin: 0;
+  }
+
+  /* ============== INCOMING TRANSIT ALERT (slides in) ============== */
+  .v-alert {
+    position: absolute;
+    bottom: 132px;
+    right: 96px;
+    width: 320px;
+    border-radius: var(--r-lg);
+    padding: 16px;
+    z-index: 11;
+    border: 1px solid rgba(61, 220, 170, 0.4);
+    background: linear-gradient(145deg, rgba(61, 220, 170, 0.10), rgba(91, 155, 255, 0.05));
+    backdrop-filter: blur(28px) saturate(1.5);
+    box-shadow:
+      0 0 0 1px rgba(61, 220, 170, 0.2),
+      0 24px 64px -16px rgba(0,0,0,0.7),
+      0 0 32px -8px rgba(61, 220, 170, 0.4);
+    animation: slideUp 0.5s cubic-bezier(0.2, 0.9, 0.2, 1.06);
+  }
+  @keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .v-alert.hidden { display: none; }
+  .v-alert-head {
+    display: flex; align-items: center; gap: 8px;
+    font-family: "Outfit", sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--mint);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+  }
+  .v-alert-head::before {
+    content: "";
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--mint);
+    box-shadow: 0 0 10px var(--mint);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 10px var(--mint); }
+    50% { box-shadow: 0 0 20px var(--mint), 0 0 4px var(--mint); }
+  }
+  .v-alert h4 {
+    margin: 8px 0 4px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--t-primary);
+    letter-spacing: 0.04em;
+  }
+  .v-alert p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--t-secondary);
+    line-height: 1.45;
+  }
+  .v-alert .meta {
+    margin-top: 10px;
+    display: flex; gap: 10px; align-items: center;
+    font-size: 11.5px;
+    color: var(--t-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 500;
+  }
+  .v-alert .meta .delta-strong {
+    font-family: "JetBrains Mono", monospace;
+    color: var(--sky);
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0;
+  }
+
+  /* ============== TIME RIBBON (bottom) ============== */
+  .v-time {
+    position: absolute;
+    left: 16px; right: 16px;
+    bottom: 16px;
+    height: 88px;
+    border-radius: var(--r-xl);
+    padding: 14px 24px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .v-time-now {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 140px;
+  }
+  .v-time-now .label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--t-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-family: "Outfit", sans-serif;
+  }
+  .v-time-now .clock {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--t-primary);
+    letter-spacing: -0.01em;
+    line-height: 1;
+    margin-top: 2px;
+  }
+  .v-time-now .date {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--t-tertiary);
+    font-family: "JetBrains Mono", monospace;
+  }
+
+  .v-track {
+    flex: 1;
+    height: 100%;
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .v-track-line {
+    position: absolute;
+    left: 0; right: 0;
+    top: 50%;
+    height: 4px;
+    transform: translateY(-50%);
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 2px;
+    overflow: visible;
+  }
+  .v-track-line::before {
+    content: "";
+    position: absolute;
+    left: 50%; top: 0; bottom: 0;
+    width: 3px;
+    background: linear-gradient(90deg,
+      transparent,
+      rgba(91, 155, 255, 0.4) 30%,
+      rgba(91, 155, 255, 0.8) 50%,
+      rgba(91, 155, 255, 0.4) 70%,
+      transparent);
+    filter: blur(1px);
+  }
+  .v-marker {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--moon);
+    box-shadow: 0 0 12px rgba(255, 201, 64, 0.7),
+                0 0 0 2px rgba(2, 3, 12, 0.8);
+  }
+  .v-marker.sky { background: var(--sky); box-shadow: 0 0 12px rgba(91,155,255,0.7), 0 0 0 2px rgba(2,3,12,0.8); }
+  .v-marker .ttl {
+    position: absolute;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--moon);
+    white-space: nowrap;
+    letter-spacing: 0.04em;
+  }
+  .v-marker.sky .ttl { color: var(--sky); }
+
+  .v-now-handle {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 18px;
+    height: 32px;
+    border-radius: 6px;
+    background: linear-gradient(180deg, #fff 0%, #c4c7d6 100%);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5),
+                0 0 0 1.5px rgba(2,3,12,0.6),
+                0 0 16px rgba(255,255,255,0.4);
+    z-index: 2;
+    cursor: grab;
+  }
+  .v-now-handle::after {
+    content: "";
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: 2px; height: 12px;
+    background: rgba(2, 3, 12, 0.4);
+    border-radius: 1px;
+  }
+
+  .v-track-ends {
+    position: absolute;
+    left: 0; right: 0;
+    bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--t-quaternary);
+    letter-spacing: 0.08em;
+  }
+
+  .v-time-sync {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .v-sync-pill {
+    height: 40px;
+    padding: 0 16px;
+    border-radius: var(--r-pill);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: "Outfit", sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--mint);
+    border: 1px solid rgba(61, 220, 170, 0.4);
+    background: rgba(61, 220, 170, 0.10);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .v-sync-pill:hover {
+    background: rgba(61, 220, 170, 0.16);
+    border-color: rgba(61, 220, 170, 0.6);
+  }
+  .v-sync-pill svg { width: 16px; height: 16px; }
+
+  /* ============================================================
+     MOBILE FRAME — same v2 design adapted
+     ============================================================ */
+  .mobile-section {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
+    gap: 28px;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .mobile-section { grid-template-columns: 1fr; }
+  }
+
+  .phone {
+    aspect-ratio: 9 / 19.5;
+    width: 100%;
+    max-width: 360px;
+    margin: 0 auto;
+    border-radius: 38px;
+    padding: 12px;
+    background: linear-gradient(180deg, #1a1a1f, #0a0a0f);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.03),
+      0 30px 60px -20px rgba(0,0,0,0.6);
+    position: relative;
+    overflow: hidden;
+  }
+  .phone::after {
+    content: ""; position: absolute;
+    top: 18px; left: 50%;
+    transform: translateX(-50%);
+    width: 80px; height: 22px;
+    border-radius: var(--r-pill);
+    background: #000;
+    z-index: 50;
+  }
+  .phone .screen {
+    width: 100%; height: 100%;
+    border-radius: 28px;
+    overflow: hidden;
+    position: relative;
+    isolation: isolate;
+  }
+
+  /* Mobile v2 layout */
+  .m-brand {
+    position: absolute; top: 50px; left: 14px;
+    height: 44px; padding: 0 14px 0 7px;
+    display: flex; align-items: center; gap: 9px;
+    border-radius: var(--r-pill);
+    z-index: 10;
+  }
+  .m-brand .logo {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #fff, #93c5fd 50%, #ffc940 100%);
+    box-shadow: 0 0 12px rgba(91,155,255,0.6), inset 0 0 0 1px rgba(255,255,255,0.4);
+  }
+  .m-brand .word {
+    font-family: "Outfit"; font-weight: 600; font-size: 16px;
+    background: linear-gradient(120deg, #fff, #93c5fd 50%, #ffc940);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+
+  .m-cmd {
+    position: absolute;
+    top: 50px; right: 14px;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    z-index: 10;
+    color: var(--t-primary);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .m-cmd svg { width: 18px; height: 18px; }
+
+  /* Mobile top status chip */
+  .m-status {
+    position: absolute; top: 110px; left: 14px; right: 14px;
+    height: 64px;
+    border-radius: var(--r-lg);
+    padding: 10px 14px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .m-status .ico {
+    width: 36px; height: 36px;
+    border-radius: 12px;
+    background: rgba(255, 201, 64, 0.15);
+    color: var(--moon);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .m-status .ico svg { width: 20px; height: 20px; }
+  .m-status .body { flex: 1; min-width: 0; }
+  .m-status .body .k {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--t-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-family: "Outfit", sans-serif;
+  }
+  .m-status .body .v {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--t-primary);
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+    margin-top: 2px;
+  }
+  .m-status .body .v small {
+    font-size: 11.5px;
+    color: var(--t-tertiary);
+    font-weight: 500;
+    margin-left: 4px;
+  }
+
+  /* Mobile floating action stack */
+  .m-actions {
+    position: absolute;
+    right: 14px;
+    bottom: 240px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 10;
+  }
+  .m-action {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--t-primary);
+  }
+  .m-action.primary { color: var(--mint); border-color: rgba(61, 220, 170, 0.4); }
+  .m-action.warm { color: var(--moon); border-color: rgba(255, 201, 64, 0.4); }
+  .m-action svg { width: 20px; height: 20px; }
+
+  /* Mobile incoming transit alert */
+  .m-alert {
+    position: absolute;
+    left: 14px; right: 14px;
+    bottom: 168px;
+    border-radius: var(--r-lg);
+    padding: 14px 16px;
+    z-index: 11;
+    border: 1px solid rgba(61, 220, 170, 0.4);
+    background: linear-gradient(145deg, rgba(61, 220, 170, 0.12), rgba(91, 155, 255, 0.06));
+    backdrop-filter: blur(28px) saturate(1.5);
+    box-shadow: 0 -8px 32px -8px rgba(0,0,0,0.5),
+                0 0 24px -4px rgba(61, 220, 170, 0.4);
+  }
+  .m-alert-head {
+    display: flex; align-items: center; gap: 8px;
+    font-family: "Outfit", sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--mint);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+  }
+  .m-alert-head::before {
+    content: ""; width: 7px; height: 7px;
+    border-radius: 50%; background: var(--mint);
+    box-shadow: 0 0 8px var(--mint);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  .m-alert h4 {
+    margin: 6px 0 4px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--t-primary);
+    letter-spacing: 0.04em;
+  }
+  .m-alert p {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--t-secondary);
+    line-height: 1.4;
+  }
+
+  /* Mobile time ribbon */
+  .m-time {
+    position: absolute;
+    left: 8px; right: 8px;
+    bottom: 76px;
+    height: 76px;
+    border-radius: var(--r-lg);
+    padding: 10px 14px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .m-time-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .m-time-row .clock {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--t-primary);
+    letter-spacing: -0.01em;
+  }
+  .m-time-row .label {
+    font-size: 10px;
+    color: var(--t-tertiary);
+    font-family: "Outfit", sans-serif;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+  }
+  .m-track {
+    flex: 1;
+    position: relative;
+    display: flex; align-items: center;
+  }
+  .m-track-line {
+    position: absolute;
+    left: 0; right: 0;
+    top: 50%;
+    height: 3px;
+    transform: translateY(-50%);
+    background: rgba(255,255,255,0.06);
+    border-radius: 2px;
+  }
+  .m-now {
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: 14px; height: 24px;
+    border-radius: 5px;
+    background: linear-gradient(180deg, #fff, #c4c7d6);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5), 0 0 0 1.2px rgba(2,3,12,0.6);
+    z-index: 2;
+  }
+  .m-marker {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--moon);
+    box-shadow: 0 0 8px rgba(255,201,64,0.7), 0 0 0 1.5px rgba(2,3,12,0.8);
+  }
+  .m-marker.sky { background: var(--sky); box-shadow: 0 0 8px rgba(91,155,255,0.7), 0 0 0 1.5px rgba(2,3,12,0.8); }
+
+  /* Mobile contextual dock — replaces tab bar */
+  .m-dock {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 68px;
+    padding: 8px 12px max(0.75rem, env(safe-area-inset-bottom));
+    background: rgba(2, 3, 12, 0.85);
+    border-top: 1px solid var(--glass-stroke);
+    backdrop-filter: blur(28px) saturate(1.5);
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .m-dock-pill {
+    flex: 1;
+    height: 48px;
+    border-radius: var(--r-md);
+    display: flex; align-items: center; justify-content: center;
+    gap: 6px;
+    font-family: "Outfit", sans-serif;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--t-tertiary);
+    border: 1px solid transparent;
+    background: transparent;
+    transition: all 0.18s;
+  }
+  .m-dock-pill svg { width: 18px; height: 18px; stroke-width: 1.7; }
+  .m-dock-pill.active {
+    background: rgba(91, 155, 255, 0.12);
+    border-color: rgba(91, 155, 255, 0.32);
+    color: var(--sky);
+  }
+  .m-dock-pill .badge {
+    background: var(--moon);
+    color: #1a1a1a;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 6px;
+    margin-left: 2px;
+  }
+
+  /* ============================================================
+     CONTROLS / NOTES SIDEBAR
+     ============================================================ */
+  .notes {
+    display: flex; flex-direction: column; gap: 18px;
+  }
+  .notes h2 {
+    font-family: "Outfit", sans-serif;
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.015em;
+  }
+  .notes .note-card {
+    background: rgba(18, 22, 50, 0.4);
+    border: 1px solid var(--glass-stroke);
+    border-radius: var(--r-lg);
+    padding: 18px;
+    backdrop-filter: blur(8px);
+  }
+  .notes .note-card h3 {
+    font-family: "Outfit", sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--t-tertiary);
+    margin: 0 0 12px;
+  }
+  .notes .change-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .notes .change-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--t-secondary);
+  }
+  .notes .change-list li::before {
+    content: "→";
+    color: var(--mint);
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .notes .change-list li strong { color: var(--t-primary); font-weight: 600; }
+
+  .controls-strip {
+    display: flex; gap: 10px; flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .controls-strip button {
+    padding: 10px 16px;
+    border-radius: var(--r-pill);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--glass-stroke);
+    color: var(--t-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: "Outfit", "Inter", sans-serif;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .controls-strip button:hover {
+    background: rgba(255,255,255,0.08);
+    color: var(--t-primary);
+    border-color: var(--glass-stroke-strong);
+  }
+  .controls-strip button[aria-pressed="true"] {
+    background: rgba(91, 155, 255, 0.16);
+    border-color: rgba(91, 155, 255, 0.45);
+    color: var(--sky);
+  }
+  .controls-strip button .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--mint);
+    box-shadow: 0 0 8px var(--mint);
+  }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0;
+    margin: -1px; overflow: hidden; clip: rect(0,0,0,0);
+    white-space: nowrap; border: 0;
+  }
+</style>
+</head>
+<body>
+<div class="studio">
+
+  <header class="studio-header">
+    <div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+        <span class="badge">Prijedlog v2 · drastičan</span>
+        <span style="font-size:12.5px;color:var(--t-tertiary);font-family:'JetBrains Mono',monospace;">design-mockup-v2.html</span>
+      </div>
+      <h1>LunaPic — map-first command center</h1>
+      <p class="sub">
+        Ovo nije refresh — ovo je druga arhitektura. <strong style="color:var(--t-primary);">Mapa je proizvod</strong>, sve ostalo plovi preko nje kao floating glass elementi. Bočne stupce nema. Brand je minimalan. Tools se otkrivaju kontekstno (klikni na strip desno). Vrijeme je elegantna ribbon traka dolje s markerima za nadolazeće transite.
+      </p>
+    </div>
+  </header>
+
+  <!-- Prije thumbnail -->
+  <div class="canvas">
+    <div>
+      <span class="frame-label">
+        <span class="pill before">Prije</span>
+        <strong>Trenutni izgled</strong> — 3 stupca, paneli su statični stupci
+      </span>
+      <div class="before-thumb">
+        <div class="layout">
+          <div class="header"><span>LunaPic</span><span style="font-size:8px;">☀ 14° · TIME (NEXT 24H) ······●····················</span></div>
+          <div class="left">
+            <div class="panel-stub sky"></div>
+            <div class="panel-stub violet"></div>
+            <div class="panel-stub" style="border-color:rgba(255,255,255,0.06);"></div>
+            <div class="panel-stub amber"></div>
+            <div class="panel-stub sky"></div>
+            <div class="panel-stub amber"></div>
+          </div>
+          <div class="map">mapa s lijevim i desnim stupcem koji ju "stišću"</div>
+          <div class="right">
+            <div class="panel-stub" style="border-color:rgba(167,139,250,0.18);"></div>
+            <div class="panel-stub" style="border-color:rgba(96,165,250,0.18);"></div>
+            <div class="panel-stub amber"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Poslije: desktop -->
+    <div>
+      <span class="frame-label">
+        <span class="pill after">Poslije v2</span>
+        <strong>Map-first command center</strong> — mapa edge-to-edge, sve plovi
+      </span>
+
+      <div class="controls-strip">
+        <button id="btnAlert" aria-pressed="true"><span class="dot"></span> Pokaži incoming transit alert</button>
+        <button id="btnRail" aria-pressed="false">Otvori "Active transits" panel</button>
+      </div>
+
+      <div class="desk">
+        <div class="browser-chrome">
+          <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+          <div class="url">lunapic.app · Zagreb (45.81°N, 15.98°E) · 22:47:03 · ☾ 73%</div>
+        </div>
+        <div class="vp" id="vp">
+          <h2 class="sr-only">LunaPic v2 desktop prijedlog</h2>
+
+          <!-- MAP layer -->
+          <div class="map-bg"></div>
+          <div class="moon-path"></div>
+          <div class="ray"></div>
+          <div class="moon-glyph"></div>
+          <div class="plane">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
+            </svg>
+          </div>
+          <div class="plane-label">RYR4321 · 0.18°</div>
+
+          <!-- City labels (fake) -->
+          <div class="city-label" style="top:54%;left:34%;">Zagreb</div>
+          <div class="city-label" style="top:62%;left:48%;">Beograd</div>
+          <div class="city-label" style="top:38%;left:18%;">Ljubljana</div>
+          <div class="city-label" style="top:30%;left:62%;">Budapest</div>
+          <div class="city-label" style="top:72%;left:28%;">Sarajevo</div>
+
+          <!-- TOP — brand, command bar, weather, sync -->
+          <div class="v-brand glass">
+            <div class="logo"></div>
+            <span class="word">LunaPic</span>
+          </div>
+
+          <div class="v-cmdbar glass">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <span class="placeholder">Search flight, jump to time, set location…</span>
+            <span class="kbd">⌘K</span>
+          </div>
+
+          <div class="v-topright">
+            <div class="v-weather glass">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+              <span class="temp">14°</span>
+              <span class="meta">12 km/h NW<strong>Vedro</strong></span>
+            </div>
+            <button class="v-iconbtn glass primary" aria-label="Sync time to now">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3.5-7.1"/><path d="M21 4v5h-5"/></svg>
+            </button>
+            <button class="v-iconbtn glass warm" aria-label="Set my location">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s7-7.5 7-12a7 7 0 0 0-14 0c0 4.5 7 12 7 12z"/><circle cx="12" cy="10" r="3"/></svg>
+            </button>
+          </div>
+
+          <!-- RIGHT RAIL (collapsible) -->
+          <aside class="v-rail glass" id="rail">
+            <button class="v-rail-btn" aria-pressed="true" data-rail="active" aria-label="Active transits">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+              <span class="badge">2</span>
+            </button>
+            <button class="v-rail-btn" data-rail="moon" aria-label="Moon ephemeris">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            </button>
+            <button class="v-rail-btn" data-rail="tracks" aria-label="Transit candidates">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg>
+            </button>
+            <div class="v-rail-divider"></div>
+            <button class="v-rail-btn" data-rail="photo" aria-label="Photographer tools">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            </button>
+            <button class="v-rail-btn" data-rail="compass" aria-label="Compass">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+            </button>
+            <button class="v-rail-btn" data-rail="filters" aria-label="Flight filters">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            </button>
+
+            <!-- Expanded content -->
+            <div class="v-rail-content" id="railContent">
+              <div class="v-rail-head">
+                <h3 id="railTitle"><span class="dot"></span> Active transits</h3>
+                <button class="v-iconbtn" style="width:36px;height:36px;background:rgba(255,255,255,0.04);border:1px solid var(--glass-stroke);" aria-label="Zatvori">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
+
+              <div class="v-card">
+                <p class="v-card-label">Active transits · 2</p>
+                <p style="margin:0;font-size:13.5px;line-height:1.55;color:var(--t-secondary);">Avioni i Mjesec u istoj azimutalnoj liniji unutar <strong style="color:var(--moon);font-family:'JetBrains Mono',monospace;font-weight:700;">0.5°</strong>.</p>
+
+                <div class="v-transit-row">
+                  <div class="top">
+                    <span class="callsign">RYR4321</span>
+                    <span class="delta">Δ 0.18°</span>
+                  </div>
+                  <p class="nudge">Desni rub kadra · 22s · pomakni kameru ¼° istok</p>
+                </div>
+                <div class="v-transit-row">
+                  <div class="top">
+                    <span class="callsign">DLH8XK</span>
+                    <span class="delta">Δ 0.42°</span>
+                  </div>
+                  <p class="nudge">Tik iznad Mjeseca · 38s · podigni kameru 0.6°</p>
+                </div>
+              </div>
+
+              <div class="v-card sky">
+                <p class="v-card-label">Mjesec — sada</p>
+                <div class="v-data-grid">
+                  <div class="v-data-tile">
+                    <div class="k">Azimut</div>
+                    <div class="v">128.4<small>°</small></div>
+                  </div>
+                  <div class="v-data-tile">
+                    <div class="k">Visina</div>
+                    <div class="v">42.7<small>°</small></div>
+                  </div>
+                  <div class="v-data-tile">
+                    <div class="k">Faza</div>
+                    <div class="v">73<small>%</small></div>
+                  </div>
+                  <div class="v-data-tile">
+                    <div class="k">Zalazak</div>
+                    <div class="v">02:14</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          <!-- INCOMING TRANSIT ALERT -->
+          <div class="v-alert" id="alert">
+            <div class="v-alert-head">Incoming transit · 4m 12s</div>
+            <h4>EZY52KT</h4>
+            <p>A320 · FL340 · sjeverno od Mjeseca · pravac 312°.</p>
+            <div class="meta">
+              <span>Δ azimut</span>
+              <span class="delta-strong">0.31°</span>
+              <span>·</span>
+              <span>FOV pokriva</span>
+              <span class="delta-strong" style="color:var(--mint);">100%</span>
+            </div>
+          </div>
+
+          <!-- TIME RIBBON -->
+          <div class="v-time glass-strong">
+            <div class="v-time-now">
+              <span class="label">Sada</span>
+              <span class="clock">22:47<span style="color:var(--t-tertiary);font-size:18px;">:03</span></span>
+              <span class="date">FRI · 8 May 2026</span>
+            </div>
+            <div class="v-track">
+              <div class="v-track-line"></div>
+              <div class="v-marker" style="left:62%"><span class="ttl">+4m</span></div>
+              <div class="v-marker sky" style="left:73%"><span class="ttl">+12m</span></div>
+              <div class="v-marker" style="left:84%"><span class="ttl">+38m</span></div>
+              <div class="v-marker sky" style="left:30%"><span class="ttl">−2h</span></div>
+              <div class="v-now-handle"></div>
+              <div class="v-track-ends"><span>−12H</span><span>NOW</span><span>+12H</span></div>
+            </div>
+            <div class="v-time-sync">
+              <button class="v-sync-pill">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3.5-7.1"/><path d="M21 4v5h-5"/></svg>
+                Sync time
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MOBILE preview -->
+    <div class="mobile-section">
+      <div>
+        <span class="frame-label">
+          <span class="pill after">Poslije v2 · mobile</span>
+          <strong>Ista filozofija na mobitelu</strong> — bez tabova, kontekstualni dock + alert
+        </span>
+        <div class="phone">
+          <div class="screen">
+            <div class="map-bg"></div>
+            <div class="moon-path" style="top:14%;height:55%;"></div>
+            <div class="ray" style="top:38%;left:8%;width:70%;"></div>
+            <div class="moon-glyph" style="top:22%;right:14%;width:34px;height:34px;"></div>
+            <div class="moon-glyph" style="display:none;"></div>
+
+            <div class="m-brand glass">
+              <div class="logo"></div>
+              <span class="word">LunaPic</span>
+            </div>
+            <button class="m-cmd glass" aria-label="Search">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            </button>
+
+            <div class="m-status glass">
+              <div class="ico">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+              </div>
+              <div class="body">
+                <div class="k">Mjesec sada</div>
+                <div class="v">128.4°<small>az</small> · 42.7°<small>alt</small> · 73%</div>
+              </div>
+            </div>
+
+            <div class="m-actions">
+              <button class="m-action glass primary" aria-label="Sync time">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3.5-7.1"/><path d="M21 4v5h-5"/></svg>
+              </button>
+              <button class="m-action glass warm" aria-label="Set location">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s7-7.5 7-12a7 7 0 0 0-14 0c0 4.5 7 12 7 12z"/><circle cx="12" cy="10" r="3"/></svg>
+              </button>
+            </div>
+
+            <div class="m-alert">
+              <div class="m-alert-head">Incoming · 4m 12s</div>
+              <h4>EZY52KT</h4>
+              <p>Δ 0.31° · A320 · FL340 · FOV pokriva 100%</p>
+            </div>
+
+            <div class="m-time glass">
+              <div class="m-time-row">
+                <span class="label">Sada</span>
+                <span class="clock">22:47:03</span>
+              </div>
+              <div class="m-track">
+                <div class="m-track-line"></div>
+                <div class="m-marker" style="left:62%;"></div>
+                <div class="m-marker sky" style="left:73%;"></div>
+                <div class="m-marker" style="left:84%;"></div>
+                <div class="m-now"></div>
+              </div>
+            </div>
+
+            <nav class="m-dock">
+              <button class="m-dock-pill active">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+                Active <span class="badge">2</span>
+              </button>
+              <button class="m-dock-pill">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg>
+                Tracks
+              </button>
+              <button class="m-dock-pill">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                Photo
+              </button>
+            </nav>
+          </div>
+        </div>
+      </div>
+
+      <aside class="notes">
+        <h2>Što je drukčije od v1</h2>
+
+        <div class="note-card">
+          <h3>Arhitektura</h3>
+          <ul class="change-list">
+            <li><strong>Mapa edge-to-edge</strong> — bez fiksnih bočnih stupaca koji ju režu na 60% širine.</li>
+            <li><strong>Brand minimaliziran</strong> — onaj ogromni logo + wordmark koji je zauzimao cijeli gornji red sad je 44px pilula gore lijevo.</li>
+            <li><strong>Command bar (⌘K)</strong> u centru gore — pretraga letova, skok na vrijeme, postavljanje observera, sve s tipkovnice.</li>
+            <li><strong>Right rail je collapsible</strong> — obično zatvorena traka s ikonama (badgevi pokazuju koliko aktivnih), klikom panel klizi van preko mape.</li>
+          </ul>
+        </div>
+
+        <div class="note-card">
+          <h3>Vrijeme</h3>
+          <ul class="change-list">
+            <li><strong>Time ribbon dolje</strong> — full-width glass traka. Velik čitljiv sat na lijevoj strani (28px JetBrains Mono).</li>
+            <li><strong>Markeri za nadolazeće transite</strong> — žute točke = transiti, plave = mjesec rise/set/zenit. Klik = skok.</li>
+            <li><strong>Drag handle u sredini</strong> — bijeli pill kao Apple Music scrubber, glatko skrolanje kroz vrijeme.</li>
+          </ul>
+        </div>
+
+        <div class="note-card">
+          <h3>Kontekstualni alerti</h3>
+          <ul class="change-list">
+            <li><strong>Incoming transit alert</strong> — glass kartica klizne iz desnog dolnjeg kuta kad avion uđe u zonu (pulsirajuća zelena točka). Sadrži callsign, ETA, Δ, FOV%.</li>
+            <li><strong>Auto-disappears</strong> kad transit prođe — bez manualnog zatvaranja.</li>
+            <li>Klikni "Pokaži incoming transit alert" iznad da vidiš animaciju.</li>
+          </ul>
+        </div>
+
+        <div class="note-card">
+          <h3>Mobile</h3>
+          <ul class="change-list">
+            <li><strong>Bez full-screen tabova/sheetova</strong> — sve relevantno je vidljivo odmah na mapi.</li>
+            <li><strong>Status chip gore</strong> — "Mjesec sada" s azimutom/visinom/fazom u jednom redu.</li>
+            <li><strong>Time ribbon iznad docka</strong> — pristup vremenskom skrolanju u dodir.</li>
+            <li><strong>Dock je kontekstualan</strong> — samo 3 najvažnije kategorije + badge brojač, ne 9 jednako-važnih tabova.</li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Right rail open/close + content swap
+  const rail = document.getElementById("rail");
+  const railTitle = document.getElementById("railTitle");
+  const btnRail = document.getElementById("btnRail");
+  const railTitles = {
+    active: "Active transits",
+    moon: "Moon — sada",
+    tracks: "Transit candidates",
+    photo: "Photographer tools",
+    compass: "Compass → Moon",
+    filters: "Flight filters"
+  };
+
+  function openRail(panelId) {
+    rail.classList.add("expanded");
+    btnRail.setAttribute("aria-pressed", "true");
+    btnRail.textContent = "Zatvori panel";
+    rail.querySelectorAll(".v-rail-btn").forEach(b => {
+      b.setAttribute("aria-pressed", b.dataset.rail === panelId ? "true" : "false");
+    });
+    if (railTitle && railTitles[panelId]) {
+      railTitle.innerHTML = `<span class="dot"></span> ${railTitles[panelId]}`;
+    }
+  }
+  function closeRail() {
+    rail.classList.remove("expanded");
+    btnRail.setAttribute("aria-pressed", "false");
+    btnRail.textContent = `Otvori "Active transits" panel`;
+  }
+
+  rail.querySelectorAll(".v-rail-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (btn.getAttribute("aria-pressed") === "true" && rail.classList.contains("expanded")) {
+        closeRail();
+      } else {
+        openRail(btn.dataset.rail);
+      }
+    });
+  });
+
+  btnRail.addEventListener("click", () => {
+    if (rail.classList.contains("expanded")) closeRail();
+    else openRail("active");
+  });
+
+  // Initial state: rail closed (showing strip only)
+  closeRail();
+
+  // Alert toggle
+  const alertEl = document.getElementById("alert");
+  const btnAlert = document.getElementById("btnAlert");
+  btnAlert.addEventListener("click", () => {
+    const showing = !alertEl.classList.contains("hidden");
+    if (showing) {
+      alertEl.classList.add("hidden");
+      btnAlert.setAttribute("aria-pressed", "false");
+      btnAlert.querySelector(".dot").style.background = "var(--t-tertiary)";
+      btnAlert.querySelector(".dot").style.boxShadow = "none";
+    } else {
+      alertEl.classList.remove("hidden");
+      // re-trigger animation
+      alertEl.style.animation = "none";
+      alertEl.offsetHeight;
+      alertEl.style.animation = "";
+      btnAlert.setAttribute("aria-pressed", "true");
+      btnAlert.querySelector(".dot").style.background = "var(--mint)";
+      btnAlert.querySelector(".dot").style.boxShadow = "0 0 8px var(--mint)";
+    }
+  });
+</script>
+</body>
+</html>

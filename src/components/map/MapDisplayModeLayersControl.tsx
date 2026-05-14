@@ -4,7 +4,9 @@ import { useHasMounted } from "@/hooks/useHasMounted";
 import { clampFloatingMenuLeft } from "@/lib/ui/clampFloatingMenuLeft";
 import { FLIGHT_3D_MODEL_UI_PREVIEW_PATH } from "@/lib/map/mapOverlayConstants";
 import { appPath } from "@/lib/paths/appPath";
-import { shellComboboxListboxPortalClass } from "@/lib/ui/shellComboboxStyles";
+import {
+  shellMapAircraftDisplayPopoverClass,
+} from "@/lib/ui/shellComboboxStyles";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import type { MapDisplayMode } from "@/types/map-display";
 import { createPortal } from "react-dom";
@@ -38,7 +40,7 @@ function LayersStackIcon({ className }: { className?: string }) {
 
 function Preview3DModel() {
   return (
-    <div className="relative h-full w-full overflow-hidden bg-zinc-900" aria-hidden>
+    <div className="relative h-full w-full overflow-hidden bg-[color:var(--bg-2)]" aria-hidden>
       {/* eslint-disable-next-line @next/next/no-img-element -- small static preview; avoids next/image basePath coupling */}
       <img
         src={appPath(FLIGHT_3D_MODEL_UI_PREVIEW_PATH)}
@@ -55,7 +57,7 @@ function Preview3DModel() {
 function PreviewAtcStyle() {
   return (
     <div
-      className="relative flex h-full w-full items-center justify-center overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-950"
+      className="relative flex h-full w-full items-center justify-center overflow-hidden bg-gradient-to-br from-[color:var(--bg-1)] via-sky-950/40 to-[color:var(--bg-2)]"
       aria-hidden
     >
       <div className="absolute h-14 w-14 max-md:h-8 max-md:w-8 rounded-full border-2 border-sky-400/35" />
@@ -176,7 +178,7 @@ export function MapDisplayModeLayersControl() {
         id={menuId}
         role="dialog"
         aria-label="Map aircraft display mode"
-        className={shellComboboxListboxPortalClass}
+        className={shellMapAircraftDisplayPopoverClass}
         style={{
           top: menuPos.top,
           left: menuPos.left,
@@ -184,10 +186,10 @@ export function MapDisplayModeLayersControl() {
           maxHeight: "min(50vh, 18rem)",
         }}
       >
-        <div className="border-b border-zinc-700/80 px-2 py-1.5 font-[family-name:var(--font-jetbrains-mono)] text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+        <div className="shrink-0 border-b border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)] px-3 py-2 font-[family-name:var(--font-jetbrains-mono)] text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-secondary)]">
           Aircraft display
         </div>
-        <div className="grid grid-cols-2 gap-1.5 p-1.5">
+        <div className="grid min-h-0 flex-1 grid-cols-2 gap-2 overflow-y-auto p-2">
           {OPTIONS.map((opt) => {
             const active = mapDisplayMode === opt.id;
             return (
@@ -195,23 +197,25 @@ export function MapDisplayModeLayersControl() {
                 key={opt.id}
                 type="button"
                 onClick={() => closeAndSet(opt.id)}
-                className={`flex flex-col overflow-hidden rounded-md border text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500/60 ${
+                className={`flex flex-col overflow-hidden rounded-[var(--r-md)] border text-left outline-none transition focus-visible:ring-2 focus-visible:ring-sky-500/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--glass-3)] ${
                   active
-                    ? "border-sky-500/70 bg-sky-950/50 ring-1 ring-sky-500/35"
-                    : "border-zinc-700/80 bg-zinc-900/40 hover:border-zinc-500"
+                    ? "border-sky-400/45 bg-sky-500/[0.12] ring-1 ring-sky-400/25"
+                    : "border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/90 hover:border-sky-400/35 hover:bg-[color:var(--glass-2)]/80"
                 }`}
                 aria-pressed={active}
                 data-testid={`map-display-mode-${opt.id}`}
                 data-value={opt.id}
               >
-                <div className="relative aspect-[4/3] w-full">{previewForMode(opt.id)}</div>
-                <div className="flex items-center justify-between gap-1 px-2 py-1.5">
-                  <span className="min-w-0 truncate text-xs font-semibold text-zinc-100">
+                <div className="relative aspect-[4/3] w-full overflow-hidden">
+                  {previewForMode(opt.id)}
+                </div>
+                <div className="flex items-center justify-between gap-1 border-t border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/70 px-2 py-2">
+                  <span className="min-w-0 truncate text-[length:var(--fs-label)] font-semibold text-[color:var(--t-primary)]">
                     {opt.label}
                   </span>
                   {active ? (
                     <span
-                      className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-sky-500 text-[9px] font-bold text-zinc-950"
+                      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sky-500/90 text-[length:var(--fs-label)] font-bold leading-none text-[color:var(--bg-0)]"
                       aria-hidden
                     >
                       ✓
@@ -227,11 +231,11 @@ export function MapDisplayModeLayersControl() {
 
   return (
     <>
-      <div className="pointer-events-none max-md:shrink-0 md:absolute md:bottom-3 md:left-3 md:z-10">
+      <div className="pointer-events-none max-md:shrink-0 md:absolute md:bottom-[4.5rem] md:left-3 md:z-10">
         <button
           ref={triggerRef}
           type="button"
-          className="pointer-events-auto flex h-full min-h-0 w-[4.75rem] flex-col overflow-hidden rounded-xl border-2 border-white/90 bg-zinc-950 shadow-[0_10px_36px_rgba(0,0,0,0.45)] outline-none ring-1 ring-zinc-800/90 transition hover:border-sky-300/90 focus-visible:ring-2 focus-visible:ring-sky-500/50 active:scale-[0.98] md:h-auto"
+          className="pointer-events-auto mt-glass-elevated flex h-full min-h-0 w-[4.75rem] flex-col overflow-hidden rounded-[var(--r-md)] outline-none transition hover:ring-1 hover:ring-sky-400/25 focus-visible:ring-2 focus-visible:ring-sky-500/45 active:scale-[0.98] md:h-auto"
           aria-expanded={open}
           aria-haspopup="dialog"
           aria-controls={open ? menuId : undefined}
@@ -243,8 +247,8 @@ export function MapDisplayModeLayersControl() {
           <div className="relative min-h-0 w-full flex-1 md:h-[4.5rem] md:flex-none">
             {previewForMode(alternateMapDisplayMode(mapDisplayMode))}
           </div>
-          <div className="flex shrink-0 min-h-[1.35rem] items-center justify-center gap-1 bg-black/70 px-1 py-0.5 text-[10px] font-semibold leading-none tracking-wide text-white">
-            <LayersStackIcon className="h-3.5 w-3.5 shrink-0 text-zinc-200" />
+          <div className="flex min-h-[1.35rem] shrink-0 items-center justify-center gap-1 border-t border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)] px-1 py-0.5 text-[length:var(--fs-label)] font-semibold leading-none tracking-wide text-[color:var(--t-secondary)]">
+            <LayersStackIcon className="h-3.5 w-3.5 shrink-0 text-[color:var(--t-tertiary)]" />
             <span className="truncate">Layers</span>
           </div>
         </button>

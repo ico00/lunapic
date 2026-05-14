@@ -27,6 +27,8 @@ type TimeSliderPanelProps = {
    * `panel` — veća kartica (npr. sidebar).
    */
   variant?: "panel" | "mapChip";
+  /** Sakrij heading row (ikona + naslov) — za kompaktnu mobilnu traku. */
+  hideHeading?: boolean;
   /** Dodatni razredi na korijen. */
   className?: string;
 };
@@ -42,6 +44,7 @@ export function TimeSliderPanel({
   timeSliderEndLabel,
   timeSliderMode,
   variant = "panel",
+  hideHeading = false,
   className = "",
 }: TimeSliderPanelProps) {
   const hasMounted = useHasMounted();
@@ -78,25 +81,72 @@ export function TimeSliderPanel({
       : "—";
 
   if (isChip) {
+    // Mobilni slim ribbon — pravi tanji line: bez bordera, bez accent linije,
+    // bez start/end labela ispod slidera. Roditelj daje glass chrome.
+    if (hideHeading) {
+      // Skrati datetime na samo HH:MM:SS (drugi dio nakon zareza).
+      const timeOnly =
+        dateTimeStr.includes(",")
+          ? dateTimeStr.split(",")[1]?.trim().slice(0, 5) ?? "—"
+          : "—";
+      return (
+        <div
+          className={`flex w-full min-w-0 items-center gap-2.5${horizonClass}${className ? ` ${className}` : ""}`}
+        >
+          <p
+            className="shrink-0 font-mono text-[length:var(--fs-label)] font-semibold tabular-nums leading-none text-[color:var(--t-primary)]"
+            suppressHydrationWarning
+            title={dateTimeStr}
+          >
+            {timeOnly}
+          </p>
+          <input
+            type="range"
+            min={0}
+            max={Math.max(0, sliderMaxHours)}
+            step={SLIDER_STEP_HOURS}
+            value={Math.min(offsetHours, Math.max(0, sliderMaxHours))}
+            onChange={onOffsetHoursChange}
+            disabled={!showEphemeris}
+            className="h-1 w-full min-w-[3.25rem] cursor-pointer accent-amber-400 disabled:opacity-40"
+            aria-label="Simulated time offset in hours"
+          />
+          <p
+            className="shrink-0 font-mono text-[length:var(--fs-label)] font-semibold tabular-nums text-amber-300"
+            aria-label={`${offsetHours.toFixed(1)} hours forward from last Sync`}
+          >
+            {offsetHours >= 0 ? "+" : ""}
+            {offsetHours.toFixed(1)}h
+          </p>
+        </div>
+      );
+    }
+
     return (
       <SectionCardSurface
         accent="amber"
-        className={`relative flex min-h-0 min-w-0 flex-col p-2.5 backdrop-blur-md${panelRoot}`}
+        className={`relative flex min-h-0 min-w-0 flex-col ${
+          hideHeading ? "p-2" : "p-2.5"
+        } backdrop-blur-md${panelRoot}`}
         title={rangeTitle}
         aria-labelledby={headingId}
       >
-        <div className="flex min-w-0 items-center gap-1.5 border-b border-white/[0.07] pb-2">
-          <span className="text-yellow-400/85" aria-hidden>
-            <SectionIconTime />
-          </span>
-          <h2 id={headingId} className="mt-section-label min-w-0 border-0 pb-0">
-            {heading}
-          </h2>
-        </div>
-        <div className="mt-1 flex min-h-0 flex-1 flex-col justify-center">
+        {!hideHeading && (
+          <div className="flex min-w-0 items-center gap-1.5 border-b border-white/[0.07] pb-2">
+            <span className="text-yellow-400/85" aria-hidden>
+              <SectionIconTime />
+            </span>
+            <h2 id={headingId} className="mt-section-label min-w-0 border-0 pb-0">
+              {heading}
+            </h2>
+          </div>
+        )}
+        <div className={`flex min-h-0 flex-1 flex-col justify-center ${
+          hideHeading ? "" : "mt-1"
+        }`}>
           <div className="flex min-w-0 items-center gap-2">
             <p
-              className="shrink-0 font-mono text-[0.65rem] tabular-nums leading-none text-zinc-300"
+              className="shrink-0 font-mono text-[length:var(--fs-meta)] tabular-nums leading-none text-[color:var(--t-secondary)]"
               suppressHydrationWarning
             >
               {dateTimeStr}
@@ -110,10 +160,10 @@ export function TimeSliderPanel({
                 value={Math.min(offsetHours, Math.max(0, sliderMaxHours))}
                 onChange={onOffsetHoursChange}
                 disabled={!showEphemeris}
-                className="h-1 w-full min-w-[3.25rem] cursor-pointer accent-blue-500 disabled:opacity-40"
+                className="h-1.5 w-full min-w-[3.25rem] cursor-pointer accent-amber-500 disabled:opacity-40"
                 aria-label="Simulated time, hours forward from last Sync"
               />
-              <div className="mt-0 flex justify-between gap-1 px-px text-[0.48rem] leading-none text-zinc-600">
+              <div className="mt-0 flex justify-between gap-1 px-px text-[length:var(--fs-label)] leading-none text-[color:var(--t-tertiary)]">
                 <span
                   className="max-w-[3rem] shrink-0 truncate"
                   title="Time at last Sync"
@@ -121,7 +171,7 @@ export function TimeSliderPanel({
                 >
                   {startLabel}
                 </span>
-                <span className="text-zinc-500" aria-hidden>
+                <span className="text-[color:var(--t-tertiary)]" aria-hidden>
                   ·
                 </span>
                 <span
@@ -134,18 +184,22 @@ export function TimeSliderPanel({
               </div>
             </div>
             <p
-              className="shrink-0 font-mono text-[0.6rem] tabular-nums text-yellow-400/85"
+              className="shrink-0 font-mono text-[length:var(--fs-label)] tabular-nums text-amber-400/85"
               aria-label={`${offsetHours.toFixed(1)} hours forward from last Sync`}
             >
               {offsetHours.toFixed(1)}h
             </p>
           </div>
         </div>
-        {isMoonBelowHorizon && showEphemeris ? (
-          <p className="mt-0.5 shrink-0 text-[0.48rem] text-zinc-500/90">
-            Moon below horizon
-          </p>
-        ) : null}
+        {/* Uvijek prisutan wrapper — sprječava skok visine kad se pojavi/nestane */}
+        <p
+          className={`mt-0.5 shrink-0 text-[length:var(--fs-meta)] font-medium text-amber-400/70 transition-opacity duration-200 ${
+            isMoonBelowHorizon && showEphemeris ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
+          aria-hidden={!(isMoonBelowHorizon && showEphemeris)}
+        >
+          ☽ Moon below horizon
+        </p>
       </SectionCardSurface>
     );
   }
@@ -166,12 +220,12 @@ export function TimeSliderPanel({
         </h2>
       </div>
       <p
-        className="mt-1.5 text-center font-mono text-sm tabular-nums text-zinc-200"
+        className="mt-1.5 text-center font-mono text-[length:var(--fs-body)] tabular-nums text-[color:var(--t-primary)]"
         suppressHydrationWarning
       >
         {dateTimeStr}
       </p>
-      <div className="mt-2 flex items-center justify-between gap-1 text-xs text-zinc-500">
+      <div className="mt-2 flex items-center justify-between gap-1 text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
         <span
           className="max-w-[4rem] shrink truncate"
           title="Time at last Sync"
@@ -196,20 +250,24 @@ export function TimeSliderPanel({
         value={Math.min(offsetHours, Math.max(0, sliderMaxHours))}
         onChange={onOffsetHoursChange}
         disabled={!showEphemeris}
-        className="mt-1 w-full accent-blue-500 disabled:opacity-40"
+        className="mt-1 w-full accent-amber-500 disabled:opacity-40"
         aria-label="Simulated time, hours forward from last Sync"
       />
-      <p className="mt-1.5 text-center text-xs text-zinc-500">
+      <p className="mt-1.5 text-center text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
         From Sync:{" "}
-        <span className="font-mono text-yellow-400/90">
-          {offsetHours.toFixed(1)} h
+        <span className="font-mono text-amber-300/90">
+        {offsetHours.toFixed(1)} h
         </span>
       </p>
-      {isMoonBelowHorizon && showEphemeris ? (
-        <p className="mt-1.5 text-center text-[0.7rem] text-zinc-500/90">
-          Moon below horizon
-        </p>
-      ) : null}
+      {/* Uvijek prisutan wrapper — sprječava skok visine kad se pojavi/nestane */}
+      <p
+        className={`mt-1.5 text-center text-[length:var(--fs-label)] font-medium text-amber-400/70 transition-opacity duration-200 ${
+          isMoonBelowHorizon && showEphemeris ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+        aria-hidden={!(isMoonBelowHorizon && showEphemeris)}
+      >
+        ☽ Moon below horizon
+      </p>
     </SectionCardSurface>
   );
 }

@@ -21,9 +21,9 @@ export function WeatherOverlay() {
           : "No hourly cloud data for this time";
 
   return (
-    <div className="pointer-events-none w-full min-w-0 shrink-0 self-stretch">
+    <div className="pointer-events-none flex min-w-0 shrink-0 items-center self-center">
       <div
-        className="flex h-full w-full min-w-0 items-center justify-start gap-1.5 rounded-md border border-zinc-700 bg-gradient-to-br from-zinc-900/95 to-zinc-950 px-2.5 py-1.5 font-[family-name:var(--font-jetbrains-mono)] text-xs text-zinc-200 shadow-[0_8px_30px_-6px_rgba(0,0,0,0.45)] ring-1 ring-zinc-800/80 backdrop-blur-md"
+        className="flex min-w-0 items-center gap-1.5 text-xs text-zinc-200"
         title={title}
         aria-live="polite"
       >

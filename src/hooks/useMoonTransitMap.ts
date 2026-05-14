@@ -269,7 +269,7 @@ export function useMoonTransitMap(
     });
     map.addControl(
       new mapboxgl.NavigationControl({ visualizePitch: true }),
-      "top-right"
+      "bottom-right"
     );
     mapRef.current = map;
     const obs = useObserverStore.getState().observer;

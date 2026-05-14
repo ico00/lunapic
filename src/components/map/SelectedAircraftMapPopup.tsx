@@ -75,9 +75,11 @@ function isMobileMapWidth(map: Map): boolean {
 /** Ako se `padding-bottom` ne može pouzdano očitati s roditelja map canvasa. */
 const MOBILE_MAP_DOCK_PADDING_FALLBACK_PX = 88;
 /**
- * Sidrište `anchor: bottom`: pikseli iznad donjeg ruba canvasa za `unproject` (**0** = donji rub canvasa).
+ * v2 layout: dock (~68px) + slim time ribbon (~44px @ bottom-5rem = 124px ukupno
+ * + altitude/layers strip iznad). Sidrište podigneš dovoljno da popup bottom
+ * sjedne IZNAD slim ribbona, ne ispod njega.
  */
-const MOBILE_POPUP_ANCHOR_ABOVE_MAP_BOTTOM_PX = 0;
+const MOBILE_POPUP_ANCHOR_ABOVE_MAP_BOTTOM_PX = 140;
 
 function readMobileDockPaddingBottomPx(map: Map): number {
   let best = 0;
@@ -130,10 +132,10 @@ function mobileBottomPopupLiftMagnitudePx(map: Map): number {
 }
 
 /**
- * Pozitivan Y u {@link mapboxgl.Popup#setOffset} = prema **dolje** (Mapbox). Lagano spušta karticu
- * na vrh tab trake nakon sitnog `-lift` gore.
+ * v2 layout: anchor već lifta popup iznad bottom kontrola, nudge ne treba —
+ * postavi 0 da popup bottom ostane točno na sidrišnoj točki.
  */
-const MOBILE_POPUP_DOCK_DOWN_NUDGE_PX = 14;
+const MOBILE_POPUP_DOCK_DOWN_NUDGE_PX = 0;
 
 function mobilePopupBottomOffsetY(map: Map): number {
   if (!isMobileMapWidth(map)) {

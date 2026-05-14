@@ -1,7 +1,5 @@
 "use client";
 
-import { ShellSectionCard } from "@/components/shell/ShellSectionCard";
-import { SectionIconCompass } from "@/components/shell/sectionCategoryIcons";
 import { useDeviceCompass } from "@/hooks/useDeviceCompass";
 import { useMoonStateComputed } from "@/hooks/useTransitCandidates";
 import { useCallback, useState } from "react";
@@ -44,22 +42,17 @@ export function CompassAimPanel() {
   const headingForRose = hasHeading && headingDeg != null ? headingDeg : 0;
 
   return (
-    <ShellSectionCard
-      className="mt-3"
-      title="Compass → Moon"
-      accent="lime"
-      icon={<SectionIconCompass />}
-    >
+    <div>
       {!listening && needPermission && (
         <button
           type="button"
           onClick={onEnable}
-          className="mt-0 w-full rounded-md border border-blue-500/40 bg-blue-500/10 py-1.5 text-sm text-yellow-400/90"
+          className="min-h-[48px] w-full rounded-2xl border border-emerald-500/35 bg-emerald-500/[0.10] py-3 text-[length:var(--fs-body)] font-semibold text-emerald-100 transition hover:border-emerald-400/55 hover:bg-emerald-500/[0.16] active:scale-[0.98]"
         >
           Allow orientation (iOS)
         </button>
       )}
-      {err && <p className="mt-2 text-[0.65rem] text-red-400/90">{err}</p>}
+      {err && <p className="mt-2 text-[length:var(--fs-meta)] text-red-400/90">{err}</p>}
       {listening && (
         <div className="mt-3 flex w-full min-w-0 flex-col items-center gap-2">
           <div
@@ -96,7 +89,7 @@ export function CompassAimPanel() {
                   key={label}
                   className={`absolute left-1/2 top-1/2 select-none text-[0.55rem] font-semibold leading-none ${
                     label === "N"
-                      ? "text-yellow-400/95"
+                      ? "text-amber-400/95"
                       : "text-zinc-400/95"
                   }`}
                   style={{
@@ -133,9 +126,9 @@ export function CompassAimPanel() {
                 transformOrigin: "50% 100%",
               }}
             />
-            <div className="absolute left-1/2 top-1/2 z-[11] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500 ring-1 ring-zinc-950" />
+            <div className="absolute left-1/2 top-1/2 z-[11] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500 ring-1 ring-zinc-950" />
           </div>
-          <p className="w-full min-w-0 break-words px-1 text-center text-[0.7rem] leading-snug text-zinc-400">
+          <p className="w-full min-w-0 break-words px-1 text-center text-[length:var(--fs-meta)] leading-snug text-[color:var(--t-secondary)]">
             {hasHeading
               ? `Turn ≈ ${Math.abs(delta).toFixed(0)}° ${
                   delta > 0 ? "↻" : "↺"
@@ -144,6 +137,6 @@ export function CompassAimPanel() {
           </p>
         </div>
       )}
-    </ShellSectionCard>
+    </div>
   );
 }

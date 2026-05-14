@@ -2,7 +2,6 @@
 
 import type { ReactNode } from "react";
 import { useCallback, useMemo, useState } from "react";
-import { ShellSectionCard } from "@/components/shell/ShellSectionCard";
 import {
   MoonRowIconAltitude,
   MoonRowIconAngularRadius,
@@ -11,10 +10,7 @@ import {
   MoonRowIconMoonrise,
   MoonRowIconMoonset,
 } from "@/components/shell/panels/moonEphemerisRowIcons";
-import {
-  SectionIconMoon,
-  SectionIconNote,
-} from "@/components/shell/sectionCategoryIcons";
+import { SectionIconNote } from "@/components/shell/sectionCategoryIcons";
 import { useHasMounted } from "@/hooks/useHasMounted";
 import { isBalconyTransitWatchIdeal } from "@/lib/domain/astro/balconyTransitWatchIdeal";
 import {
@@ -49,7 +45,7 @@ function tierLabelClass(tier: MoonFieldVisibilityTier): string {
 
 function moonRowLabel(icon: ReactNode, text: string) {
   return (
-    <dt className="flex min-w-0 items-center gap-2 text-zinc-400/95">
+    <dt className="flex min-w-0 items-center gap-2 text-zinc-300/85">
       {icon}
       <span>{text}</span>
     </dt>
@@ -185,31 +181,26 @@ export function MoonEphemerisPanel({
     Boolean(snapshotContext) && showEphemeris && !isMoonBelowHorizon;
 
   return (
-    <ShellSectionCard
-      className="mt-3"
-      title="Moon (nowcast)"
-      accent="amber"
-      icon={<SectionIconMoon />}
-    >
+    <div className="space-y-3">
       {isMoonBelowHorizon && showEphemeris ? (
-        <p className="mb-2 text-[0.7rem] text-zinc-500/90">Moon below horizon</p>
+        <p className="mb-2.5 text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">Moon below horizon</p>
       ) : null}
       {balconyIdealForTransitWatch ? (
         <div
-          className="mb-2.5 rounded-md border border-yellow-400/45 bg-yellow-400/10 px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+          className="mb-3 rounded-2xl border border-yellow-400/45 bg-yellow-400/[0.10] px-3.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
           role="status"
           aria-live="polite"
           data-testid="moon-balcony-transit-watch-ideal"
         >
-          <p className="text-[0.68rem] font-semibold uppercase tracking-wide text-yellow-200/95">
+          <p className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-yellow-200">
             Ideal for transit watch
           </p>
-          <p className="mt-1 text-[0.72rem] leading-snug text-yellow-100/90">
+          <p className="mt-1.5 text-[length:var(--fs-body)] leading-snug text-yellow-100/95">
             Moon height, direction, and phase match the saved balcony reference — clear sight line; a good time to wait on a moon crossing.
           </p>
         </div>
       ) : null}
-      <dl className="space-y-1 text-sm">
+      <dl className="space-y-2 text-[length:var(--fs-body)]">
         <div className="flex justify-between gap-4">
           {moonRowLabel(<MoonRowIconAltitude />, "Altitude")}
           <dd className="flex items-center justify-end gap-2 font-mono tabular-nums">
@@ -266,22 +257,22 @@ export function MoonEphemerisPanel({
         </div>
       </dl>
       {showSnapshotButton ? (
-        <div className="mt-2.5 border-t border-zinc-800/70 pt-2.5">
+        <div className="mt-3 border-t border-white/[0.08] pt-3">
           <button
             type="button"
             data-testid="moon-field-note-copy"
             onClick={() => {
               void copyFieldNote();
             }}
-            className="mt-toolbar-btn flex w-full items-center justify-center gap-2 px-2 py-1.5 font-[family-name:var(--font-jetbrains-mono)] text-[0.7rem] font-medium text-zinc-200 hover:border-blue-500/35"
+            className="mt-toolbar-btn flex w-full items-center justify-center gap-2 px-3 font-[family-name:var(--font-jetbrains-mono)] text-[length:var(--fs-meta)] font-medium text-[color:var(--t-primary)] hover:border-sky-500/40"
             title="Copy observer position, simulation instant, and Moon geometry as plain text"
           >
-            <SectionIconNote className="h-3.5 w-3.5 text-yellow-400/90" />
+            <SectionIconNote className="h-4 w-4 text-yellow-400" />
             Copy field note
           </button>
           {copyStatus === "copied" ? (
             <p
-              className="mt-1.5 text-center text-[0.65rem] text-emerald-400/95"
+              className="mt-2 text-center text-[length:var(--fs-meta)] font-semibold text-emerald-300"
               aria-live="polite"
             >
               Copied to clipboard
@@ -289,7 +280,7 @@ export function MoonEphemerisPanel({
           ) : null}
           {copyStatus === "error" ? (
             <p
-              className="mt-1.5 text-center text-[0.65rem] text-amber-400/95"
+              className="mt-2 text-center text-[length:var(--fs-meta)] font-semibold text-amber-300"
               aria-live="polite"
             >
               Clipboard unavailable (try a secure HTTPS context)
@@ -299,24 +290,24 @@ export function MoonEphemerisPanel({
       ) : null}
       {visibilityAdvice ? (
         <div
-          className="mt-3 border-t border-zinc-800/70 pt-2.5"
+          className="mt-3 border-t border-white/[0.08] pt-3"
           aria-live="polite"
         >
-          <p className="text-[0.65rem] font-medium uppercase tracking-wide text-zinc-500">
+          <p className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
             Visibility advice
           </p>
           <p
-            className={`mt-1 text-xs font-semibold tracking-tight ${tierLabelClass(
+            className={`mt-1.5 text-[length:var(--fs-body)] font-semibold tracking-tight ${tierLabelClass(
               visibilityAdvice.tier
             )}`}
           >
             {visibilityAdvice.label}
           </p>
-          <p className="mt-1 text-[0.7rem] leading-relaxed text-zinc-400">
+          <p className="mt-1 text-[length:var(--fs-meta)] leading-relaxed text-[color:var(--t-secondary)]">
             {visibilityAdvice.message}
           </p>
         </div>
       ) : null}
-    </ShellSectionCard>
+    </div>
   );
 }

@@ -14,6 +14,13 @@ export const shellComboboxListboxPortalClass =
   "fixed z-[280] m-0 max-h-60 list-none overflow-y-auto rounded-md border border-zinc-700 bg-zinc-950/98 p-1 py-1 shadow-[0_12px_40px_rgba(0,0,0,0.55)] ring-1 ring-inset ring-zinc-800 backdrop-blur-md";
 
 /**
+ * Portal „Aircraft display” (Layers na karti) — `glass-*` tokeni kao kod `mt-glass-elevated`, ne zinc combobox lista.
+ * Dodaj inline `style` za `top` / `left` / `width` / `maxHeight`.
+ */
+export const shellMapAircraftDisplayPopoverClass =
+  "fixed z-[280] m-0 flex flex-col overflow-hidden rounded-[var(--r-lg)] border border-[color:var(--glass-stroke)] bg-[color:var(--glass-3)] shadow-[var(--shadow-2)] ring-1 ring-inset ring-[color:var(--glass-highlight)] backdrop-blur-xl backdrop-saturate-150";
+
+/**
  * Stakleni panel kao izbornik (legenda na karti) — isti materijal, bez `fixed` / z-index portala.
  */
 export const shellGlassPanelClass =

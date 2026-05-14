@@ -1,6 +1,4 @@
 import { formatFixed } from "@/lib/format/numbers";
-import { ShellSectionCard } from "@/components/shell/ShellSectionCard";
-import { SectionIconTarget } from "@/components/shell/sectionCategoryIcons";
 import type { TransitCandidate } from "@/types";
 
 function CandidateWatchIcon({
@@ -92,38 +90,35 @@ export function TransitCandidatesPanel({
 }: TransitCandidatesPanelProps) {
   void notificationPermission;
   return (
-    <ShellSectionCard
-      className="mt-3"
-      title="Transit candidates"
-      accent="sky"
-      icon={<SectionIconTarget />}
-    >
+    <div>
       <div className="space-y-2">
         {showEphemeris && isLoading && (
-          <p className="text-sm text-zinc-500">Loading…</p>
+          <p className="text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">Loading…</p>
         )}
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <p className="text-[length:var(--fs-meta)] text-rose-300">{error}</p>}
       </div>
-      <ul className="mt-2 max-h-48 space-y-1.5 overflow-y-auto text-sm">
-        {showEmpty && <li className="text-zinc-500">No visible tracks.</li>}
+      <ul className="mt-3 max-h-56 space-y-2 overflow-y-auto">
+        {showEmpty && (
+          <li className="text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">No visible tracks.</li>
+        )}
         {candidates.map((c) => (
           <li key={c.flight.id}>
-            <div className="flex items-stretch gap-1.5">
+            <div className="flex items-stretch gap-2">
               <button
                 type="button"
                 onClick={() => {
                   onSelectFlight(c.flight.id);
                 }}
-                className={`flex min-w-0 flex-1 justify-between gap-2 rounded-md border px-2 py-1.5 text-left transition ${
+                className={`flex min-h-[48px] min-w-0 flex-1 items-center justify-between gap-2 rounded-2xl border px-3 py-2.5 text-left transition active:scale-[0.99] ${
                   selectedFlightId === c.flight.id
-                    ? "border-blue-500/45 bg-blue-500/10"
-                    : "border-zinc-800/80 bg-zinc-900/60 hover:border-zinc-600"
+                    ? "border-sky-400/55 bg-sky-500/[0.10] shadow-[0_4px_16px_-8px_rgba(96,165,250,0.45)]"
+                    : "border-white/[0.10] bg-white/[0.03] hover:border-sky-400/30 hover:bg-sky-500/[0.05]"
                 }`}
               >
-                <span className="truncate font-mono text-xs text-yellow-400/90">
+                <span className="truncate font-mono text-[length:var(--fs-body)] font-semibold text-sky-300">
                   {c.flight.callSign ?? c.flight.id}
                 </span>
-                <span className="shrink-0 font-mono text-xs text-zinc-400">
+                <span className="shrink-0 font-mono text-[length:var(--fs-meta)] font-medium text-[color:var(--t-secondary)]">
                   {formatFixed(c.separationDeg, 3)}°
                   {c.isPossibleTransit ? " · ⊙" : ""}
                 </span>
@@ -134,12 +129,12 @@ export function TransitCandidatesPanel({
                   onToggleWatchFlight(c.flight.id);
                 }}
                 disabled={!notificationsSupported}
-                className={`flex shrink-0 items-center justify-center rounded-lg border text-xs transition max-md:h-11 max-md:min-w-11 max-md:px-0 md:h-9 md:w-9 md:px-0 ${
+                className={`flex shrink-0 items-center justify-center rounded-2xl border transition active:scale-[0.95] max-md:h-12 max-md:min-w-12 max-md:px-0 md:h-11 md:w-11 md:px-0 ${
                   !notificationsSupported
-                    ? "cursor-not-allowed border-zinc-800/70 bg-zinc-900/40 text-zinc-500"
+                    ? "cursor-not-allowed border-white/[0.06] bg-white/[0.02] text-zinc-600"
                     : watchedFlightIds.has(c.flight.id)
-                      ? "border-blue-500/45 bg-blue-500/12 text-yellow-400"
-                      : "border-zinc-800/80 bg-zinc-900/50 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200"
+                      ? "border-amber-400/55 bg-amber-500/[0.12] text-amber-200 shadow-[0_4px_16px_-8px_rgba(251,191,36,0.45)]"
+                      : "border-white/[0.10] bg-white/[0.03] text-zinc-400 hover:border-white/[0.18] hover:text-zinc-200"
                 }`}
                 aria-label={
                   !notificationsSupported
@@ -165,6 +160,6 @@ export function TransitCandidatesPanel({
           </li>
         ))}
       </ul>
-    </ShellSectionCard>
+    </div>
   );
 }

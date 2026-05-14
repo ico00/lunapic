@@ -56,7 +56,7 @@ Koordinatni standard: **WGS84**. GeoJSON: `[longitude, latitude]`. Tipovi aplika
 | `.mt-toolbar-btn` | `h-9`, `rounded-xl`, `border-white/[0.08]`, `bg-zinc-900/40`, hover/active scale (osim `prefers-reduced-motion`) |
 | `.mt-toolbar-btn:focus-visible` | `ring-2 ring-emerald-500/50`, `ring-offset-zinc-950` |
 | `.mt-toolbar-btn-primary` | Emerald border/amber tekst — primarni CTA u toolbaru |
-| `.mt-section-label` | Outfit, `0.65rem`, **uppercase**, `tracking-[0.2em]`, `text-zinc-400/95` |
+| `.mt-section-label` | Outfit, **`var(--fs-label)`** (12px), **uppercase**, `tracking-[0.12em]`, `color: var(--t-secondary)` |
 | `.mt-section-label-emerald` | Isto, ali `text-emerald-400/85` (npr. Photographer sekcija) |
 | `.mt-glass-elevated` | (uz `@supports(backdrop-filter)`) gradijent + `blur(20px)` + inset highlight — za floating kartice |
 

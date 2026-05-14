@@ -503,11 +503,11 @@ export function ViewfinderPreview({
           </div>
         </div>
       </div>
-      <details className="mt-1.5 rounded-md border border-zinc-800/70 bg-black/30 px-2 py-1.5 text-zinc-500">
-        <summary className="cursor-pointer select-none text-[0.62rem] font-medium text-zinc-400">
+      <details className="mt-1.5 rounded-md border border-zinc-800/70 bg-black/30 px-2 py-1.5 text-[color:var(--t-tertiary)]">
+        <summary className="cursor-pointer select-none text-[length:var(--fs-label)] font-medium text-[color:var(--t-secondary)]">
           Viewfinder details
         </summary>
-        <p className="mt-1.5 font-mono text-[0.6rem]">
+        <p className="mt-1.5 font-mono text-[length:var(--fs-meta)] text-[color:var(--t-secondary)]">
           Viewfinder: moon 0.5° = {moonDiameterPx.toFixed(0)} px
           {showReferenceSensorScale
             ? ` (Full frame: ${cameraFrameWidthPx}×${cameraFrameHeightPx} at current focal),`

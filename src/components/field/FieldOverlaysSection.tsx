@@ -1,8 +1,5 @@
 "use client";
 
-import { ShellSectionCard } from "@/components/shell/ShellSectionCard";
-import { SectionIconField } from "@/components/shell/sectionCategoryIcons";
-import { ArSkyCameraPanel } from "@/components/field/ArSkyCameraPanel";
 import { usePhotographerTools } from "@/hooks/usePhotographerTools";
 import { useMoonStateComputed } from "@/hooks/useTransitCandidates";
 import {
@@ -85,14 +82,9 @@ export function FieldOverlaysSection() {
   }, [planSnapshot]);
 
   return (
-    <ShellSectionCard
-      className="mt-3"
-      title="Field: manual correction & export"
-      accent="violet"
-      icon={<SectionIconField />}
-    >
+    <div className="space-y-4">
       <div>
-        <p className="text-[0.65rem] text-zinc-500">
+        <p className="text-[length:var(--fs-body)] leading-relaxed text-[color:var(--t-secondary)]">
           Fine-tune for OpenSky latency: offset from “now” for track
           extrapolation (does not change the Moon from the time slider).
         </p>
@@ -128,7 +120,7 @@ export function FieldOverlaysSection() {
             +1 s
           </button>
         </div>
-        <p className="mt-1 text-center font-mono text-sm text-yellow-400/85">
+        <p className="mt-1 text-center font-mono text-sm text-amber-400/85">
           {skewSec >= 0 ? "+" : ""}
           {num(skewSec, 1)} s
         </p>
@@ -137,17 +129,15 @@ export function FieldOverlaysSection() {
           onClick={() => {
             setSkew(0);
           }}
-          className="mt-1 w-full rounded border border-zinc-700 py-0.5 text-[0.65rem] text-zinc-500"
+          className="mt-1 w-full rounded-lg border border-white/[0.08] py-0.5 text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]"
         >
           Reset
         </button>
       </div>
       <div className="flex items-center justify-between gap-2 border-t border-zinc-800/80 pt-2">
-        <div>
-          <p className="text-[0.65rem] font-medium text-zinc-400">
-            Lock location
-          </p>
-          <p className="text-[0.6rem] text-zinc-600">
+        <div className="min-w-0 pr-1">
+          <p className="mt-section-label">Lock location</p>
+          <p className="mt-1 text-[length:var(--fs-meta)] leading-snug text-[color:var(--t-tertiary)] normal-case tracking-normal">
             GPS and “set here” are off while this is on.
           </p>
         </div>
@@ -158,20 +148,20 @@ export function FieldOverlaysSection() {
           }}
           className={`rounded px-3 py-1.5 text-sm ${
             locked
-              ? "bg-blue-500/25 text-yellow-400"
-              : "bg-zinc-800 text-zinc-400"
+              ? "bg-emerald-500/15 text-emerald-300"
+              : "bg-zinc-800/70 text-zinc-400"
           }`}
         >
           {locked ? "Unlock" : "Lock"}
         </button>
       </div>
       <div className="border-t border-zinc-800/80 pt-2">
-        <p className="text-[0.65rem] text-zinc-500">Export plan</p>
+        <p className="mt-section-label">Export plan</p>
         <div className="mt-1 flex flex-col gap-1.5 sm:flex-row">
           <button
             type="button"
             onClick={onExportText}
-            className="flex-1 rounded-md border border-blue-500/35 bg-blue-500/10 py-1.5 text-sm text-yellow-400/90"
+            className="flex-1 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-1.5 text-sm font-medium text-emerald-100"
           >
             Cheat sheet (.txt)
           </button>
@@ -179,13 +169,12 @@ export function FieldOverlaysSection() {
             type="button"
             onClick={onExportPng}
             disabled={exportBusy}
-            className="flex-1 rounded-md border border-zinc-600 bg-zinc-800/80 py-1.5 text-sm text-zinc-200 disabled:opacity-50"
+            className="flex-1 rounded-xl border border-white/[0.1] bg-zinc-800/60 py-1.5 text-sm text-zinc-200 disabled:opacity-50"
           >
             {exportBusy ? "…" : "Snapshot (.png)"}
           </button>
         </div>
       </div>
-      <ArSkyCameraPanel />
-    </ShellSectionCard>
+    </div>
   );
 }
