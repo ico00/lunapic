@@ -6,10 +6,10 @@ const ATC_FLIGHTS_DOT_LAYER_ID = "atc-flights-dot-layer";
 
 /**
  * Boja zrakoplova na karti prema **baro/geo visini** (GeoJSON `altitudeMeters`, m).
- * **Shot-feasible** (`isShotFeasible`) uvijek **#22c55e** (prioritet u `case` grani).
+ * **Shot-feasible** (`isShotFeasible`) uvijek **mint** (`#34d399`, token `--mint` u `globals.css`).
  *
- * Skala nisko → visoko: **svijetlo zelena** → **zelena** → **plava** → **tamno plava**
- * (~12 km MSL), usklađena s {@link FLIGHT_ALTITUDE_LEGEND_STOPS}.
+ * Skala po ft bandovima (nisko → visoko): crvena → narančasta → zlatna → zelena → plava → ljubičasta,
+ * usklađena s {@link ALTITUDE_BANDS} i {@link FLIGHT_ALTITUDE_LEGEND_STOPS}.
  */
 const ALTITUDE_GET: unknown[] = [
   "coalesce",
@@ -17,39 +17,40 @@ const ALTITUDE_GET: unknown[] = [
   0,
 ];
 
+// Granice u metrima: 5k ft=1524m, 15k ft=4572m, 25k ft=7620m, 35k ft=10668m, 45k ft=13716m
 /** Mapbox `case` / `interpolate` izraz za `model-color` i `circle-color`. */
 export function flightFeatureColorMapboxExpression(): unknown[] {
   return [
     "case",
     ["boolean", ["get", "isShotFeasible"], false],
-    "#22c55e",
+    "#34d399",
     [
       "interpolate",
       ["linear"],
       ALTITUDE_GET,
       0,
-      "#86efac",
-      2000,
-      "#4ade80",
-      4500,
-      "#22c55e",
-      7000,
-      "#3b82f6",
-      9500,
-      "#1d4ed8",
-      12000,
-      "#172554",
+      "#FF4D4D",
+      1524,
+      "#FFA500",
+      4572,
+      "#FFD700",
+      7620,
+      "#4CAF50",
+      10668,
+      "#2196F3",
+      13716,
+      "#9C27B0",
     ],
   ];
 }
 
-/** Jedna neutralna boja za sve ne-„shot-feasible” zrakoplove (bez skale po visini). */
+/** Jedna neutralna boja za sve ne-„shot-feasible" zrakoplove (bez skale po visini). */
 export function flightFeatureFlatColorMapboxExpression(): unknown[] {
   return [
     "case",
     ["boolean", ["get", "isShotFeasible"], false],
-    "#22c55e",
-    "#94a3b8",
+    "#34d399",
+    "#8b90a8",
   ];
 }
 
@@ -101,6 +102,29 @@ export type FlightAltitudeLegendStop = {
 /** Jedinica za brojčane oznake ispod trake altitude legende (MSL u podacima i dalje u metrima). */
 export type FlightAltitudeLegendUnit = "km" | "ft";
 
+export type AltitudeBand = {
+  /** Kratki label za slider (ft). */
+  readonly ftLabel: string;
+  /** Kategorija npr. "Approach / Takeoff". */
+  readonly category: string;
+  readonly minMeters: number;
+  readonly maxMeters: number;
+  readonly color: string;
+};
+
+/**
+ * 6 altitude bandova (indeks 1-6); indeks 0 rezerviran za "All" u UI-u.
+ * minMeters/maxMeters su granice [min, max) s Infinity za zadnji band.
+ */
+export const ALTITUDE_BANDS: readonly AltitudeBand[] = [
+  { ftLabel: "0–5k ft",   category: "Approach / Takeoff",    minMeters: 0,     maxMeters: 1524,     color: "#FF4D4D" },
+  { ftLabel: "5–15k ft",  category: "Terminal / Climb",      minMeters: 1524,  maxMeters: 4572,     color: "#FFA500" },
+  { ftLabel: "15–25k ft", category: "Transitional",          minMeters: 4572,  maxMeters: 7620,     color: "#FFD700" },
+  { ftLabel: "25–35k ft", category: "Cruise (Lower)",        minMeters: 7620,  maxMeters: 10668,    color: "#4CAF50" },
+  { ftLabel: "35–45k ft", category: "Cruise (Upper)",        minMeters: 10668, maxMeters: 13716,    color: "#2196F3" },
+  { ftLabel: "45k+ ft",   category: "High / BizJet",         minMeters: 13716, maxMeters: Infinity, color: "#9C27B0" },
+] as const;
+
 const METERS_TO_FEET = 3.280839895013123;
 
 function formatLegendThousandsK(valueK: number, suffixPlus: boolean): string {
@@ -135,12 +159,12 @@ export function flightAltitudeLegendStopLabel(
  */
 export const FLIGHT_ALTITUDE_LEGEND_STOPS: readonly FlightAltitudeLegendStop[] =
   [
-    { altMeters: 0, color: "#86efac", label: "0m" },
-    { altMeters: 2000, color: "#4ade80", label: "2k" },
-    { altMeters: 4500, color: "#22c55e", label: "4.5k" },
-    { altMeters: 7000, color: "#3b82f6", label: "7k" },
-    { altMeters: 9500, color: "#1d4ed8", label: "9.5k" },
-    { altMeters: 12000, color: "#172554", label: "12k+" },
+    { altMeters: 0,     color: "#FF4D4D", label: "0m" },
+    { altMeters: 1524,  color: "#FFA500", label: "1.5k" },
+    { altMeters: 4572,  color: "#FFD700", label: "4.6k" },
+    { altMeters: 7620,  color: "#4CAF50", label: "7.6k" },
+    { altMeters: 10668, color: "#2196F3", label: "10.7k" },
+    { altMeters: 13716, color: "#9C27B0", label: "13.7k+" },
   ] as const;
 
 /** CSS `linear-gradient` za traku u legendi (isti rubovi kao interpolate). */

@@ -98,6 +98,9 @@ type MoonTransitState = {
   /** Samo prikaz oznaka ispod altitude legende (km MSL vs tisuće ft MSL). */
   flightAltitudeLegendUnit: FlightAltitudeLegendUnit;
   setFlightAltitudeLegendUnit: (unit: FlightAltitudeLegendUnit) => void;
+  /** 0 = svi letovi (All), 1–6 = indeks u ALTITUDE_BANDS (filtrira po visini). */
+  altitudeBandIndex: number;
+  setAltitudeBandIndex: (i: number) => void;
   /** Način crtanja karte/aviona: puni 3D ili pojednostavljeni ATC-like prikaz. */
   mapDisplayMode: MapDisplayMode;
   setMapDisplayMode: (mode: MapDisplayMode) => void;
@@ -262,6 +265,8 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   flightAltitudeLegendUnit: "km",
   setFlightAltitudeLegendUnit: (unit) =>
     set({ flightAltitudeLegendUnit: unit }),
+  altitudeBandIndex: 0,
+  setAltitudeBandIndex: (i) => set({ altitudeBandIndex: i }),
   mapDisplayMode: "default",
   setMapDisplayMode: (mode) => set({ mapDisplayMode: mode }),
   setFlightProvider: (id) =>

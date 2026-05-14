@@ -22,6 +22,7 @@ import { isMoonVisibleFromMoonState } from "@/lib/domain/astro/moonVisibility";
 import { type CameraSensorType } from "@/lib/domain/geometry/shotFeasibility";
 import { computeShotFeasibleFlightIds } from "@/lib/domain/transit/computeShotFeasibleFlightIds";
 import { type FlightFilterCriteria, filterFlightsByCriteria } from "@/lib/flight/flightSearch";
+import { ALTITUDE_BANDS } from "@/lib/map/flightAltitudeColor";
 import { fieldPerfRecord, isFieldPerfEnabled } from "@/lib/perf/fieldPerf";
 import type { IFlightProvider } from "@/types";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
@@ -56,11 +57,18 @@ export function MapContainer({
   const cameraFocalLengthMm = useMoonTransitStore((s) => s.cameraFocalLengthMm);
   const cameraSensorType = useMoonTransitStore((s) => s.cameraSensorType);
   const mapDisplayMode = useMoonTransitStore((s) => s.mapDisplayMode);
+  const altitudeBandIndex = useMoonTransitStore((s) => s.altitudeBandIndex);
 
-  const filteredFlights = useMemo(
-    () => filterFlightsByCriteria(flights, flightFilterCriteria),
-    [flights, flightFilterCriteria]
-  );
+  const filteredFlights = useMemo(() => {
+    const byCriteria = filterFlightsByCriteria(flights, flightFilterCriteria);
+    if (altitudeBandIndex === 0) return byCriteria;
+    const band = ALTITUDE_BANDS[altitudeBandIndex - 1];
+    if (!band) return byCriteria;
+    return byCriteria.filter((f) => {
+      const alt = f.geoAltitudeMeters ?? 0;
+      return alt >= band.minMeters && alt < band.maxMeters;
+    });
+  }, [flights, flightFilterCriteria, altitudeBandIndex]);
 
   useEffect(() => {
     if (selectedFlightId == null) {
@@ -179,7 +187,7 @@ export function MapContainer({
       {mapDisplayMode === "atc" ? (
         <div className="pointer-events-none absolute inset-0 z-[8] bg-gradient-to-b from-sky-500/18 via-blue-700/22 to-indigo-950/30 mix-blend-screen" />
       ) : null}
-      <div className="pointer-events-none md:contents max-md:fixed max-md:bottom-[calc(4.35rem+env(safe-area-inset-bottom,0px))] max-md:left-3 max-md:right-3 max-md:z-[76] max-md:flex max-md:items-stretch max-md:gap-2 max-md:pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
+      <div className="pointer-events-none md:contents max-md:fixed max-md:bottom-[calc(8.25rem+env(safe-area-inset-bottom,0px))] max-md:left-3 max-md:right-3 max-md:z-[76] max-md:flex max-md:items-stretch max-md:gap-2 max-md:pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
         <MapDisplayModeLayersControl />
         <FlightAltitudeLegend />
       </div>
