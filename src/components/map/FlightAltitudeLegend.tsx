@@ -101,7 +101,7 @@ export function FlightAltitudeLegend() {
 
       {/* Gradient bar + overlaid slider */}
       <div
-        className={`pointer-events-auto relative h-5 w-full transition-opacity ${mapAircraftAltitudeColors ? "opacity-100" : "opacity-40"}`}
+        className={`pointer-events-auto relative h-6 w-full transition-opacity ${mapAircraftAltitudeColors ? "opacity-100" : "opacity-40"}`}
       >
         {/* Gradient background */}
         <div
@@ -117,7 +117,7 @@ export function FlightAltitudeLegend() {
             aria-hidden
           />
         )}
-        {/* Slider — transparent track, white thumb */}
+        {/* Slider — transparent track, circle thumb matching timeline style */}
         <input
           type="range"
           min={0}
@@ -126,21 +126,22 @@ export function FlightAltitudeLegend() {
           value={altitudeBandIndex}
           onChange={(e) => setAltitudeBandIndex(Number(e.target.value))}
           className="absolute inset-0 h-full w-full cursor-grab active:cursor-grabbing appearance-none bg-transparent
+            [&::-webkit-slider-runnable-track]:h-full
             [&::-webkit-slider-runnable-track]:bg-transparent
-            [&::-webkit-slider-thumb]:h-full
-            [&::-webkit-slider-thumb]:w-4
             [&::-webkit-slider-thumb]:appearance-none
-            [&::-webkit-slider-thumb]:rounded
-            [&::-webkit-slider-thumb]:bg-white/95
-            [&::-webkit-slider-thumb]:shadow-[0_0_0_1.5px_rgba(0,0,0,0.35),0_2px_6px_rgba(0,0,0,0.55)]
-            [&::-webkit-slider-thumb]:transition-[width]
+            [&::-webkit-slider-thumb]:h-5
+            [&::-webkit-slider-thumb]:w-5
+            [&::-webkit-slider-thumb]:rounded-full
+            [&::-webkit-slider-thumb]:bg-white
+            [&::-webkit-slider-thumb]:shadow-[0_1px_4px_rgba(0,0,0,0.45),0_0_0_1px_rgba(0,0,0,0.12)]
+            [&::-moz-range-track]:h-full
             [&::-moz-range-track]:bg-transparent
             [&::-moz-range-thumb]:h-5
-            [&::-moz-range-thumb]:w-4
-            [&::-moz-range-thumb]:rounded
+            [&::-moz-range-thumb]:w-5
+            [&::-moz-range-thumb]:rounded-full
             [&::-moz-range-thumb]:border-none
-            [&::-moz-range-thumb]:bg-white/95
-            [&::-moz-range-thumb]:shadow-[0_0_0_1.5px_rgba(0,0,0,0.35),0_2px_6px_rgba(0,0,0,0.55)]"
+            [&::-moz-range-thumb]:bg-white
+            [&::-moz-range-thumb]:shadow-[0_1px_4px_rgba(0,0,0,0.45),0_0_0_1px_rgba(0,0,0,0.12)]"
           aria-label="Filter flights by altitude band. 0 = All, 1–6 = specific band."
           data-testid="altitude-band-slider"
         />
