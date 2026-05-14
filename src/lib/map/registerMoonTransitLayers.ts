@@ -49,16 +49,17 @@ function buildFlightModelScaleByAltitudeExpression(zoom: number): unknown[] {
     FLIGHT_MODEL_SCREEN_SIZE_MAX_FACTOR,
     Math.max(FLIGHT_MODEL_SCREEN_SIZE_MIN_FACTOR, rawFactor)
   );
+  // Lower altitude = larger apparent size (closer to camera), higher = smaller.
   return [
     "interpolate",
     ["linear"],
     ["coalesce", ["to-number", ["get", "altitudeMeters"]], 8000],
     1500,
-    ["literal", [14 * factor, 14 * factor, 14 * factor]],
+    ["literal", [28 * factor, 28 * factor, 28 * factor]],
     6000,
     ["literal", [20 * factor, 20 * factor, 20 * factor]],
     12000,
-    ["literal", [28 * factor, 28 * factor, 28 * factor]],
+    ["literal", [14 * factor, 14 * factor, 14 * factor]],
   ];
 }
 
