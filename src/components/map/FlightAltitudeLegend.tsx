@@ -125,21 +125,22 @@ export function FlightAltitudeLegend() {
           step={1}
           value={altitudeBandIndex}
           onChange={(e) => setAltitudeBandIndex(Number(e.target.value))}
-          className="absolute inset-0 h-full w-full cursor-pointer appearance-none bg-transparent
+          className="absolute inset-0 h-full w-full cursor-grab active:cursor-grabbing appearance-none bg-transparent
             [&::-webkit-slider-runnable-track]:bg-transparent
             [&::-webkit-slider-thumb]:h-full
-            [&::-webkit-slider-thumb]:w-1.5
+            [&::-webkit-slider-thumb]:w-4
             [&::-webkit-slider-thumb]:appearance-none
-            [&::-webkit-slider-thumb]:rounded-none
-            [&::-webkit-slider-thumb]:bg-white
-            [&::-webkit-slider-thumb]:shadow-[0_0_0_1.5px_rgba(0,0,0,0.45),0_1px_5px_rgba(0,0,0,0.5)]
+            [&::-webkit-slider-thumb]:rounded
+            [&::-webkit-slider-thumb]:bg-white/95
+            [&::-webkit-slider-thumb]:shadow-[0_0_0_1.5px_rgba(0,0,0,0.35),0_2px_6px_rgba(0,0,0,0.55)]
+            [&::-webkit-slider-thumb]:transition-[width]
             [&::-moz-range-track]:bg-transparent
             [&::-moz-range-thumb]:h-5
-            [&::-moz-range-thumb]:w-1.5
-            [&::-moz-range-thumb]:rounded-none
+            [&::-moz-range-thumb]:w-4
+            [&::-moz-range-thumb]:rounded
             [&::-moz-range-thumb]:border-none
-            [&::-moz-range-thumb]:bg-white
-            [&::-moz-range-thumb]:shadow-[0_0_0_1.5px_rgba(0,0,0,0.45)]"
+            [&::-moz-range-thumb]:bg-white/95
+            [&::-moz-range-thumb]:shadow-[0_0_0_1.5px_rgba(0,0,0,0.35),0_2px_6px_rgba(0,0,0,0.55)]"
           aria-label="Filter flights by altitude band. 0 = All, 1–6 = specific band."
           data-testid="altitude-band-slider"
         />
@@ -147,7 +148,7 @@ export function FlightAltitudeLegend() {
 
       {/* Tick labels — replace the old stop-labels row */}
       <div
-        className="grid font-mono text-[0.5rem] leading-none tabular-nums"
+        className="grid font-mono text-[length:var(--fs-label)] leading-none tabular-nums"
         style={{ gridTemplateColumns: `repeat(${SLIDER_MAX + 1}, minmax(0, 1fr))` }}
         aria-hidden
       >
