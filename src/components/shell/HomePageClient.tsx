@@ -14,6 +14,7 @@ import { PhotographerToolsPanel } from "@/components/shell/panels/PhotographerTo
 import { TimeSliderPanel } from "@/components/shell/panels/TimeSliderPanel";
 import { TransitCandidatesPanel } from "@/components/shell/panels/TransitCandidatesPanel";
 import { StreetViewPanel } from "@/components/shell/panels/StreetViewPanel";
+import { StreetViewFullscreen } from "@/components/map/StreetViewFullscreen";
 import { WeatherOverlay } from "@/components/weather/WeatherOverlay";
 import { useHomeShellOrchestration } from "@/hooks/useHomeShellOrchestration";
 import { useIsMdUp } from "@/hooks/useMediaQuery";
@@ -732,6 +733,7 @@ function MobileDock({
 export function HomePageClient() {
   const s = useHomeShellOrchestration();
   const flights = useMoonTransitStore((st) => st.flights);
+  const mapDisplayMode = useMoonTransitStore((st) => st.mapDisplayMode);
   const isWide = useIsMdUp();
   const [flightFilterCriteria, setFlightFilterCriteria] = useState<FlightFilterCriteria>({
     query: "",
@@ -1011,6 +1013,19 @@ export function HomePageClient() {
           suppressSelectedAircraftPopup={!isWide && mobileSheetId != null}
         />
       </div>
+
+      {/* === STREET VIEW FULLSCREEN LAYER — iznad mape, ispod UI panela === */}
+      {mapDisplayMode === "streetview" && (
+        <div className="absolute inset-0 z-[1]">
+          <StreetViewFullscreen
+            moon={s.moon}
+            observer={s.obs}
+            nowMs={s.referenceEpochMs}
+            candidates={s.candidatesDisplay}
+            activeTransits={s.activeTransits}
+          />
+        </div>
+      )}
 
       {/* === DESKTOP UI === */}
       {isWide ? (

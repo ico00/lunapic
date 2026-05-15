@@ -88,16 +88,41 @@ function PreviewVfrStyle() {
   );
 }
 
+function PreviewStreetViewStyle() {
+  return (
+    <div
+      className="relative flex h-full w-full items-center justify-center overflow-hidden bg-gradient-to-b from-sky-900/60 to-zinc-900"
+      aria-hidden
+    >
+      {/* Sky */}
+      <div className="absolute inset-0 bg-gradient-to-b from-sky-800/50 via-sky-950/30 to-zinc-900" />
+      {/* Horizon line */}
+      <div className="absolute left-0 right-0 top-[55%] h-px bg-zinc-500/40" />
+      {/* Moon circle */}
+      <div className="absolute top-[30%] left-1/2 -translate-x-1/2 h-6 w-6 rounded-full border-2 border-amber-400/80 bg-amber-400/10 shadow-[0_0_12px_rgba(251,191,36,0.5)]" />
+      {/* Path dots */}
+      <div className="absolute top-[38%] left-[35%] h-1.5 w-1.5 rounded-full bg-amber-400/50" />
+      <div className="absolute top-[34%] left-[43%] h-1.5 w-1.5 rounded-full bg-amber-400/60" />
+      <div className="absolute top-[28%] left-[60%] h-1.5 w-1.5 rounded-full bg-amber-400/50" />
+      {/* Street */}
+      <div className="absolute bottom-0 left-0 right-0 h-[30%] bg-zinc-800/60" />
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[30%] w-[2px] bg-zinc-500/30" />
+    </div>
+  );
+}
+
 function previewForMode(mode: MapDisplayMode) {
   if (mode === "atc") return <PreviewAtcStyle />;
   if (mode === "vfr") return <PreviewVfrStyle />;
+  if (mode === "streetview") return <PreviewStreetViewStyle />;
   return <Preview3DModel />;
 }
 
-/** Minijatura na gumbu = sljedeći mod u ciklusu (default→atc→vfr→default). */
+/** Minijatura na gumbu = sljedeći mod u ciklusu (default→atc→vfr→streetview→default). */
 function alternateMapDisplayMode(mode: MapDisplayMode): MapDisplayMode {
   if (mode === "default") return "atc";
   if (mode === "atc") return "vfr";
+  if (mode === "vfr") return "streetview";
   return "default";
 }
 
@@ -105,6 +130,7 @@ const OPTIONS: readonly { id: MapDisplayMode; label: string }[] = [
   { id: "default", label: "3D" },
   { id: "atc", label: "ATC" },
   { id: "vfr", label: "VFR" },
+  { id: "streetview", label: "Street View" },
 ] as const;
 
 export function MapDisplayModeLayersControl() {
@@ -126,7 +152,7 @@ export function MapDisplayModeLayersControl() {
     if (!el) return;
     const r = el.getBoundingClientRect();
     const gap = 10;
-    const w = Math.max(260, r.width * 3.5);
+    const w = Math.max(320, r.width * 4.5);
     const left = r.left;
     const estMenuHeightPx = 136;
     const topAbove = r.top - gap - estMenuHeightPx;
@@ -215,7 +241,7 @@ export function MapDisplayModeLayersControl() {
         <div className="shrink-0 border-b border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)] px-3 py-2 font-[family-name:var(--font-jetbrains-mono)] text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-secondary)]">
           Aircraft display
         </div>
-        <div className="grid min-h-0 flex-1 grid-cols-3 gap-2 overflow-y-auto p-2">
+        <div className="grid min-h-0 flex-1 grid-cols-4 gap-2 overflow-y-auto p-2">
           {OPTIONS.map((opt) => {
             const active = mapDisplayMode === opt.id;
             return (
