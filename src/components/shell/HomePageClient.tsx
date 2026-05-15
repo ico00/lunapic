@@ -15,7 +15,6 @@ import { TimeSliderPanel } from "@/components/shell/panels/TimeSliderPanel";
 import { TransitCandidatesPanel } from "@/components/shell/panels/TransitCandidatesPanel";
 import { StreetViewPanel } from "@/components/shell/panels/StreetViewPanel";
 import { StreetViewFullscreen } from "@/components/map/StreetViewFullscreen";
-import { MapDisplayModeLayersControl } from "@/components/map/MapDisplayModeLayersControl";
 import { WeatherOverlay } from "@/components/weather/WeatherOverlay";
 import { useHomeShellOrchestration } from "@/hooks/useHomeShellOrchestration";
 import { useIsMdUp } from "@/hooks/useMediaQuery";
@@ -53,6 +52,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import type { ComponentType, SVGProps } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 /* =============================================================================
    v2 — Map-first command center
@@ -727,6 +727,29 @@ function MobileDock({
   );
 }
 
+/* Portalni gumb za izlaz iz Street View moda — renderira se direktno u
+   document.body, izvan svakog stacking konteksta, uvijek klikabilan. */
+function StreetViewExitButton() {
+  const setMapDisplayMode = useMoonTransitStore((s) => s.setMapDisplayMode);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  if (!mounted) return null;
+  return createPortal(
+    <button
+      type="button"
+      onClick={() => setMapDisplayMode("default")}
+      className="fixed bottom-[4.5rem] left-3 z-[9999] flex items-center gap-2 rounded-2xl border border-white/15 bg-zinc-900/80 px-3 py-2 text-xs font-semibold text-zinc-200 shadow-lg backdrop-blur-md transition hover:bg-zinc-800/90 active:scale-[0.97] max-md:bottom-[calc(8.25rem+env(safe-area-inset-bottom,0px))]"
+      aria-label="Exit Street View"
+    >
+      <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M12 4.5l7 4-7 4-7-4 7-4zm0 8.5l7 4-7 4-7-4 7-4z" />
+      </svg>
+      Layers
+    </button>,
+    document.body,
+  );
+}
+
 /* =============================================================================
    GLAVNA KOMPONENTA
    ========================================================================= */
@@ -1028,10 +1051,10 @@ export function HomePageClient() {
         </div>
       )}
 
-      {/* === LAYERS CONTROL — uvijek iznad mape i Street View overlaya === */}
-      <div className="pointer-events-none md:absolute md:bottom-[4.5rem] md:left-3 md:z-[15] max-md:fixed max-md:bottom-[calc(8.25rem+env(safe-area-inset-bottom,0px))] max-md:left-3 max-md:z-[76]">
-        <MapDisplayModeLayersControl />
-      </div>
+      {/* === EXIT STREET VIEW — vidljivo iznad Street View overlaya (z-[2]) === */}
+      {mapDisplayMode === "streetview" && (
+        <StreetViewExitButton />
+      )}
 
       {/* === DESKTOP UI === */}
       {isWide ? (
