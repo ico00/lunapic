@@ -74,6 +74,9 @@ export const metadata: Metadata = {
     },
   },
   category: "photography",
+  icons: {
+    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+  },
 };
 
 export const viewport = {
