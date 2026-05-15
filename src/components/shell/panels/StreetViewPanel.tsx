@@ -281,7 +281,8 @@ export function StreetViewPanel({ moon, observer, nowMs }: Props) {
   }, [pov, pathSamples, moonAz, moonAlt, nowMs, status]);
 
   useEffect(() => {
-    drawCanvas();
+    const id = requestAnimationFrame(drawCanvas);
+    return () => cancelAnimationFrame(id);
   }, [drawCanvas]);
 
   return (
@@ -328,12 +329,12 @@ export function StreetViewPanel({ moon, observer, nowMs }: Props) {
         {/* Street View container */}
         <div ref={containerRef} className="h-full w-full" />
 
-        {/* Canvas overlay — pointer-events:none so drag still works on panorama */}
+        {/* Canvas overlay — above Google Maps internal z-indices, pointer-events:none preserves panorama drag */}
         <canvas
           ref={canvasRef}
           width={380}
           height={340}
-          className="pointer-events-none absolute inset-0 h-full w-full"
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 9999 }}
         />
       </div>
 
