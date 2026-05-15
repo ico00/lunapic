@@ -16,6 +16,7 @@ import { TransitCandidatesPanel } from "@/components/shell/panels/TransitCandida
 import { StreetViewPanel } from "@/components/shell/panels/StreetViewPanel";
 import { StreetViewFullscreen } from "@/components/map/StreetViewFullscreen";
 import { WeatherOverlay } from "@/components/weather/WeatherOverlay";
+import { useHasMounted } from "@/hooks/useHasMounted";
 import { useHomeShellOrchestration } from "@/hooks/useHomeShellOrchestration";
 import { useIsMdUp } from "@/hooks/useMediaQuery";
 import { useTransitCandidateNotifications } from "@/hooks/useTransitCandidateNotifications";
@@ -731,9 +732,8 @@ function MobileDock({
    document.body, izvan svakog stacking konteksta, uvijek klikabilan. */
 function StreetViewExitButton() {
   const setMapDisplayMode = useMoonTransitStore((s) => s.setMapDisplayMode);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-  if (!mounted) return null;
+  const hasMounted = useHasMounted();
+  if (!hasMounted) return null;
   return createPortal(
     <button
       type="button"
