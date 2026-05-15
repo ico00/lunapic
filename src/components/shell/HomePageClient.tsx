@@ -13,7 +13,6 @@ import { ObserverLocationPanel } from "@/components/shell/panels/ObserverLocatio
 import { PhotographerToolsPanel } from "@/components/shell/panels/PhotographerToolsPanel";
 import { TimeSliderPanel } from "@/components/shell/panels/TimeSliderPanel";
 import { TransitCandidatesPanel } from "@/components/shell/panels/TransitCandidatesPanel";
-import { StreetViewPanel } from "@/components/shell/panels/StreetViewPanel";
 import { StreetViewFullscreen } from "@/components/map/StreetViewFullscreen";
 import { WeatherOverlay } from "@/components/weather/WeatherOverlay";
 import { useHasMounted } from "@/hooks/useHasMounted";
@@ -36,7 +35,6 @@ import {
   SectionIconTime,
   SectionIconPaperAirplane,
   SectionIconQuestionMarkCircle,
-  SectionIconStreetView,
 } from "@/components/shell/sectionCategoryIcons";
 import { resumeSharedAudioFromUserGesture } from "@/lib/audio/fieldAudio";
 import { appPath } from "@/lib/paths/appPath";
@@ -294,8 +292,7 @@ type RailItemId =
   | "observer"
   | "flight"
   | "filters"
-  | "ar"
-  | "streetview";
+  | "ar";
 
 type RailItem = {
   readonly id: RailItemId;
@@ -311,7 +308,6 @@ const RAIL_ITEMS: readonly RailItem[] = [
   { id: "filters", label: "Flight filters", icon: SectionIconFunnel, accent: "violet" },
   { id: "moon", label: "Moon (nowcast)", icon: SectionIconMoon, accent: "moon" },
   { id: "observer", label: "Observer", icon: SectionIconObserver, accent: "moon" },
-  { id: "streetview", label: "Street View", icon: SectionIconStreetView, accent: "sky" },
   { id: "ar", label: "AR sky overlay", icon: SectionIconAR, accent: "sky" },
   { id: "compass", label: "Compass → Moon", icon: SectionIconArrowUpCircle, accent: "rose" },
   { id: "flight", label: "Flight source", icon: SectionIconFlightSource, accent: "violet" },
@@ -925,17 +921,6 @@ export function HomePageClient() {
       if (id === "ar") {
         return <ArSkyCameraPanel />;
       }
-      if (id === "streetview") {
-        return (
-          <StreetViewPanel
-            moon={s.moon}
-            observer={s.obs}
-            nowMs={s.referenceEpochMs}
-            candidates={s.candidatesDisplay}
-            activeTransits={s.activeTransits}
-          />
-        );
-      }
       if (id === "observer") {
         return (
           <div className="space-y-3">
@@ -1254,7 +1239,6 @@ const MOBILE_PANEL_TITLES: Record<DockId, string> = {
   flight: "Flight source",
   filters: "Flight filters",
   ar: "AR sky overlay",
-  streetview: "Street View",
   more: "All tools",
 };
 
@@ -1269,7 +1253,6 @@ const MOBILE_PANEL_ACCENT: Record<DockId, RailItem["accent"]> = {
   flight:     "violet",
   filters:    "violet",
   ar:         "sky",
-  streetview: "sky",
   more:       "violet",
 };
 
