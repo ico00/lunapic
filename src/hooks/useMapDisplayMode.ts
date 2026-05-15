@@ -5,10 +5,11 @@ import {
   ATC_FLIGHTS_PREDICTION_LAYER_ID,
   ensureFlightLayerWith3dModel,
 } from "@/lib/map/registerMoonTransitLayers";
-import { FLIGHTS_LAYER_ID } from "@/lib/map/mapSourceIds";
+import { FLIGHTS_LAYER_ID, VFR_OPENAIP_LAYER_ID, VFR_OPENAIP_MASK_LAYER_ID } from "@/lib/map/mapSourceIds";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useEffect, type RefObject } from "react";
 import type mapboxgl from "mapbox-gl";
+import type { MapDisplayMode } from "@/types/map-display";
 
 const DEFAULT_ONLY_LAYER_IDS = [
   FLIGHTS_LAYER_ID,
@@ -25,6 +26,7 @@ const ATC_ONLY_LAYER_IDS = [
   ATC_FLIGHTS_LEADER_LAYER_ID,
   ATC_FLIGHTS_LABEL_LAYER_ID,
 ];
+const VFR_ONLY_LAYER_IDS = [VFR_OPENAIP_LAYER_ID, VFR_OPENAIP_MASK_LAYER_ID];
 const HIDE_ALL_FLIGHTS_FILTER = ["==", ["get", "id"], "__atc_hidden__"] as const;
 const SHOW_ALL_FLIGHTS_FILTER = ["has", "id"] as const;
 
@@ -39,12 +41,19 @@ function setLayerVisibility(
   map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
 }
 
-function applyDisplayMode(map: mapboxgl.Map, atcMode: boolean): void {
+function applyDisplayMode(map: mapboxgl.Map, mode: MapDisplayMode): void {
+  const atcMode = mode === "atc";
+  const vfrMode = mode === "vfr";
+
+  // Default aircraft (3D model) — visible in default and VFR modes.
   for (const layerId of DEFAULT_ONLY_LAYER_IDS) {
     setLayerVisibility(map, layerId, !atcMode);
   }
   for (const layerId of ATC_ONLY_LAYER_IDS) {
     setLayerVisibility(map, layerId, atcMode);
+  }
+  for (const layerId of VFR_ONLY_LAYER_IDS) {
+    setLayerVisibility(map, layerId, vfrMode);
   }
 
   // Hard fallback: some async model-layer transitions can ignore visibility timing.
@@ -87,15 +96,14 @@ export function useMapDisplayMode(
     if (!map) {
       return;
     }
-    const atcMode = mapDisplayMode === "atc";
     let retryTimeoutA: ReturnType<typeof setTimeout> | null = null;
     let retryTimeoutB: ReturnType<typeof setTimeout> | null = null;
     let bootstrapped = false;
 
     const runApply = () => {
       bootstrapped = true;
-      applyDisplayMode(map, atcMode);
-      if (!atcMode) {
+      applyDisplayMode(map, mapDisplayMode);
+      if (mapDisplayMode !== "atc") {
         // Startup hardening: model loading can be slightly late on first app load.
         retryTimeoutA = setTimeout(() => {
           ensureFlightLayerWith3dModel(map);
@@ -116,7 +124,7 @@ export function useMapDisplayMode(
       if (!bootstrapped) {
         return;
       }
-      applyDisplayMode(map, atcMode);
+      applyDisplayMode(map, mapDisplayMode);
     };
     map.on("idle", handleIdle);
     return () => {

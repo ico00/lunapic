@@ -88,9 +88,15 @@ type MoonTransitState = {
    */
   ephemerisRefetchKey: number;
   /**
-   * Sidro = sada, pomak = 0. Koristi nakon učitavanja i gumb „Sinkroniziraj“.
+   * Sidro = sada, pomak = 0. Koristi nakon učitavanja i gumb „Sinkroniziraj”.
    */
   syncTimeToNow: () => void;
+  /**
+   * Napreduje `timeAnchorMs` i `referenceEpochMs` na `Date.now()` samo
+   * kada je `timeOffsetMs === 0` (live mode). Ne dira `ephemerisRefetchKey`
+   * osim ako prijeđemo UTC kalendarski dan.
+   */
+  tickLiveTime: () => void;
   setMapView: (next: Partial<MapViewState>) => void;
   /** Kad je uključeno, markeri letova koriste skalu boja po visini (legend); inače neutralna siva osim zelenog za shot-feasible. */
   mapAircraftAltitudeColors: boolean;
@@ -255,6 +261,22 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
       timeOffsetMs: 0,
       referenceEpochMs: now,
       ephemerisRefetchKey: s.ephemerisRefetchKey + 1,
+    });
+  },
+  tickLiveTime: () => {
+    const s = get();
+    if (s.timeOffsetMs !== 0) return;
+    const now = Date.now();
+    const prevRef = s.referenceEpochMs;
+    const crossedDay =
+      prevRef > 0 &&
+      utcCalendarDayStartMs(now) !== utcCalendarDayStartMs(prevRef);
+    set({
+      timeAnchorMs: now,
+      referenceEpochMs: now,
+      ephemerisRefetchKey: crossedDay
+        ? s.ephemerisRefetchKey + 1
+        : s.ephemerisRefetchKey,
     });
   },
   setMapView: (next) =>

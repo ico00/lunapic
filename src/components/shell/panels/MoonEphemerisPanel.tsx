@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useCallback, useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   MoonRowIconAltitude,
   MoonRowIconAngularRadius,
@@ -10,14 +10,12 @@ import {
   MoonRowIconMoonrise,
   MoonRowIconMoonset,
 } from "@/components/shell/panels/moonEphemerisRowIcons";
-import { SectionIconNote } from "@/components/shell/sectionCategoryIcons";
 import { useHasMounted } from "@/hooks/useHasMounted";
 import { isBalconyTransitWatchIdeal } from "@/lib/domain/astro/balconyTransitWatchIdeal";
 import {
   moonFieldVisibilityAdvice,
   type MoonFieldVisibilityTier,
 } from "@/lib/domain/astro/moonFieldVisibilityAdvice";
-import { formatMoonFieldNoteText } from "@/lib/format/moonFieldNote";
 import { formatFixed } from "@/lib/format/numbers";
 import type { GroundObserver } from "@/types/geo";
 import type { MoonRiseSetKind, MoonState } from "@/types/moon";
@@ -68,27 +66,18 @@ function timeDisplay(
   });
 }
 
-/** Observer + time anchor for a plain-text “field note” (balcony / stand logs). */
-export type MoonFieldSnapshotContext = {
-  referenceEpochMs: number;
-  observerLat: number;
-  observerLng: number;
-  observerGroundHeightMeters: number;
-};
-
 type MoonEphemerisPanelProps = {
   moon: MoonState;
   /** Fiksni promatrač (isti kao u geometriji) — za “ideal balcony” upozorenje. */
   observer: GroundObserver;
-  /** Vrijednost prikaza ili "—" dok ephemeris nije spreman. */
+  /** Vrijednost prikaza ili “—“ dok ephemeris nije spreman. */
   display: (v: string) => string;
   moonRise: Date | null;
   moonSet: Date | null;
   moonRiseSetKind: MoonRiseSetKind;
   showEphemeris: boolean;
   isMoonBelowHorizon: boolean;
-  /** Kad je postavljen i Mjesec je iznad horizonta, nudi se kopiranje bilješke u međuspremnik. */
-  snapshotContext?: MoonFieldSnapshotContext | null;
+  cloudCoverPercent?: number | null;
 };
 
 export function MoonEphemerisPanel({
@@ -100,7 +89,7 @@ export function MoonEphemerisPanel({
   moonRiseSetKind,
   showEphemeris,
   isMoonBelowHorizon,
-  snapshotContext = null,
+  cloudCoverPercent = null,
 }: MoonEphemerisPanelProps) {
   const hasMounted = useHasMounted();
   const visibilityAdvice = showEphemeris
@@ -113,10 +102,6 @@ export function MoonEphemerisPanel({
       isBalconyTransitWatchIdeal(moon, observer),
     [showEphemeris, isMoonBelowHorizon, moon, observer]
   );
-  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">(
-    "idle"
-  );
-
   const moonriseNoteText = useMemo(() => {
     if (moonRiseSetKind === "alwaysUp") {
       return "Circumpolar (up)";
@@ -140,45 +125,6 @@ export function MoonEphemerisPanel({
     }
     return `${visibilityAdvice.label} — ${visibilityAdvice.message}`;
   }, [visibilityAdvice]);
-
-  const copyFieldNote = useCallback(async () => {
-    if (!snapshotContext || !showEphemeris || isMoonBelowHorizon) {
-      return;
-    }
-    const body = formatMoonFieldNoteText({
-      referenceEpochMs: snapshotContext.referenceEpochMs,
-      observerLat: snapshotContext.observerLat,
-      observerLng: snapshotContext.observerLng,
-      observerGroundHeightMeters: snapshotContext.observerGroundHeightMeters,
-      moon,
-      moonriseText: moonriseNoteText,
-      moonsetText: moonsetNoteText,
-      visibilitySummary,
-    });
-    try {
-      await navigator.clipboard.writeText(body);
-      setCopyStatus("copied");
-      globalThis.setTimeout(() => {
-        setCopyStatus("idle");
-      }, 2200);
-    } catch {
-      setCopyStatus("error");
-      globalThis.setTimeout(() => {
-        setCopyStatus("idle");
-      }, 3200);
-    }
-  }, [
-    snapshotContext,
-    showEphemeris,
-    isMoonBelowHorizon,
-    moon,
-    moonriseNoteText,
-    moonsetNoteText,
-    visibilitySummary,
-  ]);
-
-  const showSnapshotButton =
-    Boolean(snapshotContext) && showEphemeris && !isMoonBelowHorizon;
 
   return (
     <div className="space-y-3">
@@ -256,56 +202,42 @@ export function MoonEphemerisPanel({
           </dd>
         </div>
       </dl>
-      {showSnapshotButton ? (
-        <div className="mt-3 border-t border-white/[0.08] pt-3">
-          <button
-            type="button"
-            data-testid="moon-field-note-copy"
-            onClick={() => {
-              void copyFieldNote();
-            }}
-            className="mt-toolbar-btn flex w-full items-center justify-center gap-2 px-3 font-[family-name:var(--font-jetbrains-mono)] text-[length:var(--fs-meta)] font-medium text-[color:var(--t-primary)] hover:border-sky-500/40"
-            title="Copy observer position, simulation instant, and Moon geometry as plain text"
-          >
-            <SectionIconNote className="h-4 w-4 text-yellow-400" />
-            Copy field note
-          </button>
-          {copyStatus === "copied" ? (
-            <p
-              className="mt-2 text-center text-[length:var(--fs-meta)] font-semibold text-emerald-300"
-              aria-live="polite"
-            >
-              Copied to clipboard
-            </p>
-          ) : null}
-          {copyStatus === "error" ? (
-            <p
-              className="mt-2 text-center text-[length:var(--fs-meta)] font-semibold text-amber-300"
-              aria-live="polite"
-            >
-              Clipboard unavailable (try a secure HTTPS context)
-            </p>
-          ) : null}
-        </div>
-      ) : null}
       {visibilityAdvice ? (
         <div
-          className="mt-3 border-t border-white/[0.08] pt-3"
+          className="mt-3 border-t border-white/[0.08] pt-3 space-y-1.5"
           aria-live="polite"
         >
           <p className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
             Visibility advice
           </p>
-          <p
-            className={`mt-1.5 text-[length:var(--fs-body)] font-semibold tracking-tight ${tierLabelClass(
-              visibilityAdvice.tier
-            )}`}
-          >
-            {visibilityAdvice.label}
-          </p>
-          <p className="mt-1 text-[length:var(--fs-meta)] leading-relaxed text-[color:var(--t-secondary)]">
+          <p className="text-[length:var(--fs-meta)] leading-relaxed text-[color:var(--t-secondary)]">
+            <span className="font-semibold text-[color:var(--t-primary)]">Elevation: </span>
+            <span className={`font-semibold ${tierLabelClass(visibilityAdvice.tier)}`}>{visibilityAdvice.label}</span>
+            {" — "}
             {visibilityAdvice.message}
           </p>
+          {cloudCoverPercent != null ? (
+            <p className="text-[length:var(--fs-meta)] leading-relaxed text-[color:var(--t-secondary)]">
+              <span className="font-semibold text-[color:var(--t-primary)]">Clouds: </span>
+              <span
+                className={`font-semibold ${
+                  cloudCoverPercent >= 80
+                    ? "text-red-400"
+                    : cloudCoverPercent >= 40
+                      ? "text-amber-400"
+                      : "text-emerald-400"
+                }`}
+              >
+                {cloudCoverPercent}%
+              </span>
+              {" — "}
+              {cloudCoverPercent >= 80
+                ? "moon likely obscured."
+                : cloudCoverPercent >= 40
+                  ? "moon visibility may be intermittent."
+                  : "skies mostly clear."}
+            </p>
+          ) : null}
         </div>
       ) : null}
     </div>

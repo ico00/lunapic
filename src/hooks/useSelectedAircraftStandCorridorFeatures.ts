@@ -15,11 +15,14 @@ import type { FlightState } from "@/types/flight";
 import type { Feature } from "geojson";
 import { useMemo } from "react";
 
+const AZIMUTH_THRESHOLD_DEG = 25;
+
 type Args = {
   selectedFlightId: string | null;
   extrapolatedFlights: readonly FlightState[];
   observer: GroundObserver;
   moonAltitudeDeg: number;
+  moonAzimuthDeg: number;
 };
 
 export type SelectedStandCorridorPack = {
@@ -42,6 +45,7 @@ export function useSelectedAircraftStandCorridorFeatures(
     extrapolatedFlights,
     observer,
     moonAltitudeDeg,
+    moonAzimuthDeg,
   } = a;
 
   return useMemo(() => {
@@ -67,6 +71,13 @@ export function useSelectedAircraftStandCorridorFeatures(
       flight.position.lng,
       h
     );
+
+    // Hide blue volume when aircraft azimuth diverges too much from moon azimuth
+    const azDiff = Math.abs(((hObs.azimuthDeg - moonAzimuthDeg + 540) % 360) - 180);
+    if (azDiff > AZIMUTH_THRESHOLD_DEG) {
+      return { fillFeatures: [], spineFeature: null };
+    }
+
     const standBearingDeg = normBearing360(hObs.azimuthDeg + 180);
     const sample = {
       groundLat: flight.position.lat,
@@ -94,12 +105,13 @@ export function useSelectedAircraftStandCorridorFeatures(
       volumeHeightMeters
     );
     const fillFeatures = [...stripFeatures, volumeFeature];
-    const spineFeature = buildStandCorridorSpineLineFeature(sample, p);
+    const spineFeature = buildStandCorridorSpineLineFeature(sample, p, observer);
     return { fillFeatures, spineFeature };
   }, [
     selectedFlightId,
     extrapolatedFlights,
     observer,
     moonAltitudeDeg,
+    moonAzimuthDeg,
   ]);
 }

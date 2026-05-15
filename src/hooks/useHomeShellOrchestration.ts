@@ -15,6 +15,7 @@ import { isDefaultObserverLocation } from "@/lib/defaultObserverLocation";
 import { getFlightProvider } from "@/lib/flight/flightProviderRegistry";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useObserverStore } from "@/stores/observer-store";
+import { useWeatherStore } from "@/stores/weather-store";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 /**
@@ -45,6 +46,7 @@ export function useHomeShellOrchestration() {
     (s) => s.setSelectedFlightId
   );
   const selectedFlightId = useMoonTransitStore((s) => s.selectedFlightId);
+  const cloudCoverPercent = useWeatherStore((s) => s.cloudCoverPercent);
   const moon = useMoonStateComputed();
   const isMoonBelowHorizon = useMemo(
     () => !isMoonVisibleFromMoonState(moon),
@@ -98,6 +100,7 @@ export function useHomeShellOrchestration() {
   );
   const timeSliderMode = "forward24h" as const;
   const syncTimeToNow = useMoonTransitStore((s) => s.syncTimeToNow);
+  const tickLiveTime = useMoonTransitStore((s) => s.tickLiveTime);
   const activeTransits = useActiveTransits(0.5);
   const isGolden = useMemo(
     () => activeTransits.some((r) => r.deltaAzDeg < 0.1),
@@ -149,6 +152,11 @@ export function useHomeShellOrchestration() {
       setEphemerisReady(true);
     });
   }, [syncTimeToNow]);
+
+  useEffect(() => {
+    const id = setInterval(tickLiveTime, 30_000);
+    return () => clearInterval(id);
+  }, [tickLiveTime]);
 
   const syncTime = useCallback(() => {
     syncTimeToNow();
@@ -212,5 +220,6 @@ export function useHomeShellOrchestration() {
     sliderWidthHours,
     timeSliderMode,
     isMoonBelowHorizon,
+    cloudCoverPercent,
   };
 }

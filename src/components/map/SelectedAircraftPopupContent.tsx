@@ -108,6 +108,7 @@ export function SelectedAircraftPopupContent({
   // onRefreshFlights ostaje u props tipu radi kompatibilnosti, ali se ne koristi
   // — refresh ikonica je uklonjena, live feed sam osvježava podatke.
   void onRefreshFlights;
+  const [collapsed, setCollapsed] = useState(false);
   const hasMounted = useHasMounted();
   const atmosphericLevels = useWeatherStore((s) => s.atmosphericLevels);
   const typeDisplay = flight
@@ -127,32 +128,47 @@ export function SelectedAircraftPopupContent({
       className="pointer-events-auto mt-glass-elevated box-border max-md:max-h-[min(50dvh,22rem)] max-md:w-full max-md:min-w-0 max-md:max-w-none max-md:rounded-b-[var(--r-xl)] max-md:pb-2 md:max-h-[34rem] md:w-[min(20rem,calc(100vw-2.25rem))] overflow-y-auto rounded-[var(--r-xl)] p-2.5 text-[color:var(--t-secondary)] [scrollbar-width:none] md:p-3 [&::-webkit-scrollbar]:hidden"
       data-testid="selected-flight-card"
     >
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center gap-2">
         {flight ? (
-          <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 items-center gap-2.5 md:gap-3">
-              <div className="shrink-0">
-                <AirlineLogoSlot
-                  key={`${flight.id}-${logoIata ?? ""}`}
-                  iata={logoIata}
-                />
-              </div>
-              <div className="min-w-0 flex-1 flex flex-col gap-0.5 leading-tight">
-                <p className="break-words text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">
-                  {flightAirlineDisplayLine(flight) ?? "—"}
-                </p>
-                <p className="break-all text-[length:var(--fs-h2)] font-bold tracking-tight text-sky-300 md:text-[length:var(--fs-h1)] md:font-bold">
-                  {flight.callSign?.trim() || "—"}
-                </p>
-              </div>
+          <button
+            type="button"
+            onClick={() => setCollapsed((c) => !c)}
+            aria-label={collapsed ? "Expand aircraft details" : "Collapse aircraft details"}
+            className="flex min-w-0 flex-1 items-center gap-2.5 text-left md:gap-3 active:opacity-70"
+          >
+            <div className="shrink-0">
+              <AirlineLogoSlot
+                key={`${flight.id}-${logoIata ?? ""}`}
+                iata={logoIata}
+              />
             </div>
-          </div>
+            <div className="min-w-0 flex-1 flex flex-col gap-0.5 leading-tight">
+              <p className="break-words text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">
+                {flightAirlineDisplayLine(flight) ?? "—"}
+              </p>
+              <p className="break-all text-[length:var(--fs-h2)] font-bold tracking-tight text-sky-300 md:text-[length:var(--fs-h1)] md:font-bold">
+                {flight.callSign?.trim() || "—"}
+              </p>
+            </div>
+            <svg
+              className={`h-4 w-4 shrink-0 text-[color:var(--t-tertiary)] transition-transform duration-200 ${collapsed ? "rotate-180" : ""}`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </button>
         ) : (
-          <h2 className="mt-section-label border-0 pb-0 text-sky-400/90">
+          <h2 className="mt-section-label min-w-0 flex-1 border-0 pb-0 text-sky-400/90">
             Selected aircraft
           </h2>
         )}
-        {/* X close gumb — top-right header (zamjenjuje stari "Clear" tekst gumb dolje). */}
+        {/* X close gumb */}
         <button
           type="button"
           onClick={onDismiss}
@@ -182,7 +198,7 @@ export function SelectedAircraftPopupContent({
             another track or refresh flights.
           </p>
         </div>
-      ) : (
+      ) : !collapsed ? (
         <>
           <div className="mt-2 md:mt-2.5">
             <div className="grid grid-cols-2 gap-1.5 md:gap-2">
@@ -225,7 +241,7 @@ export function SelectedAircraftPopupContent({
                     : "—"}
                 </div>
               </div>
-              <div className="col-span-2 min-w-0 rounded-xl border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/80 px-2.5 py-1.5 md:px-3 md:py-2">
+              <div className="min-w-0 rounded-xl border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/80 px-2.5 py-1.5 md:px-3 md:py-2">
                 <div className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
                   Altitude
                 </div>
@@ -233,7 +249,7 @@ export function SelectedAircraftPopupContent({
                   {altBlock(flight)}
                 </div>
               </div>
-              <div className="col-span-2 min-w-0 rounded-xl border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/80 px-2.5 py-1.5 md:px-3 md:py-2">
+              <div className="min-w-0 rounded-xl border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/80 px-2.5 py-1.5 md:px-3 md:py-2">
                 <div className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
                   Contrails
                 </div>
@@ -262,7 +278,7 @@ export function SelectedAircraftPopupContent({
             </p>
           </div>
         </>
-      )}
+      ) : null}
     </div>
   );
 }

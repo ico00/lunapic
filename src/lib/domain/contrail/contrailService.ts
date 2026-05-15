@@ -43,7 +43,7 @@ export function computeContrailLikelihood(
   altM: number | null,
   levels: AtmosphericLevel[]
 ): ContrailLikelihood {
-  if (altM == null || altM < 5000 || levels.length === 0) return "none";
+  if (altM == null || altM < 4500 || levels.length === 0) return "none";
 
   const pressHPa = altToApproxPressureHPa(altM);
 

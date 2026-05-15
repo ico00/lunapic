@@ -275,7 +275,7 @@ export function useMoonTransitMap(
     const obs = useObserverStore.getState().observer;
     const mark = new mapboxgl.Marker({
       element: createObserverMarkerElement(),
-      anchor: "bottom",
+      anchor: "center",
       draggable: !useObserverStore.getState().observerLocationLocked,
     })
       .setLngLat([obs.lng, obs.lat])

@@ -1,4 +1,5 @@
 import type { AnyLayer, Map } from "mapbox-gl";
+import { CorridorVolumeCustomLayer } from "@/lib/map/CorridorVolumeCustomLayer";
 import { flightFeatureColorMapboxExpressionForAltitudeTint } from "@/lib/map/flightAltitudeColor";
 import {
   FLIGHT_3D_MODEL_ID,
@@ -228,21 +229,32 @@ function addAtcFlightsLayers(map: Map): void {
       layout: {
         visibility: "none",
         "text-field": [
-          "format",
-          ["coalesce", ["get", "atcCallsign"], ["get", "name"]],
-          { "font-scale": 1.18 },
-          "\n",
-          {},
-          ["coalesce", ["get", "atcLineFl"], ""],
-          { "font-scale": 1.02 },
-          "\n",
-          {},
-          ["coalesce", ["get", "atcLineSpd"], ""],
-          { "font-scale": 1.02 },
-          "\n",
-          {},
-          ["coalesce", ["get", "atcLineHdg"], ""],
-          { "font-scale": 1.02 },
+          "step", ["zoom"],
+          // zoom < 9: callsign only
+          ["format",
+            ["coalesce", ["get", "atcCallsign"], ["get", "name"]],
+            { "font-scale": 1.0 },
+            ["match", ["coalesce", ["get", "contrailLikelihood"], "none"],
+              "persistent", " ≈", "transient", " ~", ""
+            ],
+            { "font-scale": 1.0 },
+          ],
+          9,
+          // zoom >= 9: full data block
+          ["format",
+            ["coalesce", ["get", "atcCallsign"], ["get", "name"]],
+            { "font-scale": 1.18 },
+            ["match", ["coalesce", ["get", "contrailLikelihood"], "none"],
+              "persistent", " ≈", "transient", " ~", ""
+            ],
+            { "font-scale": 1.18 },
+            "\n", {},
+            ["coalesce", ["get", "atcLineFl"], ""], { "font-scale": 1.02 },
+            "\n", {},
+            ["coalesce", ["get", "atcLineSpd"], ""], { "font-scale": 1.02 },
+            "\n", {},
+            ["coalesce", ["get", "atcLineHdg"], ""], { "font-scale": 1.02 },
+          ],
         ],
         "text-size": 13,
         "text-font": [
@@ -293,11 +305,7 @@ function addFlightsModelLayer(map: Map): void {
       "model-translation": [
         0,
         0,
-        [
-          "*",
-          ["coalesce", ["to-number", ["get", "altitudeMeters"]], 0],
-          0.08,
-        ],
+        ["coalesce", ["to-number", ["get", "altitudeMeters"]], 0],
       ],
       "model-rotation": [
         0,
@@ -383,7 +391,8 @@ export function ensureFlightLayerWith3dModel(map: Map): void {
  */
 export function registerMoonTransitLayers(
   map: Map,
-  onLayersReady?: () => void
+  onLayersReady?: () => void,
+  onCorridorVolumeLayer?: (layer: CorridorVolumeCustomLayer) => void
 ): void {
   ensureMapboxTerrain(map);
   map.addSource(ROUTES_SOURCE, {
@@ -665,66 +674,6 @@ export function registerMoonTransitLayers(
     },
   });
   map.addLayer({
-    id: "transit-opportunity-corridor-volume-low",
-    type: "fill-extrusion",
-    source: SELECTED_STAND_SOURCE,
-    filter: [
-      "all",
-      ["==", ["get", "kind"], "transitOpportunityCorridorVolume"],
-      ["==", ["get", "confidence"], "low"],
-    ],
-    paint: {
-      "fill-extrusion-color": "#86efac",
-      "fill-extrusion-opacity": 0.08,
-      "fill-extrusion-height": [
-        "coalesce",
-        ["to-number", ["get", "volumeHeightMeters"]],
-        0,
-      ],
-      "fill-extrusion-base": 0,
-    },
-  });
-  map.addLayer({
-    id: "transit-opportunity-corridor-volume-medium",
-    type: "fill-extrusion",
-    source: SELECTED_STAND_SOURCE,
-    filter: [
-      "all",
-      ["==", ["get", "kind"], "transitOpportunityCorridorVolume"],
-      ["==", ["get", "confidence"], "medium"],
-    ],
-    paint: {
-      "fill-extrusion-color": "#4ade80",
-      "fill-extrusion-opacity": 0.14,
-      "fill-extrusion-height": [
-        "coalesce",
-        ["to-number", ["get", "volumeHeightMeters"]],
-        0,
-      ],
-      "fill-extrusion-base": 0,
-    },
-  });
-  map.addLayer({
-    id: "transit-opportunity-corridor-volume-high",
-    type: "fill-extrusion",
-    source: SELECTED_STAND_SOURCE,
-    filter: [
-      "all",
-      ["==", ["get", "kind"], "transitOpportunityCorridorVolume"],
-      ["==", ["get", "confidence"], "high"],
-    ],
-    paint: {
-      "fill-extrusion-color": "#22c55e",
-      "fill-extrusion-opacity": 0.2,
-      "fill-extrusion-height": [
-        "coalesce",
-        ["to-number", ["get", "volumeHeightMeters"]],
-        0,
-      ],
-      "fill-extrusion-base": 0,
-    },
-  });
-  map.addLayer({
     id: "selected-aircraft-stand-fill",
     type: "fill",
     source: SELECTED_STAND_SOURCE,
@@ -843,8 +792,15 @@ export function registerMoonTransitLayers(
     },
   });
 
+  // Custom WebGL layer renders volumes without depth writes so aircraft models
+  // (added after) are never occluded inside the corridor zone.
+  const corridorVolumeLayer = new CorridorVolumeCustomLayer();
+  map.addLayer(corridorVolumeLayer as unknown as AnyLayer);
+  onCorridorVolumeLayer?.(corridorVolumeLayer);
+
   addFlightsCircleFallback(map);
   addAtcFlightsLayers(map);
+
   if (map.getLayer(FLIGHTS_SHADOW_LAYER_ID) && map.getLayer(FLIGHTS_LAYER_ID)) {
     map.moveLayer(FLIGHTS_SHADOW_LAYER_ID, FLIGHTS_LAYER_ID);
   }

@@ -1,6 +1,12 @@
 import type { MoonPathPack } from "@/hooks/useMapMoonOverlayFeatures";
 import { geoBoundsFromMapbox } from "@/lib/map/geoBoundsFromMapbox";
 import {
+  computeContrailLikelihood,
+} from "@/lib/domain/contrail/contrailService";
+import { ALTITUDE_BANDS } from "@/lib/map/flightAltitudeColor";
+import { useWeatherStore } from "@/stores/weather-store";
+import { useMoonTransitStore } from "@/stores/moon-transit-store";
+import {
   FLIGHTS_ATC_LEADER_SOURCE,
   FLIGHTS_ATC_LABEL_SOURCE,
   FLIGHTS_ATC_PREDICTION_SOURCE,
@@ -73,6 +79,11 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
     shotFeasibleFlightIds,
     flightProvider,
   } = a;
+
+  const atmosphericLevels = useWeatherStore((s) => s.atmosphericLevels);
+  const atmosphericLevelsRef = useRef(atmosphericLevels);
+  const altitudeBandIndex = useMoonTransitStore((s) => s.altitudeBandIndex);
+  const altitudeBandIndexRef = useRef(altitudeBandIndex);
 
   const flightsRef = useRef(flights);
   const selectedFlightIdRef = useRef(selectedFlightId);
@@ -226,6 +237,14 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
   }, [moonPathPack, mapReadyTick, mapRef]);
 
   useEffect(() => {
+    atmosphericLevelsRef.current = atmosphericLevels;
+  }, [atmosphericLevels]);
+
+  useEffect(() => {
+    altitudeBandIndexRef.current = altitudeBandIndex;
+  }, [altitudeBandIndex]);
+
+  useEffect(() => {
     flightsRef.current = flights;
     selectedFlightIdRef.current = selectedFlightId;
 
@@ -251,6 +270,9 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
               : null;
         const visibleFlights =
           idForFilter == null ? fList : fList.filter((f) => f.id === idForFilter);
+        const levels = atmosphericLevelsRef.current;
+        const bandIdx = altitudeBandIndexRef.current;
+        const activeBand = bandIdx > 0 ? ALTITUDE_BANDS[bandIdx - 1] : null;
         src.setData({
           type: "FeatureCollection",
           features: visibleFlights.map((f) => ({
@@ -277,6 +299,15 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
                 typeof f.trackDeg === "number" && Number.isFinite(f.trackDeg)
                   ? ((f.trackDeg % 360) + 360) % 360
                   : 0,
+              contrailLikelihood: levels != null
+                ? computeContrailLikelihood(f.baroAltitudeMeters, levels)
+                : "none",
+              contrailBadgeVisible: (() => {
+                if (!activeBand || !levels) return false;
+                const alt = f.baroAltitudeMeters ?? f.geoAltitudeMeters ?? 0;
+                if (alt < activeBand.minMeters || alt >= activeBand.maxMeters) return false;
+                return computeContrailLikelihood(f.baroAltitudeMeters, levels) !== "none";
+              })(),
             },
           })),
         });
@@ -286,7 +317,12 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
         const labelSrc = m.getSource(FLIGHTS_ATC_LABEL_SOURCE) as
           | mapboxgl.GeoJSONSource
           | undefined;
-        const leaderPack = visibleFlights.map((f) => buildAtcLeaderGeometry(f));
+        const leaderPack = visibleFlights.map((f) => {
+          const cl = levels != null
+            ? computeContrailLikelihood(f.baroAltitudeMeters, levels)
+            : undefined;
+          return buildAtcLeaderGeometry(f, cl);
+        });
         if (leaderSrc) {
           leaderSrc.setData({
             type: "FeatureCollection",
@@ -393,7 +429,7 @@ function buildAtcHeadingLine(f: FlightState): string {
   return `HDG ${heading == null ? "---" : String(heading).padStart(3, "0")}`;
 }
 
-function buildAtcLeaderGeometry(f: FlightState): { line: Feature; label: Feature } {
+function buildAtcLeaderGeometry(f: FlightState, contrailLikelihood?: string): { line: Feature; label: Feature } {
   const lat = f.position.lat;
   const lng = f.position.lng;
   const dLatDeg = 1350 / 111320;
@@ -429,6 +465,7 @@ function buildAtcLeaderGeometry(f: FlightState): { line: Feature; label: Feature
       atcLineFl: buildAtcFlightLevelLine(f),
       atcLineSpd: buildAtcSpeedLine(f),
       atcLineHdg: buildAtcHeadingLine(f),
+      contrailLikelihood: contrailLikelihood ?? "none",
     },
     },
   }

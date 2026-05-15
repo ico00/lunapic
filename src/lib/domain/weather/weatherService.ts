@@ -2,8 +2,10 @@ import type { AtmosphericLevel } from "@/lib/domain/contrail/contrailService";
 
 const OPEN_METEO_FORECAST = "https://api.open-meteo.com/v1/forecast";
 
-/** Pressure levels fetched for contrail prediction (hPa). */
-const PRESSURE_LEVELS_HPA = [300, 250, 200] as const;
+/** Pressure levels fetched for contrail prediction (hPa).
+ *  ISA approximate altitudes: 500≈5500m, 400≈7200m, 300≈9200m, 250≈10400m, 200≈11800m
+ */
+const PRESSURE_LEVELS_HPA = [500, 400, 300, 250, 200] as const;
 
 type PressureLevel = (typeof PRESSURE_LEVELS_HPA)[number];
 
@@ -11,9 +13,13 @@ type OpenMeteoHourly = {
   hourly?: {
     time?: string[];
     cloud_cover?: (number | null)[];
+    temperature_500hPa?: (number | null)[];
+    temperature_400hPa?: (number | null)[];
     temperature_300hPa?: (number | null)[];
     temperature_250hPa?: (number | null)[];
     temperature_200hPa?: (number | null)[];
+    relativehumidity_500hPa?: (number | null)[];
+    relativehumidity_400hPa?: (number | null)[];
     relativehumidity_300hPa?: (number | null)[];
     relativehumidity_250hPa?: (number | null)[];
     relativehumidity_200hPa?: (number | null)[];

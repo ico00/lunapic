@@ -25,3 +25,8 @@ export const MOON_PATH_LABELS_SOURCE = "moon-path-labels-geo";
 export const MOON_PATH_CURRENT_SOURCE = "moon-path-current-geo";
 /** Mapbox global DEM for `queryTerrainElevation` (observer ground height from map). */
 export const MAPBOX_TERRAIN_DEM_SOURCE = "lunapic-mapbox-terrain-dem";
+
+export const VFR_OPENAIP_SOURCE = "vfr-openaip-source";
+export const VFR_OPENAIP_LAYER_ID = "vfr-openaip-layer";
+export const VFR_OPENAIP_MASK_SOURCE = "vfr-openaip-mask-source";
+export const VFR_OPENAIP_MASK_LAYER_ID = "vfr-openaip-mask-layer";

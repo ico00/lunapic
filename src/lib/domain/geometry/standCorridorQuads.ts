@@ -152,19 +152,14 @@ export function buildStandCorridorObserverVolumeFeature(
  */
 export function buildStandCorridorSpineLineFeature(
   s: StandCorridorSample,
-  p: StandCorridorParams
+  p: StandCorridorParams,
+  observer: { lat: number; lng: number }
 ): {
   type: "Feature";
   properties: { kind: "zeroOffsetSpine" };
   geometry: { type: "LineString"; coordinates: [number, number][] };
 } {
   const standBearing = norm360(s.standBearingDeg);
-  const cNear = destinationByAzimuthMeters(
-    s.groundLat,
-    s.groundLng,
-    standBearing,
-    p.nearAlongM
-  );
   const cFar = destinationByAzimuthMeters(
     s.groundLat,
     s.groundLng,
@@ -177,7 +172,7 @@ export function buildStandCorridorSpineLineFeature(
     geometry: {
       type: "LineString",
       coordinates: [
-        [cNear.lng, cNear.lat],
+        [observer.lng, observer.lat],
         [cFar.lng, cFar.lat],
       ],
     },

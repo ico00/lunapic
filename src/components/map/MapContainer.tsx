@@ -27,7 +27,8 @@ import { fieldPerfRecord, isFieldPerfEnabled } from "@/lib/perf/fieldPerf";
 import type { IFlightProvider } from "@/types";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useObserverStore } from "@/stores/observer-store";
-import { Profiler, useEffect, useMemo } from "react";
+import type { CorridorVolumeCustomLayer } from "@/lib/map/CorridorVolumeCustomLayer";
+import { Profiler, useEffect, useMemo, useRef } from "react";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 export type MapContainerProps = {
@@ -89,6 +90,8 @@ export function MapContainer({
   const { lineFeature: moonAzNowFeature, labelFeature: moonAzNowLabelFeature } =
     useCurrentMoonAzimuthFeature(observer.lat, observer.lng);
 
+  const corridorVolumeLayerRef = useRef<CorridorVolumeCustomLayer | null>(null);
+
   const {
     hasMapboxToken,
     elRef,
@@ -123,6 +126,7 @@ export function MapContainer({
       extrapolatedFlights: filteredFlights,
       observer,
       moonAltitudeDeg: moon.altitudeDeg,
+      moonAzimuthDeg: moon.azimuthDeg,
     });
   const transitOpportunityCorridorFeatures = useTransitOpportunityCorridorFeatures({
     observer,
@@ -138,6 +142,19 @@ export function MapContainer({
 
   useMapFlightAltitudeColorsPaint(mapRef, mapReadyTick);
   useMapDisplayMode(mapRef, mapReadyTick);
+
+  useEffect(() => {
+    if (mapReadyTick === 0) return;
+    corridorVolumeLayerRef.current =
+      (mapRef.current?.getLayer("corridor-volume-custom") as unknown as CorridorVolumeCustomLayer | undefined) ?? null;
+  }, [mapReadyTick, mapRef]);
+
+  useEffect(() => {
+    const layer = corridorVolumeLayerRef.current;
+    if (!layer) return;
+    layer.updateFeatures(transitOpportunityCorridorFeatures);
+    mapRef.current?.triggerRepaint();
+  }, [transitOpportunityCorridorFeatures, mapRef]);
 
   useMapGeoJsonSync({
     mapRef,

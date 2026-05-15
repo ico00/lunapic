@@ -531,6 +531,7 @@ export function ViewfinderPreview({
           top: 50%;
           transform: translate(-50%, -50%) rotate(var(--viewfinder-plane-rotation-deg));
           opacity: 0.9;
+          filter: drop-shadow(0 0 4px #facc15) drop-shadow(0 0 10px rgba(250, 204, 21, 0.55));
         }
         .viewfinder-plane-static-layer {
           display: block;

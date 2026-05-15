@@ -97,7 +97,7 @@ export function TransitCandidatesPanel({
         )}
         {error && <p className="text-[length:var(--fs-meta)] text-rose-300">{error}</p>}
       </div>
-      <ul className="mt-3 max-h-56 space-y-2 overflow-y-auto">
+      <ul className="mt-3 space-y-2">
         {showEmpty && (
           <li className="text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">No visible tracks.</li>
         )}

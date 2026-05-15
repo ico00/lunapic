@@ -43,7 +43,7 @@ describe("buildStandCorridorSpineLineFeature", () => {
       nearAlongM: 500,
       farAlongM: 2_000,
       halfWidthM: 0,
-    });
+    }, { lat: 45.01, lng: 15.99 });
     expect(f.geometry.type).toBe("LineString");
     expect(f.geometry.coordinates).toHaveLength(2);
   });
