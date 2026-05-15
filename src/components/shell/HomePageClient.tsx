@@ -15,6 +15,7 @@ import { TimeSliderPanel } from "@/components/shell/panels/TimeSliderPanel";
 import { TransitCandidatesPanel } from "@/components/shell/panels/TransitCandidatesPanel";
 import { StreetViewPanel } from "@/components/shell/panels/StreetViewPanel";
 import { StreetViewFullscreen } from "@/components/map/StreetViewFullscreen";
+import { MapDisplayModeLayersControl } from "@/components/map/MapDisplayModeLayersControl";
 import { WeatherOverlay } from "@/components/weather/WeatherOverlay";
 import { useHomeShellOrchestration } from "@/hooks/useHomeShellOrchestration";
 import { useIsMdUp } from "@/hooks/useMediaQuery";
@@ -1026,6 +1027,11 @@ export function HomePageClient() {
           />
         </div>
       )}
+
+      {/* === LAYERS CONTROL — uvijek iznad mape i Street View overlaya === */}
+      <div className="pointer-events-none md:absolute md:bottom-[4.5rem] md:left-3 md:z-[15] max-md:fixed max-md:bottom-[calc(8.25rem+env(safe-area-inset-bottom,0px))] max-md:left-3 max-md:z-[76]">
+        <MapDisplayModeLayersControl />
+      </div>
 
       {/* === DESKTOP UI === */}
       {isWide ? (

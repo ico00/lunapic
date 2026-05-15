@@ -279,16 +279,6 @@ export function StreetViewFullscreen({ moon, observer, nowMs, candidates, active
         </div>
       )}
 
-      {/* HUD — azimuth / altitude info */}
-      {status === "ready" && (
-        <div className="pointer-events-none absolute left-3 top-3 z-[10000] rounded-xl border border-white/10 bg-black/50 px-3 py-2 font-mono text-xs tabular-nums text-zinc-200 backdrop-blur-sm">
-          <span className="text-zinc-400">Az </span>
-          <span className="text-amber-300">{moonAz.toFixed(1)}°</span>
-          <span className="mx-2 text-zinc-600">·</span>
-          <span className="text-zinc-400">Alt </span>
-          <span className="text-amber-300">{moonAlt.toFixed(1)}°</span>
-        </div>
-      )}
     </div>
   );
 }
