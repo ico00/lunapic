@@ -900,7 +900,15 @@ export function HomePageClient() {
         return <ArSkyCameraPanel />;
       }
       if (id === "streetview") {
-        return <StreetViewPanel moon={s.moon} observer={s.obs} nowMs={s.referenceEpochMs} />;
+        return (
+          <StreetViewPanel
+            moon={s.moon}
+            observer={s.obs}
+            nowMs={s.referenceEpochMs}
+            candidates={s.candidatesDisplay}
+            activeTransits={s.activeTransits}
+          />
+        );
       }
       if (id === "observer") {
         return (

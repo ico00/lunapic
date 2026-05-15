@@ -3,7 +3,10 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import type { MoonState } from "@/types/moon";
 import type { GroundObserver } from "@/types";
+import type { TransitCandidate } from "@/types/transit";
+import type { ActiveTransitRow } from "@/hooks/useActiveTransits";
 import { buildMoonPathSamplesInTimeRange } from "@/lib/domain/astro/astroService";
+import { horizontalToPoint } from "@/lib/domain/geometry/horizontal";
 
 declare global {
   interface Window {
@@ -16,6 +19,8 @@ type Props = {
   moon: MoonState | null;
   observer: GroundObserver;
   nowMs: number;
+  candidates: readonly TransitCandidate[];
+  activeTransits: readonly ActiveTransitRow[];
 };
 
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
@@ -100,7 +105,7 @@ function project(
   return [sx, sy];
 }
 
-export function StreetViewPanel({ moon, observer, nowMs }: Props) {
+export function StreetViewPanel({ moon, observer, nowMs, candidates, activeTransits }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const panoRef = useRef<google.maps.StreetViewPanorama | null>(null);
@@ -271,6 +276,79 @@ export function StreetViewPanel({ moon, observer, nowMs }: Props) {
       ctx.fillText("☽ Moon", mx, my + R + 14);
     }
 
+    // --- Draw aircraft (candidates first, then active transits on top) ---
+    const activeIds = new Set(activeTransits.map((t) => t.flight.id));
+
+    const drawFlight = (flight: { id: string; callSign?: string | null; icao24?: string; position: { lat: number; lng: number }; geoAltitudeMeters: number | null; baroAltitudeMeters: number | null }, isActive: boolean) => {
+      const f = flight;
+      const h = f.geoAltitudeMeters ?? f.baroAltitudeMeters;
+      if (h == null) return;
+      const dir = horizontalToPoint(observer, f.position.lat, f.position.lng, h);
+      const pt = project(dir.azimuthDeg, dir.altitudeDeg, povH, povP, W, H);
+      if (!pt) return;
+      const [ax, ay] = pt;
+
+      const label = f.callSign?.trim() || f.icao24 || "?";
+      const altFt = Math.round(h * 3.28084 / 100) * 100;
+
+      if (isActive) {
+        // Active transit: bright sky-blue with glow
+        ctx.shadowColor = "rgba(56,189,248,0.8)";
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.arc(ax, ay, 10, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(56,189,248,0.25)";
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(ax, ay, 10, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(56,189,248,1)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        // ✈ symbol
+        ctx.font = "bold 13px serif";
+        ctx.fillStyle = "rgba(56,189,248,1)";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("✈", ax, ay);
+        ctx.textBaseline = "alphabetic";
+        // label below
+        ctx.font = "bold 10px ui-monospace, monospace";
+        ctx.fillStyle = "rgba(56,189,248,0.95)";
+        ctx.fillText(label, ax, ay + 18);
+        ctx.font = "9px ui-monospace, monospace";
+        ctx.fillStyle = "rgba(56,189,248,0.7)";
+        ctx.fillText(`${altFt.toLocaleString()} ft`, ax, ay + 28);
+      } else {
+        // Candidate: dim violet
+        ctx.beginPath();
+        ctx.arc(ax, ay, 7, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(167,139,250,0.15)";
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(ax, ay, 7, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(167,139,250,0.7)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.font = "10px serif";
+        ctx.fillStyle = "rgba(167,139,250,0.9)";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("✈", ax, ay);
+        ctx.textBaseline = "alphabetic";
+        ctx.font = "9px ui-monospace, monospace";
+        ctx.fillStyle = "rgba(167,139,250,0.75)";
+        ctx.fillText(label, ax, ay + 14);
+      }
+    };
+
+    for (const c of candidates) {
+      if (!activeIds.has(c.flight.id)) drawFlight(c.flight, false);
+    }
+    for (const c of activeTransits) {
+      drawFlight(c.flight, true);
+    }
+
     // --- Horizon hint if moon is below canvas ---
     if (moonAlt < 0) {
       ctx.font = "12px ui-monospace, monospace";
@@ -278,7 +356,7 @@ export function StreetViewPanel({ moon, observer, nowMs }: Props) {
       ctx.textAlign = "center";
       ctx.fillText("Moon below horizon", W / 2, H - 16);
     }
-  }, [pov, pathSamples, moonAz, moonAlt, nowMs, status]);
+  }, [pov, pathSamples, moonAz, moonAlt, nowMs, status, candidates, activeTransits, observer]);
 
   useEffect(() => {
     const id = requestAnimationFrame(drawCanvas);
