@@ -136,6 +136,10 @@ const OPTIONS: readonly { id: MapDisplayMode; label: string }[] = [
 export function MapDisplayModeLayersControl() {
   const mapDisplayMode = useMoonTransitStore((s) => s.mapDisplayMode);
   const setMapDisplayMode = useMoonTransitStore((s) => s.setMapDisplayMode);
+  const flightHistoryHeatmap = useMoonTransitStore((s) => s.flightHistoryHeatmap);
+  const setFlightHistoryHeatmap = useMoonTransitStore((s) => s.setFlightHistoryHeatmap);
+  const flightHistoryRoutes = useMoonTransitStore((s) => s.flightHistoryRoutes);
+  const setFlightHistoryRoutes = useMoonTransitStore((s) => s.setFlightHistoryRoutes);
   const hasMounted = useHasMounted();
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -241,6 +245,55 @@ export function MapDisplayModeLayersControl() {
         <div className="shrink-0 border-b border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)] px-3 py-2 font-[family-name:var(--font-jetbrains-mono)] text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-secondary)]">
           Aircraft display
         </div>
+        {/* Flight history section */}
+        <div className="shrink-0 border-b border-[color:var(--glass-stroke)] px-3 py-2">
+          <div className="mb-2 font-[family-name:var(--font-jetbrains-mono)] text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-secondary)]">
+            Flight history
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="flex cursor-pointer items-center justify-between gap-3">
+              <span className="text-[length:var(--fs-label)] text-[color:var(--t-primary)]">
+                Density heatmap
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={flightHistoryHeatmap}
+                onClick={() => setFlightHistoryHeatmap(!flightHistoryHeatmap)}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/45 ${
+                  flightHistoryHeatmap ? "bg-sky-500" : "bg-[color:var(--glass-3)]"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                    flightHistoryHeatmap ? "translate-x-4" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </label>
+            <label className="flex cursor-pointer items-center justify-between gap-3">
+              <span className="text-[length:var(--fs-label)] text-[color:var(--t-primary)]">
+                Route lines
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={flightHistoryRoutes}
+                onClick={() => setFlightHistoryRoutes(!flightHistoryRoutes)}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/45 ${
+                  flightHistoryRoutes ? "bg-sky-500" : "bg-[color:var(--glass-3)]"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                    flightHistoryRoutes ? "translate-x-4" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </label>
+          </div>
+        </div>
+
         <div className="grid min-h-0 flex-1 grid-cols-4 gap-2 overflow-y-auto p-2">
           {OPTIONS.map((opt) => {
             const active = mapDisplayMode === opt.id;

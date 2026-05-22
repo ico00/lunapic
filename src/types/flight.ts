@@ -44,6 +44,16 @@ export interface FlightState {
   readonly airlineName?: string | null;
   /** Wingspan in meters when available; fallback heuristics are used otherwise. */
   readonly wingspanMeters?: number | null;
+  /** Aircraft registration (e.g. "9A-CTG") — local ADS-B only. */
+  readonly registration?: string | null;
+  /** Squawk transponder code — local ADS-B only. */
+  readonly squawk?: string | null;
+  /** Vertical rate, ft/min (positive = climbing) — local ADS-B only. */
+  readonly verticalRateFpm?: number | null;
+  /** Receiver signal strength dBFS — local ADS-B only. */
+  readonly rssi?: number | null;
+  /** Aircraft long description from readsb database — local ADS-B only. */
+  readonly aircraftDescription?: string | null;
 }
 
 export interface FlightQuery {

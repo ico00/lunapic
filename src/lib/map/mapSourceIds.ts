@@ -8,12 +8,10 @@ export const FLIGHTS_LAYER_ID = "flights-layer";
 export const FLIGHTS_ATC_LEADER_SOURCE = "flights-atc-leader-geo";
 export const FLIGHTS_ATC_PREDICTION_SOURCE = "flights-atc-prediction-geo";
 export const FLIGHTS_ATC_LABEL_SOURCE = "flights-atc-label-geo";
-export const ROUTES_SOURCE = "routes-geo";
 export const MOON_AZ_SOURCE = "moon-azimuth-geo";
 export const MOON_AZ_NOW_SOURCE = "moon-azimuth-now-geo";
 export const MOON_AZ_NOW_LABEL_SOURCE = "moon-azimuth-now-label-geo";
 export const MOON_INT_SOURCE = "moon-intersections-geo";
-export const GROUND_OPTIMAL_SOURCE = "optimal-ground-geo";
 export const MOON_PATH_FULL_DAY_SOURCE = "moon-path-full-day-geo";
 export const SELECTED_STAND_SOURCE = "selected-stand-geo";
 export const SELECTED_STAND_SPINE_SOURCE = "selected-stand-spine-geo";
@@ -26,7 +24,17 @@ export const MOON_PATH_CURRENT_SOURCE = "moon-path-current-geo";
 /** Mapbox global DEM for `queryTerrainElevation` (observer ground height from map). */
 export const MAPBOX_TERRAIN_DEM_SOURCE = "lunapic-mapbox-terrain-dem";
 
+/** Krug radijusa API upita aviona (100 km oko observera). */
+export const OBSERVER_RADIUS_SOURCE = "observer-radius-geo";
+export const OBSERVER_RADIUS_LAYER_ID = "observer-radius-layer";
+
 export const VFR_OPENAIP_SOURCE = "vfr-openaip-source";
 export const VFR_OPENAIP_LAYER_ID = "vfr-openaip-layer";
 export const VFR_OPENAIP_MASK_SOURCE = "vfr-openaip-mask-source";
 export const VFR_OPENAIP_MASK_LAYER_ID = "vfr-openaip-mask-layer";
+
+/** Flight history overlay (local ADS-B log). */
+export const FLIGHT_HISTORY_HEATMAP_SOURCE = "flight-history-heatmap-geo";
+export const FLIGHT_HISTORY_HEATMAP_LAYER_ID = "flight-history-heatmap-layer";
+export const FLIGHT_HISTORY_ROUTES_SOURCE = "flight-history-routes-geo";
+export const FLIGHT_HISTORY_ROUTES_LAYER_ID = "flight-history-routes-layer";

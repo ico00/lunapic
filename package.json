@@ -17,10 +17,13 @@
     "data:opensky-aircraft": "node scripts/build-opensky-aircraft-index.mjs"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.53.1",
+    "astronomy-engine": "^2.1.19",
     "mapbox-gl": "^3.22.0",
     "next": "16.2.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "sql.js": "^1.14.1",
     "suncalc": "^1.9.0",
     "zustand": "^5.0.12"
   },
@@ -32,6 +35,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/sql.js": "^1.4.11",
     "@types/suncalc": "^1.9.2",
     "adm-zip": "^0.5.17",
     "csv-parse": "^6.2.1",

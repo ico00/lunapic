@@ -7,7 +7,11 @@ import {
   getCameraPresetById,
 } from "@/lib/camera/cameraPresets";
 import type { CameraSensorType } from "@/lib/domain/geometry/shotFeasibility";
-import { mergeLiveFlightLists } from "@/lib/flight/mergeLiveFlightLists";
+import {
+  mergeLiveFlightLists,
+  mergeLiveFlightListsWithSdrPriority,
+} from "@/lib/flight/mergeLiveFlightLists";
+import { greatCircleDistanceMeters } from "@/lib/domain/geo/greatCircleDistance";
 import {
   clearOpenSkyFlightRetention,
   mergeFlightsWithOpenSkyRetention,
@@ -24,6 +28,8 @@ import type { FlightProviderId } from "@/types/flight-provider";
 export type LiveFlightFeeds = {
   readonly opensky: boolean;
   readonly adsbone: boolean;
+  /** Lokalni SDR prijemnik (dump1090/readsb). Zahtijeva LOCAL_SDR_URL u .env.local. */
+  readonly localsdr: boolean;
 };
 import { defaultMapViewState } from "@/types/map";
 import { create } from "zustand";
@@ -45,6 +51,7 @@ type MoonTransitState = {
   /** Vrijedi kad je `flightProvider` `opensky` ili `adsbone`; inače se ignorira pri učitavanju. */
   liveFlightFeeds: LiveFlightFeeds;
   flights: readonly FlightState[];
+  providerFlightCounts: { opensky: number; adsbone: number; localsdr: number };
   isLoading: boolean;
   error: string | null;
   /** Zrakoplov za odbrojavanje udarca / alata. */
@@ -110,11 +117,17 @@ type MoonTransitState = {
   /** Način crtanja karte/aviona: puni 3D ili pojednostavljeni ATC-like prikaz. */
   mapDisplayMode: MapDisplayMode;
   setMapDisplayMode: (mode: MapDisplayMode) => void;
+  /** Flight history overlay: show heatmap and/or route lines from local ADS-B log. */
+  flightHistoryHeatmap: boolean;
+  setFlightHistoryHeatmap: (v: boolean) => void;
+  flightHistoryRoutes: boolean;
+  setFlightHistoryRoutes: (v: boolean) => void;
   setFlightProvider: (id: FlightProviderId) => void;
   setLiveFlightFeeds: (patch: Partial<LiveFlightFeeds>) => void;
   /** Ako je još `static` (stari build), prebaci na live dual — static nije u comboboxu. */
   ensureFlightSourceComboboxMode: () => void;
   setFlights: (f: readonly FlightState[]) => void;
+  pruneFlightsToObserverRadius: (observerLat: number, observerLng: number, radiusKm: number) => void;
   /**
    * Upisuje `aircraftType` iz lokalnog OpenSky ICAO24 indeksa kad live izvor ne šalje tip.
    * Ne prepisuje postojeći neprazan tip (npr. statične rute).
@@ -160,8 +173,9 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   referenceEpochMs: 0,
   mapView: defaultMapViewState,
   flightProvider: "opensky",
-  liveFlightFeeds: { opensky: true, adsbone: true },
+  liveFlightFeeds: { opensky: true, adsbone: true, localsdr: false },
   flights: [],
+  providerFlightCounts: { opensky: 0, adsbone: 0, localsdr: 0 },
   isLoading: false,
   error: null,
   selectedFlightId: null,
@@ -291,13 +305,17 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   setAltitudeBandIndex: (i) => set({ altitudeBandIndex: i }),
   mapDisplayMode: "default",
   setMapDisplayMode: (mode) => set({ mapDisplayMode: mode }),
+  flightHistoryHeatmap: false,
+  setFlightHistoryHeatmap: (v) => set({ flightHistoryHeatmap: v }),
+  flightHistoryRoutes: false,
+  setFlightHistoryRoutes: (v) => set({ flightHistoryRoutes: v }),
   setFlightProvider: (id) =>
     set((s) => {
       let liveFlightFeeds = s.liveFlightFeeds;
       if (id === "opensky") {
-        liveFlightFeeds = { opensky: true, adsbone: false };
+        liveFlightFeeds = { ...s.liveFlightFeeds, opensky: true, adsbone: false };
       } else if (id === "adsbone") {
-        liveFlightFeeds = { opensky: false, adsbone: true };
+        liveFlightFeeds = { ...s.liveFlightFeeds, opensky: false, adsbone: true };
       }
       const sameProvider = s.flightProvider === id;
       const feedsUnchanged =
@@ -321,13 +339,15 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
       const next = {
         opensky: patch.opensky ?? s.liveFlightFeeds.opensky,
         adsbone: patch.adsbone ?? s.liveFlightFeeds.adsbone,
+        localsdr: patch.localsdr ?? s.liveFlightFeeds.localsdr,
       };
-      if (!next.opensky && !next.adsbone) {
+      if (!next.opensky && !next.adsbone && !next.localsdr) {
         return {};
       }
       const unchanged =
         next.opensky === s.liveFlightFeeds.opensky &&
-        next.adsbone === s.liveFlightFeeds.adsbone;
+        next.adsbone === s.liveFlightFeeds.adsbone &&
+        next.localsdr === s.liveFlightFeeds.localsdr;
       if (unchanged) {
         return {};
       }
@@ -354,12 +374,23 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
       clearOpenSkyFlightRetention();
       return {
         flightProvider: "opensky",
-        liveFlightFeeds: { opensky: true, adsbone: true },
+        liveFlightFeeds: { opensky: true, adsbone: true, localsdr: s.liveFlightFeeds.localsdr },
         selectedFlightId: null,
       };
     }),
   setSelectedFlightId: (id) => set({ selectedFlightId: id }),
   setFlights: (f) => set({ flights: f }),
+  pruneFlightsToObserverRadius: (observerLat, observerLng, radiusKm) => {
+    const limitM = radiusKm * 1000;
+    set((s) => ({
+      flights: s.flights.filter((f) =>
+        greatCircleDistanceMeters(
+          observerLat, observerLng,
+          f.position.lat, f.position.lng
+        ) <= limitM
+      ),
+    }));
+  },
   patchFlightAircraftTypeFromIndex: (flightId, aircraftType) => {
     const t = aircraftType.trim();
     if (!t) {
@@ -413,33 +444,71 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
 
       const feeds = get().liveFlightFeeds;
       const ids: ("opensky" | "adsbone")[] = [];
-      if (feeds.opensky) {
-        ids.push("opensky");
-      }
-      if (feeds.adsbone) {
-        ids.push("adsbone");
-      }
-      if (ids.length === 0) {
-        ids.push("opensky");
-      }
+      if (feeds.opensky) ids.push("opensky");
+      if (feeds.adsbone) ids.push("adsbone");
+      // fallback samo ako localsdr nije uključen — SDR-only mod je valjan
+      if (ids.length === 0 && !feeds.localsdr) ids.push("opensky");
 
-      const settled = await Promise.allSettled(
-        ids.map((id) =>
-          getFlightProvider(id).getFlightsInBounds(query)
-        )
-      );
+      const sdrPromise: Promise<readonly FlightState[]> = feeds.localsdr
+        ? getFlightProvider("localsdr").getFlightsInBounds(query).catch(() => [])
+        : Promise.resolve([]);
+
+      const [settled, sdrList] = await Promise.all([
+        Promise.allSettled(
+          ids.map((id) => getFlightProvider(id).getFlightsInBounds(query))
+        ),
+        sdrPromise,
+      ]);
 
       const lists: (readonly FlightState[])[] = [];
       const errors: string[] = [];
+      const rawCounts: { opensky: number; adsbone: number } = { opensky: 0, adsbone: 0 };
       settled.forEach((r, i) => {
         if (r.status === "fulfilled") {
           lists.push(r.value);
+          rawCounts[ids[i]] = r.value.length;
         } else {
           const msg =
             r.reason instanceof Error ? r.reason.message : String(r.reason);
           errors.push(`${ids[i]}: ${msg}`);
         }
       });
+
+      // SDR-only mod: oba weba isključena, localsdr je jedini izvor
+      if (lists.length === 0 && sdrList.length > 0) {
+        const merged = mergeFlightsWithOpenSkyRetention(
+          sdrList,
+          previousFlights,
+          {
+            providerId: "localsdr",
+            mapBounds: bounds,
+            nowMs: Date.now(),
+            openSkyLatencySkewMs: get().openSkyLatencySkewMs,
+          }
+        );
+        const sel = get().selectedFlightId;
+        set({
+          flights: merged,
+          providerFlightCounts: { opensky: 0, adsbone: 0, localsdr: sdrList.length },
+          isLoading: false,
+          ...(sel != null && merged.some((f) => f.id === sel)
+            ? {}
+            : { selectedFlightId: null }),
+        });
+        return;
+      }
+
+      // SDR-only mod ali sdrList prazan (Pi nema aviona ili API nije dostupan)
+      if (lists.length === 0 && feeds.localsdr) {
+        const sel = get().selectedFlightId;
+        set({
+          flights: [],
+          providerFlightCounts: { opensky: 0, adsbone: 0, localsdr: 0 },
+          isLoading: false,
+          selectedFlightId: null,
+        });
+        return;
+      }
 
       if (lists.length === 0) {
         throw new Error(errors.join("; ") || "No flight data");
@@ -448,8 +517,12 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
         console.warn("[MoonTransit] Live flight source partial failure", errors);
       }
 
-      const combined =
+      const webMerged =
         lists.length === 1 ? lists[0] : mergeLiveFlightLists(lists);
+      const combined =
+        sdrList.length > 0
+          ? mergeLiveFlightListsWithSdrPriority(sdrList, lists)
+          : webMerged;
       const retentionId: FlightProviderId = ids.includes("opensky")
         ? "opensky"
         : "adsbone";
@@ -468,6 +541,7 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
         sel != null && merged.some((f) => f.id === sel);
       set({
         flights: merged,
+        providerFlightCounts: { ...rawCounts, localsdr: sdrList.length },
         isLoading: false,
         ...(keepSel ? {} : { selectedFlightId: null }),
       });
