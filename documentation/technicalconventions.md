@@ -99,6 +99,24 @@ Native `<select>` remains acceptable only for **non-shell** contexts where clipp
 - **New asset under `public/`** (Mapbox `Image`, `<img>`, etc.) — Use `appPath("/file.ext")` or the constant in `mapOverlayConstants.ts` that already does.
 - **Next `Link` / `next/router`** — `basePath` is applied automatically; no `appPath` for those.
 
+## Server runtime (`server.js` / cPanel)
+
+- **Kod dijeljen sa `server.js` ide u plain `.cjs` u rootu.** `server.js` je CommonJS i **ne
+  može** importati TypeScript. Za logiku koju trebaju i `server.js` i TS rute, napiši je kao
+  `.cjs` u rootu (kao `cpanelBasePath.cjs`; novije: `flightLogSchema.cjs` za SQLite shemu,
+  `sdrUrl.cjs` za `parseSdrUrl`). `server.js` ih učita preko
+  `requireFromRoot(path.resolve(process.cwd(), "x.cjs"))`; TS rute statičkim relativnim
+  `require("../../../../../x.cjs")` (Turbopack ga bundla; **ne** koristiti dinamički
+  `require(process.cwd()/…)` u rutama — Turbopack ga rewrite-a u `/ROOT` i build pukne).
+- **`data/` je runtime stanje — nikad ga ne deployati ni brisati.** `flight-log.db` i
+  `push-subscriptions.json` server sam generira; gitignored. `scripts/deploy-server.sh`
+  (`rsync --delete`) **mora** imati `--exclude='data/'`. (Vidi incident 2026-06-01.)
+- **Signal handleri MORAJU završiti proces.** `process.on("SIGTERM"/"SIGINT", fn)` mora
+  pozvati `process.exit(0)` nakon spremanja — inače je app nezaustavljiv (cPanel Stop/restart
+  šalju SIGTERM koji se "proguta").
+- **Env u `server.js`** — `require("@next/env").loadEnvConfig(process.cwd(), dev)` na vrhu,
+  prije čitanja vlastitih varijabli (Next inače učita `.env.local` tek u `app.prepare()`).
+
 ## SEO conventions (metadata / indexing)
 
 - **Metadata location** — Keep global defaults in `src/app/layout.tsx` and override per-route metadata in each route segment (`page.tsx` or nested `layout.tsx`) when snippets should differ.

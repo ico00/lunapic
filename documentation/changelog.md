@@ -6,6 +6,66 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 where version bumps are made for releases (currently `0.x`).
 
+## [2026-06-01] — Senior code review, flight-log data-loss incident & git baseline
+
+Vidi i: [code review](code-review-analiza-260531.md) · [incident post-mortem](incident-flightlog-dataloss-2026-06-01.md)
+
+### Fixed
+
+- **🔴 Flight-log data-loss incident — `data/` brisan deployom + nezaustavljiv app proces.**
+  Produkcijski `data/flight-log.db` (52 549 zapisa) se opetovano resetirao na 32 KB. Dva uzroka:
+  (1) **`scripts/deploy-server.sh` — `rsync --delete` bez `--exclude='data/'`** je brisao
+  bazu pri svakom deployu (nema je u lokalnom izvoru); (2) **`server.js` SIGTERM handler bez
+  `process.exit()`** — app se nije gasio na cPanel Stop/restart, stari proces s praznom
+  bazom u memoriji je `saveDb`-om svakih 30s presnimavao file. Oba popravljena; baza vraćena
+  iz JetBackupa. Puni post-mortem + recovery runbook u zasebnim dokumentima.
+- **`server.js` — `SIGTERM`/`SIGINT` sad pozivaju `process.exit(0)`** nakon `saveDb()`.
+  Bez toga je app bio praktički nezaustavljiv (signal "progutan").
+- **`scripts/deploy-server.sh` — `--exclude='data/'`** dodan u rsync opcije. Deploy više ne
+  dira runtime stanje (`flight-log.db`, `push-subscriptions.json`).
+- **`/api/flight-log/debug` — asm.js varijanta sql.js** umjesto WASM (cPanel stripa `.wasm`,
+  pa je debug endpoint javljao lažni `sql-wasm.wasm` ENOENT iako prava baza radi).
+
+### Security
+
+- **`POST /api/push/send` hardening** — zatvoren Origin bypass (`isSameOriginRequest`: traži
+  valjani `Origin`, fallback na `Referer`; prije je izostanak headera prolazio). Payload
+  sanitiziran (title ≤ 80, body ≤ 200 znakova, `tag` regex), rate limit 10 → 5 / min.
+- **`next.config.ts` — Content-Security-Policy + HSTS.** CSP zaključava `connect-src` na
+  poznate origine (Mapbox, Google Street View, OpenAIP, open-meteo, Sentry, direktni ADS-B)
+  + `frame-ancestors 'none'`, `object-src 'none'`, `base-uri`, `upgrade-insecure-requests`.
+  `script-src` ostaje permisivan (`unsafe-inline/eval`) jer to traže Next hidratacija i Google
+  Maps. HSTS `max-age=31536000` bez `includeSubDomains` (cPanel sibling-subdomena footgun).
+  > Zahtijeva `NEXT_PUBLIC_SITE_URL` na prod domenu — inače push 403 (ALLOWED_ORIGINS = localhost).
+
+### Changed
+
+- **Flight-log retention — OPT-IN, default ISKLJUČEN.** `FLIGHT_LOG_RETENTION_DAYS` mora biti
+  eksplicitno postavljen da poller briše stare zapise; bez njega ništa se ne briše. Dodan
+  sanity-guard u `pruneOldData` (prekida prune koji bi obrisao sve redove — zaštita od
+  scale/units pogreške). Prvotni default (90 dana, uvijek aktivan) bio je footgun.
+- **`server.js` — `loadEnvConfig` na vrhu** (`@next/env`) tako da se `LOCAL_SDR_URL` čita
+  nakon učitavanja `.env.local` (Next inače učita env tek u `app.prepare()`).
+
+### Refactored (DRY)
+
+- **`src/lib/server/pushSubsStore.ts`** — `readSubs`/`writeSubs` izvučeni iz push/send + push/subscribe.
+- **`src/lib/server/ttlBodyCache.ts`** — `createTtlBodyCache` dijele opensky + adsbone proxy rute.
+- **`flightLogSchema.cjs`** (root) — jedini izvor SQLite sheme; mrtvi `migrateDb` uklonjen iz
+  `flightLogDb.ts`. **`sdrUrl.cjs`** (root) — `parseSdrUrl` dijele `server.js` + localsdr ruta.
+  Obrazac: kod dijeljen sa CJS `server.js`-om ide u plain `.cjs` u rootu (kao `cpanelBasePath.cjs`).
+
+### Tests
+
+- **Ažurirani zastarjeli testovi** (`screening.test.ts`, `flightAltitudeColor.test.ts`) —
+  očekivanja nakon promjena u domeni: screening helper bez speed/track (approach filter),
+  altitude legend stopovi poravnati s 5/15/25/35/45k ft bandovima. Svih 110 prolazi.
+
+### Chore
+
+- **Git baseline** — repozitorij doveden u sklad s deployanim radnim direktorijem (catch-up
+  commit prethodnog necommitanog rada). `.claude/` dodan u `.gitignore` i prestao se pratiti.
+
 ## [2026-05-26] — Animation Performance & Cross-Device Countdown Sync
 
 ### Changed

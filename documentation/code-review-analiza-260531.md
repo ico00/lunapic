@@ -96,18 +96,23 @@ imati HTTP-referrer/domain restrikciju u svojim konzolama, posebno Google Maps
 read-path API-ja čita **cijeli** DB file u memoriju na svaki zahtjev → veličina baze
 izravno usporava upite.
 
-**Popravak** (`server.js`):
-- `RETENTION_DAYS` iz `FLIGHT_LOG_RETENTION_DAYS` (default 90, min 1).
-- `pruneOldData()` — `DELETE … WHERE logged_at/last_seen < cutoff` + `VACUUM` + save;
-  prvi prune ~1 min nakon starta, zatim svakih 6h.
+**Popravak** (`server.js`) — finalna verzija je **OPT-IN**:
+- `RETENTION_DAYS` iz `FLIGHT_LOG_RETENTION_DAYS` — ako var **nije** postavljen,
+  retention je **ISKLJUČEN** (poller nikad ništa ne briše). Prvotni default (90 dana,
+  uvijek aktivan) je naknadno promijenjen u opt-in nakon incidenta — vidi napomenu niže.
+- `pruneOldData()` ima **sanity-guard**: ako bi cutoff obrisao SVE redove, prune se
+  prekida i upozori (zaštita od scale/units pogreške). `DELETE … < cutoff` + `VACUUM` + save.
 - Dokumentirano u `.env.local.example`; query prozori API ruta (do 365d) efektivno su
-  ograničeni ovom vrijednošću.
-- **Posljedica:** veličina baze sad je omeđena, pa O(filesize) read-path trošak više
-  ne raste neograničeno. Potpuni fix (perzistentna read konekcija / `better-sqlite3`)
-  ostaje veći zahvat, izvan opsega.
+  ograničeni ovom vrijednošću kad je retention uključen.
 
 > Napomena: poller (a time i retention) radi **samo** pod `npm run start:cpanel` /
 > `server.js`, ne pod `next dev`.
+
+> ⚠️ **Ispravak ranije pretpostavke:** tijekom sesije sam isprva pripisao gubitak
+> produkcijske baze ovom retention kodu (VACUUM je davao isti 32KB simptom). To je bilo
+> **pogrešno**. Pravi uzrok je bio `rsync --delete` u deploy skripti + nezaustavljiv app
+> proces (SIGTERM handler bez `process.exit`). Puna analiza:
+> [`incident-flightlog-dataloss-2026-06-01.md`](incident-flightlog-dataloss-2026-06-01.md).
 
 ---
 

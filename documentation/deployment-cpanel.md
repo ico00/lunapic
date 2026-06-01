@@ -168,6 +168,63 @@ Primjer koji smo naišli: `instrumentation.js` je ostao u `.next/server/` nakon 
 touch /home/USERNAME/APP_DIR/tmp/restart.txt
 ```
 
+## Flight-log baza — runtime stanje, deploy i recovery
+
+> Vidi i post-mortem: [`incident-flightlog-dataloss-2026-06-01.md`](incident-flightlog-dataloss-2026-06-01.md)
+
+### ⚠️ `data/` se NIKAD ne dira deployom
+
+`data/flight-log.db` i `data/push-subscriptions.json` su **runtime stanje koje server sam
+generira**, gitignored, i **ne postoje u lokalnom izvoru**. Deploy ih ne smije ni slati ni
+brisati:
+
+- **`scripts/deploy-server.sh` (rsync)** koristi `--delete`. **Mora** imati
+  `--exclude='data/'` — inače `rsync --delete` obriše produkcijsku bazu jer je nema lokalno.
+  (To je bio uzrok incidenta 2026-06-01.)
+- **FileZilla / FTP** ne brišu, ali pazi da ne uploadaš prazan lokalni `data/` preko punog.
+
+### Čisto zaustavljanje aplikacije
+
+`server.js` na `SIGTERM`/`SIGINT` pozove `saveDb()` **i `process.exit(0)`**. Bez `exit()`
+(stari bug) handler "proguta" SIGTERM → proces se ne ugasi, cPanel Stop ne radi, a stari
+proces nastavi presnimavati bazu. Ako app i dalje "ne da se ugasiti":
+
+```bash
+# Provjeri živi proces:
+ps aux | grep "Passenger NodeApp.*APP_DIR" | grep -v grep
+# cPanel → Setup Node.js App → Stop (postavi status na "Stopped"), pa po potrebi:
+kill -9 <PID>     # SIGKILL se ne može uhvatiti
+# Passenger respawna na HTTP zahtjev → zatvori app tabove u browseru dok radiš recovery.
+```
+
+### Recovery baze iz backupa (JetBackup)
+
+Ako se baza izgubi/isprazni (32 KB = prazna shema):
+
+1. **Zaustavi app** (cPanel Stop + potvrdi `ps` prazan; `kill -9` ako treba).
+2. **JetBackup → Home Directory** → odaberi backup **prije** gubitka → restore/download
+   `APP_DIR/data/flight-log.db`. (Download daje arhivu; restore stavi file direktno.)
+3. **Provjeri da je valjan i pun** prije starta (asm sql.js, isto kao poller):
+   ```bash
+   cd ~/APP_DIR && ~/nodevenv/APP_DIR/20/bin/node -e \
+   'const fs=require("fs");require("sql.js/dist/sql-asm.js")().then(S=>{const d=new S.Database(fs.readFileSync("data/flight-log.db"));const s=d.prepare("SELECT COUNT(*) n FROM positions");s.step();console.log("rows:",s.getAsObject().n);})'
+   ```
+4. **Ako živi proces presnimava file dok ga vraćaš** — zaključaj ga dok ne proradi svjež proces:
+   ```bash
+   cp data/flight-log-RESTORE.db data/flight-log.db && chmod 444 data/flight-log.db
+   # Start app → novi proces učita pune podatke u memoriju (čitanje radi na 444),
+   # writeFileSync na 444 baca EACCES koji saveDb-ov catch{} proguta → file ostaje.
+   # Kad /api/flight-log/stats pokaže pune podatke, otključaj pisanje:
+   chmod 644 data/flight-log.db
+   ```
+   (`chmod 444` štiti od **presnimavanja**, ne od brisanja na razini direktorija.)
+
+### Retention (opcionalno, default OFF)
+
+`FLIGHT_LOG_RETENTION_DAYS` — ako **nije** postavljen, poller ništa ne briše (baza raste).
+Postavi na broj dana ≥ 1 da uključiš brisanje starijih zapisa (svakih 6h + `VACUUM`).
+`pruneOldData` ima sanity-guard: ako bi cutoff obrisao sve redove, prekida se.
+
 ## E2E
 
 `playwright.config.ts` reads `cpanelBasePath.cjs` so the smoke tests hit the same base as production. `npm run test:e2e` still expects `npm run build` first and a successful `next start` on port 3000.
