@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 
+import { checkRateLimit, getClientIp } from "@/lib/server/rateLimiter";
+import { createTtlBodyCache } from "@/lib/server/ttlBodyCache";
+
 import { ADSB_LIVE_POINT_BASES } from "@/lib/flight/adsbone/adsbLiveUpstreamBases";
 
 const CDN_CACHE_CONTROL = "s-maxage=20, stale-while-revalidate=40";
@@ -10,36 +13,10 @@ export const preferredRegion = "fra1";
 const PROXY_CACHE_TTL_MS = 12_000;
 const PROXY_CACHE_MAX_KEYS = 48;
 
-type CacheEntry = { expiresAt: number; body: string };
-
-const pointCache = new Map<string, CacheEntry>();
+const pointCache = createTtlBodyCache(PROXY_CACHE_TTL_MS, PROXY_CACHE_MAX_KEYS);
 
 function cacheKey(lat: string, lng: string, radiusNm: string): string {
   return `${Number(lat).toFixed(3)}|${Number(lng).toFixed(3)}|${Number(radiusNm).toFixed(1)}`;
-}
-
-function pruneCache(): void {
-  const now = Date.now();
-  for (const [k, v] of pointCache) {
-    if (v.expiresAt <= now) {
-      pointCache.delete(k);
-    }
-  }
-  while (pointCache.size > PROXY_CACHE_MAX_KEYS) {
-    const first = pointCache.keys().next().value;
-    if (!first) {
-      break;
-    }
-    pointCache.delete(first);
-  }
-}
-
-function cacheSet(key: string, body: string): void {
-  pruneCache();
-  pointCache.set(key, {
-    expiresAt: Date.now() + PROXY_CACHE_TTL_MS,
-    body,
-  });
 }
 
 const UPSTREAM_HEADERS: Record<string, string> = {
@@ -55,6 +32,20 @@ const UPSTREAM_HEADERS: Record<string, string> = {
  * hosting IP-eva. Kratka predmemorija po (lat, lng, radius).
  */
 export async function GET(req: Request) {
+  const rl = checkRateLimit(getClientIp(req), 60, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Previše zahtjeva. Pokušaj ponovo za nekoliko sekundi." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)),
+          "Content-Type": "application/json",
+        },
+      }
+    );
+  }
+
   const { searchParams } = new URL(req.url);
   const latRaw = searchParams.get("lat");
   const lngRaw = searchParams.get("lng");
@@ -86,9 +77,9 @@ export async function GET(req: Request) {
   }
 
   const cKey = cacheKey(latRaw, lngRaw, radiusRaw);
-  const hit = pointCache.get(cKey);
-  if (hit && hit.expiresAt > Date.now()) {
-    return new NextResponse(hit.body, {
+  const hitBody = pointCache.get(cKey);
+  if (hitBody !== null) {
+    return new NextResponse(hitBody, {
       status: 200,
       headers: {
         "Content-Type": "application/json",
@@ -110,7 +101,7 @@ export async function GET(req: Request) {
       });
       const bodyText = await r.text();
       if (r.ok) {
-        cacheSet(cKey, bodyText);
+        pointCache.set(cKey, bodyText);
         return new NextResponse(bodyText, {
           status: 200,
           headers: {

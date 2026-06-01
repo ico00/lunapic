@@ -73,52 +73,18 @@ let _sqlPromise: Promise<SqlJsStatic> | null = null;
 
 export async function getSql(): Promise<SqlJsStatic> {
   if (!_sqlPromise) {
-    // Dynamic require avoids Turbopack externalization issues with "sql.js" package name.
-    // locateFile ensures the WASM file is found even when the module is bundled.
+    // Use asm.js (pure JS) variant — avoids WASM file dependency on hosts
+    // that strip .wasm files (e.g. cPanel). Same API, no locateFile needed.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const init = require("sql.js") as (config?: object) => Promise<SqlJsStatic>;
-    _sqlPromise = init({
-      locateFile: (file: string) =>
-        path.join(process.cwd(), "node_modules", "sql.js", "dist", file),
-    });
+    const init = require("sql.js/dist/sql-asm.js") as (config?: object) => Promise<SqlJsStatic>;
+    _sqlPromise = init();
   }
   return _sqlPromise;
 }
 
-export function migrateDb(db: Database): void {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS positions (
-      id            INTEGER PRIMARY KEY AUTOINCREMENT,
-      icao24        TEXT    NOT NULL,
-      callsign      TEXT,
-      lat           REAL    NOT NULL,
-      lng           REAL    NOT NULL,
-      alt_baro_m    REAL,
-      alt_geom_m    REAL,
-      speed_mps     REAL,
-      track_deg     REAL,
-      vert_rate_fpm REAL,
-      squawk        TEXT,
-      rssi          REAL,
-      registration  TEXT,
-      aircraft_type TEXT,
-      logged_at     INTEGER NOT NULL
-    )
-  `);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_pos_icao24    ON positions(icao24)`);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_pos_logged_at ON positions(logged_at)`);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_pos_callsign  ON positions(callsign)`);
-  db.run(`
-    CREATE TABLE IF NOT EXISTS aircraft (
-      icao24        TEXT PRIMARY KEY,
-      registration  TEXT,
-      aircraft_type TEXT,
-      description   TEXT,
-      first_seen    INTEGER NOT NULL,
-      last_seen     INTEGER NOT NULL
-    )
-  `);
-}
+// Shema (CREATE TABLE/INDEX) je jedini-izvor-istine u `flightLogSchema.cjs` u rootu,
+// koji izvršava writer (server.js poller). Read-path ovdje otvara samo postojeće
+// kopije baze i nikad ne migrira, pa duplikat sheme više ne stoji ovdje.
 
 /** Open a fresh read-only in-memory copy from the DB file. Returns null if no file yet. */
 async function openReadDb(): Promise<Database | null> {
@@ -151,6 +117,8 @@ export async function getTrack(
     while (stmt.step()) rows.push(stmt.getAsObject() as unknown as PositionRow);
     stmt.free();
     return rows;
+  } catch {
+    return [];
   } finally {
     db.close();
   }
@@ -185,6 +153,8 @@ export async function getHeatmapCells(
     }
     stmt.free();
     return cells;
+  } catch {
+    return [];
   } finally {
     db.close();
   }
@@ -229,6 +199,8 @@ export async function getRoutesByCallsign(
       result.push({ callsign, points: evenSample(pts, maxPointsPerRoute) });
     }
     return result;
+  } catch {
+    return [];
   } finally {
     db.close();
   }
@@ -281,6 +253,128 @@ export async function getAircraftMeta(icao24: string): Promise<AircraftRow | nul
     const row = stmt.getAsObject() as unknown as AircraftRow;
     stmt.free();
     return row;
+  } finally {
+    db.close();
+  }
+}
+
+export interface AircraftListRow {
+  icao24: string;
+  registration: string | null;
+  aircraft_type: string | null;
+  description: string | null;
+  position_count: number;
+  first_seen: number;
+  last_seen: number;
+  last_callsign: string | null;
+}
+
+export async function getAircraftList(
+  fromMs: number,
+  toMs: number,
+  search = "",
+  limit = 50,
+  offset = 0
+): Promise<{ rows: AircraftListRow[]; total: number }> {
+  const db = await openReadDb();
+  if (!db) return { rows: [], total: 0 };
+  try {
+    const sl = search.trim().toUpperCase();
+    const hasSearch = sl.length > 0;
+    const searchClause = hasSearch
+      ? ` AND (UPPER(p.icao24) LIKE '%' || ? || '%' OR UPPER(COALESCE(p.callsign,'')) LIKE '%' || ? || '%' OR UPPER(COALESCE(a.registration,'')) LIKE '%' || ? || '%')`
+      : "";
+
+    const baseArgs: (string | number)[] = [fromMs, toMs];
+    const searchArgs: string[] = hasSearch ? [sl, sl, sl] : [];
+
+    const s1 = db.prepare(
+      `SELECT COUNT(DISTINCT p.icao24) AS n
+       FROM positions p
+       LEFT JOIN aircraft a ON a.icao24 = p.icao24
+       WHERE p.logged_at >= ? AND p.logged_at <= ?${searchClause}`
+    );
+    s1.bind([...baseArgs, ...searchArgs]);
+    s1.step();
+    const total = (s1.getAsObject() as { n: number }).n;
+    s1.free();
+
+    const s2 = db.prepare(
+      `SELECT
+         p.icao24,
+         COALESCE(a.registration,  MAX(p.registration))  AS registration,
+         COALESCE(a.aircraft_type, MAX(p.aircraft_type)) AS aircraft_type,
+         a.description,
+         COUNT(*)                                           AS position_count,
+         MIN(p.logged_at)                                  AS first_seen,
+         MAX(p.logged_at)                                  AS last_seen,
+         MAX(CASE WHEN p.callsign != '' THEN p.callsign END) AS last_callsign
+       FROM positions p
+       LEFT JOIN aircraft a ON a.icao24 = p.icao24
+       WHERE p.logged_at >= ? AND p.logged_at <= ?${searchClause}
+       GROUP BY p.icao24
+       ORDER BY last_seen DESC
+       LIMIT ? OFFSET ?`
+    );
+    s2.bind([...baseArgs, ...searchArgs, limit, offset]);
+    const rows: AircraftListRow[] = [];
+    while (s2.step()) rows.push(s2.getAsObject() as unknown as AircraftListRow);
+    s2.free();
+
+    return { rows, total };
+  } finally {
+    db.close();
+  }
+}
+
+/**
+ * Returns all position points for a specific callsign, grouped into flight
+ * sessions. A new session begins when the gap between consecutive positions
+ * exceeds 20 minutes. Sessions with fewer than 3 points are discarded.
+ */
+export async function getCallsignSessions(
+  callsign: string,
+  fromMs: number,
+  toMs: number,
+  maxPointsPerSession = 150
+): Promise<RoutePoint[][]> {
+  const db = await openReadDb();
+  if (!db) return [];
+  try {
+    const stmt = db.prepare(
+      `SELECT lat, lng, alt_baro_m, logged_at
+       FROM positions
+       WHERE callsign = ? AND logged_at >= ? AND logged_at <= ?
+       ORDER BY logged_at ASC`
+    );
+    stmt.bind([callsign, fromMs, toMs]);
+    const rows: RoutePoint[] = [];
+    while (stmt.step()) {
+      rows.push(stmt.getAsObject() as unknown as RoutePoint);
+    }
+    stmt.free();
+
+    const GAP_MS = 20 * 60_000;
+    const sessions: RoutePoint[][] = [];
+    let current: RoutePoint[] = [];
+
+    for (const row of rows) {
+      if (
+        current.length > 0 &&
+        row.logged_at - current[current.length - 1].logged_at > GAP_MS
+      ) {
+        if (current.length >= 3)
+          sessions.push(evenSample(current, maxPointsPerSession));
+        current = [];
+      }
+      current.push(row);
+    }
+    if (current.length >= 3)
+      sessions.push(evenSample(current, maxPointsPerSession));
+
+    return sessions;
+  } catch {
+    return [];
   } finally {
     db.close();
   }

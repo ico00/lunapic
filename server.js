@@ -27,7 +27,19 @@ const basePath = requireFromRoot(
 const basePathClean =
   String(basePath).trim().replace(/\/$/, "") || null;
 
+// Jedini izvor istine za flight-log shemu (dijeli se s src/lib/db/flightLogDb.ts).
+const { migrate: migrateFlightLogDb } = requireFromRoot(
+  path.resolve(process.cwd(), "flightLogSchema.cjs")
+);
+
 const dev = process.env.NODE_ENV !== "production";
+
+// Učitaj .env / .env.local u process.env PRIJE čitanja vlastitih varijabli (npr.
+// LOCAL_SDR_URL niže). Next inače učita env tek u app.prepare(), pa bi top-level
+// čitanja ovdje vidjela `undefined` → flight-logger bi se tiho preskočio lokalno.
+// Već postojeće (prave) env varijable se NE prepisuju — sigurno na cPanelu.
+require("@next/env").loadEnvConfig(process.cwd(), dev);
+
 const port = Number.parseInt(process.env.PORT ?? "3000", 10);
 const bindHost = process.env.BIND_HOST ?? "0.0.0.0";
 /** Used by Next for dev/router; does not have to match the public domain behind a proxy. */
@@ -60,12 +72,70 @@ const handle = app.getRequestHandler();
 // Flight position logger (only when LOCAL_SDR_URL is configured)
 // ---------------------------------------------------------------------------
 
-const LOCAL_SDR_URL = process.env.LOCAL_SDR_URL?.trim();
+const LOCAL_SDR_URL_RAW = process.env.LOCAL_SDR_URL?.trim();
+
+// Dijeli se s localsdr route handlerom — jedini izvor istine za SDR URL parsiranje.
+const { parseSdrUrl } = requireFromRoot(
+  path.resolve(process.cwd(), "sdrUrl.cjs")
+);
+
+const { url: LOCAL_SDR_URL, authHeader: LOCAL_SDR_AUTH } = LOCAL_SDR_URL_RAW
+  ? parseSdrUrl(LOCAL_SDR_URL_RAW)
+  : { url: null, authHeader: null };
+
+// tar1090 serves per-aircraft metadata at /db/[2-char-prefix]/[hex].js —
+// the same source its web UI uses for registration/type lookups.
+const TAR1090_DB_BASE = LOCAL_SDR_URL
+  ? LOCAL_SDR_URL.replace(/\/data\/aircraft\.json$/, "/db/")
+  : null;
+
+// In-memory cache: icao24 → {r, t, desc} | null  (null = tried, not found)
+const icaoMetaCache = new Map();
+
+async function fetchTar1090Meta(icao24) {
+  if (icaoMetaCache.has(icao24)) return icaoMetaCache.get(icao24);
+  const url = `${TAR1090_DB_BASE}${icao24.slice(0, 2)}/${icao24}.js`;
+  try {
+    const headers = LOCAL_SDR_AUTH ? { Authorization: LOCAL_SDR_AUTH } : {};
+    const res = await fetch(url, { headers, signal: AbortSignal.timeout(3_000) });
+    if (!res.ok) { icaoMetaCache.set(icao24, null); return null; }
+    const d = await res.json();
+    const meta = {
+      r:    typeof d.r === "string" && d.r.trim()    ? d.r.trim()    : null,
+      t:    typeof d.t === "string" && d.t.trim()    ? d.t.trim()    : null,
+      desc: typeof d.d === "string" && d.d.trim()    ? d.d.trim()    : null,
+    };
+    icaoMetaCache.set(icao24, meta);
+    return meta;
+  } catch {
+    icaoMetaCache.set(icao24, null);
+    return null;
+  }
+}
+
 const POLL_INTERVAL_MS = 15_000;
 const FT_TO_M = 0.3048;
 const KNOTS_TO_MPS = 0.514444;
 const MIN_MOVE_M = 120;
 const MAX_GAP_MS = 90_000;
+
+/**
+ * Retention za flight-log — **OPT-IN, default ISKLJUČEN**.
+ *
+ * Briše se SAMO ako je `FLIGHT_LOG_RETENTION_DAYS` eksplicitno postavljen na
+ * valjan broj ≥ 1. Bez te varijable poller NIKAD ne briše ništa (baza raste, ali
+ * to je sigurna strana — gubitak podataka je gori od velike baze).
+ *
+ * Povijesna napomena: raniji default (90 dana, uvijek aktivan) je obrisao
+ * produkcijsku bazu. Zato je sada opt-in + sa sanity-guardom u `pruneOldData`.
+ */
+const RETENTION_DAYS = (() => {
+  const raw = process.env.FLIGHT_LOG_RETENTION_DAYS;
+  if (raw == null || raw.trim() === "") return null; // nije postavljen → retention OFF
+  const n = Number.parseFloat(raw);
+  return Number.isFinite(n) && n >= 1 ? n : null;
+})();
+const RETENTION_PRUNE_INTERVAL_MS = 6 * 60 * 60 * 1000; // svakih 6h
 
 /** Haversine distance in metres. */
 function haversineM(lat1, lng1, lat2, lng2) {
@@ -91,12 +161,12 @@ function altFtToM(raw) {
 }
 
 async function startFlightLogger() {
-  if (!LOCAL_SDR_URL) return;
+  if (!LOCAL_SDR_URL || !LOCAL_SDR_URL_RAW) return;
 
   // sql.js — pure JS/WASM SQLite, no native compilation needed
   let db;
   try {
-    const initSqlJs = require("sql.js");
+    const initSqlJs = require("sql.js/dist/sql-asm.js");
     const SQL = await initSqlJs();
     const dataDir = path.join(process.cwd(), "data");
     if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
@@ -104,38 +174,7 @@ async function startFlightLogger() {
     db = fs.existsSync(dbFile)
       ? new SQL.Database(fs.readFileSync(dbFile))
       : new SQL.Database();
-    db.run(`
-      CREATE TABLE IF NOT EXISTS positions (
-        id            INTEGER PRIMARY KEY AUTOINCREMENT,
-        icao24        TEXT    NOT NULL,
-        callsign      TEXT,
-        lat           REAL    NOT NULL,
-        lng           REAL    NOT NULL,
-        alt_baro_m    REAL,
-        alt_geom_m    REAL,
-        speed_mps     REAL,
-        track_deg     REAL,
-        vert_rate_fpm REAL,
-        squawk        TEXT,
-        rssi          REAL,
-        registration  TEXT,
-        aircraft_type TEXT,
-        logged_at     INTEGER NOT NULL
-      )
-    `);
-    db.run(`CREATE INDEX IF NOT EXISTS idx_pos_icao24    ON positions(icao24)`);
-    db.run(`CREATE INDEX IF NOT EXISTS idx_pos_logged_at ON positions(logged_at)`);
-    db.run(`CREATE INDEX IF NOT EXISTS idx_pos_callsign  ON positions(callsign)`);
-    db.run(`
-      CREATE TABLE IF NOT EXISTS aircraft (
-        icao24        TEXT PRIMARY KEY,
-        registration  TEXT,
-        aircraft_type TEXT,
-        description   TEXT,
-        first_seen    INTEGER NOT NULL,
-        last_seen     INTEGER NOT NULL
-      )
-    `);
+    migrateFlightLogDb(db);
   } catch (e) {
     console.error("[flight-logger] Failed to init sql.js:", e.message);
     return;
@@ -151,7 +190,67 @@ async function startFlightLogger() {
   // Save to disk every 30s and on process exit
   setInterval(saveDb, 30_000);
   process.on("exit", saveDb);
-  process.on("SIGTERM", () => { saveDb(); });
+  // VAŽNO: nakon saveDb MORA process.exit(), inače handler "proguta" SIGTERM i
+  // proces nikad ne završi → cPanel Stop / Passenger restart ne mogu ugasiti app
+  // (stari proces nastavi pisati u bazu). Bez exita app je praktički nezaustavljiv.
+  process.on("SIGTERM", () => { saveDb(); process.exit(0); });
+  process.on("SIGINT", () => { saveDb(); process.exit(0); });
+
+  /**
+   * Briše zapise starije od retencije i povremeno VACUUM-a bazu.
+   *
+   * Sanity-guard: prebroji koliko bi redaka obrisao i koliko ostaje. Ako bi
+   * obrisao SVE (a tablica nije prazna), to je gotovo sigurno scale/units
+   * problem (npr. logged_at u sekundama vs cutoff u ms) — preskoči i glasno
+   * upozori umjesto da uništi bazu. sql.js je sinkron → kratko blokira loop.
+   */
+  function pruneOldData() {
+    const cutoff = Date.now() - RETENTION_DAYS * 86_400_000;
+    try {
+      const count = (sql, params) => {
+        const s = db.prepare(sql);
+        if (params) s.bind(params);
+        s.step();
+        const n = s.getAsObject().n;
+        s.free();
+        return n;
+      };
+      const totalPos = count(`SELECT COUNT(*) AS n FROM positions`);
+      const toDelete = count(
+        `SELECT COUNT(*) AS n FROM positions WHERE logged_at < ?`,
+        [cutoff]
+      );
+
+      if (totalPos > 0 && toDelete >= totalPos) {
+        console.error(
+          `[flight-logger] RETENTION ABORTED: cutoff bi obrisao sve ${totalPos} redaka ` +
+            `(cutoff ${new Date(cutoff).toISOString()}). Vjerojatno scale/units problem — ` +
+            `provjeri logged_at vrijednosti. Ništa nije obrisano.`
+        );
+        return;
+      }
+
+      db.run(`DELETE FROM positions WHERE logged_at < ?`, [cutoff]);
+      db.run(`DELETE FROM aircraft  WHERE last_seen < ?`, [cutoff]);
+      db.run(`VACUUM`);
+      saveDb();
+      console.log(
+        `[flight-logger] Pruned ${toDelete}/${totalPos} positions older than ${RETENTION_DAYS}d ` +
+          `(cutoff ${new Date(cutoff).toISOString()})`
+      );
+    } catch (e) {
+      console.error("[flight-logger] prune failed:", e.message);
+    }
+  }
+
+  // OPT-IN: prune se zakazuje SAMO ako je FLIGHT_LOG_RETENTION_DAYS postavljen.
+  if (RETENTION_DAYS != null) {
+    setTimeout(pruneOldData, 60_000);
+    setInterval(pruneOldData, RETENTION_PRUNE_INTERVAL_MS);
+    console.log(`[flight-logger] Retention ENABLED: ${RETENTION_DAYS}d`);
+  } else {
+    console.log("[flight-logger] Retention OFF (FLIGHT_LOG_RETENTION_DAYS nije postavljen)");
+  }
 
   // icao24 → { lat, lng, logged_at }
   const lastSeen = new Map();
@@ -159,7 +258,11 @@ async function startFlightLogger() {
   async function poll() {
     let data;
     try {
+      const fetchHeaders = LOCAL_SDR_AUTH
+        ? { Authorization: LOCAL_SDR_AUTH }
+        : {};
       const res = await fetch(LOCAL_SDR_URL, {
+        headers: fetchHeaders,
         signal: AbortSignal.timeout(8_000),
       });
       if (!res.ok) return;
@@ -223,7 +326,37 @@ async function startFlightLogger() {
         speed_mps, track_deg, vert_rate_fpm, squawk, rssi, registration, aircraft_type, logged_at]);
 
       if (registration || aircraft_type || description) {
-        metaRows.push([icao24, registration, aircraft_type, description, logged_at]);
+        // 6 values: icao24, registration, aircraft_type, description, first_seen, last_seen
+        metaRows.push([icao24, registration, aircraft_type, description, logged_at, logged_at]);
+      }
+    }
+
+    // For aircraft whose registration/type weren't in aircraft.json, fetch from the
+    // tar1090 per-aircraft DB endpoint (same data the tar1090 UI uses). Results are
+    // cached in icaoMetaCache so each ICAO24 is fetched at most once per process run.
+    if (TAR1090_DB_BASE && posRows.length > 0) {
+      const toFetch = posRows
+        .filter((r) => r[11] === null && r[12] === null && !icaoMetaCache.has(r[0]))
+        .map((r) => r[0]);
+      if (toFetch.length > 0) {
+        await Promise.all(toFetch.map((icao) => fetchTar1090Meta(icao)));
+      }
+      for (const r of posRows) {
+        if (r[11] !== null || r[12] !== null) continue;
+        const meta = icaoMetaCache.get(r[0]);
+        if (!meta) continue;
+        r[11] = meta.r;
+        r[12] = meta.t;
+        if (meta.r || meta.t || meta.desc) {
+          const idx = metaRows.findIndex((m) => m[0] === r[0]);
+          if (idx >= 0) {
+            metaRows[idx][1] = metaRows[idx][1] ?? meta.r;
+            metaRows[idx][2] = metaRows[idx][2] ?? meta.t;
+            metaRows[idx][3] = metaRows[idx][3] ?? meta.desc;
+          } else {
+            metaRows.push([r[0], meta.r, meta.t, meta.desc, r[13], r[13]]);
+          }
+        }
       }
     }
 
@@ -234,15 +367,19 @@ async function startFlightLogger() {
       );
     }
     for (const r of metaRows) {
-      db.run(
-        `INSERT INTO aircraft (icao24,registration,aircraft_type,description,first_seen,last_seen)
-         VALUES (?,?,?,?,?,?)
-         ON CONFLICT(icao24) DO UPDATE SET
-           registration  = COALESCE(excluded.registration,  registration),
-           aircraft_type = COALESCE(excluded.aircraft_type, aircraft_type),
-           description   = COALESCE(excluded.description,   description),
-           last_seen     = excluded.last_seen`, r
-      );
+      try {
+        db.run(
+          `INSERT INTO aircraft (icao24,registration,aircraft_type,description,first_seen,last_seen)
+           VALUES (?,?,?,?,?,?)
+           ON CONFLICT(icao24) DO UPDATE SET
+             registration  = COALESCE(excluded.registration,  registration),
+             aircraft_type = COALESCE(excluded.aircraft_type, aircraft_type),
+             description   = COALESCE(excluded.description,   description),
+             last_seen     = excluded.last_seen`, r
+        );
+      } catch (e) {
+        console.error("[flight-logger] aircraft upsert failed:", e.message, r[0]);
+      }
     }
 
     if (posRows.length > 0) saveDb();

@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 
+import { checkRateLimit, getClientIp } from "@/lib/server/rateLimiter";
+import { createTtlBodyCache } from "@/lib/server/ttlBodyCache";
+
 const OPENSKY_BASE = "https://opensky-network.org/api/states/all";
 /**
  * Cjelokupni proračun (TTFB + `text()`). Na **Vercel Hobby** cijela funkcija ima
@@ -28,9 +31,7 @@ export const preferredRegion = "fra1";
 const PROXY_CACHE_TTL_MS = 12_000;
 const PROXY_CACHE_MAX_KEYS = 40;
 
-type CacheEntry = { expiresAt: number; body: string };
-
-const bboxCache = new Map<string, CacheEntry>();
+const bboxCache = createTtlBodyCache(PROXY_CACHE_TTL_MS, PROXY_CACHE_MAX_KEYS);
 
 function bboxCacheKey(
   lamin: string,
@@ -41,34 +42,6 @@ function bboxCacheKey(
 ): string {
   const r = (x: string) => Number(x).toFixed(2);
   return `${r(lamin)}|${r(lomin)}|${r(lamax)}|${r(lomax)}|${extended ? "1" : "0"}`;
-}
-
-function pruneCache(): void {
-  const now = Date.now();
-  for (const [k, v] of bboxCache) {
-    if (v.expiresAt <= now) {
-      bboxCache.delete(k);
-    }
-  }
-  while (bboxCache.size > PROXY_CACHE_MAX_KEYS) {
-    const first = bboxCache.keys().next().value;
-    if (!first) {
-      break;
-    }
-    bboxCache.delete(first);
-  }
-}
-
-function cacheSet(key: string, body: string): void {
-  pruneCache();
-  bboxCache.set(key, { expiresAt: Date.now() + PROXY_CACHE_TTL_MS, body });
-  while (bboxCache.size > PROXY_CACHE_MAX_KEYS) {
-    const first = bboxCache.keys().next().value;
-    if (!first) {
-      break;
-    }
-    bboxCache.delete(first);
-  }
 }
 
 function jsonHeaders(
@@ -147,6 +120,20 @@ async function fetchOpenSkyWithinBudget(
  * zahtjeva u kratkom roku (pan, više komponenti, dev Strict Mode).
  */
 export async function GET(req: Request) {
+  const rl = checkRateLimit(getClientIp(req), 60, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Previše zahtjeva. Pokušaj ponovo za nekoliko sekundi." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)),
+          "Content-Type": "application/json",
+        },
+      }
+    );
+  }
+
   const { searchParams } = new URL(req.url);
   const lamin = searchParams.get("lamin");
   const lomin = searchParams.get("lomin");
@@ -159,6 +146,23 @@ export async function GET(req: Request) {
     );
   }
 
+  const la1 = Number(lamin);
+  const lo1 = Number(lomin);
+  const la2 = Number(lamax);
+  const lo2 = Number(lomax);
+  if (
+    !Number.isFinite(la1) || la1 < -90  || la1 > 90  ||
+    !Number.isFinite(lo1) || lo1 < -180 || lo1 > 180 ||
+    !Number.isFinite(la2) || la2 < -90  || la2 > 90  ||
+    !Number.isFinite(lo2) || lo2 < -180 || lo2 > 180 ||
+    la1 >= la2 || lo1 >= lo2
+  ) {
+    return NextResponse.json(
+      { error: "Nevaljane bbox koordinate." },
+      { status: 400 }
+    );
+  }
+
   const apiUser = process.env.OPENSKY_API_USER?.trim();
   const apiPass = process.env.OPENSKY_API_PASSWORD?.trim();
   const withCred = Boolean(apiUser && apiPass);
@@ -167,9 +171,9 @@ export async function GET(req: Request) {
     process.env.OPENSKY_STATES_EXTENDED?.trim() !== "0";
 
   const cKey = bboxCacheKey(lamin, lomin, lamax, lomax, useExtended);
-  const cached = bboxCache.get(cKey);
-  if (cached && cached.expiresAt > Date.now()) {
-    return new NextResponse(cached.body, {
+  const cachedBody = bboxCache.get(cKey);
+  if (cachedBody !== null) {
+    return new NextResponse(cachedBody, {
       status: 200,
       headers: jsonHeaders(withCred, "hit"),
     });
@@ -236,7 +240,7 @@ export async function GET(req: Request) {
       );
     }
 
-    cacheSet(cKey, bodyText);
+    bboxCache.set(cKey, bodyText);
     return new NextResponse(bodyText, {
       status: 200,
       headers: jsonHeaders(withCred, "miss"),
