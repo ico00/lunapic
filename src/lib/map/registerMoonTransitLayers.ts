@@ -1,4 +1,5 @@
 import type { AnyLayer, Map } from "mapbox-gl";
+import { VFR_REGION_CONFIG } from "@/lib/map/vfrRegionConfig";
 import { CorridorVolumeCustomLayer } from "@/lib/map/CorridorVolumeCustomLayer";
 import { flightFeatureColorMapboxExpressionForAltitudeTint } from "@/lib/map/flightAltitudeColor";
 import {
@@ -16,7 +17,6 @@ import {
   FLIGHTS_ATC_LABEL_SOURCE,
   FLIGHTS_ATC_PREDICTION_SOURCE,
   FLIGHTS_SOURCE,
-  GROUND_OPTIMAL_SOURCE,
   MOON_AZ_SOURCE,
   MOON_AZ_NOW_SOURCE,
   MOON_AZ_NOW_LABEL_SOURCE,
@@ -25,11 +25,19 @@ import {
   MOON_PATH_SOURCE,
   MOON_PATH_FULL_DAY_SOURCE,
   MOON_PATH_CURRENT_SOURCE,
-  ROUTES_SOURCE,
+  OBSERVER_RADIUS_SOURCE,
+  OBSERVER_RADIUS_LAYER_ID,
   SELECTED_FLIGHT_TRAJECTORY_LABEL_SOURCE,
   SELECTED_STAND_SPINE_SOURCE,
   SELECTED_STAND_SOURCE,
   SELECTED_FLIGHT_TRAJECTORY_SOURCE,
+  SELECTED_FLIGHT_TRAIL_SOURCE,
+  SELECTED_FLIGHT_TRAIL_LAYER_ID,
+  VFR_OPENAIP_SOURCE,
+  VFR_OPENAIP_LAYER_ID,
+  VFR_OPENAIP_MASK_SOURCE,
+  VFR_OPENAIP_MASK_LAYER_ID,
+  CONFIRMED_TRANSIT_BADGE_LAYER_ID,
 } from "@/lib/map/mapSourceIds";
 
 const MOON_INT_LAYER_ID = "moon-intersections";
@@ -39,7 +47,7 @@ export const ATC_FLIGHTS_LABEL_LAYER_ID = "atc-flights-label-layer";
 export const ATC_FLIGHTS_LEADER_LAYER_ID = "atc-flights-leader-layer";
 export const ATC_FLIGHTS_PREDICTION_LAYER_ID = "atc-flights-prediction-layer";
 const FLIGHT_MODEL_SCREEN_SIZE_REFERENCE_ZOOM = 11;
-const FLIGHT_MODEL_SCREEN_SIZE_MIN_FACTOR = 1.4;
+const FLIGHT_MODEL_SCREEN_SIZE_MIN_FACTOR = 0.02;
 const FLIGHT_MODEL_SCREEN_SIZE_MAX_FACTOR = 260;
 const FLIGHT_MODEL_YAW_OFFSET_DEG = 90;
 
@@ -113,6 +121,25 @@ function ensureFlightModelZoomScaleCompensation(map: Map): void {
   applyFlightModelZoomScaleCompensation(map);
 }
 
+function addConfirmedTransitBadgeLayer(map: Map): void {
+  if (map.getLayer(CONFIRMED_TRANSIT_BADGE_LAYER_ID)) {
+    return;
+  }
+  map.addLayer({
+    id: CONFIRMED_TRANSIT_BADGE_LAYER_ID,
+    type: "circle",
+    source: FLIGHTS_SOURCE,
+    filter: ["boolean", ["get", "isConfirmedTransit"], false],
+    paint: {
+      "circle-radius": 12,
+      "circle-color": "rgba(0, 0, 0, 0)",
+      "circle-stroke-color": "#22c55e",
+      "circle-stroke-width": 2.5,
+      "circle-opacity": 1,
+    },
+  });
+}
+
 function addFlightsShadowLayer(map: Map): void {
   if (map.getLayer(FLIGHTS_SHADOW_LAYER_ID)) {
     return;
@@ -124,7 +151,7 @@ function addFlightsShadowLayer(map: Map): void {
     paint: {
       "circle-radius": 4.5,
       "circle-color": "#000000",
-      "circle-opacity": 0.32,
+      "circle-opacity": ["interpolate", ["linear"], ["coalesce", ["to-number", ["get", "staleness"]], 0], 0, 0.32, 1, 0.08] as never,
       "circle-blur": 0.6,
       "circle-stroke-width": 0,
     },
@@ -145,6 +172,7 @@ function addFlightsCircleFallback(map: Map): void {
       "circle-color": flightFeatureColorMapboxExpressionForAltitudeTint(
         true
       ) as never,
+      "circle-opacity": ["interpolate", ["linear"], ["coalesce", ["to-number", ["get", "staleness"]], 0], 0, 1.0, 1, 0.28] as never,
       "circle-stroke-color": "#0f172a",
       "circle-stroke-width": 1,
     },
@@ -296,6 +324,7 @@ function addFlightsModelLayer(map: Map): void {
     id: FLIGHTS_LAYER_ID,
     type: "model",
     source: FLIGHTS_SOURCE,
+    filter: ["!=", ["get", "track"], null],
     layout: {
       "model-id": FLIGHT_3D_MODEL_ID,
     },
@@ -325,6 +354,12 @@ function addFlightsModelLayer(map: Map): void {
         true
       ) as never,
       "model-color-mix-intensity": 0.55,
+      "model-opacity": [
+        "interpolate", ["linear"],
+        ["coalesce", ["to-number", ["get", "staleness"]], 0],
+        0, 1.0,
+        1, 0.28,
+      ] as never,
     },
   } as unknown as AnyLayer);
   ensureFlightModelZoomScaleCompensation(map);
@@ -389,44 +424,120 @@ export function ensureFlightLayerWith3dModel(map: Map): void {
  *   `setData` mogu ući u sink pri prvom povećanju `mapReadyTick` — async ikona
  *   samo nadograđuje prikaz).
  */
+// Tile bounds for Croatia region — prevents fetching tiles outside this area
+const CROATIA_TILE_BOUNDS = VFR_REGION_CONFIG.tileBounds;
+
+// Signed area via shoelace — positive = CCW, negative = CW (standard math/geo coords)
+function ringSignedArea(ring: [number, number][]): number {
+  let area = 0;
+  const n = ring.length;
+  for (let i = 0; i < n; i++) {
+    const [x1, y1] = ring[i]!;
+    const [x2, y2] = ring[(i + 1) % n]!;
+    area += x1 * y2 - x2 * y1;
+  }
+  return area / 2;
+}
+
+function asCounterClockwise(ring: [number, number][]): [number, number][] {
+  return ringSignedArea(ring) < 0 ? [...ring].reverse() : ring;
+}
+
+function asClockwise(ring: [number, number][]): [number, number][] {
+  return ringSignedArea(ring) > 0 ? [...ring].reverse() : ring;
+}
+
+function addVfrOpenAipLayer(map: Map): void {
+  const apiKey = (process.env.NEXT_PUBLIC_OPENAIP_API_KEY ?? "").trim();
+  if (!apiKey) return;
+
+  // Subdomain rotation for parallel tile fetching
+  if (!map.getSource(VFR_OPENAIP_SOURCE)) {
+    map.addSource(VFR_OPENAIP_SOURCE, {
+      type: "raster",
+      tiles: [
+        `https://a.api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.png?apiKey=${apiKey}`,
+        `https://b.api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.png?apiKey=${apiKey}`,
+        `https://c.api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.png?apiKey=${apiKey}`,
+      ],
+      tileSize: 256,
+      minzoom: 0,
+      maxzoom: 14,
+      bounds: CROATIA_TILE_BOUNDS,
+      attribution: "© OpenAIP",
+    });
+  }
+  if (!map.getLayer(VFR_OPENAIP_LAYER_ID)) {
+    map.addLayer({
+      id: VFR_OPENAIP_LAYER_ID,
+      type: "raster",
+      source: VFR_OPENAIP_SOURCE,
+      layout: { visibility: "none" },
+      paint: { "raster-opacity": 0.88 },
+    });
+  }
+
+  // Mask: Europe-covering polygon with Croatia hole
+  // Outer ring covers Europe (not entire world — avoids projection artefacts at poles)
+  const outerRing = asCounterClockwise([
+    [-30, 25], [60, 25], [60, 75], [-30, 75], [-30, 25],
+  ]);
+  const croatiaHole = asClockwise([...VFR_REGION_CONFIG.borderRing]);
+
+  const maskGeoJson = {
+    type: "FeatureCollection" as const,
+    features: [{
+      type: "Feature" as const,
+      properties: {},
+      geometry: {
+        type: "Polygon" as const,
+        coordinates: [outerRing, croatiaHole],
+      },
+    }],
+  };
+
+  if (!map.getSource(VFR_OPENAIP_MASK_SOURCE)) {
+    map.addSource(VFR_OPENAIP_MASK_SOURCE, {
+      type: "geojson",
+      data: maskGeoJson,
+    });
+  }
+  if (!map.getLayer(VFR_OPENAIP_MASK_LAYER_ID)) {
+    map.addLayer({
+      id: VFR_OPENAIP_MASK_LAYER_ID,
+      type: "fill",
+      source: VFR_OPENAIP_MASK_SOURCE,
+      layout: { visibility: "none" },
+      paint: {
+        "fill-color": "#141c2b",
+        "fill-opacity": 0.92,
+      },
+    });
+  }
+}
+
 export function registerMoonTransitLayers(
   map: Map,
   onLayersReady?: () => void,
   onCorridorVolumeLayer?: (layer: CorridorVolumeCustomLayer) => void
 ): void {
   ensureMapboxTerrain(map);
-  map.addSource(ROUTES_SOURCE, {
+  addVfrOpenAipLayer(map);
+
+  map.addSource(OBSERVER_RADIUS_SOURCE, {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },
   });
   map.addLayer({
-    id: "routes-line",
+    id: OBSERVER_RADIUS_LAYER_ID,
     type: "line",
-    source: ROUTES_SOURCE,
-    layout: {
-      "line-join": "round",
-      "line-cap": "round",
-    },
-    paint: {
-      "line-color": "#a78bfa",
-      "line-width": 2.5,
-      "line-opacity": 0.4,
-    },
-  });
-  map.addSource(GROUND_OPTIMAL_SOURCE, {
-    type: "geojson",
-    data: { type: "FeatureCollection", features: [] },
-  });
-  map.addLayer({
-    id: "optimal-ground-line",
-    type: "line",
-    source: GROUND_OPTIMAL_SOURCE,
+    source: OBSERVER_RADIUS_SOURCE,
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
-      "line-color": "#c4b5fd",
-      "line-width": 1.1,
-      "line-opacity": 0.4,
-      "line-dasharray": [1.1, 1.3],
+      "line-color": "#94a3b8",
+      "line-width": 1,
+      "line-opacity": 0.35,
+      "line-dasharray": [3, 4],
     },
   });
 
@@ -437,6 +548,11 @@ export function registerMoonTransitLayers(
 
   map.addSource(SELECTED_STAND_SPINE_SOURCE, {
     type: "geojson",
+    data: { type: "FeatureCollection", features: [] },
+  });
+  map.addSource(SELECTED_FLIGHT_TRAIL_SOURCE, {
+    type: "geojson",
+    lineMetrics: true,
     data: { type: "FeatureCollection", features: [] },
   });
   map.addSource(SELECTED_FLIGHT_TRAJECTORY_SOURCE, {
@@ -527,8 +643,8 @@ export function registerMoonTransitLayers(
       "text-field": ["get", "label"],
       "text-size": 12,
       "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
-      "text-pitch-alignment": "map",
-      "text-rotation-alignment": "map",
+      "text-pitch-alignment": "viewport",
+      "text-rotation-alignment": "viewport",
       "text-allow-overlap": true,
       "text-ignore-placement": true,
       "symbol-placement": "point",
@@ -602,8 +718,8 @@ export function registerMoonTransitLayers(
         "Open Sans Semibold",
         "Arial Unicode MS Bold",
       ],
-      "text-pitch-alignment": "map",
-      "text-rotation-alignment": "map",
+      "text-pitch-alignment": "viewport",
+      "text-rotation-alignment": "viewport",
       "text-allow-overlap": true,
       "text-ignore-placement": true,
     },
@@ -634,8 +750,8 @@ export function registerMoonTransitLayers(
       "text-field": ["get", "label"],
       "text-size": 12,
       "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
-      "text-pitch-alignment": "map",
-      "text-rotation-alignment": "map",
+      "text-pitch-alignment": "viewport",
+      "text-rotation-alignment": "viewport",
       "text-allow-overlap": true,
       "text-ignore-placement": true,
     },
@@ -744,6 +860,25 @@ export function registerMoonTransitLayers(
     },
   });
   map.addLayer({
+    id: SELECTED_FLIGHT_TRAIL_LAYER_ID,
+    type: "line",
+    source: SELECTED_FLIGHT_TRAIL_SOURCE,
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: {
+      "line-width": 2.5,
+      "line-opacity": 1,
+      "line-gradient": [
+        "interpolate",
+        ["linear"],
+        ["line-progress"],
+        0,   "rgba(251, 191, 36, 0)",
+        0.4, "rgba(251, 191, 36, 0.15)",
+        0.75, "rgba(251, 191, 36, 0.5)",
+        1,   "rgba(253, 230, 138, 0.9)",
+      ],
+    } as unknown as Record<string, unknown>,
+  });
+  map.addLayer({
     id: "selected-flight-trajectory-glow",
     type: "line",
     source: SELECTED_FLIGHT_TRAJECTORY_SOURCE,
@@ -799,6 +934,7 @@ export function registerMoonTransitLayers(
   onCorridorVolumeLayer?.(corridorVolumeLayer);
 
   addFlightsCircleFallback(map);
+  addConfirmedTransitBadgeLayer(map);
   addAtcFlightsLayers(map);
 
   if (map.getLayer(FLIGHTS_SHADOW_LAYER_ID) && map.getLayer(FLIGHTS_LAYER_ID)) {

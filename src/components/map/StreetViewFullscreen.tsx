@@ -37,6 +37,19 @@ function loadGoogleMapsScript(onLoad: () => void) {
   document.head.appendChild(script);
 }
 
+function bearingOffsetLatLng(
+  lat: number, lng: number, bearingDeg: number, distanceM: number
+): { lat: number; lng: number } {
+  const R = 6371000;
+  const d = distanceM / R;
+  const b = (bearingDeg * Math.PI) / 180;
+  const lat1 = (lat * Math.PI) / 180;
+  const lng1 = (lng * Math.PI) / 180;
+  const lat2 = Math.asin(Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(b));
+  const lng2 = lng1 + Math.atan2(Math.sin(b) * Math.sin(d) * Math.cos(lat1), Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
+  return { lat: (lat2 * 180) / Math.PI, lng: (lng2 * 180) / Math.PI };
+}
+
 function project(
   azDeg: number, altDeg: number,
   povH: number, povP: number,
@@ -100,8 +113,8 @@ export function StreetViewFullscreen({ moon, observer, nowMs, candidates, active
   const pathSamples = useMemo(() =>
     buildMoonPathSamplesInTimeRange(
       nowMs - PATH_WINDOW_MS, nowMs + PATH_WINDOW_MS, PATH_STEP_MS,
-      observer.lat, observer.lng,
-    ), [nowMs, observer.lat, observer.lng]);
+      observer.lat, observer.lng, observer.groundHeightMeters,
+    ), [nowMs, observer.lat, observer.lng, observer.groundHeightMeters]);
 
   useEffect(() => { loadGoogleMapsScript(() => setApiReady(true)); }, []);
 
@@ -190,10 +203,27 @@ export function StreetViewFullscreen({ moon, observer, nowMs, candidates, active
       ctx.fillText("☽ Moon", mx, my + R + 18);
     }
 
+    // Draws a proper airplane silhouette pointing toward −Y (up on screen).
+    // Rotate ctx before calling; size ~1 = wingspan of 2 units.
+    const tracePlane = (sz: number) => {
+      ctx.beginPath();
+      ctx.moveTo(0, -sz * 1.1);            // nose
+      ctx.lineTo(sz * 0.18, -sz * 0.15);
+      ctx.lineTo(sz * 0.9, sz * 0.35);     // right wingtip
+      ctx.lineTo(sz * 0.22, sz * 0.28);
+      ctx.lineTo(sz * 0.28, sz * 1.1);     // right tailfin
+      ctx.lineTo(0,          sz * 0.8);    // tail notch
+      ctx.lineTo(-sz * 0.28, sz * 1.1);    // left tailfin
+      ctx.lineTo(-sz * 0.22, sz * 0.28);
+      ctx.lineTo(-sz * 0.9,  sz * 0.35);   // left wingtip
+      ctx.lineTo(-sz * 0.18, -sz * 0.15);
+      ctx.closePath();
+    };
+
     // Aircraft
     const activeIds = new Set(activeTransits.map((t) => t.flight.id));
     const drawFlight = (
-      flight: { id: string; callSign?: string | null; icao24?: string; position: { lat: number; lng: number }; geoAltitudeMeters: number | null; baroAltitudeMeters: number | null },
+      flight: { id: string; callSign?: string | null; icao24?: string; position: { lat: number; lng: number }; geoAltitudeMeters: number | null; baroAltitudeMeters: number | null; trackDeg: number | null },
       isActive: boolean,
     ) => {
       const h = flight.geoAltitudeMeters ?? flight.baroAltitudeMeters;
@@ -202,32 +232,89 @@ export function StreetViewFullscreen({ moon, observer, nowMs, candidates, active
       const pt = project(dir.azimuthDeg, dir.altitudeDeg, povH, povP, W, H);
       if (!pt) return;
       const [ax, ay] = pt;
-      const label = flight.callSign?.trim() || flight.icao24 || "?";
-      const altFt = Math.round(h * 3.28084 / 100) * 100;
+
+      const color    = isActive ? "rgba(56,189,248,1)"    : "rgba(167,139,250,0.85)";
+      const colorDim = isActive ? "rgba(56,189,248,0.65)" : "rgba(167,139,250,0.5)";
+
+      // Compute screen rotation from projected future position (15 km ahead)
+      let futurePt: [number, number] | null = null;
+      let rotRad = 0;
+      if (flight.trackDeg != null) {
+        const ahead = bearingOffsetLatLng(flight.position.lat, flight.position.lng, flight.trackDeg, 15000);
+        const aheadDir = horizontalToPoint(observer, ahead.lat, ahead.lng, h);
+        futurePt = project(aheadDir.azimuthDeg, aheadDir.altitudeDeg, povH, povP, W, H);
+        if (futurePt) {
+          // atan2(dx, -dy): 0 = up, π/2 = right
+          rotRad = Math.atan2(futurePt[0] - ax, -(futurePt[1] - ay));
+        } else {
+          rotRad = (((flight.trackDeg - povH + 540) % 360) - 180) * (Math.PI / 180);
+        }
+      }
+
+      // Active transits only: 90s trajectory dots + arrowhead
+      if (isActive && futurePt) {
+        const dx = futurePt[0] - ax;
+        const dy = futurePt[1] - ay;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        if (len > 20) {
+          const ox = ax + (dx / len) * 16;
+          const oy = ay + (dy / len) * 16;
+          for (let i = 1; i <= 5; i++) {
+            const t = i / 5;
+            ctx.beginPath();
+            ctx.arc(ox + dx * t, oy + dy * t, 2.5 - t * 0.8, 0, Math.PI * 2);
+            ctx.fillStyle = i === 5 ? color : colorDim;
+            ctx.fill();
+          }
+          const angle = Math.atan2(dy, dx);
+          ctx.beginPath();
+          ctx.moveTo(futurePt[0], futurePt[1]);
+          ctx.lineTo(futurePt[0] - 10 * Math.cos(angle - 0.4), futurePt[1] - 10 * Math.sin(angle - 0.4));
+          ctx.lineTo(futurePt[0] - 10 * Math.cos(angle + 0.4), futurePt[1] - 10 * Math.sin(angle + 0.4));
+          ctx.closePath();
+          ctx.fillStyle = color;
+          ctx.fill();
+        }
+      }
+
+      // Airplane silhouette
+      const sz = isActive ? 10 : 6;
+      ctx.save();
+      ctx.translate(ax, ay);
+      ctx.rotate(rotRad);
       if (isActive) {
-        ctx.shadowColor = "rgba(56,189,248,0.9)"; ctx.shadowBlur = 16;
-        ctx.beginPath(); ctx.arc(ax, ay, 14, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(56,189,248,0.2)"; ctx.fill();
-        ctx.beginPath(); ctx.arc(ax, ay, 14, 0, Math.PI * 2);
-        ctx.strokeStyle = "rgba(56,189,248,1)"; ctx.lineWidth = 2.5; ctx.stroke();
-        ctx.shadowBlur = 0;
-        ctx.font = "bold 16px serif"; ctx.fillStyle = "rgba(56,189,248,1)";
-        ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText("✈", ax, ay); ctx.textBaseline = "alphabetic";
-        ctx.font = "bold 12px ui-monospace, monospace"; ctx.fillStyle = "rgba(56,189,248,1)";
-        ctx.fillText(label, ax, ay + 24);
-        ctx.font = "11px ui-monospace, monospace"; ctx.fillStyle = "rgba(56,189,248,0.75)";
-        ctx.fillText(`${altFt.toLocaleString()} ft`, ax, ay + 37);
+        ctx.shadowColor = "rgba(56,189,248,0.8)";
+        ctx.shadowBlur = 12;
+        tracePlane(sz);
+        ctx.fillStyle = "rgba(56,189,248,0.25)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(56,189,248,1)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
       } else {
-        ctx.beginPath(); ctx.arc(ax, ay, 9, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(167,139,250,0.15)"; ctx.fill();
-        ctx.beginPath(); ctx.arc(ax, ay, 9, 0, Math.PI * 2);
-        ctx.strokeStyle = "rgba(167,139,250,0.75)"; ctx.lineWidth = 1.5; ctx.stroke();
-        ctx.font = "12px serif"; ctx.fillStyle = "rgba(167,139,250,0.9)";
-        ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText("✈", ax, ay); ctx.textBaseline = "alphabetic";
-        ctx.font = "10px ui-monospace, monospace"; ctx.fillStyle = "rgba(167,139,250,0.8)";
-        ctx.fillText(label, ax, ay + 17);
+        tracePlane(sz);
+        ctx.fillStyle = "rgba(167,139,250,0.2)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(167,139,250,0.8)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+      ctx.shadowBlur = 0;
+      ctx.restore();
+
+      // Labels (unrotated)
+      const label = flight.callSign?.trim() || flight.icao24 || "?";
+      const labelY = ay + sz * 1.3 + (isActive ? 10 : 6);
+      ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+      if (isActive) {
+        const altFt = Math.round((h * 3.28084) / 100) * 100;
+        ctx.font = "bold 12px ui-monospace, monospace"; ctx.fillStyle = color;
+        ctx.fillText(label, ax, labelY);
+        ctx.font = "10px ui-monospace, monospace"; ctx.fillStyle = colorDim;
+        ctx.fillText(`${altFt.toLocaleString()} ft`, ax, labelY + 13);
+      } else {
+        ctx.font = "10px ui-monospace, monospace"; ctx.fillStyle = colorDim;
+        ctx.fillText(label, ax, labelY);
       }
     };
     for (const c of candidates) if (!activeIds.has(c.flight.id)) drawFlight(c.flight, false);

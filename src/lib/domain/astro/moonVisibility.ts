@@ -16,12 +16,14 @@ export function isMoonAboveHorizonFromAltitude(altitudeDeg: number): boolean {
 export function isMoonVisibleForEpoch(
   epochMs: number,
   observerLat: number,
-  observerLng: number
+  observerLng: number,
+  observerElevM = 0
 ): boolean {
   const st = AstroService.getMoonState(
     new Date(epochMs),
     observerLat,
-    observerLng
+    observerLng,
+    observerElevM
   );
   return isMoonAboveHorizonFromAltitude(st.altitudeDeg);
 }

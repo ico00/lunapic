@@ -10,9 +10,6 @@ export const MOON_PATH_RAY_LENGTH_M = 200_000;
 /** Tipična visina krstarenja za presjeke zraka s rutama (m). */
 export const CRUISE_FL_M = 10_000;
 
-/** Polovica „tlocrtne staze” isprekidane trake (optimal ground path). */
-export const OPTIMAL_GROUND_HALF_M = 4_000;
-
 /** Polovina širine trake „gdje stati” uz odabrani zrakoplov (m). */
 export const SELECTED_STAND_HALF_WIDTH_M = 3_000;
 /** Tlocrt: bližnji kraj trake (m) od projekcije zrakoplova, duž 3D LoS back-azimuta. */

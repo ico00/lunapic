@@ -30,6 +30,7 @@ export function useHomeShellOrchestration() {
     ensureFlightSourceComboboxMode();
   }, [ensureFlightSourceComboboxMode]);
   const liveFlightFeeds = useMoonTransitStore((s) => s.liveFlightFeeds);
+  const providerFlightCounts = useMoonTransitStore((s) => s.providerFlightCounts);
   const setLiveFlightFeeds = useMoonTransitStore(
     (s) => s.setLiveFlightFeeds
   );
@@ -59,6 +60,7 @@ export function useHomeShellOrchestration() {
     reason: photoUnavailableReason,
   } = usePhotographerTools();
   const [beepOnTransit, setBeepOnTransit] = useState(false);
+  const [alertsEnabled, setAlertsEnabled] = useState(true);
   useTransitBeep(photoPack?.timeToAlignmentSec ?? null, beepOnTransit);
   const routeCorridor =
     flightProvider.getRouteCorridorStats?.() ?? null;
@@ -103,7 +105,7 @@ export function useHomeShellOrchestration() {
   const tickLiveTime = useMoonTransitStore((s) => s.tickLiveTime);
   const activeTransits = useActiveTransits(0.5);
   const isGolden = useMemo(
-    () => activeTransits.some((r) => r.deltaAzDeg < 0.1),
+    () => activeTransits.some((r) => r.separationDeg < 0.1),
     [activeTransits]
   );
   const nearestWindow = useNearestTransitWindow();
@@ -180,6 +182,7 @@ export function useHomeShellOrchestration() {
     flightProviderId,
     liveFlightFeeds,
     setLiveFlightFeeds,
+    providerFlightCounts,
     flightProvider,
     moon,
     isLoading,
@@ -190,6 +193,8 @@ export function useHomeShellOrchestration() {
     photoUnavailableReason,
     beepOnTransit,
     setBeepOnTransit,
+    alertsEnabled,
+    setAlertsEnabled,
     routeCorridor,
     error,
     timeOffsetMs,

@@ -142,7 +142,7 @@ export function flightsFromAdsbOnePointResponse(
   for (const row of list) {
     const f = adsbOneAircraftToFlightState(row, viewBounds, nowMs);
     if (f) {
-      out.push(f);
+      out.push({ ...f, providerId: "adsbone" });
     }
   }
   return out;

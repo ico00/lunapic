@@ -130,10 +130,10 @@ export function FlightFiltersPanel({
             <li
               key={typeLabel}
               role="presentation"
-              className={`cursor-pointer select-none rounded-xl px-2.5 py-1.5 text-left text-sm outline-none ${
+              className={`cursor-pointer select-none rounded-xl px-2.5 py-1.5 text-left text-[length:var(--fs-body)] outline-none ${
                 checked
                   ? "bg-violet-500/15 text-violet-200"
-                  : "text-zinc-200 hover:bg-zinc-800/70 hover:text-zinc-50"
+                  : "text-[color:var(--t-primary)] hover:bg-zinc-800/70 hover:text-[color:var(--t-primary)]"
               }`}
               onMouseDown={(e) => e.preventDefault()}
             >
@@ -162,7 +162,7 @@ export function FlightFiltersPanel({
           value={searchQuery}
           onChange={(e) => onSearchQueryChange(e.target.value)}
           placeholder="callsign, airline, type, ICAO24..."
-          className="mt-1.5 h-11 w-full rounded-2xl border border-white/[0.10] bg-white/[0.04] px-3.5 text-[16px] text-zinc-100 outline-none ring-inset placeholder:text-zinc-500 focus:ring-2 focus:ring-violet-500/35"
+          className="mt-1.5 h-11 w-full rounded-2xl border border-white/[0.10] bg-white/[0.04] px-3.5 text-[16px] text-[color:var(--t-primary)] outline-none ring-inset placeholder:text-[color:var(--t-tertiary)] focus:ring-2 focus:ring-violet-500/35"
           data-testid="flight-filter-search-input"
         />
       </label>
@@ -182,7 +182,7 @@ export function FlightFiltersPanel({
           >
             <span className="min-w-0 flex-1 truncate">{triggerLabel}</span>
             <svg
-              className={`h-4 w-4 shrink-0 text-zinc-500 transition ${open ? "rotate-180" : ""}`}
+              className={`h-4 w-4 shrink-0 text-[color:var(--t-tertiary)] transition ${open ? "rotate-180" : ""}`}
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"

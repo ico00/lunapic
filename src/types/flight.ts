@@ -1,4 +1,5 @@
 import type { GeoBounds, LatLng } from "./geo";
+import type { FlightProviderId } from "./flight-provider";
 
 /**
  * Uniquely identifies an aircraft in the provider's namespace.
@@ -54,6 +55,8 @@ export interface FlightState {
   readonly rssi?: number | null;
   /** Aircraft long description from readsb database — local ADS-B only. */
   readonly aircraftDescription?: string | null;
+  /** Which provider produced this state vector. */
+  readonly providerId?: FlightProviderId;
 }
 
 export interface FlightQuery {

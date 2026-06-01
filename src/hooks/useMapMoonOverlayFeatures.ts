@@ -9,7 +9,6 @@ import {
   CRUISE_FL_M,
   MOON_AZ_LENGTH_M,
   MOON_PATH_RAY_LENGTH_M,
-  OPTIMAL_GROUND_HALF_M,
 } from "@/lib/map/mapOverlayConstants";
 import { fieldPerfTime } from "@/lib/perf/fieldPerf";
 import { getMoonPathLabelInstants } from "@/lib/map/moonPathLabelInstants";
@@ -55,11 +54,33 @@ export function useMapMoonOverlayFeatures(
   observerLat: number,
   observerLng: number,
   referenceEpochMs: number,
-  moon: MoonState
+  moon: MoonState,
+  observerElevM = 0,
+  mapHeightPx = 0
 ) {
   const moonRise = useMoonTransitStore((s) => s.moonRise);
   const moonSet = useMoonTransitStore((s) => s.moonSet);
   const moonRiseSetKind = useMoonTransitStore((s) => s.moonRiseSetKind);
+  const mapZoom = useMoonTransitStore((s) => s.mapView.zoom);
+  // Snap to 0.5 increments so path only recomputes on meaningful zoom changes
+  const zoomSnapped = Math.round(mapZoom * 2) / 2;
+
+  // When we know the map height, compute the ray so the circle occupies 80% of
+  // the viewport height (radius = 40%). Mapbox GL uses 512px world tiles.
+  const dynamicRayM = useMemo(() => {
+    if (mapHeightPx > 0) {
+      const metersPerPx =
+        (40075016.686 * Math.cos((observerLat * Math.PI) / 180)) /
+        (512 * Math.pow(2, zoomSnapped));
+      const radiusPx = 0.4 * mapHeightPx;
+      return Math.min(Math.max(radiusPx * metersPerPx, 3_000), 2_000_000);
+    }
+    return Math.min(
+      Math.max(MOON_PATH_RAY_LENGTH_M * Math.pow(2, 6 - zoomSnapped), 3_000),
+      2_000_000
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapHeightPx, zoomSnapped, observerLat]);
 
   const moonPathPack = useMemo(() => {
     return fieldPerfTime("overlay:moonPathPack", () => {
@@ -73,17 +94,19 @@ export function useMapMoonOverlayFeatures(
       referenceEpochMs,
       obs.lat,
       obs.lng,
-      riseSet
+      riseSet,
+      observerElevM,
+      5 * 60 * 1000
     );
     const lineCoords = GeometryEngine.buildMoonPathLineCoordinates(
       obs,
       spec.samples,
-      MOON_PATH_RAY_LENGTH_M
+      dynamicRayM
     );
     const [, currentMoonEnd] = GeometryEngine.buildMoonAzimuthLine(
       obs,
       moon,
-      MOON_PATH_RAY_LENGTH_M
+      dynamicRayM
     );
     const currentLngLat: [number, number] = [
       currentMoonEnd.lng,
@@ -115,14 +138,15 @@ export function useMapMoonOverlayFeatures(
     const fullDaySamples = buildMoonPathSamplesInTimeRange(
       fullDayStartUtcMs,
       fullDayEndUtcMs,
-      MOON_PATH_STEP_MS,
+      5 * 60 * 1000,
       obs.lat,
-      obs.lng
+      obs.lng,
+      observerElevM
     );
     const fullDayCoords = GeometryEngine.buildMoonPathLineCoordinates(
       obs,
       fullDaySamples,
-      MOON_PATH_RAY_LENGTH_M
+      dynamicRayM
     );
     const fullDayLineFeature =
       fullDayCoords.length >= 2
@@ -150,11 +174,11 @@ export function useMapMoonOverlayFeatures(
       const { t0, t1 } = spec.labelWindowMs;
       const instants = getMoonPathLabelInstants(t0, t1, labelEveryMs);
       for (const t of instants) {
-        const m = AstroService.getMoonState(new Date(t), obs.lat, obs.lng);
+        const m = AstroService.getMoonState(new Date(t), obs.lat, obs.lng, observerElevM);
         const [, end] = GeometryEngine.buildMoonAzimuthLine(
           obs,
           m,
-          MOON_PATH_RAY_LENGTH_M
+          dynamicRayM
         );
         const label = formatMoonPathClockLabel(t);
         labelFeatures.push({
@@ -178,6 +202,7 @@ export function useMapMoonOverlayFeatures(
     moonRise,
     moonSet,
     moonRiseSetKind,
+    dynamicRayM,
   ]);
 
   const moonAzFeature = useMemo(
@@ -230,23 +255,9 @@ export function useMapMoonOverlayFeatures(
     [observerLat, observerLng, moon]
   );
 
-  const optimalGroundFeatures = useMemo(
-    () =>
-      fieldPerfTime("overlay:optimalGround", () =>
-        GeometryEngine.buildOptimalGroundPathFeatures(
-          { lat: observerLat, lng: observerLng },
-          moon,
-          CRUISE_FL_M,
-          OPTIMAL_GROUND_HALF_M
-        )
-      ),
-    [observerLat, observerLng, moon]
-  );
-
   return {
     moonPathPack,
     moonAzFeature,
     intersectionFeatures,
-    optimalGroundFeatures,
   };
 }

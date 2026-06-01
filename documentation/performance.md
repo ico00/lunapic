@@ -12,8 +12,10 @@ When enabled, a **violet panel** (top-right on the map) shows rolling last / ave
 | `map:boundsRefresh` | Synchronous work in the map move callback (load bounds, set route source) |
 | `overlay:*` | `useMapMoonOverlayFeatures` `useMemo` blocks (moon path, azimuth, intersections, optimal ground) |
 | `geojson:*` | `setData` passes in `useMapGeoJsonSync` |
-| `extrap:flights` | Extrapolating stored flights for the map tick (about every **400 ms** when perf is on; flight GeoJSON `setData` is also **throttled** in `useMapGeoJsonSync`) |
+| `extrap:flights` | Extrapolating stored flights for the map tick (rAF-based, throttled to **≤ 80 ms** ≈ 12 fps via `MIN_TICK_MS` in `useExtrapolatedFlightsForMap`; flight GeoJSON `setData` is also **throttled at 80 ms** in `useMapGeoJsonSync`) |
 | `react:MapBlock:*` | `Profiler` on the map column (`mount` / `update` commit time) |
+
+> **Note — `AstroService.getMoonState` cache (2026-05-26):** Moon position is cached in 10-second buckets (LRU, max 60 entries). Any call within the same 10 s window for the same observer returns instantly without running VSOP87. This is what makes the 100 ms `usePhotographerTools` tick cheap (≈ 0.2 ms per tick instead of ≈ 10 ms). The cache key is `epochBucket|lat3dp|lng3dp|elevRound`. The bucket rounding matters for the forward-step rate computation in `photographerPack` — see `geometryEnginePhotographer.ts` for details.
 
 **Enable without rebuild (good for a quick field check):**
 

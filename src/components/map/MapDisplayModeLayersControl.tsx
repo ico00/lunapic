@@ -5,6 +5,7 @@ import { clampFloatingMenuLeft } from "@/lib/ui/clampFloatingMenuLeft";
 import { FLIGHT_3D_MODEL_UI_PREVIEW_PATH } from "@/lib/map/mapOverlayConstants";
 import { appPath } from "@/lib/paths/appPath";
 import {
+  shellGlassCheckboxClass,
   shellMapAircraftDisplayPopoverClass,
 } from "@/lib/ui/shellComboboxStyles";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
@@ -255,41 +256,25 @@ export function MapDisplayModeLayersControl() {
               <span className="text-[length:var(--fs-label)] text-[color:var(--t-primary)]">
                 Density heatmap
               </span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={flightHistoryHeatmap}
-                onClick={() => setFlightHistoryHeatmap(!flightHistoryHeatmap)}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/45 ${
-                  flightHistoryHeatmap ? "bg-sky-500" : "bg-[color:var(--glass-3)]"
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
-                    flightHistoryHeatmap ? "translate-x-4" : "translate-x-0"
-                  }`}
-                />
-              </button>
+              <input
+                type="checkbox"
+                className={shellGlassCheckboxClass}
+                checked={flightHistoryHeatmap}
+                onChange={(e) => setFlightHistoryHeatmap(e.target.checked)}
+                aria-label="Toggle flight history density heatmap"
+              />
             </label>
             <label className="flex cursor-pointer items-center justify-between gap-3">
               <span className="text-[length:var(--fs-label)] text-[color:var(--t-primary)]">
                 Route lines
               </span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={flightHistoryRoutes}
-                onClick={() => setFlightHistoryRoutes(!flightHistoryRoutes)}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/45 ${
-                  flightHistoryRoutes ? "bg-sky-500" : "bg-[color:var(--glass-3)]"
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
-                    flightHistoryRoutes ? "translate-x-4" : "translate-x-0"
-                  }`}
-                />
-              </button>
+              <input
+                type="checkbox"
+                className={shellGlassCheckboxClass}
+                checked={flightHistoryRoutes}
+                onChange={(e) => setFlightHistoryRoutes(e.target.checked)}
+                aria-label="Toggle flight history route lines"
+              />
             </label>
           </div>
         </div>

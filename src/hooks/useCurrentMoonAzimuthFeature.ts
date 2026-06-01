@@ -5,7 +5,7 @@ import { MOON_AZ_LENGTH_M } from "@/lib/map/mapOverlayConstants";
 import type { Feature, LineString, Point } from "geojson";
 import { useEffect, useMemo, useState } from "react";
 
-const NOW_MOON_AZ_TICK_MS = 1_000;
+const NOW_MOON_AZ_TICK_MS = 5_000;
 const NOW_LABEL_DISTANCE_M = 220_000;
 
 type CurrentMoonAzimuthPack = {
@@ -15,7 +15,8 @@ type CurrentMoonAzimuthPack = {
 
 export function useCurrentMoonAzimuthFeature(
   observerLat: number,
-  observerLng: number
+  observerLng: number,
+  observerElevM = 0
 ): CurrentMoonAzimuthPack {
   const [nowEpochMs, setNowEpochMs] = useState(() => Date.now());
 
@@ -23,8 +24,13 @@ export function useCurrentMoonAzimuthFeature(
     const id = setInterval(() => {
       setNowEpochMs(Date.now());
     }, NOW_MOON_AZ_TICK_MS);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") setNowEpochMs(Date.now());
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 
@@ -32,7 +38,8 @@ export function useCurrentMoonAzimuthFeature(
     const moonNow = AstroService.getMoonState(
       new Date(nowEpochMs),
       observerLat,
-      observerLng
+      observerLng,
+      observerElevM
     );
     const [a, b] = GeometryEngine.buildMoonAzimuthLine(
       { lat: observerLat, lng: observerLng },

@@ -6,9 +6,336 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 where version bumps are made for releases (currently `0.x`).
 
-## [Unreleased]
+## [2026-05-26] — Animation Performance & Cross-Device Countdown Sync
 
 ### Changed
+
+- **`useExtrapolatedFlightsForMap` — rAF tick replaces `setInterval(400 ms)`** — The flight-extrapolation hook that drives aircraft positions on the map now drives itself with `requestAnimationFrame` (throttled to one update per `MIN_TICK_MS = 80 ms`, ≈ 12 fps) instead of a bare `setInterval(400)`. Under the old timer, `setInterval` callbacks fire late when the main thread is busy, producing 400–2 000 ms gaps between map updates; the combined result was the freeze-then-sudden-jump visual artefact. `requestAnimationFrame` fires before each paint so the browser coordinates the animation — no more inter-frame drift on slow devices or during long renders. `lastTickRef` tracks the last rAF timestamp; if less than `MIN_TICK_MS` has elapsed the tick is skipped, preventing oversaturation of Mapbox with redundant `setData` calls.
+
+- **`useMapGeoJsonSync` — GeoJSON throttle reduced from 300 ms to 80 ms** — `FLIGHTS_GEOJSON_MIN_INTERVAL_MS` was 300 ms (introduced as an iOS/Safari compatibility measure), which capped the effective map-animation rate at ≈ 3.3 fps regardless of how fast the extrapolation hook ran. Aligned to 80 ms so Mapbox `setData` keeps pace with the new rAF tick and renders every extrapolated position without additional latency.
+
+- **`AstroService.getMoonState` — 10-second LRU cache** — `getMoonStateCached` wraps every `getMoonState` call with a round-to-nearest-10 000 ms bucket key `(epochMs|lat|lng|elev)`. Moon position changes < 0.1 arcsecond per 10 s — imperceptible on screen — so the same VSOP87 result is reused for all calls within a bucket. Cache limit: 60 entries (evicts oldest-inserted first via `Map` insertion order). Before this change, `usePhotographerTools` with `now` in its deps called `getMoonState` twice per 100 ms tick = **20 heavy astronomy-engine calls per second**, blocking the main thread for 200–500 ms on mobile. After: ≈ 0.2 ms per tick (cache hit path).
+
+- **`usePhotographerTools` — wall clock `now` restored as dep; pack runs every 100 ms** — The pack `useMemo` was previously restructured to remove `now` from its dependency array (to reduce `getMoonState` cost), splitting the result into a "heavy" pack computed at `refEpoch` frequency and a "live" countdown derived separately. This introduced a cross-device desync: `refEpoch` is updated by `tickLiveTime()` which fires every 30 s independently on each device (no network sync), so two devices could see countdowns differing by up to 30 s for the same aircraft. Reverted: `now` (the 100 ms `Date.now()` wall clock, which is inherently synchronized across devices) is back in the `useMemo` deps, and `extrapolateFlightForDisplay(raw, now, latencySkewMs)` is called directly in the pack computation. The `getMoonState` cache absorbs the cost, keeping each 100 ms tick at ≈ 0.2 ms instead of the original ≈ 10 ms.
+
+- **`geometryEnginePhotographer` — moon azimuth rate delta raised from 2 s to 20 s** — `photographerPack` computes the moon's azimuth angular rate by calling `getMoonState(at)` and `getMoonState(at + Δt)` and dividing the difference by Δt. With the 10 s LRU cache a `Δt = 2 s` forward step is pathological in two ways: if `at` and `at + 2 s` fall in the **same** 10-second bucket they round to the same key → `dMoon = 0°` → `moAzRateDegS = 0`, and `timeToAlignmentSec` becomes an unreliable large value. If they fall in **adjacent** buckets (i.e. `at` is within 2 s of a bucket boundary) → `dMoon = moon's full 10 s of travel / 2 s` → `moAzRateDegS = 5× actual`. A 5× error in the moon rate changes `timeToAlignmentSec` by several seconds; because two devices' `refEpoch` values can land on opposite sides of the bucket boundary, countdowns differed by 5–15 s between mobile and desktop even after restoring `now` to the deps. Fix: `Δt = 20 000 ms` (exactly 2× the bucket size). `bucket(at + 20 s) = bucket(at) + 20 000 ms` is guaranteed regardless of where `at` falls inside the bucket — different buckets, correct 20 s moon travel, correct rate. Divisor updated from `/ 2` to `/ 20`.
+
+- **`useMoonTransitMap` — local SDR auto-refresh reduced from 30 s to 10 s** — When `localsdrActive` is true (the LunaPic Raspberry Pi ADS-B receiver is selected as a live feed alongside an OpenSky-family provider), the map polling interval switches from `LIVE_AUTO_REFRESH_MS = 30 000 ms` to the new `LOCALSDR_AUTO_REFRESH_MS = 10 000 ms`. The Pi's readsb updates positions every ~1 s; the server-side cache on `/api/localsdr/aircraft` holds responses for 10 s. At 30 s polling an aircraft flying at 250 m/s would jump ~7.5 km between refreshes; at 10 s the jump is ≤ 2.5 km, keeping position discontinuities visually tolerable. `localsdrActive` is also added to the polling `useEffect`'s dependency array so the interval restarts at the correct period when the localsdr feed is toggled on or off.
+
+---
+
+## [2026-05-25] — API Security Hardening + Pi nginx Basic Auth
+
+### Added
+
+- **Security — rate limiting on all remaining API routes** — `rejectIfRateLimited` convenience helper added to `src/lib/server/rateLimiter.ts` (wraps `checkRateLimit` + `getClientIp`, returns `NextResponse 429` or `null`). Applied to every previously unprotected route:
+  - `/api/localsdr/aircraft` — 20 req/60 s per IP
+  - `/api/flight-log/heatmap`, `/api/flight-log/routes`, `/api/flight-log/callsign-analysis` — 20 req/60 s (expensive DB queries)
+  - `/api/flight-log/stats`, `/api/flight-log/aircraft-list`, `/api/flight-log/aircraft/[icao24]`, `/api/flight-log/track/[icao24]` — 30 req/60 s
+  - `/api/push/send` — 10 req/60 s
+  - `/api/push/subscribe` POST + DELETE — 10 req/60 s
+  Previously only `/api/opensky/states` and `/api/adsbone/point` had rate limiting.
+
+- **Security — `ADMIN_SECRET` guard on `/api/flight-log/debug`** — The debug endpoint exposed `process.cwd()`, Node.js version, DB file path, DB schema, and query results to anyone who discovered the URL. It now requires `Authorization: Bearer <token>` (or `?secret=<token>`) matching the `ADMIN_SECRET` env var. If `ADMIN_SECRET` is set, the check is always enforced. If `ADMIN_SECRET` is not set and `NODE_ENV === "production"`, the endpoint returns 403 (disabled). In development without a secret, it remains open for convenience.
+
+- **Security — 10 s in-memory cache on `/api/localsdr/aircraft`** — Protects the Raspberry Pi from multiple concurrent clients or rapid re-requests. All requests within a 10 s window are served from the cached response; the Pi receives at most one real HTTP request per 10 s regardless of how many browser clients are open.
+
+- **Infrastructure — nginx basic auth in front of tar1090 on Raspberry Pi** — tar1090 / lighttpd moved from port 80 to port 8080 (internal only). nginx installed on port 80 with HTTP basic auth (`/etc/nginx/.htpasswd`) proxying to `localhost:8080`. Tailscale Funnel continues to expose port 80 publicly. Direct access to `https://lunapic.tailcdc789.ts.net/tar1090/...` without credentials now returns 401.
+
+### Fixed
+
+- **`/api/localsdr/aircraft` — credentials in URL rejected by Fetch API** — Node.js / undici `fetch()` throws `TypeError: Request cannot be constructed from a URL that includes credentials` when `LOCAL_SDR_URL` contains `user:pass@host`. The route now uses `parseSdrUrl()` to extract username/password from the URL, strips them from the URL object, and sends an `Authorization: Basic <base64>` header instead. `LOCAL_SDR_URL` in `.env.local` and cPanel environment variables can now safely include credentials (`https://user:pass@host/path`).
+
+---
+
+## [2026-05-25] — Alert Logic + Transit Candidate Screening Consistency
+
+### Fixed
+
+- **`useCandidateAlerts` — alerts now fire only for disk-transit candidates** — Previously the hook fired audio + toast alerts for every item in `candidatesDisplay`, including "In frame" planes that are merely within the camera FOV but are not predicted to cross the moon disc. The candidates loop now iterates only `candidates.filter(c => c.willTransit)`. Additionally, `currentCandidateIds` (used to track "already alerted" flights) tracks only `willTransit: true` IDs, so a flight that first appears as `willTransit: false` and later upgrades to `willTransit: true` (trajectory refined) correctly fires an alert.
+
+- **`willActuallyTransit` formula — elevation gap instead of full 2D sky separation** — `geometryEnginePhotographer.ts` previously computed `willActuallyTransit = sep <= moonRadius + acRadius` where `sep` is the full 2D sky angular separation (azimuth + elevation) at the dead-reckoned alignment time. For aircraft currently far from the moon (large current angular separation, long lookahead times), the linear azimuth model diverges: the actual azimuth of the aircraft at the predicted time may differ significantly from the moon's azimuth, inflating `sep` even when the elevation gap is small. The fix uses the elevation gap directly — `willActuallyTransit = Math.abs(elevationGapAtAlignmentDeg) <= moonRadius + acRadius` — consistent with the real-world validation (2026-05-23) which confirmed `elevationGapAtAlignmentDeg` is accurate. This aligns the formula with the `ElevationGapBadge` visual threshold (~0.26° = moon apparent radius).
+
+- **`useTransitCandidates` — range-at-alignment filter excludes out-of-range transits** — A candidate whose transit is predicted to occur when the aircraft is > 100 km from the observer is now excluded from the list entirely (not just from `willTransit`). Previously only the aircraft's *current* position was range-checked (in `screenTransitCandidates`); a plane within 100 km now but moving away could appear in "In frame" with its transit predicted 300+ km away — useless for photography. New constant `MAX_TRANSIT_SLANT_METERS = 100_000`. `photographerPack` now exposes `futureSlantMeters: number | null` (the ECEF slant distance at the dead-reckoned alignment position) so `useTransitCandidates` can apply this check.
+
+- **`screening.ts` — initial range filter reduced from 150 km to 100 km** — `MAX_SLANT_RANGE_METERS` was 150 000 m. Reduced to 100 000 m to match the photographable limit stated in the observer radius ring (100 km). At 150 km a 40 m aircraft subtends ~0.011° (< 4 % of moon disc); including these planes created noise in the candidate list with no practical value.
+
+### Added
+
+- **`geometryEnginePhotographer.ts` — `futureSlantMeters` return field** — `photographerPack` now includes `futureSlantMeters: number | null`: the ECEF slant range from observer to the dead-reckoned aircraft position at the predicted azimuth-alignment time. `null` when `timeToAlignmentSec` is null (no alignment predicted). Used by `useTransitCandidates` for the range-at-alignment filter.
+
+- **`moonFieldVisibilityAdvice.ts` — `CRITICAL_BELOW_DEG` exported** — The `5°` threshold that defines the "Critical / Hidden" tier is now an exported constant so domain logic and UI can share the same value without duplication.
+
+- **`useTransitCandidates` + `useActiveTransits` — minimum moon altitude raised from 0° to 5°** — Both hooks previously returned candidates / active transits whenever the moon was above the mathematical horizon (`altitudeDeg > 0`). The moon at 0–5° elevation is labelled "Critical / Hidden — Too low, likely blocked by horizon" in `MoonEphemerisPanel`, yet the old guard allowed candidates and alerts to appear in that range — a contradiction. Both hooks now use `moon.altitudeDeg < CRITICAL_BELOW_DEG` (5°) as the early return, matching the same threshold displayed to the user.
+
+---
+
+## [2026-05-24] — Transit Candidate Screening: Direction + Range Filters, Observer Ring 80 km
+
+### Changed
+
+- **`screening.ts` — hard filter: diverging aircraft removed** — `screenTransitCandidates` now rejects any aircraft whose angular separation from the moon is *increasing*. For each flight with a known `trackDeg` and `groundSpeedMps`, the position is extrapolated 30 s forward; if the future angular separation ≥ the current one the aircraft is moving away from the moon and is dropped from the candidate list. Flights without speed/track data (rare) pass the direction check unconditionally. Previously, the list included all aircraft sorted by current separation regardless of direction — a diverging aircraft at 30° could appear above a converging one at 35°.
+
+- **`screening.ts` — hard filter: slant range ≤ 150 km** — Aircraft farther than `MAX_SLANT_RANGE_METERS = 150 000 m` are dropped before any angular math is done. At 150 km a 40 m aircraft subtends ~0.015° (~3 % of the moon disc diameter) — below that threshold transit photography is not meaningful. The range check is evaluated using the existing `slantRangeMeters` (ECEF-based) helper, which is cheaper than the subsequent horizontal-coordinate math.
+
+- **Observer ring on map — 80 km (was 100 km)** — `useMapObserverRadiusSync` now draws the dashed ring at 80 km. At 80 km a typical airliner subtends ~0.029° (~6 % of the moon disc), which represents a practical lower limit for recognisable silhouette photography with a 600 mm lens. The ring now visually communicates the "worth watching" zone rather than the API query radius (which remains 100 km in `openSkyStyleQueryRegion.ts`).
+
+- **`TransitCandidate` type — `elevationGapDeg` field** — New optional field `elevationGapDeg: number | null` added to `TransitCandidate` (`src/types/transit.ts`). Holds the signed elevation difference (aircraft − moon) at predicted azimuth alignment, sourced from `photographerPack.elevationGapAtAlignmentDeg`. `screening.ts` sets it to `null` (screening is camera-agnostic and does not run `photographerPack`); it is populated in `useTransitCandidates`.
+
+- **`useTransitCandidates` — `photographerPack` enrichment + two additional filters** — After `screenTransitCandidates`, the hook now runs `GeometryEngine.photographerPack` for every screened candidate and applies two further gates: (1) **azimuth alignment must be predicted** — if `pack.timeToAlignmentSec` is `null` the aircraft's current track will never reach the moon's azimuth, so it is dropped (fixes false positives where a plane was momentarily converging in 2D sky-sphere separation but on a non-intersecting heading); (2) **elevation gap ≤ 2°** — a miss larger than ~4 moon diameters has no astronomical relevance regardless of optics; transit candidate filtering is intentionally camera-agnostic (focal length affects framing, not whether a transit occurs). The `elevationGapDeg` field is populated from `pack.elevationGapAtAlignmentDeg` for surviving candidates.
+
+- **`TransitCandidatesPanel` — `ElevationGapBadge`** — Each candidate row now shows a second line with the predicted elevation gap at alignment: emerald when `|gap| ≤ 0.26°` (within the lunar disc — transit confirmed), amber for `0.26°–1.5°` (close near-miss), muted for `> 1.5°`. Missing when `photographerPack` could not compute an alignment.
+
+- **`shotFeasibility.ts` — `CAMERA_SENSOR_HEIGHT_MM` and `verticalFovDeg`** — Added a physical sensor-height table (`fullFrame` 24 mm, `apsC` 15.6 mm, `apsC16` 14.9 mm, `microFourThirds` 13 mm) and a `verticalFovDeg(focalLengthMm, sensorType)` helper for downstream use in framing tools. Transit candidate filtering does **not** use these values — they are reserved for photographer advisory features.
+
+---
+
+## [2026-05-23] — 3D Transit Prediction: Elevation Gap, Confirmed-Transit Badge
+
+### Added
+
+- **`photographerPack` — full 3D transit prediction (`willActuallyTransit`)** — After computing the azimuth-alignment ETA, the function now projects the aircraft's future position along a great circle (spherical-Earth dead reckoning: `deadReckonPosition` in `geometryEnginePhotographer.ts`) to the predicted alignment time, looks up the moon state at that future instant, and computes the full 2D sky angular separation (azimuth + elevation). Three new return fields:
+  - `willActuallyTransit: boolean` — `true` only when the sky separation at alignment ≤ moon apparent radius + aircraft angular radius. This is the definitive "yes, it will cross the disk" flag.
+  - `separationAtAlignmentDeg: number | null` — exact sky separation at that moment.
+  - `elevationGapAtAlignmentDeg: number | null` — signed elevation difference (aircraft − moon) at alignment. Negative = aircraft will pass below the moon; positive = above. When `|gap| < ~0.26°` (moon radius) and `willActuallyTransit` is true the badge is green.
+
+- **Map — green ring badge (`CONFIRMED_TRANSIT_BADGE_LAYER_ID`)** — A green circle-stroke layer (radius 12, stroke `#22c55e`, 2.5 px) is rendered on top of every aircraft whose `isConfirmedTransit` GeoJSON property is `true`. That property is set by `computeConfirmedTransitFlightIds` (`src/lib/domain/transit/computeConfirmedTransitFlightIds.ts`) — a new function that runs `photographerPack` for every transit candidate and collects IDs where `willActuallyTransit === true`. Computed and passed from `MapContainer` via `useMapGeoJsonSync`; recalculated on every ADS-B tick. Layer registered in `addConfirmedTransitBadgeLayer` (called inside `registerMoonTransitLayers`).
+
+- **PhotographerToolsPanel — transit confirmation badge** — Below the countdown timer, a coloured pill now shows:
+  - **"Disk transit confirmed"** (emerald) — aircraft will actually cross the moon disk at alignment.
+  - **"Azimuth only — elevation miss (Δalt ±X.XX°)"** (amber) — azimuth will align but the aircraft will be `X.XX°` above or below the moon. The sign is the same as `elevationGapAtAlignmentDeg` (negative = aircraft passes below).
+  Two new data rows in the kinematic table: **Sky separation at alignment** (coloured green/amber) and **Elevation gap at alignment**.
+
+### Changed
+
+- **`useActiveTransits` — full sky angular separation (was azimuth-only)** — The hook previously filtered aircraft by `azimuthDeltaDeg(moon, aircraft) ≤ 0.5°`, ignoring the elevation component. It now uses `angularSeparationDeg({ altitudeDeg, azimuthDeg }, moonDir)` — the great-circle angle on the celestial sphere — as the threshold. Aircraft that happen to share the moon's azimuth but sit at a significantly different elevation angle (common for distant traffic) no longer appear as "active transits." `ActiveTransitRow.deltaAzDeg` renamed to `separationDeg` (consumers updated: `ActiveTransitsPanel`, `HomePageClient`, `useHomeShellOrchestration`, `useTransitCandidateNotifications`).
+
+- **`useNearestTransitWindow` — full sky angular separation (was azimuth-only)** — `minAzimuthForFlights` replaced by `minSkyAngularSepForFlights`: sweeps the 24-hour slider window and, at each step, computes the 2D angular separation for every flight. The "nearest window" is now the time at which an aircraft is closest to the moon **on the full celestial sphere**, not just in the azimuth dimension. Also adds a moon-below-horizon guard (returns 180° when `moon.altitudeDeg ≤ 0` so below-horizon steps are never reported as the best window).
+
+- **`ActiveTransitsPanel` description text** — Updated from *"Moon and aircraft azimuth (from altitude) within 0.5°"* to *"Aircraft within 0.5° of the moon disc — full sky separation (azimuth + elevation)"* to reflect the corrected metric.
+
+- **`PhotographerToolsPanel` countdown label** — Changed from *"Time until moon and plane line up"* to *"Time until azimuth alignment"* to distinguish azimuth-alignment time from the more precise disk-transit confirmation above it.
+
+### Validated
+
+- Real-world test (2026-05-23): the app predicted a small negative `elevationGapAtAlignmentDeg` (aircraft would pass just below the moon), and the resulting photograph confirmed this exactly — the aircraft passed immediately below the lunar limb with contrails visible.
+
+---
+
+## [2026-05-22] — Flight Log Panel: Airline Logos, Callsign Route History & Mean Path
+
+### Added
+
+- **Flight Log panel** — New shell panel (`panelRegistry` id `"flightlog"`, `wide: true`) that lists all distinct aircraft seen by the local ADS-B receiver. Supports three time ranges (24 h / 7 d / 30 d) as pill buttons. Columns: airline logo | Carrier | Callsign | Reg | Type. Pagination: 50 rows per page.
+
+- **Flight Log — client-side search including carrier name** — The panel fetches up to 1,000 rows for the selected window (no server-side search) so that `callsignToCarrier()` can filter by full airline name on the client. Typing "croatia" now matches Croatia Airlines (CTN prefix) even though the word does not appear in the callsign or registration. Search is debounced 350 ms; a clear × button appears when there is input.
+
+- **Flight Log — airline logo column** — `AirlineLogo` component uses `callsignToKiwiIata()` to resolve the ICAO 3-letter designator to an IATA code and loads the airline logo from the Kiwi CDN (`https://images.kiwi.com/airlines/64x64/{IATA}.png`) — same CDN used in the aircraft map popup. Falls back to a dashed placeholder box when the IATA mapping is unknown or the image fails to load.
+
+- **Flight Log — `callsignToCarrier` and `callsignToAirlineFlag`** — New `src/lib/flight/icaoAirline.ts` with 110+ ICAO 3-letter designator → airline name mappings and designator → home-country flag emoji. `callsignToCarrier` is used in the Flight Log carrier column and in client-side search.
+
+- **Flight Log — `callsignToKiwiIata`** — Added to `src/lib/flight/flightDisplayLabels.ts`; accepts a raw callsign string (not a `FlightState`) and returns an IATA code for the Kiwi logo URL, or `null` if unknown.
+
+- **Flight Log — reg/type fallback from positions table** — `getAircraftList` SQL now uses `COALESCE(a.registration, MAX(p.registration))` and `COALESCE(a.aircraft_type, MAX(p.aircraft_type))` so that reg and type are populated even when the `aircraft` metadata table is sparse (e.g. when readsb does not enrich the aircraft).
+
+- **Flight Log — row click draws route on map** — Clicking a row with a callsign sets `flightLogSelectedCallsign` in the store, which triggers `useCallsignHistoryLayer` to draw session lines + mean path for that callsign. Clicking an ICAO24-only row sets `flightLogSelectedIcao24` + `flightLogDaysBack`, which triggers `useSelectedFlightTrail` to draw the historical track for that aircraft. A selection hint chip at the bottom of the panel shows what is active and provides an × clear button.
+
+- **Map — callsign session history and mean path (`useCallsignHistoryLayer`)** — New hook watching `flightLogSelectedCallsign` + `flightLogDaysBack`. On selection, fetches `/api/flight-log/callsign-analysis` and populates two Mapbox sources:
+  - **Session lines** (`callsign-sessions-geo` / `callsign-sessions-layer`) — one `LineString` per flight session through the local ADS-B coverage area; thin (1.5 px), sky-400 at 28 %, slight blur. Overlapping sessions accumulate naturally into a heat corridor without a separate heatmap layer.
+  - **Mean path** (`callsign-mean-geo` / `callsign-mean-layer`) — spatial-bin average computed server-side: primary axis (lng or lat, whichever spans more) is binned at 0.04°; bins with ≥ max(1, 40 % of sessions) are kept; secondary coordinates are averaged; result is a `LineString` oriented to match the first session's direction. Rendered as a glow pass (7 px, blur 4) behind a crisp centre line (2.2 px, sky-200 at 92 %).
+
+- **API — `/api/flight-log/callsign-analysis`** — New route handler. Returns `{ sessions: FeatureCollection, mean: FeatureCollection, sessionCount }`. Sessions are grouped from the `positions` table by 20-minute time gaps; sessions with < 3 points are discarded; long sessions are sub-sampled to ≤ 150 evenly-spaced points. Mean path uses the spatial-bin algorithm described above.
+
+- **API — `/api/flight-log/aircraft-list`** — New route handler returning `{ rows: AircraftListRow[], total }`. Used by the Flight Log panel.
+
+- **Store — Flight Log selection fields** — Added to `moon-transit-store`:
+  - `flightLogSelectedIcao24 / setFlightLogSelected(icao24, days?)` — drives `useSelectedFlightTrail` with an extended window.
+  - `flightLogSelectedCallsign / setFlightLogSelectedCallsign(callsign)` — drives `useCallsignHistoryLayer`.
+  - `flightLogDaysBack` — time window (days) for the ICAO24 trail (up to 720 h / 30 days).
+
+- **`useSelectedFlightTrail` extended** — Now also handles `flightLogSelectedIcao24`. When a Flight Log ICAO24 selection is active it takes priority over the live trail; it fetches `track/[icao24]?hours=N` with `N = daysBack × 24` (capped at 720 h).
+
+- **`track/[icao24]` hours cap raised** — Max `hours` parameter raised from 168 (7 days) to **720** (30 days) to support the Flight Log panel's 30-day time range.
+
+- **`PanelDef.wide` flag** — `panelRegistry.tsx` `PanelDef` type now accepts an optional `wide?: boolean`. When `true`, `FloatingRail` renders the panel drawer at `w-[min(50vw,960px)]` instead of the default `w-[420px]`. The `"flightlog"` panel uses this to show the full table comfortably.
+
+## [2026-05-22] — Transit detection fix + AR camera improvements
+
+### Fixed
+
+- **Transit detection used stale ADS-B positions** — `useActiveTransits`, `screenTransitCandidates`, `computeShotFeasibleFlightIds` and `useTransitFieldSounds` all computed aircraft angular position from the raw `f.position` in the store, ignoring how old the data was. OpenSky free API timestamps (`time_position`) can be 5–15 minutes old; an aircraft at 250 m/s moves ~150 km in 10 minutes, so the app was flagging transits that had already ended or had not yet started. Fix: each of these functions now calls `extrapolateFlightForDisplay(f, Date.now(), latencySkewMs)` before passing the position to `horizontalToPoint`. `openSkyLatencySkewMs` is read from the store where it was not previously used in transit geometry. Fix is source-agnostic: for fresh sources (localsdr, adsbone) `f.timestamp` is seconds old so extrapolation is negligible; only stale OpenSky data is materially corrected.
+
+- **Extrapolation cap too conservative** — `EXTRAPOLATE_DT_CAP_SEC` was 45 s, meaning positions older than 45 s were frozen. Raised to **900 s** (15 minutes) to cover the full realistic OpenSky API staleness window. `MAX_LEAD_SEC` (40 s predictive lead for display smoothing) is unchanged.
+
+### Added
+
+- **AR camera — diagnostic info bar** — A small monospace strip above the compass widget shows in real time: camera heading `↑ 085°`, camera pitch `∠ +32°`, flight data age in seconds (green < 120 s, red otherwise), and moon azimuth/altitude `☽ 210°/28°`. Allows the user to verify sensor readings and data freshness without leaving the AR view.
+
+- **AR camera — elevation angle on aircraft labels** — Every visible and offscreen aircraft marker now shows its elevation angle: `THY3VD +12°`. Allows the user to understand why an aircraft labelled in the AR is not visible to the naked eye (low elevation, very distant).
+
+- **AR camera — moon tap calibration (`Cal ☽`)** — The bottom bar "Reset cal" button is replaced by a three-state "Cal ☽" button. When tapped, the overlay shows "Tapni gdje stvarno vidiš Mjesec u kameri" and the user taps the real moon position in the camera frame. The app computes `calibrationOffsetDeg = normalizeSignedAngleDeg(moon.azimuthDeg − headingDeg − tapDxDeg)` and applies it to all AR projections, correcting magnetic interference without requiring the user to move. The button turns green and shows `Cal +X°` while a non-zero offset is active; tapping it again resets to 0.
+
+### Changed
+
+- **AR camera — altitude filter raised** — Aircraft with `altitudeDeg < 0°` are no longer shown in the AR overlay (was `< −5°`). Aircraft technically below the horizon were being labelled in AR but were invisible to the eye.
+
+- **AR camera — compass accuracy thresholds tightened** — Badge colours now change at ≤ 10° (green) / ≤ 20° (amber) / > 20° (red), down from ≤ 15 / ≤ 30. The magnetic interference warning (previously text shown only above 30°) now appears above **15°** so that a typical balcony-near-crane reading of ±26° immediately shows a red warning with an explanation.
+
+## [Unreleased]
+
+### Added
+
+- **Flight history logging — local ADS-B position log** — When the LunaPic ADS-B (localsdr) source is active, `server.js` continuously logs aircraft positions to a local SQLite database (`data/flight-log.db`) on the server. The background poller (`startFlightLogger()`) runs in `server.js` alongside the Next.js app: it polls the Pi's `aircraft.json` every 15 s, writes each aircraft with a valid position to an in-memory sql.js database, and saves a snapshot to disk every 30 s (plus after each batch write and on process exit/SIGTERM). On startup, `server.js` loads any existing DB file from disk so the history survives restarts. De-duplication: a position is only written if the aircraft has moved > 120 m or > 90 s have passed since the last log entry for that ICAO24. Schema: `positions` table (id, icao24, callsign, lat, lng, alt_baro_m, alt_geom_m, speed_mps, track_deg, vert_rate_fpm, squawk, rssi, registration, aircraft_type, logged_at) + `aircraft` table (metadata per ICAO24; upserted on each write using `ON CONFLICT … DO UPDATE SET … = COALESCE(excluded.field, field)`). Indexes on icao24, logged_at, callsign.
+
+- **Flight history — extended ADS-B fields from readsb** — `LocalSdrAircraft` type and `parseLocalSdrAircraft.ts` now extract additional fields from the readsb `aircraft.json` payload: `r` (registration), `squawk`, `baro_rate` / `geom_rate` (vertical rate, ft/min), `rssi`, `desc` (aircraft description from readsb database). These are mapped to `FlightState.registration`, `squawk`, `verticalRateFpm`, `rssi`, `aircraftDescription` and are stored in the flight log.
+
+- **Flight history — sql.js (pure WASM SQLite)** — The database layer (`src/lib/db/flightLogDb.ts`) uses **sql.js** (pure JavaScript + WebAssembly port of SQLite) rather than a native addon. No native compilation is needed, making it suitable for cPanel shared hosting. Key pattern: `require("sql.js")` is called inside a function body (not a top-level import) with a `locateFile` callback pointing to the absolute path of `sql-wasm.wasm`. This avoids both Turbopack's module-name mangling bug (packages with dots get hash-suffixed IDs when listed in `serverExternalPackages`) and ESM/CJS interop problems. The singleton `_sqlPromise` caches the init result across requests. API routes each open a fresh read-only in-memory copy of the DB file per request (`openReadDb()`).
+
+- **Flight history — API routes** — Five new Route Handlers under `src/app/api/flight-log/`:
+  - `track/[icao24]` — returns a GeoJSON `FeatureCollection` with a single `LineString` of `[lng, lat, alt_baro_m]` coordinates for the requested aircraft in the given time window (`?hours=N`, default 24, clamped 0.5–168).
+  - `heatmap` — returns a GeoJSON `FeatureCollection` of `Point` features with a `weight` property (normalised hit count), suitable for a Mapbox `heatmap` layer. Grid resolution configurable (`?res=0.05`), time window `?days=7`.
+  - `routes` — returns a GeoJSON `FeatureCollection` of `LineString` features, one per callsign with ≥ 10 points in the window (`?days=30`). Long routes are evenly sub-sampled to ≤ 500 points.
+  - `stats` — returns `{ total, last24h, uniqueIcao, topCallsigns }` — overall DB statistics.
+  - `aircraft/[icao24]` — returns aircraft metadata row (registration, type, description) or `null`.
+  All routes are `force-dynamic` with `no-store` caching. SQL errors return an empty result rather than a 500 so a missing or incomplete DB never crashes the UI.
+
+- **Map — historical trail behind selected aircraft** — When the LunaPic ADS-B (localsdr) source is active and an aircraft is selected, a line is drawn on the map showing where that aircraft has been in the past 2 hours (`useSelectedFlightTrail` hook). The trail uses a Mapbox `line-gradient` with `lineMetrics: true` on the source: fully transparent at the oldest end, fading up to amber `rgba(253, 230, 138, 0.9)` at the current position. In-flight fetch requests are cancelled via `AbortController` when the selection changes. The trail is cleared when the aircraft is deselected or localsdr is disabled. Source: `selected-flight-trail-geo`; layer: `selected-flight-trail`.
+
+- **Map — flight history heatmap and route lines** — Two optional map overlays driven by the flight log:
+  - **Density heatmap** (`flight-history-heatmap-layer`) — shows where aircraft have flown most frequently over the past 7 days; uses Mapbox `heatmap` layer with `heatmap-weight` from the `weight` property. Colour ramp: blue (sparse) → green → yellow → red (dense). Max zoom 14.
+  - **Route lines** (`flight-history-routes-layer`) — semi-transparent cyan polylines (`rgba(100,200,255,0.22)`) per callsign, last 30 days. Blurred slightly for a soft overlay feel.
+  Both are toggled from the Layers panel (new "Flight history" section with two switches). State: `flightHistoryHeatmap` and `flightHistoryRoutes` booleans in `moon-transit-store` (both default `false`). Data is lazily fetched when first enabled and refreshed every 5 minutes (`useFlightHistoryLayers` hook).
+
+- **UI — green zone (shot-feasible) alert** — A new `GreenZoneAlert` floating card appears when one or more aircraft enter the **shot-feasible** (green) zone — that is, they satisfy both geometric moon-disc overlap (`screenTransitCandidates`) *and* optical range for the current focal length / sensor crop (`computeShotFeasibleFlightIds`). The card uses an amber/gold colour scheme to visually distinguish it from the emerald `IncomingTransitAlert` (which signals moon-ray alignment). It shows the callsign of the first feasible aircraft and a count badge. Tapping the card opens the **Photo tools** panel; the × button dismisses it until the feasible count changes. Rendered in both desktop (absolute, above the transit alert) and mobile (compact, above the time ribbon) layouts. State: `greenDismissedAtCount` in `HomePageClient` (same derived-state pattern as `dismissedAtCount`). No new store fields required — `cameraFocalLengthMm` and `cameraSensorType` are read directly from `moon-transit-store` inside `HomePageClient`.
+
+## [2026-05-19] — AR Module: Full Sensor Fix
+
+### Fixed
+
+- **AR Sky Camera — wrong camera azimuth (+180° removed)** — `webkitCompassHeading` with iOS tilt compensation already gives the rear camera's horizontal azimuth directly; no offset is needed. The previous `+180°` correction placed all sky objects 180° opposite their true position — the compass showed South where North should be, and the Moon could not be centred because tilting toward it sent it further off-screen. Formula is now `(headingDeg + calibrationOffsetDeg + 360) % 360`. Confirmed by `CompassAimPanel`, which uses `headingDeg` with no offset and produces a correct compass display.
+
+- **AR Sky Camera — inverted pitch formula** — `toCameraPitchDeg(beta)` used `90 − beta`, which gives *negative* pitch when the camera tilts upward. The rear camera is on the back of the phone: tilting to view the sky brings the screen face-down and **increases** beta (90° upright → 180° flat screen-down = camera up). Correct formula is `beta − 90`: beta 90° → 0° (horizontal) ✓; beta 180° → 90° (zenith) ✓; beta 0° (screen up, camera pointing at floor) → −90° ✓. The previous formula (`90 − beta`) caused the Moon's off-screen arrows to point users in the wrong vertical direction.
+
+- **AR Sky Camera — off-screen arrows pointing in the wrong vertical direction** — `dyDeg = altitudeDeg − pitchDeg`. When `dyDeg > 0` the target is above the frame; the arrow must point **up** (`rotate(0deg)` on ▲). The bug had `dyDeg > 0 → rotate(180deg)` (▼), so tilting toward the arrow moved the target further off-screen. Fixed in both `offscreenArrows` (aircraft) and `moonOffscreenArrow`.
+
+- **AR Sky Camera — heading oscillation / Moon jumping to screen edge** — raw `webkitCompassHeading` can spike by tens of degrees due to magnetic glitches. Added two-stage filtering: (1) **outlier rejection** — skip any sample that deviates > 45° from the smoothed heading (physically impossible by hand); (2) **warmup alpha** — use alpha = 0.25 for the first 60 samples (~1 s) for fast initial lock-on, then alpha = 0.06 for long-term stability. `headingSamplesRef` is reset each time the AR view opens.
+
+- **AR Sky Camera — Recenter button used an invalid formula** — `normalizeSignedAngleDeg(prev − headingDeg)` set the calibration offset to a mathematically incoherent value. Recenter now resets `calibrationOffsetDeg` to `0`.
+
+### Added
+
+- **AR Sky Camera — compass accuracy indicator** — reads `webkitCompassAccuracy` (iOS) from each `deviceorientation` event and displays a `±N°` badge below the compass rose: green (≤ 15°), amber (≤ 30°), red (> 30°). When accuracy exceeds 30° a banner warns about magnetic interference and advises moving away from metal structures. The badge is suppressed when the value is unavailable (non-iOS or sensor not reporting).
+
+## [2026-05-17] — Moon Nowcast Phase Warning & Aircraft Scale Fix
+
+### Added
+
+- **Moon (nowcast) — illumination phase warning in Visibility Advice** — `MoonEphemerisPanel` now shows a **Phase** row under Visibility Advice when the lunar illumination fraction is below 20 %. Below 5 % (near new moon) a red warning reads *"Near new moon — Moon too dark to photograph — not visible to the naked eye."*; 5–20 % (thin crescent) shows an amber caution *"Thin crescent — Low contrast — hard to locate; best in twilight near horizon."* At ≥ 20 % no row is shown (moon is bright enough for photography). The advice is computed by a `illuminationAdvice` memo inside `MoonEphemerisPanel`, derived from `moon.illuminationFraction`.
+
+### Changed
+
+- **Map — 3D aircraft icons scale correctly at max zoom** — `FLIGHT_MODEL_SCREEN_SIZE_MIN_FACTOR` in `registerMoonTransitLayers.ts` further reduced from `0.3` to `0.02`. At zoom 16 the unclamped scale factor is `2^(11−16) ≈ 0.031`, so the floor no longer clamps it and models shrink to their natural screen size when fully zoomed in. The `0.02` floor only prevents models becoming invisible at extreme zoom ≥ 17.
+
+## [2026-05-17] — Map Flight Display, Moon Path Circle & Observer Radius
+
+### Added
+
+- **Map — observer API radius circle** — A new thin dashed ring (`#94a3b8`, opacity 0.35) is drawn on the map at exactly 100 km from the observer, matching the bounding radius used for flight API queries. Source `observer-radius-geo` and layer `observer-radius-layer` are registered in `registerMoonTransitLayers.ts`; `useMapObserverRadiusSync` (new hook) generates a 120-point GeoJSON `LineString` using `destinationByAzimuthMeters` and updates the source whenever the observer position changes. Note: the API query uses a rectangular bbox, so flights may appear slightly outside the circle in the diagonal corners (~141 km max); this is expected and by design.
+
+### Changed
+
+- **Map — 3D aircraft icons scale correctly at high zoom** — `FLIGHT_MODEL_SCREEN_SIZE_MIN_FACTOR` in `registerMoonTransitLayers.ts` reduced from `1.4` to `0.3`. Previously the minimum factor kicked in at zoom ≥ 11, causing models to grow progressively larger on screen as the user zoomed in (world-space size constant while screen pixels multiplied). Models now shrink proportionally beyond the reference zoom, keeping apparent screen size roughly constant across all zoom levels.
+
+- **Map — sideways aircraft icons fixed** — When `trackDeg` is unavailable (ground traffic, poor ADS-B signal), the feature property `track` is now set to `null` instead of `0`. The 3D model layer gains `filter: ["!=", ["get", "track"], null]` so aircraft without valid heading are not rendered as 3D models (they remain visible as the circle fallback layer). Previously `track = 0` caused the yaw offset to produce an east-facing (sideways) model for all untracked aircraft — a frequent occurrence at busy airports like Schiphol where many ground vehicles report no track.
+
+- **Map — ghost effect for stale ADS-B data** — A `staleness` property (`0.0` = data <15 s old, `1.0` = data >45 s old, linear) is computed in `useMapGeoJsonSync` from `Date.now() − f.timestamp`. The 3D model layer interpolates `model-opacity` from `1.0` to `0.28` by staleness; shadow and circle-fallback layers do the same with `circle-opacity`. Aircraft with weak or infrequent ADS-B pings visually fade out, distinguishing frozen positions from live ones.
+
+- **Map — moon path circle always 80 % of viewport height** — `useMapMoonOverlayFeatures` now accepts a `mapHeightPx` parameter (default `0`). When the map height is known, `dynamicRayM` is computed as `0.4 × mapHeightPx × metersPerPixel` (Mapbox 512-px tile formula at observer latitude) so the full-day moon path ring always subtends 80 % of the viewport height regardless of zoom. `MapContainer` provides `mapHeightPx` via a `ResizeObserver` on the map element. The old zoom-scaling formula is retained as a fallback for the initial render before the observer fires.
+
+- **Map — moon path smoothness improved** — Full-day circle sampling step reduced from 30 min to **5 min** (`fullDaySamples` in `useMapMoonOverlayFeatures`), increasing ring sample count from ~48 to ~288 points per day. Primary visible-arc sampling also reduced to 5 min via an optional `stepMs` parameter added to `AstroService.getMoonPathMapSpec`. Both arcs now render without visible straight-line segments at city-level zoom.
+
+- **Flights — observer relocation immediately clears out-of-range aircraft** — Moving the observer now calls `pruneFlightsToObserverRadius(lat, lng, 100)` synchronously before the debounced API refresh. Previously, aircraft from the old location remained visible for up to 32 s (retention window) because `mergeFlightsWithOpenSkyRetention` checked map-viewport bounds rather than observer distance. The new store action (`pruneFlightsToObserverRadius`) filters the in-memory flight list by `greatCircleDistanceMeters` ≤ 100 km, matching the query radius exactly.
+
+## [2026-05-17] — Astronomy Engine, AR Sky Moon Marker & Street View Improvements
+
+### Changed
+
+- **Astronomy — replaced `suncalc` with `astronomy-engine` (USNO-grade ephemeris)** — `src/lib/domain/astro/moon.ts` `getMoonState()` now uses `Astronomy.Equator()` + `Astronomy.Horizon()` with atmospheric refraction instead of SunCalc's simplified lunar theory. Accuracy improves from ~0.25° azimuth / ~0.5° altitude (roughly one Moon diameter) to <1 arcminute. Phase and illumination calculation likewise migrated to `Astronomy.MoonPhase()` and angular elongation — SunCalc is no longer used for these values. **Reason:** SkyView and LunaPic showed the Moon at visually different positions; the SunCalc error was large enough to affect transit-photography framing in the field.
+
+- **Astronomy — observer elevation propagated to `getMoonState`** — `getMoonState` now accepts a 4th argument `observerElevM = 0` (metres above sea level). Every call site now passes `observer.groundHeightMeters` so the atmospheric refraction model reflects the actual observer altitude instead of assuming sea level.
+
+- **Astronomy — `AstroService` facade** — All moon-position calls go through `AstroService` in `src/lib/domain/astro/astroService.ts`. Direct use of SunCalc in application code is removed.
+
+### Added
+
+- **AR Sky Camera Panel — Moon marker and off-screen compass arrow** — `src/components/field/ArSkyCameraPanel.tsx` now shows the Moon in the AR overlay when it is within the camera's field of view: a `○` marker with an amber "Moon" label. When the Moon is outside the viewport, an off-screen edge arrow (▲ + label "Moon", same pattern as aircraft arrows) points toward it. `moonScreen` is extended with `dxDeg` and `dyDeg` fields for the arrow angle computation; `moonOffscreenArrow` is a new `useMemo` that produces the arrow's edge position and rotation.
+
+- **Street View — rotated aircraft icon** — Aircraft in `src/components/map/StreetViewFullscreen.tsx` now render as a custom canvas silhouette drawn by `tracePlane()`, oriented correctly upward (−Y) and rotated by the `trackDeg` projected onto the screen. This replaces the `✈` emoji, which has an inconsistent font-rendering orientation across platforms.
+
+- **Street View — 90-second radar-style trajectory for active transits** — Active-transit aircraft in Street View show a 90-second predicted trajectory: a series of shrinking dots extending 15 km forward plus an arrowhead at the end. Candidate aircraft show only the icon and label (no trajectory) to reduce visual noise.
+
+- **Street View — visual hierarchy** — Active transits render at size 10 with a glow effect and trajectory; candidates render at size 6 without a glow. `bearingOffsetLatLng()` helper (haversine forward computation) is added to `StreetViewFullscreen.tsx` to project the future aircraft position from current track.
+
+## [2026-05-17] — Security, Architecture & Error Monitoring
+
+### Added
+
+- **Security — in-memory rate limiter for API routes** — `src/lib/server/rateLimiter.ts` implements a sliding-window per-IP rate limiter (60 req/60 s default). Works reliably on cPanel's persistent Node.js process. Both `/api/opensky/states` and `/api/adsbone/point` now return `429 Too Many Requests` with a `Retry-After` header when the limit is exceeded. Auto-prunes expired entries every 5 minutes via an unref'd `setInterval`.
+
+- **Architecture — panel registry** — `src/components/shell/panelRegistry.tsx` is the single source of truth for all shell panels. Each `PanelDef` entry holds `id`, `label`, `dockLabel`, `mobileTitle`, `icon`, `accent`, and `dockPrimary`. `HomePageClient` now derives `RAIL_ITEMS`, `DOCK_PRIMARY`, `MORE_PANELS`, mobile sheet titles, and accent colours directly from the registry — previously these were defined across 5 separate static constants. Adding a new panel now requires changes in 2 places instead of 5.
+
+- **Architecture — VFR region config** — `src/lib/map/vfrRegionConfig.ts` centralises all Croatia-specific VFR map data: `label`, `tileBounds`, and `borderRing`. Replaces the old `croatiaVfrBorder.ts` (anonymous coordinate array without context) and the hardcoded `CROATIA_TILE_BOUNDS` constant in `registerMoonTransitLayers.ts`. The new file includes instructions for adapting the app to a different region.
+
+- **Error monitoring — Sentry (client-side)** — `@sentry/nextjs` integrated for browser-side error capture. `sentry.client.config.ts` initialises Sentry in production only (`enabled: NODE_ENV === "production"`), with session replay on error (`replaysOnErrorSampleRate: 1.0`) and 10 % performance trace sampling. Server-side instrumentation omitted due to Turbopack/`require-in-the-middle` incompatibility on cPanel Node.js. DSN stored in `NEXT_PUBLIC_SENTRY_DSN` env var; `SENTRY_AUTH_TOKEN` available for source map uploads.
+
+- **Documentation — senior developer code review** — `documentation/code-review-analiza.md` contains a full SOLID analysis, security audit, dead code review, modularity assessment, and prioritised improvement proposals for the current codebase state.
+
+### Fixed
+
+- **Security — missing numeric validation on `/api/opensky/states` bbox params** — Parameters `lamin`, `lomin`, `lamax`, `lomax` are now validated with `Number.isFinite()` and geographic range checks (`lat` −90…90, `lng` −180…180) before being forwarded upstream. Previously only presence was checked. Matches the existing validation in `/api/adsbone/point`.
+
+### Removed
+
+- **`src/lib/map/croatiaVfrBorder.ts`** — Replaced by `vfrRegionConfig.ts`. The export `CROATIA_BORDER_MAIN` is superseded by `VFR_REGION_CONFIG.borderRing`.
+
+### Changed
+
+- **`HomePageClient.tsx` — icon imports reduced** — 9 of 12 `SectionIcon*` imports moved to `panelRegistry.tsx`; only `SectionIconTime` and `SectionIconQuestionMarkCircle` remain directly imported in `HomePageClient`.
+
+- **`next.config.ts` — `serverExternalPackages`** — Added `@sentry/nextjs`, `@sentry/core`, and `require-in-the-middle` as server external packages to prevent Turbopack from bundling them with hashed module IDs that can't be resolved at runtime.
+
+### Deploy notes (cPanel)
+
+- After any deploy that **removes** a file from the build, that file must be manually deleted on the server — FileZilla only uploads changed/new files and does not delete removed ones. Example: `rm /home/drusanyc/LunaPic/.next/server/instrumentation.js`
+- New npm packages require `npm install` on the server after upload: `source /home/drusanyc/nodevenv/LunaPic/20/bin/activate && cd /home/drusanyc/LunaPic && npm install`
+
+### Added
+
+- **Active transits — directional nudge arrow with live distance** — `ActiveTransitsPanel` now renders a `NudgeArrow` below the flight list (outside the scrollable `<ul>`) when a flight is selected. The arrow is an SVG rotated to the true compass bearing the observer should walk, displayed with a smooth 500 ms CSS transition. Below the arrow a large monospace metre counter shows the remaining distance to the centred position; both values update live as the observer position changes in `observer-store`. When the observer is within 5 m, the arrow is replaced by a green checkmark with "Centered". The cardinal direction ("Walk NW", "Walk SE", etc., 8-point) is derived from the same bearing.
+
+- **Active transits — true-bearing nudge geometry** — `alignmentHint.ts` gains a new pure function `nudgeBearing(signedMoonToAcDeg, moonAzDeg)` that computes the correct correction direction: always perpendicular to the Moon's ray (`bearingDeg = moonAzDeg + 90° × sign(signedDiff)`), with distance `|signedDiff| × 600` m (capped at 20 km). The previous `nudgeNorthSouthMeters` heuristic (N/S only, with a `1/cosLat` factor) is still present but no longer used by the active-transits pipeline; `nudgeBearing` is now the single source of truth for both the text line and the arrow. `ActiveTransitRow` drops `nudgeCardinal` and exposes `nudgeBearingDeg` instead; `nudgeLine` is generated from the bearing result so text and arrow always agree.
+
+- **Active transits — centred position chime** — `ActiveTransitsPanel` plays a two-tone rising chime (880 Hz → 1320 Hz, Web Audio API `OscillatorNode`, no external files) the moment `nudgeMeters` drops below 5 m for the selected flight. The `useCenteredChime` hook tracks the previous centred state via `useRef` and fires `playCenteredChime()` only on the `false → true` transition, preventing repeated triggers on every render. The `AudioContext` is created fresh per chime and closed after 1.2 s; if the context is blocked (no prior user gesture), the error is silently swallowed.
+
+### Changed
+
+- **Shell — unified glass header bar (desktop + mobile)** — The individually floating glass capsules (`BrandPill`, `CommandBar`, weather pill, icon buttons) are replaced by a single `<header>` element spanning the full viewport width (`absolute inset-x-0 top-0`), equal on both breakpoints. Height is `calc(3.5rem + env(safe-area-inset-top))`; `padding-top: env(safe-area-inset-top)` pushes content below the notch. The bar uses `bg-[rgba(14,18,42,0.85)] backdrop-blur-xl border-b border-white/[0.09]` — no rounded corners, connected to screen edge. `BrandPill` loses its own glass background (plain hover-opacity button). `CommandBar` becomes a transparent inner pill (`border border-white/[0.08] bg-white/[0.04]`). `TopRightCluster` buttons and `WeatherOverlay` render directly in the bar without individual glass wrappers; a thin `h-5 w-px bg-white/[0.12]` separator divides the weather chip from the action icons. `FloatingRail` position updated to `top-[calc(3.5rem+env(safe-area-inset-top)+0.75rem)]` to clear the new header.
+
+- **Shell — `WeatherOverlay` now visible on mobile** — Previously `WeatherOverlay` only appeared in `TopRightCluster` (desktop). After the header unification it is also rendered in the mobile `<header>` (with the same separator), so cloud cover is always visible regardless of breakpoint.
+
+- **Shell — GPS button in header** — A **Use my GPS** button (emerald, crosshair+dot icon) is added to the header action cluster on both desktop and mobile, positioned before the existing **Set my location here** (amber) and **Focus on me** (sky) buttons. While `s.gpsBusy` is true the icon swaps to a spinning arc; the button is disabled during a pending fix or when `observerLocationLocked`.
+
+### Removed
+
+- **Map — `optimal-ground-line` layer removed** — The light-purple dashed `optimal-ground-geo` source and `optimal-ground-line` layer have been removed from `registerMoonTransitLayers`, `useMapGeoJsonSync`, `useMapMoonOverlayFeatures`, `useMapMoonHorizonDeemphasis`, and `MapContainer`. The `GROUND_OPTIMAL_SOURCE` constant (`mapSourceIds.ts`) and `OPTIMAL_GROUND_HALF_M` constant (`mapOverlayConstants.ts`) are also gone. The underlying domain function `GeometryEngine.buildOptimalGroundPathFeatures` is retained in `geometryEngineMoonRay.ts` but is no longer called at runtime. Reason: the strip showed the observer an "optimal standing position" that had no actionable meaning once the observer marker is already placed — the feature was visually confusing without a supporting UI legend.
+
+- **Map — `routes-geo` / `routes-line` Mapbox source+layer removed** — The GeoJSON source `routes-geo` and violet `routes-line` layer were removed from `registerMoonTransitLayers` and `useMapGeoJsonSync`. The `ROUTES_SOURCE` constant is removed from `mapSourceIds.ts`. The static-route domain data (`routes.json`, `staticRouteUtils.ts`) and moon–route intersection geometry (`GeometryEngine.intersectMoonAzimuthWithStaticRoutes`) are still present but remain inactive behind `ENABLE_STATIC_ROUTE_MAP_OVERLAY = false`.
+
+### Changed
+
+- **Map — moon path zoom-adaptive ray length** — `useMapMoonOverlayFeatures` now reads `mapView.zoom` from `moon-transit-store` and computes a dynamic ray length: `MOON_PATH_RAY_LENGTH_M × 2^(6 − zoom)`, snapped to 0.5-increment zoom levels to avoid excessive recomputation, clamped to `[3 000 m, 2 000 000 m]`. At the default zoom 6 the ray is unchanged (200 km); each zoom level up halves it so the moon path arc stays within the visible viewport. The same `dynamicRayM` is applied to the primary path, the full-day guide, the simulated-instant dot, and all hourly labels so they remain mutually consistent at any zoom level.
+
+- **Moon nowcast — cloud cover prop restored** — `HomePageClient` was not forwarding the `cloudCoverPercent` prop to `<MoonEphemerisPanel>` despite the prop being present in `MoonEphemerisPanelProps` and the value being available in the shell orchestration state. Added `cloudCoverPercent={s.cloudCoverPercent}` to the render call so the Clouds row appears as intended.
 
 - **Time — live clock auto-sync** — `moon-transit-store` gains a `tickLiveTime()` action that advances `timeAnchorMs` and `referenceEpochMs` to `Date.now()` only when `timeOffsetMs === 0` (live mode); it also bumps `ephemerisRefetchKey` when a UTC calendar day crosses. `useHomeShellOrchestration` starts a `setInterval(tickLiveTime, 30_000)` on mount so the NOW moon-position line and the live time cursor stay in sync without accumulating drift over longer sessions.
 

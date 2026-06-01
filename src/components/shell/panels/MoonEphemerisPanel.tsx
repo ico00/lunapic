@@ -43,7 +43,7 @@ function tierLabelClass(tier: MoonFieldVisibilityTier): string {
 
 function moonRowLabel(icon: ReactNode, text: string) {
   return (
-    <dt className="flex min-w-0 items-center gap-2 text-zinc-300/85">
+    <dt className="flex min-w-0 items-center gap-2 text-[color:var(--t-secondary)]">
       {icon}
       <span>{text}</span>
     </dt>
@@ -126,6 +126,26 @@ export function MoonEphemerisPanel({
     return `${visibilityAdvice.label} — ${visibilityAdvice.message}`;
   }, [visibilityAdvice]);
 
+  const illuminationAdvice = useMemo(() => {
+    if (!showEphemeris) return null;
+    const pct = moon.illuminationFraction * 100;
+    if (pct < 5) {
+      return {
+        label: "Near new moon",
+        message: "Moon too dark to photograph — not visible to the naked eye.",
+        colorClass: "text-red-400",
+      };
+    }
+    if (pct < 20) {
+      return {
+        label: "Thin crescent",
+        message: "Low contrast — hard to locate; best in twilight near horizon.",
+        colorClass: "text-amber-400",
+      };
+    }
+    return null;
+  }, [showEphemeris, moon.illuminationFraction]);
+
   return (
     <div className="space-y-3">
       {isMoonBelowHorizon && showEphemeris ? (
@@ -133,15 +153,15 @@ export function MoonEphemerisPanel({
       ) : null}
       {balconyIdealForTransitWatch ? (
         <div
-          className="mb-3 rounded-2xl border border-yellow-400/45 bg-yellow-400/[0.10] px-3.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+          className="mb-3 rounded-2xl border border-amber-400/45 bg-amber-400/[0.10] px-3.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
           role="status"
           aria-live="polite"
           data-testid="moon-balcony-transit-watch-ideal"
         >
-          <p className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-yellow-200">
+          <p className="mt-section-label text-amber-300">
             Ideal for transit watch
           </p>
-          <p className="mt-1.5 text-[length:var(--fs-body)] leading-snug text-yellow-100/95">
+          <p className="mt-1.5 text-[length:var(--fs-body)] leading-snug text-amber-200/90">
             Moon height, direction, and phase match the saved balcony reference — clear sight line; a good time to wait on a moon crossing.
           </p>
         </div>
@@ -207,7 +227,7 @@ export function MoonEphemerisPanel({
           className="mt-3 border-t border-white/[0.08] pt-3 space-y-1.5"
           aria-live="polite"
         >
-          <p className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
+          <p className="mt-section-label">
             Visibility advice
           </p>
           <p className="text-[length:var(--fs-meta)] leading-relaxed text-[color:var(--t-secondary)]">
@@ -236,6 +256,16 @@ export function MoonEphemerisPanel({
                 : cloudCoverPercent >= 40
                   ? "moon visibility may be intermittent."
                   : "skies mostly clear."}
+            </p>
+          ) : null}
+          {illuminationAdvice ? (
+            <p className="text-[length:var(--fs-meta)] leading-relaxed text-[color:var(--t-secondary)]">
+              <span className="font-semibold text-[color:var(--t-primary)]">Phase: </span>
+              <span className={`font-semibold ${illuminationAdvice.colorClass}`}>
+                {illuminationAdvice.label}
+              </span>
+              {" — "}
+              {illuminationAdvice.message}
             </p>
           ) : null}
         </div>

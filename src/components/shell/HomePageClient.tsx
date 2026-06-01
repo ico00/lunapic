@@ -7,6 +7,7 @@ import { AddToHomeScreenPrompt } from "@/components/shell/AddToHomeScreenPrompt"
 import { GoldenAlignmentFlash } from "@/components/shell/GoldenAlignmentFlash";
 import { ActiveTransitsPanel } from "@/components/shell/panels/ActiveTransitsPanel";
 import { FlightFiltersPanel } from "@/components/shell/panels/FlightFiltersPanel";
+import { FlightLogPanel } from "@/components/shell/panels/FlightLogPanel";
 import { FlightSourcePanel } from "@/components/shell/panels/FlightSourcePanel";
 import { MoonEphemerisPanel } from "@/components/shell/panels/MoonEphemerisPanel";
 import { ObserverLocationPanel } from "@/components/shell/panels/ObserverLocationPanel";
@@ -18,24 +19,26 @@ import { WeatherOverlay } from "@/components/weather/WeatherOverlay";
 import { useHasMounted } from "@/hooks/useHasMounted";
 import { useHomeShellOrchestration } from "@/hooks/useHomeShellOrchestration";
 import { useIsMdUp } from "@/hooks/useMediaQuery";
-import { useTransitCandidateNotifications } from "@/hooks/useTransitCandidateNotifications";
+import { useCandidateAlerts } from "@/hooks/useCandidateAlerts";
+import { usePushRegistration } from "@/hooks/usePushRegistration";
+import { TransitAlertToast } from "@/components/shell/TransitAlertToast";
+import { NotificationPermissionPrompt } from "@/components/shell/NotificationPermissionPrompt";
 import { useFlightAircraftTypeIndexPrefetch } from "@/hooks/useFlightAircraftTypeIndexPrefetch";
 import { useAstronomySync } from "@/hooks/useAstronomySync";
 import { useWeatherSync } from "@/hooks/useWeatherSync";
 import {
-  SectionIconAR,
-  SectionIconCamera,
-  SectionIconArrowUpCircle,
-  SectionIconField,
-  SectionIconFlightSource,
-  SectionIconMoon,
-  SectionIconObserver,
-  SectionIconArrowsRightLeft,
-  SectionIconFunnel,
   SectionIconTime,
-  SectionIconPaperAirplane,
   SectionIconQuestionMarkCircle,
 } from "@/components/shell/sectionCategoryIcons";
+import {
+  PANEL_REGISTRY,
+  PANEL_BY_ID,
+  DOCK_PRIMARY_PANELS,
+  MORE_PANEL_META,
+  type PanelId,
+  type SheetId,
+  type PanelAccent,
+} from "@/components/shell/panelRegistry";
 import { resumeSharedAudioFromUserGesture } from "@/lib/audio/fieldAudio";
 import { appPath } from "@/lib/paths/appPath";
 import { formatFixed } from "@/lib/format/numbers";
@@ -44,6 +47,7 @@ import {
   uniqueAircraftTypeFilterOptions,
   filterFlightsByCriteria,
 } from "@/lib/flight/flightSearch";
+import { computeShotFeasibleFlightIds } from "@/lib/domain/transit/computeShotFeasibleFlightIds";
 import { useObserverStore } from "@/stores/observer-store";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import type { MapContainerProps } from "@/components/map/MapContainer";
@@ -92,29 +96,19 @@ function BrandPill({ size = "default" }: { size?: "default" | "compact" }) {
       onClick={() => {
         globalThis.location.reload();
       }}
-      className={`mt-glass-elevated pointer-events-auto inline-flex shrink-0 items-center gap-2.5 rounded-full px-3 py-1.5 transition active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500/75 ${
-        isCompact ? "max-w-[min(70vw,12rem)]" : ""
-      }`}
+      className="pointer-events-auto inline-flex shrink-0 items-center gap-2.5 rounded-lg px-1 py-1 transition hover:opacity-80 active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500/75"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={appPath("/logo.png")}
         alt=""
-        width={isCompact ? 28 : 32}
-        height={isCompact ? 28 : 32}
+        width={isCompact ? 26 : 30}
+        height={isCompact ? 26 : 30}
         decoding="async"
         fetchPriority="high"
-        className={
-          isCompact
-            ? "h-7 w-auto max-w-7 object-contain"
-            : "h-8 w-auto max-w-8 object-contain"
-        }
+        className={isCompact ? "h-[26px] w-auto object-contain" : "h-[30px] w-auto object-contain"}
       />
-      <span
-        className={`mt-title shrink-0 leading-none tracking-tight ${
-          isCompact ? "text-[15px]" : "text-base"
-        }`}
-      >
+      <span className={`mt-title shrink-0 leading-none tracking-tight ${isCompact ? "text-[15px]" : "text-[length:var(--fs-body-strong)]"}`}>
         LunaPic
       </span>
     </button>
@@ -128,12 +122,15 @@ function CommandBar({
   onChange,
   resultCount,
   widthClass = "w-[min(420px,42vw)]",
+  floating = false,
 }: {
   query: string;
   onChange: (q: string) => void;
   resultCount: number | null;
   /** Tailwind width class — desktop default, mobile prosljeđuje `w-full`. */
   widthClass?: string;
+  /** Kad je true, bar dobiva vlastiti glass background (koristi se kad lebdi van headera). */
+  floating?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const hasQuery = query.length > 0;
@@ -162,9 +159,9 @@ function CommandBar({
   }, [onChange, query.length]);
 
   return (
-    <div className={`mt-glass-elevated pointer-events-auto flex h-11 items-center gap-2.5 rounded-full px-3.5 transition focus-within:border-white/[0.22] focus-within:ring-1 focus-within:ring-sky-500/30 ${widthClass}`}>
+    <div className={`pointer-events-auto flex h-11 items-center gap-2.5 rounded-full border px-3.5 transition focus-within:ring-1 focus-within:ring-sky-500/30 ${floating ? "mt-glass-elevated border-white/[0.12] focus-within:border-white/[0.22]" : "border-white/[0.08] bg-white/[0.04] focus-within:border-white/[0.22]"} ${widthClass}`}>
       <svg
-        className="h-[17px] w-[17px] shrink-0 cursor-pointer text-zinc-400"
+        className="h-[17px] w-[17px] shrink-0 cursor-pointer text-[color:var(--t-tertiary)]"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -182,15 +179,15 @@ function CommandBar({
         type="text"
         value={query}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Search…"
+        placeholder="Search flights…"
         aria-label="Search flights"
-        className="flex-1 min-w-0 bg-transparent text-[16px] text-zinc-100 outline-none placeholder:text-zinc-500"
+        className="flex-1 min-w-0 bg-transparent text-[16px] text-[color:var(--t-primary)] outline-none placeholder:text-[color:var(--t-tertiary)]"
         autoCapitalize="none"
         autoCorrect="off"
         spellCheck={false}
       />
       {hasQuery && resultCount !== null && (
-        <span className="shrink-0 rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] font-medium text-sky-300">
+        <span className="shrink-0 rounded-full bg-sky-500/15 px-2 py-0.5 text-[length:var(--fs-label)] font-medium text-sky-300">
           {resultCount}
         </span>
       )}
@@ -202,14 +199,14 @@ function CommandBar({
             onChange("");
             inputRef.current?.focus();
           }}
-          className="shrink-0 rounded-full p-0.5 text-zinc-500 transition hover:text-zinc-200"
+          className="shrink-0 rounded-full p-0.5 text-[color:var(--t-tertiary)] transition hover:text-[color:var(--t-primary)]"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="h-3.5 w-3.5">
             <path d="M18 6 6 18M6 6l12 12" />
           </svg>
         </button>
       ) : (
-        <span className="hidden shrink-0 rounded-md border border-white/[0.10] bg-white/[0.04] px-1.5 py-[2px] font-mono text-[11px] text-zinc-500 md:inline-block">
+        <span className="hidden shrink-0 rounded-md border border-white/[0.10] bg-white/[0.04] px-1.5 py-[2px] font-mono text-[length:var(--fs-label)] text-[color:var(--t-tertiary)] md:inline-block">
           ⌘K
         </span>
       )}
@@ -222,24 +219,47 @@ function CommandBar({
 function TopRightCluster({
   onPlace,
   onFocus,
+  onGps,
+  gpsBusy,
   observerLocked,
 }: {
   onPlace: () => void;
   onFocus: () => void;
+  onGps: () => void;
+  gpsBusy: boolean;
   observerLocked: boolean;
 }) {
   return (
-    <div className="pointer-events-auto flex shrink-0 items-center gap-2.5">
-      <div className="mt-glass-elevated flex h-11 shrink-0 items-center gap-2.5 rounded-full px-3.5">
-        <WeatherOverlay />
-      </div>
+    <div className="pointer-events-auto flex shrink-0 items-center gap-1">
+      <WeatherOverlay />
+      <div className="mx-2 h-5 w-px shrink-0 bg-white/[0.12]" aria-hidden />
+      <button
+        type="button"
+        onClick={onGps}
+        disabled={gpsBusy || observerLocked}
+        title="Use my GPS"
+        aria-label="Use my GPS — set observer to device location"
+        className="grid h-9 w-9 place-items-center rounded-full text-emerald-300 transition hover:bg-emerald-500/15 active:scale-[0.95] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500/75 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        {gpsBusy ? (
+          <svg className="h-[18px] w-[18px] animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+            <path d="M21 12a9 9 0 1 1-3.5-7.1" />
+          </svg>
+        ) : (
+          <svg className="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+            <circle cx="12" cy="12" r="4" />
+            <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+          </svg>
+        )}
+      </button>
       <button
         type="button"
         onClick={onPlace}
         disabled={observerLocked}
         title="Set my location here"
         aria-label="Set my location here — current view center becomes observer"
-        className="mt-glass-elevated grid h-11 w-11 place-items-center rounded-full text-amber-300 transition hover:border-amber-400/50 hover:bg-amber-500/10 active:scale-[0.95] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500/75 disabled:cursor-not-allowed disabled:opacity-40"
+        className="grid h-9 w-9 place-items-center rounded-full text-amber-300 transition hover:bg-amber-500/15 active:scale-[0.95] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500/75 disabled:cursor-not-allowed disabled:opacity-40"
       >
         <svg
           className="h-[18px] w-[18px]"
@@ -260,7 +280,7 @@ function TopRightCluster({
         onClick={onFocus}
         title="Focus on me"
         aria-label="Focus on me — pan map to observer"
-        className="mt-glass-elevated grid h-11 w-11 place-items-center rounded-full text-sky-300 transition hover:border-sky-400/50 hover:bg-sky-500/10 active:scale-[0.95] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500/75"
+        className="grid h-9 w-9 place-items-center rounded-full text-sky-300 transition hover:bg-sky-500/15 active:scale-[0.95] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500/75"
       >
         <svg
           className="h-[18px] w-[18px]"
@@ -282,39 +302,9 @@ function TopRightCluster({
 
 /* ---------------- Right rail (desktop) ------------------------------------- */
 
-type RailItemId =
-  | "active"
-  | "moon"
-  | "candidates"
-  | "photo"
-  | "compass"
-  | "field"
-  | "observer"
-  | "flight"
-  | "filters"
-  | "ar";
+const RAIL_ITEMS = PANEL_REGISTRY;
 
-type RailItem = {
-  readonly id: RailItemId;
-  readonly label: string;
-  readonly icon: ComponentType<SVGProps<SVGSVGElement>>;
-  readonly accent: "moon" | "sky" | "mint" | "rose" | "violet";
-};
-
-const RAIL_ITEMS: readonly RailItem[] = [
-  { id: "active", label: "Active transits", icon: SectionIconPaperAirplane, accent: "moon" },
-  { id: "candidates", label: "Transit candidates", icon: SectionIconArrowsRightLeft, accent: "sky" },
-  { id: "photo", label: "Photographer", icon: SectionIconCamera, accent: "mint" },
-  { id: "filters", label: "Flight filters", icon: SectionIconFunnel, accent: "violet" },
-  { id: "moon", label: "Moon (nowcast)", icon: SectionIconMoon, accent: "moon" },
-  { id: "observer", label: "Observer", icon: SectionIconObserver, accent: "moon" },
-  { id: "ar", label: "AR sky overlay", icon: SectionIconAR, accent: "sky" },
-  { id: "compass", label: "Compass → Moon", icon: SectionIconArrowUpCircle, accent: "rose" },
-  { id: "flight", label: "Flight source", icon: SectionIconFlightSource, accent: "violet" },
-  { id: "field", label: "Field overlays", icon: SectionIconField, accent: "mint" },
-];
-
-const ACCENT_BTN: Record<RailItem["accent"], string> = {
+const ACCENT_BTN: Record<PanelAccent, string> = {
   moon: "border-amber-400/35 bg-amber-500/[0.12] text-amber-300",
   sky: "border-sky-400/35 bg-sky-500/[0.12] text-sky-300",
   mint: "border-emerald-400/35 bg-emerald-500/[0.12] text-emerald-300",
@@ -322,7 +312,7 @@ const ACCENT_BTN: Record<RailItem["accent"], string> = {
   violet: "border-violet-400/35 bg-violet-500/[0.12] text-violet-300",
 };
 
-const ACCENT_ICON: Record<RailItem["accent"], string> = {
+const ACCENT_ICON: Record<PanelAccent, string> = {
   moon:   "text-amber-300",
   sky:    "text-sky-300",
   mint:   "text-emerald-300",
@@ -337,10 +327,10 @@ function FloatingRail({
   badges,
   children,
 }: {
-  expandedId: RailItemId | null;
-  onSelect: (id: RailItemId) => void;
+  expandedId: PanelId | null;
+  onSelect: (id: PanelId) => void;
   onClose: () => void;
-  badges: Partial<Record<RailItemId, number>>;
+  badges: Partial<Record<PanelId, number>>;
   children: React.ReactNode;
 }) {
   const expanded = expandedId !== null;
@@ -349,10 +339,10 @@ function FloatingRail({
   return (
     <aside
       aria-label="Tools"
-      className={`mt-glass-elevated pointer-events-auto absolute right-3 top-[5.5rem] z-[15] flex overflow-hidden rounded-3xl transition-[width] duration-300 ease-[cubic-bezier(0.2,0.9,0.2,1.06)] ${
+      className={`mt-glass-elevated pointer-events-auto absolute right-3 top-[calc(3.5rem+env(safe-area-inset-top)+0.75rem)] z-[15] flex overflow-hidden rounded-3xl transition-[width] duration-300 ease-[cubic-bezier(0.2,0.9,0.2,1.06)] ${
         expanded
-          ? "bottom-[8.5rem] w-[420px]"
-          : "h-fit max-h-[calc(100dvh-5.5rem-8.5rem)] w-[72px] overflow-y-auto"
+          ? `bottom-[8.5rem] ${item?.wide ? "w-[min(50vw,960px)]" : "w-[420px]"}`
+          : "h-fit max-h-[calc(100dvh-3.5rem-env(safe-area-inset-top)-0.75rem-8.5rem)] w-[72px] overflow-y-auto"
       }`}
     >
       {/* Strip s ikonama */}
@@ -375,7 +365,7 @@ function FloatingRail({
               className={`relative grid h-12 w-12 place-items-center rounded-2xl border transition active:scale-[0.96] ${
                 isOpen
                   ? `${ACCENT_BTN[item.accent]} shadow-[0_0_24px_-8px_rgba(96,165,250,0.55)]`
-                  : "border-transparent text-zinc-400 hover:bg-white/[0.05] hover:text-zinc-200"
+                  : "border-transparent text-[color:var(--t-tertiary)] hover:bg-white/[0.05] hover:text-[color:var(--t-primary)]"
               }`}
             >
               <Icon className={`h-[22px] w-[22px] ${
@@ -403,7 +393,7 @@ function FloatingRail({
             href="/about"
             title="About and usage guide"
             aria-label="About and usage guide"
-            className="relative grid h-12 w-12 place-items-center rounded-2xl border border-transparent text-zinc-400 transition hover:bg-white/[0.05] hover:text-zinc-200 active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500/75"
+            className="relative grid h-12 w-12 place-items-center rounded-2xl border border-transparent text-[color:var(--t-tertiary)] transition hover:bg-white/[0.05] hover:text-[color:var(--t-primary)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500/75"
           >
             <SectionIconQuestionMarkCircle className="h-[22px] w-[22px] text-sky-300/90 opacity-80 hover:opacity-100" />
           </Link>
@@ -418,7 +408,7 @@ function FloatingRail({
               <span
                 aria-hidden
                 className={`size-2 shrink-0 rounded-full shadow-[0_0_10px_currentColor] ${
-                  ACCENT_BTN[item.accent].split(" ").find((c) => c.startsWith("text-")) ?? "text-zinc-300"
+                  ACCENT_BTN[item.accent].split(" ").find((c) => c.startsWith("text-")) ?? "text-[color:var(--t-secondary)]"
                 }`}
               />
               <span className="truncate">{item.label}</span>
@@ -427,7 +417,7 @@ function FloatingRail({
               type="button"
               onClick={onClose}
               aria-label="Close panel"
-              className="grid h-9 w-9 place-items-center rounded-full border border-white/[0.10] bg-white/[0.04] text-zinc-300 transition hover:border-white/[0.20] hover:bg-white/[0.08]"
+              className="grid h-9 w-9 place-items-center rounded-full border border-white/[0.10] bg-white/[0.04] text-[color:var(--t-secondary)] transition hover:border-white/[0.20] hover:bg-white/[0.08]"
             >
               <svg
                 className="h-4 w-4"
@@ -470,7 +460,7 @@ function TimeRibbon(props: {
   if (props.compact) {
     // Mobile slim ribbon — tanka pilula 44px s [time | slider | offset | sync ikona]
     return (
-      <div className="mt-glass-elevated pointer-events-auto absolute z-[14] left-2 right-2 bottom-[calc(5rem+env(safe-area-inset-bottom))] flex h-11 items-center gap-2 rounded-full px-3.5">
+      <div className="mt-glass-elevated pointer-events-auto absolute z-[14] left-2 right-2 bottom-[var(--mobile-ribbon-bottom)] flex h-11 items-center gap-2 rounded-full px-3.5">
         <div className="min-w-0 flex-1">
           <TimeSliderPanel
             variant="mapChip"
@@ -553,50 +543,49 @@ function TimeRibbon(props: {
   );
 }
 
-/* ---------------- Incoming transit alert ----------------------------------- */
+/* ---------------- Green zone (shot-feasible) alert ------------------------ */
 
-function IncomingTransitAlert({
+function GreenZoneAlert({
   count,
-  topRow,
+  callSign,
   onOpen,
   onDismiss,
   compact,
 }: {
   count: number;
-  topRow: { callSign: string; deltaAzDeg: number; nudge: string } | null;
+  callSign: string;
   onOpen: () => void;
   onDismiss: () => void;
   compact?: boolean;
 }) {
-  if (!topRow) return null;
   return (
     <div
       role="status"
       aria-live="polite"
-      data-testid="incoming-transit-alert"
-      className={`pointer-events-auto absolute z-[18] rounded-2xl border border-emerald-400/40 bg-gradient-to-br from-emerald-500/[0.12] via-sky-500/[0.06] to-transparent p-4 backdrop-blur-2xl ${
+      data-testid="green-zone-alert"
+      className={`pointer-events-auto absolute z-[17] rounded-2xl border border-amber-400/40 bg-gradient-to-br from-amber-500/[0.12] via-yellow-500/[0.06] to-transparent p-4 backdrop-blur-2xl ${
         compact
-          ? "left-2 right-2 top-[calc(7.5rem+env(safe-area-inset-top))]"
-          : "right-[6.5rem] bottom-[10rem] w-[320px]"
+          ? "left-2 right-2 top-[calc(3.5rem+env(safe-area-inset-top)+3.25rem+9rem)]"
+          : "right-[6.5rem] bottom-[16rem] w-[320px]"
       }`}
       style={{
         boxShadow:
-          "0 0 0 1px rgba(52,211,153,0.18), 0 24px 64px -16px rgba(0,0,0,0.7), 0 0 32px -8px rgba(52,211,153,0.4)",
+          "0 0 0 1px rgba(251,191,36,0.18), 0 24px 64px -16px rgba(0,0,0,0.7), 0 0 32px -8px rgba(251,191,36,0.35)",
       }}
     >
       <div className="flex items-start justify-between gap-2">
-        <span className="mt-section-label-emerald flex items-center gap-2">
+        <span className="mt-section-label flex items-center gap-2 text-amber-300">
           <span
             aria-hidden
-            className="size-2 shrink-0 animate-pulse rounded-full bg-emerald-400 shadow-[0_0_10px_currentColor]"
+            className="size-2 shrink-0 animate-pulse rounded-full bg-amber-400 shadow-[0_0_10px_currentColor]"
           />
-          On the ray · {count}
+          In shot zone · {count}
         </span>
         <button
           type="button"
           onClick={onDismiss}
-          aria-label="Dismiss alert"
-          className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-zinc-400 transition hover:bg-white/[0.06] hover:text-zinc-200"
+          aria-label="Dismiss green zone alert"
+          className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[color:var(--t-tertiary)] transition hover:bg-white/[0.06] hover:text-[color:var(--t-primary)]"
         >
           <svg
             className="h-4 w-4"
@@ -617,34 +606,26 @@ function IncomingTransitAlert({
         onClick={onOpen}
         className="mt-2 block w-full text-left"
       >
-        <h4 className="font-mono text-[20px] font-bold tracking-wide text-zinc-50">
-          {topRow.callSign}
+        <h4 className="font-mono text-[length:var(--fs-h1)] font-bold tracking-[0.01em] text-[color:var(--t-primary)]">
+          {callSign}
         </h4>
-        <p className="mt-1 text-[13.5px] leading-snug text-zinc-300">
-          {topRow.nudge}
+        <p className="mt-1 text-[length:var(--fs-meta)] leading-snug text-[color:var(--t-secondary)]">
+          Aircraft in optimal photo range — tap to open Photo tools
         </p>
-        <div className="mt-2 flex items-center gap-2 text-[11.5px] font-semibold uppercase tracking-[0.08em] text-zinc-400">
-          <span>Δ azimut</span>
-          <span className="font-mono text-[14px] font-bold text-sky-300">
-            {formatFixed(topRow.deltaAzDeg, 2)}°
-          </span>
-        </div>
       </button>
     </div>
   );
 }
 
+/* ---------------- Incoming transit alert ----------------------------------- */
+
+
 
 /* ---------------- Mobile dock --------------------------------------------- */
 
-type DockId = RailItemId | "more";
+type DockId = SheetId;
 
-const DOCK_PRIMARY: readonly { id: DockId; label: string; icon: ComponentType<SVGProps<SVGSVGElement>>; accent: RailItem["accent"] }[] = [
-  { id: "active", label: "Active", icon: SectionIconPaperAirplane, accent: "moon" },
-  { id: "candidates", label: "Tracks", icon: SectionIconArrowsRightLeft, accent: "sky" },
-  { id: "photo", label: "Photo", icon: SectionIconCamera, accent: "mint" },
-  { id: "filters", label: "Filters", icon: SectionIconFunnel, accent: "violet" },
-];
+const DOCK_PRIMARY = DOCK_PRIMARY_PANELS;
 
 function MobileDock({
   activeId,
@@ -674,14 +655,13 @@ function MobileDock({
               data-testid={`mobile-shell-tab-${item.id}`}
               aria-selected={selected}
               onClick={() => onSelect(item.id)}
-              className={`relative flex h-14 flex-1 flex-col items-center justify-center gap-1 rounded-2xl border text-[11.5px] font-semibold tracking-tight transition active:scale-[0.97] ${
+              className={`relative flex h-14 flex-1 flex-col items-center justify-center rounded-2xl border transition active:scale-[0.97] ${
                 selected
                   ? `${ACCENT_BTN[item.accent]} shadow-[0_0_20px_-8px_rgba(96,165,250,0.3)]`
-                  : "border-white/[0.07] bg-white/[0.03] text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
+                  : "border-white/[0.07] bg-white/[0.03] text-[color:var(--t-tertiary)] hover:bg-white/[0.06] hover:text-[color:var(--t-primary)]"
               }`}
             >
               <Icon className="h-[22px] w-[22px]" />
-              <span>{item.label}</span>
               {badge && badge > 0 ? (
                 <span
                   aria-hidden
@@ -699,10 +679,10 @@ function MobileDock({
           data-testid="mobile-shell-tab-more"
           aria-selected={activeId === "more"}
           onClick={() => onSelect("more")}
-          className={`relative flex h-14 w-14 shrink-0 flex-col items-center justify-center gap-1 rounded-2xl border text-[11.5px] font-semibold tracking-tight transition active:scale-[0.97] ${
+          className={`relative flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl border transition active:scale-[0.97] ${
             activeId === "more"
               ? "border-violet-400/35 bg-violet-500/[0.12] text-violet-300"
-              : "border-white/[0.07] bg-white/[0.03] text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
+              : "border-white/[0.07] bg-white/[0.03] text-[color:var(--t-tertiary)] hover:bg-white/[0.06] hover:text-[color:var(--t-primary)]"
           }`}
           aria-label="More tools"
           title="More tools"
@@ -717,7 +697,6 @@ function MobileDock({
             <circle cx="12" cy="12" r="1.7" />
             <circle cx="19" cy="12" r="1.7" />
           </svg>
-          <span>More</span>
         </button>
       </div>
     </nav>
@@ -734,7 +713,7 @@ function StreetViewExitButton() {
     <button
       type="button"
       onClick={() => setMapDisplayMode("default")}
-      className="fixed bottom-[4.5rem] left-3 z-[9999] flex items-center gap-2 rounded-2xl border border-white/15 bg-zinc-900/80 px-3 py-2 text-xs font-semibold text-zinc-200 shadow-lg backdrop-blur-md transition hover:bg-zinc-800/90 active:scale-[0.97] max-md:bottom-[calc(8.25rem+env(safe-area-inset-bottom,0px))]"
+      className="fixed bottom-[4.5rem] left-3 z-[9999] flex items-center gap-2 rounded-2xl border border-white/15 bg-zinc-900/80 px-3 py-2 text-[length:var(--fs-label)] font-semibold text-[color:var(--t-primary)] shadow-lg backdrop-blur-md transition hover:bg-zinc-800/90 active:scale-[0.97] max-md:bottom-[var(--mobile-overlay-bottom)]"
       aria-label="Exit Street View"
     >
       <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -759,14 +738,9 @@ export function HomePageClient() {
     query: "",
     aircraftTypes: [],
   });
-  const [railOpenId, setRailOpenId] = useState<RailItemId | null>(null);
+  const [railOpenId, setRailOpenId] = useState<PanelId | null>(null);
   const [mobileSheetId, setMobileSheetId] = useState<DockId | null>(null);
-  /**
-   * Pamtimo *koliko* aktivnih transita je korisnik zatvorio. Kad se broj
-   * promijeni (novi transit ili stari prošao), alert se sam vrati. Bez
-   * useEffect+setState — derived state.
-   */
-  const [dismissedAtCount, setDismissedAtCount] = useState<number>(-1);
+  const [greenDismissedAtCount, setGreenDismissedAtCount] = useState<number>(-1);
 
   const requestPlaceObserverFromView = useObserverStore(
     (st) => st.requestPlaceObserverFromView
@@ -782,7 +756,10 @@ export function HomePageClient() {
   useAstronomySync();
   useFlightAircraftTypeIndexPrefetch();
 
-  const candidateNotifications = useTransitCandidateNotifications({
+  const { subscribeToPush, supported: pushSupported } = usePushRegistration(s.alertsEnabled);
+  const { latestAlert, clearAlert } = useCandidateAlerts({
+    enabled: s.alertsEnabled,
+    audioEnabled: s.alertsEnabled,
     candidates: s.candidatesDisplay,
     activeTransits: s.activeTransits,
   });
@@ -816,26 +793,35 @@ export function HomePageClient() {
     [s, isWide]
   );
 
-  /* ---- Top "incoming" transit (za alert) -------------------------------- */
-  const activeCount = s.activeTransits.length;
-  const topAlertRow = useMemo(() => {
-    if (s.activeTransits.length === 0) return null;
-    const r = s.activeTransits[0];
-    if (!r) return null;
-    return {
-      callSign: r.flight.callSign ?? r.flight.id,
-      deltaAzDeg: r.deltaAzDeg,
-      nudge: r.nudgeLine,
-    };
-  }, [s.activeTransits]);
+  /* ---- Green zone (shot-feasible) alert ---------------------------------- */
+  const cameraFocalLengthMm = useMoonTransitStore((st) => st.cameraFocalLengthMm);
+  const cameraSensorType = useMoonTransitStore((st) => st.cameraSensorType);
+  const openSkyLatencySkewMsHPC = useMoonTransitStore((st) => st.openSkyLatencySkewMs);
+  const feasibleFlightIds = useMemo(
+    () =>
+      computeShotFeasibleFlightIds(
+        s.obs,
+        s.moon,
+        flights,
+        Date.now(),
+        openSkyLatencySkewMsHPC,
+        cameraFocalLengthMm,
+        cameraSensorType
+      ),
+    [s.obs, s.moon, flights, openSkyLatencySkewMsHPC, cameraFocalLengthMm, cameraSensorType]
+  );
+  const greenCount = feasibleFlightIds.size;
+  const topGreenCallSign = useMemo(() => {
+    if (feasibleFlightIds.size === 0) return null;
+    const first = flights.find((f) => feasibleFlightIds.has(f.id));
+    if (!first) return null;
+    return first.callSign?.trim() || first.id;
+  }, [feasibleFlightIds, flights]);
+  const showGreenAlert =
+    topGreenCallSign !== null && greenDismissedAtCount !== greenCount;
 
-  /** Alert je dismissan dok god je *broj* transita isti kao u trenutku
-   * kad je korisnik kliknuo X. Promjena broja => alert se vrati. */
-  const showIncomingAlert =
-    topAlertRow !== null && dismissedAtCount !== activeCount;
-
-  const railBadges: Partial<Record<RailItemId, number>> = useMemo(() => {
-    const b: Partial<Record<RailItemId, number>> = {};
+  const railBadges: Partial<Record<PanelId, number>> = useMemo(() => {
+    const b: Partial<Record<PanelId, number>> = {};
     if (s.activeTransits.length > 0) b.active = s.activeTransits.length;
     if (s.candidatesDisplay.length > 0) b.candidates = s.candidatesDisplay.length;
     return b;
@@ -850,7 +836,7 @@ export function HomePageClient() {
 
   /* ---- Renderer panela (zajednički za rail i mobile sheet) -------------- */
   const renderPanel = useCallback(
-    (id: RailItemId | "more"): React.ReactNode => {
+    (id: PanelId | "more"): React.ReactNode => {
       if (id === "active") {
         return (
           <ActiveTransitsPanel
@@ -872,12 +858,7 @@ export function HomePageClient() {
             moonRiseSetKind={s.moonRiseSetKind}
             showEphemeris={s.showEphemeris}
             isMoonBelowHorizon={s.isMoonBelowHorizon}
-            snapshotContext={{
-              referenceEpochMs: s.referenceEpochMs,
-              observerLat: s.obs.lat,
-              observerLng: s.obs.lng,
-              observerGroundHeightMeters: s.obs.groundHeightMeters,
-            }}
+            cloudCoverPercent={s.cloudCoverPercent}
           />
         );
       }
@@ -890,11 +871,10 @@ export function HomePageClient() {
             showEmpty={s.showEmptyCandidates}
             showEphemeris={s.showEphemeris}
             selectedFlightId={s.selectedFlightId}
-            notificationsSupported={candidateNotifications.notificationsSupported}
-            notificationPermission={candidateNotifications.permission}
-            watchedFlightIds={candidateNotifications.watchedFlightIds}
             onSelectFlight={handleSelectFlightFromPanel}
-            onToggleWatchFlight={candidateNotifications.toggleWatchForFlight}
+            alertsEnabled={s.alertsEnabled}
+            onToggleAlerts={() => s.setAlertsEnabled((a) => !a)}
+            onSubscribeToPush={subscribeToPush}
           />
         );
       }
@@ -936,14 +916,14 @@ export function HomePageClient() {
                 type="button"
                 onClick={requestPlaceObserverFromView}
                 disabled={observerLocationLocked}
-                className="min-h-[48px] rounded-2xl border border-amber-500/35 bg-amber-500/[0.10] px-3 py-3 text-[13.5px] font-semibold text-amber-200 shadow-[0_4px_16px_-8px_rgba(251,191,36,0.5)] transition hover:border-amber-400/55 hover:bg-amber-500/[0.16] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
+                className="min-h-[48px] rounded-2xl border border-amber-500/35 bg-amber-500/[0.10] px-3 py-3 text-[length:var(--fs-meta)] font-semibold text-amber-200 shadow-[0_4px_16px_-8px_rgba(251,191,36,0.5)] transition hover:border-amber-400/55 hover:bg-amber-500/[0.16] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Set my location here
               </button>
               <button
                 type="button"
                 onClick={requestFocusOnObserver}
-                className="min-h-[48px] rounded-2xl border border-sky-500/30 bg-sky-500/[0.08] px-3 py-3 text-[13.5px] font-semibold text-sky-200 shadow-[0_4px_16px_-8px_rgba(96,165,250,0.45)] transition hover:border-sky-400/50 hover:bg-sky-500/[0.14] active:scale-[0.97]"
+                className="min-h-[48px] rounded-2xl border border-sky-500/30 bg-sky-500/[0.08] px-3 py-3 text-[length:var(--fs-meta)] font-semibold text-sky-200 shadow-[0_4px_16px_-8px_rgba(96,165,250,0.45)] transition hover:border-sky-400/50 hover:bg-sky-500/[0.14] active:scale-[0.97]"
               >
                 Focus on me
               </button>
@@ -954,9 +934,9 @@ export function HomePageClient() {
       if (id === "flight") {
         return (
           <FlightSourcePanel
-            flightProviderId={s.flightProviderId}
             liveFlightFeeds={s.liveFlightFeeds}
             onLiveFlightFeedsChange={s.setLiveFlightFeeds}
+            providerFlightCounts={s.providerFlightCounts}
           />
         );
       }
@@ -975,12 +955,14 @@ export function HomePageClient() {
           />
         );
       }
+      if (id === "flightlog") {
+        return <FlightLogPanel />;
+      }
       // "more" — grid svih ostalih panela
       return <MoreToolsGrid onSelect={(panelId) => setMobileSheetId(panelId)} />;
     },
     [
       s,
-      candidateNotifications,
       aircraftTypeFilterOptions,
       flightFilterCriteria,
       observerLocationLocked,
@@ -990,11 +972,11 @@ export function HomePageClient() {
   );
 
   /* ---- Otvori specifičan panel iz alerta -------------------------------- */
-  const openActiveFromAlert = useCallback(() => {
+  const openPhotoFromAlert = useCallback(() => {
     if (isWide) {
-      setRailOpenId("active");
+      setRailOpenId("photo");
     } else {
-      setMobileSheetId("active");
+      setMobileSheetId("photo");
     }
   }, [isWide]);
 
@@ -1011,6 +993,17 @@ export function HomePageClient() {
         }}
       />
       <AddToHomeScreenPrompt />
+      <NotificationPermissionPrompt
+        supported={pushSupported}
+        onAllow={subscribeToPush}
+      />
+      {latestAlert && (
+        <TransitAlertToast
+          alert={latestAlert}
+          onDismiss={clearAlert}
+          onSelect={handleSelectFlightFromPanel}
+        />
+      )}
 
       {/* === MAPA — full bleed pozadina === */}
       <div className="absolute inset-0 z-0">
@@ -1044,10 +1037,14 @@ export function HomePageClient() {
       {/* === DESKTOP UI === */}
       {isWide ? (
         <>
-          {/* Top bar — jedan flex container: brand | search (flex-1) | actions.
-              Flex layout sprječava sudaranje pri uskim širinama: search se prirodno
-              skuplja umjesto da prelazi preko weather chip-a. */}
-          <div className="pointer-events-none absolute left-3 right-3 top-3 z-[20] flex items-center gap-3 pt-[env(safe-area-inset-top)]">
+          {/* Top bar — unified glass header: brand | search (flex-1) | actions */}
+          <header
+            className="pointer-events-auto absolute inset-x-0 top-0 z-[20] flex items-center gap-3 border-b border-white/[0.09] bg-[rgba(14,18,42,0.85)] px-4 backdrop-blur-xl backdrop-saturate-150"
+            style={{
+              paddingTop: "env(safe-area-inset-top)",
+              height: "calc(3.5rem + env(safe-area-inset-top))",
+            }}
+          >
             <BrandPill />
             <div className="flex min-w-0 flex-1 justify-center">
               <CommandBar
@@ -1062,9 +1059,11 @@ export function HomePageClient() {
             <TopRightCluster
               onPlace={requestPlaceObserverFromView}
               onFocus={requestFocusOnObserver}
+              onGps={s.onUseGps}
+              gpsBusy={s.gpsBusy}
               observerLocked={observerLocationLocked}
             />
-          </div>
+          </header>
 
           {/* Right rail */}
           <FloatingRail
@@ -1092,36 +1091,33 @@ export function HomePageClient() {
             syncTime={handleSyncTime}
           />
 
-          {/* Incoming transit alert */}
-          {showIncomingAlert ? (
-            <IncomingTransitAlert
-              count={s.activeTransits.length}
-              topRow={topAlertRow}
-              onOpen={openActiveFromAlert}
-              onDismiss={() => setDismissedAtCount(activeCount)}
+          {/* Green zone alert */}
+          {showGreenAlert && topGreenCallSign ? (
+            <GreenZoneAlert
+              count={greenCount}
+              callSign={topGreenCallSign}
+              onOpen={openPhotoFromAlert}
+              onDismiss={() => setGreenDismissedAtCount(greenCount)}
             />
           ) : null}
         </>
       ) : (
         /* === MOBILE UI === */
-        <>
-          {/* Top bar — jedan flex row: brand | search (flex-1) | locate+focus
-              (vertikalni stack desno). Search se prirodno skuplja na uskim
-              ekranima. Action stack se sakriva kad je popup/sheet otvoren. */}
-          <div className="pointer-events-none absolute inset-x-2 top-[max(0.5rem,env(safe-area-inset-top))] z-[78] flex items-start gap-2">
+<>
+          {/* Top bar — unified glass header, spojen na vrh ekrana */}
+          <header
+            className="pointer-events-auto absolute inset-x-0 top-0 z-[78] flex items-center gap-2 border-b border-white/[0.09] bg-[rgba(14,18,42,0.85)] px-3 backdrop-blur-xl backdrop-saturate-150"
+            style={{
+              paddingTop: "env(safe-area-inset-top)",
+              height: "calc(3.5rem + env(safe-area-inset-top))",
+            }}
+          >
             <BrandPill size="compact" />
-            <div className="min-w-0 flex-1">
-              <CommandBar
-                query={flightFilterCriteria.query}
-                onChange={(next) =>
-                  setFlightFilterCriteria((prev) => ({ ...prev, query: next }))
-                }
-                resultCount={filteredFlightCount}
-                widthClass="w-full"
-              />
-            </div>
+            <div className="min-w-0 flex-1" />
+            <WeatherOverlay />
+            <div className="h-5 w-px shrink-0 bg-white/[0.12]" aria-hidden />
             <div
-              className={`flex shrink-0 flex-col gap-2 transition-opacity duration-200 ${
+              className={`flex shrink-0 items-center gap-1 transition-opacity duration-200 ${
                 s.selectedFlightId != null || mobileSheetId != null
                   ? "pointer-events-none opacity-0"
                   : ""
@@ -1130,11 +1126,31 @@ export function HomePageClient() {
             >
               <button
                 type="button"
+                onClick={s.onUseGps}
+                disabled={s.gpsBusy || observerLocationLocked}
+                title="Use my GPS"
+                aria-label="Use my GPS"
+                className="grid h-9 w-9 place-items-center rounded-full text-emerald-300 transition hover:bg-emerald-500/15 active:scale-[0.95] disabled:opacity-40"
+              >
+                {s.gpsBusy ? (
+                  <svg className="h-[18px] w-[18px] animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+                    <path d="M21 12a9 9 0 1 1-3.5-7.1" />
+                  </svg>
+                ) : (
+                  <svg className="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+                    <circle cx="12" cy="12" r="4" />
+                    <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+                  </svg>
+                )}
+              </button>
+              <button
+                type="button"
                 onClick={requestPlaceObserverFromView}
                 disabled={observerLocationLocked}
                 title="Set location"
                 aria-label="Set my location here"
-                className="mt-glass-elevated pointer-events-auto grid h-11 w-11 place-items-center rounded-full text-amber-300 transition hover:border-amber-400/50 active:scale-[0.95] disabled:opacity-40"
+                className="grid h-9 w-9 place-items-center rounded-full text-amber-300 transition hover:bg-amber-500/15 active:scale-[0.95] disabled:opacity-40"
               >
                 <svg
                   className="h-[18px] w-[18px]"
@@ -1155,7 +1171,7 @@ export function HomePageClient() {
                 onClick={requestFocusOnObserver}
                 title="Focus on me"
                 aria-label="Focus on me"
-                className="mt-glass-elevated pointer-events-auto grid h-11 w-11 place-items-center rounded-full text-sky-300 transition hover:border-sky-400/50 active:scale-[0.95]"
+                className="grid h-9 w-9 place-items-center rounded-full text-sky-300 transition hover:bg-sky-500/15 active:scale-[0.95]"
               >
                 <svg
                   className="h-[18px] w-[18px]"
@@ -1172,6 +1188,22 @@ export function HomePageClient() {
                 </svg>
               </button>
             </div>
+          </header>
+
+          {/* Search bar — plutajući pill ispod headera, puna širina */}
+          <div
+            className="pointer-events-auto absolute inset-x-3 z-[77]"
+            style={{ top: "calc(3.5rem + env(safe-area-inset-top) + 0.5rem)" }}
+          >
+            <CommandBar
+              query={flightFilterCriteria.query}
+              onChange={(next) =>
+                setFlightFilterCriteria((prev) => ({ ...prev, query: next }))
+              }
+              resultCount={filteredFlightCount}
+              widthClass="w-full"
+              floating
+            />
           </div>
 
           {/* Time ribbon iznad docka */}
@@ -1191,13 +1223,13 @@ export function HomePageClient() {
             />
           </div>
 
-          {/* Incoming transit alert — preko ribbona kad active > 0 */}
-          {showIncomingAlert ? (
-            <IncomingTransitAlert
-              count={s.activeTransits.length}
-              topRow={topAlertRow}
-              onOpen={openActiveFromAlert}
-              onDismiss={() => setDismissedAtCount(activeCount)}
+          {/* Green zone alert */}
+          {showGreenAlert && topGreenCallSign ? (
+            <GreenZoneAlert
+              count={greenCount}
+              callSign={topGreenCallSign}
+              onOpen={openPhotoFromAlert}
+              onDismiss={() => setGreenDismissedAtCount(greenCount)}
               compact
             />
           ) : null}
@@ -1228,35 +1260,12 @@ export function HomePageClient() {
 
 /* ---------------- Mobile sheet (preuzima ulogu starog tab sheeta) --------- */
 
-const MOBILE_PANEL_TITLES: Record<DockId, string> = {
-  active: "Active transits",
-  moon: "Moon (nowcast)",
-  candidates: "Transit candidates",
-  photo: "Photographer — tools",
-  compass: "Compass → Moon",
-  field: "Field overlays",
-  observer: "Observer",
-  flight: "Flight source",
-  filters: "Flight filters",
-  ar: "AR sky overlay",
-  more: "All tools",
-};
+function getSheetMeta(id: DockId) {
+  if (id === "more") return MORE_PANEL_META;
+  return PANEL_BY_ID[id];
+}
 
-const MOBILE_PANEL_ACCENT: Record<DockId, RailItem["accent"]> = {
-  active:     "moon",
-  moon:       "moon",
-  candidates: "sky",
-  photo:      "mint",
-  compass:    "rose",
-  field:      "mint",
-  observer:   "moon",
-  flight:     "violet",
-  filters:    "violet",
-  ar:         "sky",
-  more:       "violet",
-};
-
-const ACCENT_DOT: Record<RailItem["accent"], string> = {
+const ACCENT_DOT: Record<PanelAccent, string> = {
   moon:   "bg-amber-400 text-amber-400 shadow-amber-400/70",
   sky:    "bg-sky-400 text-sky-400 shadow-sky-400/70",
   mint:   "bg-emerald-400 text-emerald-400 shadow-emerald-400/70",
@@ -1281,8 +1290,8 @@ function MobileSheet({
 
   return (
     <section
-      className={`absolute inset-x-1.5 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-[75] flex max-h-[82dvh] flex-col overflow-hidden rounded-3xl border border-[color:var(--glass-stroke-strong)] bg-[color:var(--glass-3)] shadow-[0_-20px_64px_-12px_rgba(0,0,0,0.75)] backdrop-blur-2xl backdrop-saturate-150 transition-[height,transform] duration-300 motion-reduce:transition-none ${heightClass}`}
-      aria-label={`${MOBILE_PANEL_TITLES[id]} controls`}
+      className={`absolute inset-x-1.5 bottom-[calc(var(--mobile-dock-h)-0.25rem)] z-[75] flex max-h-[82dvh] flex-col overflow-hidden rounded-3xl border border-[color:var(--glass-stroke-strong)] bg-[color:var(--glass-3)] shadow-[0_-20px_64px_-12px_rgba(0,0,0,0.75)] backdrop-blur-2xl backdrop-saturate-150 transition-[height,transform] duration-300 motion-reduce:transition-none ${heightClass}`}
+      aria-label={`${getSheetMeta(id).mobileTitle} controls`}
       style={{
         transform: `translateY(${Math.max(0, dragOffset)}px)`,
         transitionTimingFunction: "cubic-bezier(0.2, 0.9, 0.2, 1.06)",
@@ -1325,14 +1334,14 @@ function MobileSheet({
         <h2 className="mt-panel-title flex min-w-0 items-center gap-2.5">
           <span
             aria-hidden
-            className={`size-2 shrink-0 rounded-full shadow-[0_0_10px_currentColor] ${ACCENT_DOT[MOBILE_PANEL_ACCENT[id]]}`}
+            className={`size-2 shrink-0 rounded-full shadow-[0_0_10px_currentColor] ${ACCENT_DOT[getSheetMeta(id).accent]}`}
           />
-          <span className="truncate">{MOBILE_PANEL_TITLES[id]}</span>
+          <span className="truncate">{getSheetMeta(id).mobileTitle}</span>
         </h2>
         <button
           type="button"
           onClick={onClose}
-          className="h-9 rounded-full border border-white/[0.10] bg-white/[0.06] px-4 text-[13px] font-semibold text-zinc-200 transition hover:border-white/20 hover:bg-white/[0.10] active:scale-[0.97]"
+          className="h-9 rounded-full border border-white/[0.10] bg-white/[0.06] px-4 text-[length:var(--fs-meta)] font-semibold text-[color:var(--t-primary)] transition hover:border-white/20 hover:bg-white/[0.10] active:scale-[0.97]"
           aria-label="Close panel"
         >
           Done
@@ -1342,7 +1351,7 @@ function MobileSheet({
         id="mobile-shell-sheet-panel"
         data-testid="mobile-deck-content"
         role="tabpanel"
-        className="min-h-0 flex-1 overflow-y-auto px-3 py-3 text-zinc-200 [scrollbar-gutter:stable]"
+        className="min-h-0 flex-1 overflow-y-auto px-3 py-3 text-[color:var(--t-primary)] [scrollbar-gutter:stable]"
       >
         {children}
       </div>
@@ -1352,16 +1361,10 @@ function MobileSheet({
 
 /* ---------------- "More tools" grid (mobile) ------------------------------ */
 
-const MORE_PANELS: readonly { id: RailItemId; label: string; icon: ComponentType<SVGProps<SVGSVGElement>>; accent: RailItem["accent"] }[] = [
-  { id: "moon", label: "Moon", icon: SectionIconMoon, accent: "moon" },
-  { id: "observer", label: "Observer", icon: SectionIconObserver, accent: "moon" },
-  { id: "ar", label: "AR sky overlay", icon: SectionIconAR, accent: "sky" },
-  { id: "compass", label: "Compass", icon: SectionIconArrowUpCircle, accent: "rose" },
-  { id: "flight", label: "Flight source", icon: SectionIconFlightSource, accent: "violet" },
-  { id: "field", label: "Field overlays", icon: SectionIconField, accent: "mint" },
-];
+/** Paneli koji nisu u primary docku — prikazuju se u "More" gridu. */
+const MORE_PANELS = PANEL_REGISTRY.filter((p) => !p.dockPrimary);
 
-const ACCENT_GRID_BTN: Record<RailItem["accent"], string> = {
+const ACCENT_GRID_BTN: Record<PanelAccent, string> = {
   moon:   "border-amber-400/25 bg-amber-500/[0.07] hover:border-amber-400/45 hover:bg-amber-500/[0.12]",
   sky:    "border-sky-400/25 bg-sky-500/[0.07] hover:border-sky-400/45 hover:bg-sky-500/[0.12]",
   mint:   "border-emerald-400/25 bg-emerald-500/[0.07] hover:border-emerald-400/45 hover:bg-emerald-500/[0.12]",
@@ -1369,7 +1372,7 @@ const ACCENT_GRID_BTN: Record<RailItem["accent"], string> = {
   violet: "border-violet-400/25 bg-violet-500/[0.07] hover:border-violet-400/45 hover:bg-violet-500/[0.12]",
 };
 
-function MoreToolsGrid({ onSelect }: { onSelect: (id: RailItemId) => void }) {
+function MoreToolsGrid({ onSelect }: { onSelect: (id: PanelId) => void }) {
   return (
     <div>
       <p className="mt-section-label mb-3">All tools</p>
@@ -1384,8 +1387,8 @@ function MoreToolsGrid({ onSelect }: { onSelect: (id: RailItemId) => void }) {
               className={`flex min-h-[80px] flex-col items-start gap-2 rounded-2xl border px-4 py-3 text-left transition active:scale-[0.98] ${ACCENT_GRID_BTN[p.accent]}`}
             >
               <Icon className={`h-6 w-6 ${ACCENT_ICON[p.accent]}`} />
-              <span className="text-[14px] font-semibold text-zinc-100">
-                {p.label}
+              <span className="text-[length:var(--fs-body)] font-semibold text-[color:var(--t-primary)]">
+                {p.dockLabel}
               </span>
             </button>
           );
@@ -1398,7 +1401,7 @@ function MoreToolsGrid({ onSelect }: { onSelect: (id: RailItemId) => void }) {
         aria-label="About and usage guide"
       >
         <SectionIconQuestionMarkCircle className="h-6 w-6 text-sky-300" />
-        <span className="text-[14px] font-semibold text-zinc-100">About / FAQ</span>
+        <span className="text-[length:var(--fs-body)] font-semibold text-[color:var(--t-primary)]">About / FAQ</span>
       </Link>
     </div>
   );

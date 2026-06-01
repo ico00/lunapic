@@ -1,6 +1,6 @@
 import { AstroService, getTimeSliderWindowMs } from "@/lib/domain/astro/astroService";
-import { azimuthDeltaDeg } from "@/hooks/useActiveTransits";
 import { horizontalToPoint } from "@/lib/domain/geometry/horizontal";
+import { angularSeparationDeg } from "@/lib/domain/geometry/sky-separation";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useObserverStore } from "@/stores/observer-store";
 import type { FlightState } from "@/types/flight";
@@ -9,7 +9,7 @@ import { useMemo } from "react";
 
 const DEFAULT_STEP_MS = 3 * 60_000;
 
-function minAzimuthForFlights(
+function minSkyAngularSepForFlights(
   timeMs: number,
   observer: GroundObserver,
   flights: readonly FlightState[]
@@ -17,21 +17,23 @@ function minAzimuthForFlights(
   const moon = AstroService.getMoonState(
     new Date(timeMs),
     observer.lat,
-    observer.lng
+    observer.lng,
+    observer.groundHeightMeters
   );
+  if (moon.altitudeDeg <= 0) {
+    return 180;
+  }
   let minD = 180;
   for (const f of flights) {
     const h = f.geoAltitudeMeters ?? f.baroAltitudeMeters;
     if (h == null) {
       continue;
     }
-    const ac = horizontalToPoint(
-      observer,
-      f.position.lat,
-      f.position.lng,
-      h
+    const ac = horizontalToPoint(observer, f.position.lat, f.position.lng, h);
+    const d = angularSeparationDeg(
+      { altitudeDeg: ac.altitudeDeg, azimuthDeg: ac.azimuthDeg },
+      { altitudeDeg: moon.altitudeDeg, azimuthDeg: moon.azimuthDeg }
     );
-    const d = azimuthDeltaDeg(moon.azimuthDeg, ac.azimuthDeg);
     if (d < minD) {
       minD = d;
     }
@@ -73,14 +75,14 @@ export function useNearestTransitWindow(stepMs: number = DEFAULT_STEP_MS) {
     let minAtBest = 180;
     for (let o = 0; o <= width; o += stepMs) {
       const ep = win.t0 + o;
-      const m = minAzimuthForFlights(ep, observer, flights);
+      const m = minSkyAngularSepForFlights(ep, observer, flights);
       if (m < minAtBest) {
         minAtBest = m;
         bestOffset = o;
       }
     }
     const currentEp = win.t0 + timeOffsetMs;
-    const currentMin = minAzimuthForFlights(currentEp, observer, flights);
+    const currentMin = minSkyAngularSepForFlights(currentEp, observer, flights);
     const toward = bestOffset - timeOffsetMs;
     const mins = Math.max(0, Math.round(Math.abs(toward) / 60_000));
     const label = (() => {

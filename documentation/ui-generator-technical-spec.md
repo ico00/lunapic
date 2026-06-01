@@ -121,6 +121,41 @@ Sažetak iz `documentation/technicalconventions.md` + implementacije:
 
 ---
 
+## 4a. Checkbox i toggle redovi u shellu
+
+### 4a.1 `shellAccentCheckboxClass` (`src/lib/ui/shellComboboxStyles.ts`)
+
+Jedini ovlašteni stil za `<input type="checkbox">` unutar shell panela:
+
+```
+h-4 w-4 shrink-0 rounded border-zinc-600 bg-zinc-900
+text-sky-500 accent-sky-500          ← tick boja: sky (sekundarni akcent)
+outline-none focus:ring-2 focus:ring-emerald-500/50   ← fokus ring: emerald (§2.3)
+```
+
+**Pravilo:** nikad ne koristiti `blue-*` za tick/accent ni za fokus ring. Paleta ne sadržava `blue`; sekundarni akcent = **sky**, fokus ring = **emerald**.
+
+### 4a.2 Label red s checkboxom (aktivno/neaktivno stanje)
+
+```ts
+const on  = `... bg-sky-500/15 text-sky-200`;   // uključeno
+const off = `... text-zinc-300 hover:bg-zinc-800 hover:text-zinc-50`; // isključeno
+```
+
+- Aktivni red: **`bg-sky-500/15`** + **`text-sky-200`** — ne `blue`, ne `yellow`.
+- `yellow-*` nije u paleti; za akcent teksta koristiti **`amber-*`** (lokacija/upozorenja) ili **`sky-*`** (selekcija/toggle).
+
+### 4a.3 Combobox trigger hover/fokus
+
+```
+hover:border-sky-500/35   ← sky (ne blue)
+focus:ring-emerald-500/50 ← emerald (ne blue)
+```
+
+Referenca implementacija: `FlightSourcePanel.tsx`, `FlightProviderSelect.tsx`, `shellComboboxStyles.ts`.
+
+---
+
 ## 5. `useObserverStore` (`src/stores/observer-store.ts`)
 
 Paralelan store — **obavezan** za razumijevanje shell panela i karte.
@@ -322,14 +357,89 @@ Sve promjene vizuala na letovima / Mjesecu treba raditi kroz postojeće **source
 
 ## 12. Z-index referenca (redoslijed složenosti)
 
-| Zona | cca. z-index | Napomena |
-|------|----------------|----------|
+| Zona | z-index | Napomena |
+|------|---------|----------|
 | Combobox portal | 280 | Mora biti iznad bočnih kartica |
 | Golden flash | 200 | Puni ekran |
-| Mobilni tab bar | 60 | |
-| Mobilni sheet | 50 | |
-| Floating brand (mobile) | 40 | |
+| Header mobile | 78 | |
+| Altitude legend + layers | 76 | `fixed`, iznad ribbona |
+| MobileSheet | 75 | `absolute` |
+| Mobilni tab bar (MobileDock) | 60 | `absolute bottom-0` |
+| TimeRibbon (mobile compact) | 14 | `absolute`, iza sheeta |
 | Map aircraft popup (CSS klasa) | 20 | |
+
+---
+
+## 12a. Mobilni bottom layout — CSS varijable
+
+**Nikad ne dodavaj `env(safe-area-inset-bottom)` direktno na `bottom` u komponentama iznad doka.** SAI je već uračunat u `--mobile-dock-h`; dodavanje ga zasebno u svakom elementu duplira pomak na pravim uređajima s home indicatorom (iPhone ≈ +34px).
+
+Jedino mjesto gdje se SAI računa je `globals.css`:
+
+```css
+--mobile-dock-h:        calc(4rem + max(0.75rem, env(safe-area-inset-bottom, 0px)));
+--mobile-ribbon-bottom: calc(var(--mobile-dock-h) + 0.25rem);
+--mobile-overlay-bottom: calc(var(--mobile-ribbon-bottom) + 3.25rem);
+```
+
+Raspon vrijednosti (browser SAI=0 / iPhone SAI≈34px):
+
+| Varijabla | Browser | iPhone |
+|-----------|---------|--------|
+| `--mobile-dock-h` | 4.75 rem | 6.125 rem |
+| `--mobile-ribbon-bottom` | 5.00 rem | 6.375 rem |
+| `--mobile-overlay-bottom` | 8.25 rem | 9.625 rem |
+
+Koristi u Tailwindu kao `bottom-[var(--mobile-overlay-bottom)]` ili u `calc()`:
+- TimeRibbon (compact): `bottom-[var(--mobile-ribbon-bottom)]`
+- Altitude legend wrapper / IncomingTransitAlert (mobile): `bottom-[var(--mobile-overlay-bottom)]`
+- MobileSheet: `bottom-[calc(var(--mobile-dock-h)-0.25rem)]`
+
+**Ako dodaješ novi floating element iznad doka na mobilnom** → koristi jednu od gore navedenih varijabli ili izgradi na njima — ne uvodi novu `calc(...+env(safe-area-inset-bottom))` konstantu.
+
+---
+
+## 12b. Mobilni popup aviona — pozicioniranje
+
+`SelectedAircraftMapPopup` koristi Mapbox `Popup` s `anchor: "bottom"`. Sidrišna točka (u piksel-koordinatama map containera) računa se dinamički iz DOM-a, **ne** iz hardkodirane konstante.
+
+### Princip
+
+```
+sidrišna y = rect.height - mobileBottomUiHeightPx()
+```
+
+`mobileBottomUiHeightPx()` (u `src/lib/map/selectedAircraftPopupAnchor.ts`) mjeri stvarnu visinu doka iz DOM-a:
+
+```ts
+const nav = document.querySelector('[data-testid="mobile-primary-nav"]');
+const dockHeightPx = window.innerHeight - nav.getBoundingClientRect().top;
+return Math.round(dockHeightPx) + 56;  // +4px gap +44px ribbon +8px margin
+```
+
+Raspon (browser SAI=0 / iPhone SAI≈34px):
+
+| | Browser | iPhone |
+|---|---|---|
+| Izmjerena visina doka | ≈76 px | ≈98 px |
+| `mobileBottomUiHeightPx()` | 132 px | 154 px |
+
+Popup tip (`anchor: "bottom"`) sjeda točno na tu visinu od dna; kartica raste prema gore i ne ulazi u zonu ribbona / doka.
+
+### Što NE raditi
+
+- **Ne koristiti hardkodiranu konstantu** (`MOBILE_POPUP_ANCHOR_ABOVE_MAP_BOTTOM_PX = 140`) — ta je vrijednost bila pogrešna za prave uređaje s home indicatorom.
+- **Ne dodavati `setOffset` nudge** — sidrište je sada točno, offset treba biti `[0, 0]`.
+- **Ne čitati `padding-bottom` s roditeljskih elemenata** — map container nema relevantni padding, posredno mjerenje nije pouzdano.
+
+### Veza s CSS varijablama (sekcija 12a)
+
+`56px` u `mobileBottomUiHeightPx()` odgovara istim konstantama:
+- `4px` = gap iznad doka (`0.25rem` iz `--mobile-ribbon-bottom`)
+- `44px` = visina ribbona (`h-11`)
+- `8px` = sigurnosni razmak
+
+Ako se visina ribbona ili gap mijenjaju u CSS-u, isti broj treba ažurirati i u `selectedAircraftPopupAnchor.ts`.
 
 ---
 

@@ -158,7 +158,7 @@ export function flightsFromLocalSdrResponse(
   const out: FlightState[] = [];
   for (const row of list) {
     const f = localSdrAircraftToFlightState(row, nowMs, bounds);
-    if (f) out.push(f);
+    if (f) out.push({ ...f, providerId: "localsdr" });
   }
   return out;
 }

@@ -1,6 +1,5 @@
 import { geoBoundsFromMapbox } from "@/lib/map/geoBoundsFromMapbox";
 import { fieldPerfRecord, fieldPerfTime, isFieldPerfEnabled } from "@/lib/perf/fieldPerf";
-import { ROUTES_SOURCE } from "@/lib/map/mapSourceIds";
 import { createObserverMarkerElement } from "@/lib/map/observerMarkerElement";
 import { queryTerrainElevationMeters } from "@/lib/map/mapboxTerrainElevation";
 import { registerMoonTransitLayers } from "@/lib/map/registerMoonTransitLayers";
@@ -18,7 +17,11 @@ import {
 } from "react";
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-const LIVE_AUTO_REFRESH_MS = 12_000;
+// OpenSky/ADS-B One are rate-limited — poll every 30 s.
+const LIVE_AUTO_REFRESH_MS = 30_000;
+// Local SDR (dump1090/readsb) updates every ~1 s on the Pi; server-side cache is 10 s.
+// Polling at 10 s gives fresh positions and keeps position jumps small.
+const LOCALSDR_AUTO_REFRESH_MS = 10_000;
 
 function scheduleObserverGroundHeightFromTerrain(
   map: mapboxgl.Map,
@@ -112,16 +115,7 @@ export function useMoonTransitMap(
       const bounds = geoBoundsFromMapbox(b);
       void loadFlights.current(bounds);
 
-      const routeSrc = m.getSource(ROUTES_SOURCE) as
-        | mapboxgl.GeoJSONSource
-        | undefined;
-      if (routeSrc) {
-        const lines = providerRef.current.getRouteLineFeatures?.(bounds) ?? [];
-        routeSrc.setData({
-          type: "FeatureCollection",
-          features: [...lines],
-        });
-      }
+
     });
   }, []);
 
@@ -196,13 +190,17 @@ export function useMoonTransitMap(
   const flightProviderId = useMoonTransitStore((s) => s.flightProvider);
   const liveFlightFeedsKey = useMoonTransitStore(
     (s) =>
-      `${s.liveFlightFeeds.opensky ? 1 : 0}${s.liveFlightFeeds.adsbone ? 1 : 0}`
+      `${s.liveFlightFeeds.opensky ? 1 : 0}${s.liveFlightFeeds.adsbone ? 1 : 0}${s.liveFlightFeeds.localsdr ? 1 : 0}`
   );
+  const localsdrActive = useMoonTransitStore((s) => s.liveFlightFeeds.localsdr);
   useEffect(() => {
     onBoundsRefresh();
   }, [flightProviderId, liveFlightFeedsKey, onBoundsRefresh, mapReadyTick]);
 
   useEffect(() => {
+    useMoonTransitStore.getState().pruneFlightsToObserverRadius(
+      observer.lat, observer.lng, 100
+    );
     onBoundsRefresh();
   }, [observer.lat, observer.lng, onBoundsRefresh, mapReadyTick]);
 
@@ -212,13 +210,21 @@ export function useMoonTransitMap(
     if (!isLiveProvider || mapReadyTick <= 0) {
       return;
     }
+    // Use faster interval when local SDR is active — Pi data refreshes every ~1 s,
+    // server cache is 10 s, so 10 s polling keeps position jumps minimal.
+    const intervalMs = localsdrActive ? LOCALSDR_AUTO_REFRESH_MS : LIVE_AUTO_REFRESH_MS;
     const id = setInterval(() => {
       refreshFlightsNow();
-    }, LIVE_AUTO_REFRESH_MS);
+    }, intervalMs);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refreshFlightsNow();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [flightProviderId, mapReadyTick, refreshFlightsNow]);
+  }, [flightProviderId, localsdrActive, mapReadyTick, refreshFlightsNow]);
 
   const applyPlaceObserverFromMapCenter = useCallback(() => {
     const m = mapRef.current;

@@ -14,6 +14,17 @@ export interface TransitCandidate {
    * (moon + aircraft disc), using domain thresholds.
    */
   readonly isPossibleTransit: boolean;
+  /**
+   * Signed elevation difference (aircraft − moon) at predicted azimuth
+   * alignment, in degrees. Negative = aircraft passes below the moon.
+   * Null when photographerPack cannot compute (missing speed/track).
+   */
+  readonly elevationGapDeg: number | null;
+  /**
+   * True when photographerPack predicts the aircraft will cross the moon
+   * disc at alignment (sky separation ≤ moon + aircraft apparent radii).
+   */
+  readonly willTransit: boolean;
 }
 
 /**

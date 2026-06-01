@@ -134,17 +134,17 @@ export function AddToHomeScreenPrompt() {
       <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/10 bg-zinc-950/95 p-4 shadow-2xl shadow-black/60 backdrop-blur-xl sm:p-5">
         <h2
           id="a2hs-title"
-          className="text-base font-semibold tracking-tight text-zinc-50"
+          className="text-[length:var(--fs-body-strong)] font-semibold tracking-tight text-[color:var(--t-primary)]"
         >
           Add LunaPic to your Home Screen
         </h2>
-        <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+        <p className="mt-2 text-[length:var(--fs-body)] leading-relaxed text-[color:var(--t-tertiary)]">
           For the best field experience on iPhone (including notifications),
           install this page as an app: tap{" "}
-          <span className="font-medium text-zinc-200">Share</span>, then{" "}
-          <span className="font-medium text-zinc-200">Add to Home Screen</span>.
+          <span className="font-medium text-[color:var(--t-primary)]">Share</span>, then{" "}
+          <span className="font-medium text-[color:var(--t-primary)]">Add to Home Screen</span>.
         </p>
-        <ol className="mt-3 list-decimal space-y-1.5 pl-4 text-sm text-zinc-300">
+        <ol className="mt-3 list-decimal space-y-1.5 pl-4 text-[length:var(--fs-body)] text-[color:var(--t-secondary)]">
           <li>Tap the Share icon in Safari’s toolbar.</li>
           <li>Scroll and choose “Add to Home Screen”.</li>
           <li>Open LunaPic from your new home screen icon.</li>
@@ -155,14 +155,14 @@ export function AddToHomeScreenPrompt() {
             onClick={() => {
               snoozeDays(7);
             }}
-            className="rounded-xl border border-white/10 bg-zinc-900/80 px-4 py-2.5 text-sm font-medium text-zinc-200 sm:order-2"
+            className="rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-[length:var(--fs-body)] font-medium text-[color:var(--t-primary)] sm:order-2"
           >
             Remind me in 7 days
           </button>
           <button
             type="button"
             onClick={neverAsk}
-            className="rounded-xl border border-zinc-700/80 px-4 py-2.5 text-sm text-zinc-500 sm:order-3"
+            className="rounded-xl border border-white/[0.08] px-4 py-2.5 text-[length:var(--fs-body)] text-[color:var(--t-tertiary)] sm:order-3"
           >
             Don’t show again
           </button>

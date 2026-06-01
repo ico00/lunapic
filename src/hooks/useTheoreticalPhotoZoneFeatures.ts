@@ -31,57 +31,33 @@ type Args = {
 
 type ConfidenceTier = "low" | "medium" | "high";
 
+/**
+ * Trapezoidal corridor ring: bočni rubovi radijalno se šire od observera.
+ * nearHalfWidthM i farHalfWidthM su proporcionalni udaljenosti, pa bočni
+ * rubovi svih zona dijele iste kutne linije — bez lomova na spojevima.
+ */
 function buildZoneRing(
   observer: GroundObserver,
   azimuthDeg: number,
   nearAlongM: number,
   farAlongM: number,
-  halfWidthM: number
+  nearHalfWidthM: number,
+  farHalfWidthM: number
 ): [number, number][] {
-  const nearCenter = destinationByAzimuthMeters(
-    observer.lat,
-    observer.lng,
-    azimuthDeg,
-    nearAlongM
-  );
-  const farCenter = destinationByAzimuthMeters(
-    observer.lat,
-    observer.lng,
-    azimuthDeg,
-    farAlongM
-  );
-  const leftBearing = azimuthDeg - 90;
+  const nearCenter = destinationByAzimuthMeters(observer.lat, observer.lng, azimuthDeg, nearAlongM);
+  const farCenter  = destinationByAzimuthMeters(observer.lat, observer.lng, azimuthDeg, farAlongM);
+  const leftBearing  = azimuthDeg - 90;
   const rightBearing = azimuthDeg + 90;
-  const nearLeft = destinationByAzimuthMeters(
-    nearCenter.lat,
-    nearCenter.lng,
-    leftBearing,
-    halfWidthM
-  );
-  const nearRight = destinationByAzimuthMeters(
-    nearCenter.lat,
-    nearCenter.lng,
-    rightBearing,
-    halfWidthM
-  );
-  const farRight = destinationByAzimuthMeters(
-    farCenter.lat,
-    farCenter.lng,
-    rightBearing,
-    halfWidthM
-  );
-  const farLeft = destinationByAzimuthMeters(
-    farCenter.lat,
-    farCenter.lng,
-    leftBearing,
-    halfWidthM
-  );
+  const nearLeft  = destinationByAzimuthMeters(nearCenter.lat, nearCenter.lng, leftBearing,  nearHalfWidthM);
+  const nearRight = destinationByAzimuthMeters(nearCenter.lat, nearCenter.lng, rightBearing, nearHalfWidthM);
+  const farRight  = destinationByAzimuthMeters(farCenter.lat,  farCenter.lng,  rightBearing, farHalfWidthM);
+  const farLeft   = destinationByAzimuthMeters(farCenter.lat,  farCenter.lng,  leftBearing,  farHalfWidthM);
   return [
-    [nearLeft.lng, nearLeft.lat],
+    [nearLeft.lng,  nearLeft.lat],
     [nearRight.lng, nearRight.lat],
-    [farRight.lng, farRight.lat],
-    [farLeft.lng, farLeft.lat],
-    [nearLeft.lng, nearLeft.lat],
+    [farRight.lng,  farRight.lat],
+    [farLeft.lng,   farLeft.lat],
+    [nearLeft.lng,  nearLeft.lat],
   ];
 }
 
@@ -121,32 +97,20 @@ export function useTransitOpportunityCorridorFeatures(a: Args): readonly Feature
       return [];
     }
 
-    const halfWidthM = Math.max(SELECTED_STAND_HALF_WIDTH_M, (farAlong - nearAlong) * 0.16);
-    const lowRing = buildZoneRing(
-      observer,
-      moon.azimuthDeg,
-      nearAlong,
-      farAlong,
-      halfWidthM
-    );
-    const mediumNear = nearAlong + (farAlong - nearAlong) * 0.12;
-    const mediumFar = farAlong - (farAlong - nearAlong) * 0.12;
-    const mediumRing = buildZoneRing(
-      observer,
-      moon.azimuthDeg,
-      mediumNear,
-      mediumFar,
-      halfWidthM * 0.72
-    );
-    const highNear = nearAlong + (farAlong - nearAlong) * 0.24;
-    const highFar = farAlong - (farAlong - nearAlong) * 0.24;
-    const highRing = buildZoneRing(
-      observer,
-      moon.azimuthDeg,
-      highNear,
-      highFar,
-      halfWidthM * 0.45
-    );
+    // Sve tri zone dijele iste nearAlong/farAlong krajnje točke — nema čelnih ni
+    // bočnih lomova. Razlika između zona je samo kutna širina (skaliranje od osi).
+    // Bočni rubovi su kolinearne linije od observera jer hw(d) ∝ d.
+    const halfWidthAtFar = Math.max(SELECTED_STAND_HALF_WIDTH_M, (farAlong - nearAlong) * 0.16);
+    const halfAngleRad = Math.atan2(halfWidthAtFar, farAlong);
+    const hw = (d: number, scale: number) =>
+      Math.max(SELECTED_STAND_HALF_WIDTH_M * 0.1 * scale, d * Math.tan(halfAngleRad) * scale);
+
+    const lowRing    = buildZoneRing(observer, moon.azimuthDeg, nearAlong, farAlong,
+      hw(nearAlong, 1.00), hw(farAlong, 1.00));
+    const mediumRing = buildZoneRing(observer, moon.azimuthDeg, nearAlong, farAlong,
+      hw(nearAlong, 0.60), hw(farAlong, 0.60));
+    const highRing   = buildZoneRing(observer, moon.azimuthDeg, nearAlong, farAlong,
+      hw(nearAlong, 0.30), hw(farAlong, 0.30));
 
     const confidenceZones: ReadonlyArray<{
       tier: ConfidenceTier;
@@ -171,6 +135,9 @@ export function useTransitOpportunityCorridorFeatures(a: Args): readonly Feature
         coordinates: [ring],
       },
     }));
+    // Single volume feature for the gradient WebGL layer.
+    // The shader interpolates opacity from the centre spine (high confidence)
+    // to the outer edge (low confidence) — no need for separate medium/high meshes.
     return [
       ...zoneFeatures,
       {
@@ -183,30 +150,6 @@ export function useTransitOpportunityCorridorFeatures(a: Args): readonly Feature
         geometry: {
           type: "Polygon",
           coordinates: [lowRing],
-        },
-      } as const,
-      {
-        type: "Feature",
-        properties: {
-          kind: "transitOpportunityCorridorVolume",
-          confidence: "medium" as const,
-          volumeHeightMeters: volumeHeightMeters * 0.82,
-        },
-        geometry: {
-          type: "Polygon",
-          coordinates: [mediumRing],
-        },
-      } as const,
-      {
-        type: "Feature",
-        properties: {
-          kind: "transitOpportunityCorridorVolume",
-          confidence: "high" as const,
-          volumeHeightMeters: volumeHeightMeters * 0.66,
-        },
-        geometry: {
-          type: "Polygon",
-          coordinates: [highRing],
         },
       } as const,
     ];

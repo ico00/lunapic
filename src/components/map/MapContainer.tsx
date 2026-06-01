@@ -6,7 +6,9 @@ import { SelectedAircraftMapPopup } from "@/components/map/SelectedAircraftMapPo
 import { useCurrentMoonAzimuthFeature } from "@/hooks/useCurrentMoonAzimuthFeature";
 import { FieldPerfOverlay } from "@/components/perf/FieldPerfOverlay";
 import { useExtrapolatedFlightsForMap } from "@/hooks/useExtrapolatedFlightsForMap";
+import { useCallsignHistoryLayer } from "@/hooks/useCallsignHistoryLayer";
 import { useFlightHistoryLayers } from "@/hooks/useFlightHistoryLayers";
+import { useSelectedFlightTrail } from "@/hooks/useSelectedFlightTrail";
 import { useMapFlightPick } from "@/hooks/useMapFlightPick";
 import { useMapFlightAltitudeColorsPaint } from "@/hooks/useMapFlightAltitudeColorsPaint";
 import { useMapGeoJsonSync } from "@/hooks/useMapGeoJsonSync";
@@ -23,6 +25,7 @@ import { useTransitFieldSounds } from "@/hooks/useTransitFieldSounds";
 import { isMoonVisibleFromMoonState } from "@/lib/domain/astro/moonVisibility";
 import { type CameraSensorType } from "@/lib/domain/geometry/shotFeasibility";
 import { computeShotFeasibleFlightIds } from "@/lib/domain/transit/computeShotFeasibleFlightIds";
+import { computeConfirmedTransitFlightIds } from "@/lib/domain/transit/computeConfirmedTransitFlightIds";
 import { type FlightFilterCriteria, filterFlightsByCriteria } from "@/lib/flight/flightSearch";
 import { ALTITUDE_BANDS } from "@/lib/map/flightAltitudeColor";
 import { fieldPerfRecord, isFieldPerfEnabled } from "@/lib/perf/fieldPerf";
@@ -59,6 +62,7 @@ export function MapContainer({
   const setSelectedFlightId = useMoonTransitStore((s) => s.setSelectedFlightId);
   const cameraFocalLengthMm = useMoonTransitStore((s) => s.cameraFocalLengthMm);
   const cameraSensorType = useMoonTransitStore((s) => s.cameraSensorType);
+  const openSkyLatencySkewMs = useMoonTransitStore((s) => s.openSkyLatencySkewMs);
   const mapDisplayMode = useMoonTransitStore((s) => s.mapDisplayMode);
   const altitudeBandIndex = useMoonTransitStore((s) => s.altitudeBandIndex);
 
@@ -123,10 +127,24 @@ export function MapContainer({
         observer,
         moon,
         filteredFlights,
+        Date.now(),
+        openSkyLatencySkewMs,
         cameraFocalLengthMm,
         cameraSensorType as CameraSensorType
       ),
-    [cameraFocalLengthMm, cameraSensorType, filteredFlights, moon, observer]
+    [cameraFocalLengthMm, cameraSensorType, filteredFlights, moon, observer, openSkyLatencySkewMs]
+  );
+  const confirmedTransitFlightIds = useMemo(
+    () =>
+      computeConfirmedTransitFlightIds(
+        observer,
+        moon,
+        filteredFlights,
+        new Date(referenceEpochMs > 0 ? referenceEpochMs : Date.now()),
+        Date.now(),
+        openSkyLatencySkewMs
+      ),
+    [filteredFlights, moon, observer, openSkyLatencySkewMs, referenceEpochMs]
   );
 
   useTransitFieldSounds({
@@ -170,9 +188,9 @@ export function MapContainer({
   useEffect(() => {
     const layer = corridorVolumeLayerRef.current;
     if (!layer) return;
-    layer.updateFeatures(transitOpportunityCorridorFeatures);
+    layer.updateFeatures(selectedFlightId ? [] : transitOpportunityCorridorFeatures);
     mapRef.current?.triggerRepaint();
-  }, [transitOpportunityCorridorFeatures, mapRef]);
+  }, [transitOpportunityCorridorFeatures, selectedFlightId, mapRef]);
 
   useMapGeoJsonSync({
     mapRef,
@@ -192,11 +210,14 @@ export function MapContainer({
     selectedFlightTrajectoryFeature,
     selectedFlightTrajectoryLabelFeature,
     shotFeasibleFlightIds,
+    confirmedTransitFlightIds,
     flightProvider,
   });
 
   useMapFlightPick(mapRef, mapReadyTick);
   useFlightHistoryLayers(mapRef, mapReadyTick);
+  useSelectedFlightTrail(mapRef, mapReadyTick);
+  useCallsignHistoryLayer(mapRef, mapReadyTick);
 
   const moonBelowHorizon = !isMoonVisibleFromMoonState(moon);
   useMapMoonHorizonDeemphasis(mapRef, mapReadyTick, moonBelowHorizon);

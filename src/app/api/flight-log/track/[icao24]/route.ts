@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTrack } from "@/lib/db/flightLogDb";
+import { rejectIfRateLimited } from "@/lib/server/rateLimiter";
 
 export const dynamic = "force-dynamic";
 
@@ -10,12 +11,17 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ icao24: string }> }
 ) {
+  const reject = rejectIfRateLimited(req, 30, 60_000);
+  if (reject) return reject;
   const { icao24 } = await params;
+  if (!/^[0-9a-f]{1,8}$/i.test(icao24)) {
+    return NextResponse.json({ error: "Invalid icao24" }, { status: 400, headers: NO_CACHE });
+  }
   const sp = req.nextUrl.searchParams;
 
   const hoursBack = Math.min(
     Math.max(parseFloat(sp.get("hours") ?? "24"), 0.5),
-    168
+    720
   );
   const toMs = NOW();
   const fromMs = toMs - hoursBack * 3_600_000;
@@ -24,8 +30,9 @@ export async function GET(
   try {
     rows = await getTrack(icao24.toLowerCase(), fromMs, toMs);
   } catch (e) {
+    console.error("[flight-log/track]", e instanceof Error ? e.message : String(e));
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "db error" },
+      { error: "Internal server error" },
       { status: 500, headers: NO_CACHE }
     );
   }

@@ -133,7 +133,7 @@ export function TimeSliderPanel({
       >
         {!hideHeading && (
           <div className="flex min-w-0 items-center gap-1.5 border-b border-white/[0.07] pb-2">
-            <span className="text-yellow-400/85" aria-hidden>
+            <span className="text-amber-400/85" aria-hidden>
               <SectionIconTime />
             </span>
             <h2 id={headingId} className="mt-section-label min-w-0 border-0 pb-0">
@@ -212,7 +212,7 @@ export function TimeSliderPanel({
       aria-labelledby={headingId}
     >
       <div className="flex min-w-0 items-center gap-2 border-b border-white/[0.07] pb-2.5">
-        <span className="text-yellow-400/85" aria-hidden>
+        <span className="text-amber-400/85" aria-hidden>
           <SectionIconTime />
         </span>
         <h2 id={headingId} className="mt-section-label min-w-0 border-0 pb-0">

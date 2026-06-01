@@ -124,12 +124,15 @@ export function buildStandCorridorObserverVolumeFeature(
   const B = destinationByAzimuthMeters(cNear.lat, cNear.lng, pR, p.halfWidthM);
   const C = destinationByAzimuthMeters(cFar.lat, cFar.lng, pR, p.halfWidthM);
   const D = destinationByAzimuthMeters(cFar.lat, cFar.lng, pL, p.halfWidthM);
+  // Convex winding: observer(apex) → farRight → nearRight → nearLeft → farLeft → observer.
+  // The previous order (observer→nearRight→farRight→…→observer) was concave at the
+  // observer vertex, causing Mapbox fill-extrusion to triangulate incorrectly (lomovi).
   const ring: [number, number][] = [
     [observer.lng, observer.lat],
-    [B.lng, B.lat],
     [C.lng, C.lat],
-    [D.lng, D.lat],
+    [B.lng, B.lat],
     [A.lng, A.lat],
+    [D.lng, D.lat],
     [observer.lng, observer.lat],
   ];
   return {

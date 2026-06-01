@@ -12,7 +12,8 @@ export type MoonFieldVisibilityAdvice = {
   readonly message: string;
 };
 
-const CRITICAL_BELOW_DEG = 5;
+/** Moon altitude below which transit photography is impractical (likely horizon-blocked). */
+export const CRITICAL_BELOW_DEG = 5;
 const CAUTION_BELOW_DEG = 12;
 
 export function moonFieldVisibilityAdvice(

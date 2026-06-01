@@ -3,11 +3,11 @@ import type { FlightQuery, FlightState } from "./flight";
 import type { RouteLineFeature } from "./map-overlays";
 
 /** Redoslijed u UI: OpenSky prvi (zadani izvor pri učitavanju). */
-export const FLIGHT_PROVIDER_IDS = ["opensky", "adsbone", "static", "mock"] as const;
+export const FLIGHT_PROVIDER_IDS = ["opensky", "adsbone", "localsdr", "static", "mock"] as const;
 export type FlightProviderId = (typeof FLIGHT_PROVIDER_IDS)[number];
 
 /** Izbornik **Flight source** — samo live izvori (`static` / `mock` ostaju u tipu i registryju za testove i domenu). */
-export const FLIGHT_PROVIDER_COMBO_IDS = ["opensky", "adsbone"] as const;
+export const FLIGHT_PROVIDER_COMBO_IDS = ["opensky", "adsbone", "localsdr"] as const;
 
 /**
  * Strategy interface for external flight data (OpenSky, custom feeds, mock).

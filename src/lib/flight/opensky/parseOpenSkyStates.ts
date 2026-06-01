@@ -114,7 +114,7 @@ export function flightsFromOpenSkyResponse(
   for (const row of data.states) {
     const f = stateToFlightState(row, viewBounds);
     if (f) {
-      out.push(f);
+      out.push({ ...f, providerId: "opensky" });
     }
   }
   return out;

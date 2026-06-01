@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRoutesByCallsign } from "@/lib/db/flightLogDb";
+import { rejectIfRateLimited } from "@/lib/server/rateLimiter";
 
 export const dynamic = "force-dynamic";
 
 const NO_CACHE = { "Cache-Control": "no-store" };
 
 export async function GET(req: NextRequest) {
+  const reject = rejectIfRateLimited(req, 20, 60_000);
+  if (reject) return reject;
   const sp = req.nextUrl.searchParams;
   const daysBack = Math.min(
     Math.max(parseFloat(sp.get("days") ?? "30"), 1),
@@ -20,8 +23,9 @@ export async function GET(req: NextRequest) {
   try {
     routes = await getRoutesByCallsign(fromMs, toMs, minPoints);
   } catch (e) {
+    console.error("[flight-log/routes]", e instanceof Error ? e.message : String(e));
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "db error" },
+      { error: "Internal server error" },
       { status: 500, headers: NO_CACHE }
     );
   }

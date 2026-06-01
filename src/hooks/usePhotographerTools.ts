@@ -64,28 +64,25 @@ export function usePhotographerTools() {
     [refEpoch]
   );
 
+  // Pack computation runs every 100 ms (driven by `now`).
+  // Previously this caused 20 getMoonState calls/s and froze the main thread.
+  // Now getMoonState is cached (10 s buckets in astroService), so each 100 ms tick
+  // costs ~0.2 ms instead of ~10 ms — cheap enough to keep `now` in deps.
+  //
+  // Keeping `now` (= real wall clock) for flight extrapolation is REQUIRED for
+  // cross-device synchronisation: refEpoch drifts independently on each device
+  // (tickLiveTime fires at different absolute times), so using at.getTime() would
+  // give different countdowns on mobile vs desktop for the same flight.
   const result = useMemo(() => {
     if (!selectedId) {
-      return {
-        pack: null,
-        shot: null,
-        reason: "noSelection" as const,
-      };
+      return { pack: null, shot: null, reason: "noSelection" as const };
     }
     if (!isMoonVisibleFromMoonState(moon)) {
-      return {
-        pack: null,
-        shot: null,
-        reason: "moonBelowHorizon" as const,
-      };
+      return { pack: null, shot: null, reason: "moonBelowHorizon" as const };
     }
     const raw = flights.find((x) => x.id === selectedId) ?? null;
     if (!raw) {
-      return {
-        pack: null,
-        shot: null,
-        reason: "flightNotFound" as const,
-      };
+      return { pack: null, shot: null, reason: "flightNotFound" as const };
     }
     const flight = extrapolateFlightForDisplay(raw, now, latencySkewMs);
     const pack = GeometryEngine.photographerPack(observer, flight, moon, at, {});
@@ -94,17 +91,9 @@ export function usePhotographerTools() {
       sensorType: cameraSensorType,
     });
     if (!pack) {
-      return {
-        pack: null,
-        shot,
-        reason: "missingInputs" as const,
-      };
+      return { pack: null, shot, reason: "missingInputs" as const };
     }
-    return {
-      pack,
-      shot,
-      reason: null,
-    };
+    return { pack, shot, reason: null as null };
   }, [
     at,
     cameraFocalLengthMm,
@@ -116,6 +105,7 @@ export function usePhotographerTools() {
     observer,
     selectedId,
   ]);
+
   return { ...result, now };
 }
 

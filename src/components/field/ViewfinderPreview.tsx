@@ -22,6 +22,10 @@ type ViewfinderPreviewProps = {
   observerLat: number;
   observerLng: number;
   callSign?: string | null;
+  /** Signed elevation difference aircraft − moon (degrees). Negative = below moon. */
+  elevationGapDeg?: number | null;
+  /** Signed azimuth difference aircraft − moon (degrees). Positive = aircraft CW / right of moon. */
+  azimuthGapDeg?: number | null;
   className?: string;
 };
 
@@ -122,6 +126,8 @@ export function ViewfinderPreview({
   observerLat,
   observerLng,
   callSign,
+  elevationGapDeg,
+  azimuthGapDeg,
   className,
 }: ViewfinderPreviewProps) {
   /** When true: simulates Moon size on a 6000×4000 frame at current focal (small disk in crop). When false: “Zoom” / normalized Moon scale for comparison (~0.5°). */
@@ -221,6 +227,26 @@ export function ViewfinderPreview({
       ? angularSizeDeg
       : derivedAngularSizeDeg;
 
+  // Vertical offset: SVG Y axis inverted — positive elevationGap (above moon) → negative Y offset.
+  const planeOffsetYPx = useMemo(() => {
+    if (elevationGapDeg == null || !Number.isFinite(elevationGapDeg)) return 0;
+    return -elevationGapDeg * pixelsPerDegree;
+  }, [elevationGapDeg, pixelsPerDegree]);
+
+  // Horizontal offset: positive azimuthGap (aircraft CW/right of moon) → positive X offset.
+  const planeOffsetXPx = useMemo(() => {
+    if (azimuthGapDeg == null || !Number.isFinite(azimuthGapDeg)) return 0;
+    return azimuthGapDeg * pixelsPerDegree;
+  }, [azimuthGapDeg, pixelsPerDegree]);
+
+  const planeCenterX = SENSOR_CENTER_X + planeOffsetXPx;
+  const planeCenterY = SENSOR_CENTER_Y + planeOffsetYPx;
+  const planeIsInFrame =
+    Math.abs(planeOffsetXPx) < SENSOR_WIDTH_PX / 2 + 20 &&
+    Math.abs(planeOffsetYPx) < SENSOR_HEIGHT_PX / 2 + 20;
+  // Trajectory arrows only make sense when the plane is near the disc.
+  const showTrajectory = planeIsInFrame && Math.abs(elevationGapDeg ?? 0) <= 0.26;
+
   const planeWidthPx = useMemo(() => {
     if (
       effectiveAngularSizeDeg == null ||
@@ -296,10 +322,12 @@ export function ViewfinderPreview({
     );
     const halfLen = projectionLengthPx / 2;
     return {
-      x1: SENSOR_CENTER_X - directionX * halfLen,
-      y1: SENSOR_CENTER_Y - directionY * halfLen,
-      x2: SENSOR_CENTER_X + directionX * halfLen,
-      y2: SENSOR_CENTER_Y + directionY * halfLen,
+      cx: planeCenterX,
+      cy: planeCenterY,
+      x1: planeCenterX - directionX * halfLen,
+      y1: planeCenterY - directionY * halfLen,
+      x2: planeCenterX + directionX * halfLen,
+      y2: planeCenterY + directionY * halfLen,
     };
   }, [
     aircraftGroundSpeedMps,
@@ -307,6 +335,8 @@ export function ViewfinderPreview({
     distanceToObserverMeters,
     moonDiameterPx,
     pixelsPerDegree,
+    planeCenterX,
+    planeCenterY,
     showReferenceSensorScale,
   ]);
 
@@ -331,22 +361,27 @@ export function ViewfinderPreview({
     const startOffsetPx = moonRadiusPx * 0.06;
     const endOffsetPx = moonRadiusPx * 0.28;
     return {
-      x1: SENSOR_CENTER_X + trajectoryDirection.x * startOffsetPx,
-      y1: SENSOR_CENTER_Y + trajectoryDirection.y * startOffsetPx,
-      x2: SENSOR_CENTER_X + trajectoryDirection.x * endOffsetPx,
-      y2: SENSOR_CENTER_Y + trajectoryDirection.y * endOffsetPx,
+      x1: planeCenterX + trajectoryDirection.x * startOffsetPx,
+      y1: planeCenterY + trajectoryDirection.y * startOffsetPx,
+      x2: planeCenterX + trajectoryDirection.x * endOffsetPx,
+      y2: planeCenterY + trajectoryDirection.y * endOffsetPx,
     };
-  }, [moonRadiusPx, trajectoryDirection]);
+  }, [moonRadiusPx, planeCenterX, planeCenterY, trajectoryDirection]);
 
   const planeHeightPx = Math.max(6, planeWidthPx * 0.28);
+
+  const planeTopPct = (planeCenterY / SENSOR_HEIGHT_PX) * 100;
+  const planeLeftPct = (planeCenterX / SENSOR_WIDTH_PX) * 100;
 
   const styleVars = {
     "--viewfinder-plane-width-px": `${planeWidthPx}px`,
     "--viewfinder-plane-height-px": `${planeHeightPx}px`,
     "--viewfinder-plane-rotation-deg": `${correctedVisualRotationDeg ?? 0}deg`,
+    "--viewfinder-plane-top-pct": `${planeTopPct}%`,
+    "--viewfinder-plane-left-pct": `${planeLeftPct}%`,
   } as CSSProperties;
 
-  const showPlane = planeWidthPx > 0;
+  const showPlane = planeWidthPx > 0 && planeIsInFrame;
 
   return (
     <div className={className}>
@@ -397,7 +432,7 @@ export function ViewfinderPreview({
               </div>
             </div>
           ) : null}
-          {(trajectoryLine || trajectoryDirectionArrow) ? (
+          {showTrajectory && (trajectoryLine || trajectoryDirectionArrow) ? (
             <svg
               viewBox={`0 0 ${SENSOR_WIDTH_PX} ${SENSOR_HEIGHT_PX}`}
               className="pointer-events-none absolute inset-0 z-[3] h-full w-full"
@@ -414,7 +449,6 @@ export function ViewfinderPreview({
                   strokeDasharray="10 6"
                   strokeLinecap="round"
                   opacity={0.95}
-                  clipPath="url(#viewfinder-moon-clip-overlay)"
                   markerEnd="url(#viewfinder-trajectory-arrow-overlay)"
                 />
               ) : null}
@@ -428,7 +462,6 @@ export function ViewfinderPreview({
                   strokeWidth={4.8}
                   strokeLinecap="round"
                   opacity={0.99}
-                  clipPath="url(#viewfinder-moon-clip-overlay)"
                   markerEnd="url(#viewfinder-trajectory-arrow-strong-overlay)"
                 />
               ) : null}
@@ -465,6 +498,63 @@ export function ViewfinderPreview({
               </defs>
             </svg>
           ) : null}
+          {!planeIsInFrame && planeWidthPx > 0 ? (() => {
+            // Direction from viewfinder centre toward the off-screen plane.
+            const dx = planeOffsetXPx;
+            const dy = planeOffsetYPx; // +y = down in screen coords
+            const angle = Math.atan2(dx, -dy); // 0=up, +90=right, ±180=down
+            const sinA = Math.sin(angle);
+            const cosA = Math.cos(angle);
+
+            // Find the intersection with the nearest frame edge.
+            const halfW = SENSOR_WIDTH_PX / 2 - 52;
+            const halfH = SENSOR_HEIGHT_PX / 2 - 52;
+            const scale = Math.min(
+              dx !== 0 ? halfW / Math.abs(dx) : Infinity,
+              dy !== 0 ? halfH / Math.abs(dy) : Infinity
+            );
+            const ex = SENSOR_CENTER_X + dx * scale;
+            const ey = SENSOR_CENTER_Y + dy * scale;
+
+            const arrowSize = 40;
+            // Triangle tip points away from centre (in direction of off-screen plane).
+            const tipX = ex + sinA * arrowSize * 0.5;
+            const tipY = ey - cosA * arrowSize * 0.5;
+            const baseL = ex - sinA * arrowSize * 0.5 - cosA * arrowSize * 0.5;
+            const baseLY = ey + cosA * arrowSize * 0.5 - sinA * arrowSize * 0.5;
+            const baseR = ex - sinA * arrowSize * 0.5 + cosA * arrowSize * 0.5;
+            const baseRY = ey + cosA * arrowSize * 0.5 + sinA * arrowSize * 0.5;
+            const triPath = `M ${tipX},${tipY} L ${baseL},${baseLY} L ${baseR},${baseRY} Z`;
+
+            // Label: show angular separation components
+            const sepDeg = Math.sqrt(
+              (azimuthGapDeg ?? 0) ** 2 + (elevationGapDeg ?? 0) ** 2
+            );
+            const label = `${sepDeg.toFixed(1)}°`;
+            const labelX = SENSOR_CENTER_X + (dx * scale * 0.6);
+            const labelY = SENSOR_CENTER_Y + (dy * scale * 0.6) + 20;
+
+            return (
+              <svg
+                viewBox={`0 0 ${SENSOR_WIDTH_PX} ${SENSOR_HEIGHT_PX}`}
+                className="pointer-events-none absolute inset-0 z-[4] h-full w-full"
+                aria-hidden="true"
+              >
+                <path d={triPath} fill="#facc15" opacity={0.92} />
+                <text
+                  x={labelX}
+                  y={labelY}
+                  textAnchor="middle"
+                  fill="#facc15"
+                  fontSize={38}
+                  fontFamily="monospace"
+                  opacity={0.88}
+                >
+                  {label}
+                </text>
+              </svg>
+            );
+          })() : null}
         </div>
         <div className="flex justify-center border-t border-zinc-800/80 bg-black/85 px-2 py-2">
           <div
@@ -527,8 +617,8 @@ export function ViewfinderPreview({
       <style jsx>{`
         .viewfinder-plane-static {
           position: absolute;
-          left: 50%;
-          top: 50%;
+          left: var(--viewfinder-plane-left-pct, 50%);
+          top: var(--viewfinder-plane-top-pct, 50%);
           transform: translate(-50%, -50%) rotate(var(--viewfinder-plane-rotation-deg));
           opacity: 0.9;
           filter: drop-shadow(0 0 4px #facc15) drop-shadow(0 0 10px rgba(250, 204, 21, 0.55));

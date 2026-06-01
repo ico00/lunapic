@@ -176,7 +176,7 @@ export function PhotographerToolsPanel({
       ? "bg-sky-500/15 text-sky-200 border-sky-500/35"
       : shotTier === "fair"
         ? "bg-amber-500/10 text-amber-300 border-amber-500/30"
-        : "bg-zinc-900/60 text-zinc-400 border-white/[0.09]";
+        : "bg-zinc-900/60 text-[color:var(--t-tertiary)] border-white/[0.09]";
   const shotLabel =
     shotTier === "excellent"
       ? "EXCELLENT"
@@ -191,10 +191,10 @@ export function PhotographerToolsPanel({
     <div className="space-y-4">
       {/* === 1. Status poruke (ako nema flighta ili nema podataka) ============ */}
       {selectedFlightId == null && (
-        <p className="text-sm text-zinc-400">No flight selected.</p>
+        <p className="text-[length:var(--fs-body)] text-[color:var(--t-tertiary)]">No flight selected.</p>
       )}
       {selectedFlightId && !photoPack && (
-        <p className="text-sm text-amber-300/90">
+        <p className="text-[length:var(--fs-body)] text-amber-300/90">
           {reasonText(photoUnavailableReason)}
         </p>
       )}
@@ -206,14 +206,30 @@ export function PhotographerToolsPanel({
             className="rounded-2xl border border-white/[0.09] bg-zinc-900/50 px-2 py-3 text-center"
             aria-live="polite"
           >
-            <p className="text-xs font-medium leading-snug text-zinc-200">
-              Time until moon and plane line up
+            <p className="text-[length:var(--fs-label)] font-medium leading-snug text-[color:var(--t-primary)]">
+              Time until azimuth alignment
             </p>
-            <p className="mt-3 font-mono text-3xl font-semibold tabular-nums tracking-tight text-amber-400">
+            <p className="mt-3 font-mono text-[length:var(--fs-display)] font-semibold tabular-nums tracking-tight text-amber-400">
               {formatCountdown(photoPack.timeToAlignmentSec ?? null)}
             </p>
+            {photoPack.timeToAlignmentSec != null && (
+              <div className="mt-2.5">
+                {photoPack.willActuallyTransit ? (
+                  <span className="inline-block rounded-full border border-emerald-400/40 bg-emerald-500/10 px-3 py-0.5 font-mono text-[length:var(--fs-label)] font-semibold text-emerald-300">
+                    Disk transit confirmed
+                  </span>
+                ) : (
+                  <span className="inline-block rounded-full border border-amber-400/40 bg-amber-500/10 px-3 py-0.5 font-mono text-[length:var(--fs-label)] text-amber-300">
+                    Azimuth only — elevation miss
+                    {photoPack.elevationGapAtAlignmentDeg != null
+                      ? ` (Δalt ${photoPack.elevationGapAtAlignmentDeg > 0 ? "+" : ""}${photoPack.elevationGapAtAlignmentDeg.toFixed(2)}°)`
+                      : ""}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
-          <dl className="min-w-0 space-y-0.5 break-words font-mono text-[length:var(--fs-meta)] tabular-nums text-[color:var(--t-secondary)]">
+          <dl className="min-w-0 space-y-0.5 break-words font-mono text-[length:var(--fs-body)] tabular-nums text-[color:var(--t-secondary)]">
             <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
               <dt className="max-w-[58%] shrink-0 font-sans font-normal normal-case text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
                 How fast your aim swings (°/s)
@@ -238,8 +254,29 @@ export function PhotographerToolsPanel({
                   : "—"}
               </dd>
             </div>
+            {photoPack.separationAtAlignmentDeg != null && (
+              <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-2">
+                <dt className="max-w-[58%] shrink-0 font-sans font-normal normal-case text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
+                  Sky separation at alignment
+                </dt>
+                <dd className={photoPack.willActuallyTransit ? "text-emerald-300" : "text-amber-300"}>
+                  {photoPack.separationAtAlignmentDeg.toFixed(3)}°
+                </dd>
+              </div>
+            )}
+            {photoPack.elevationGapAtAlignmentDeg != null && (
+              <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-2">
+                <dt className="max-w-[58%] shrink-0 font-sans font-normal normal-case text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
+                  Elevation gap at alignment
+                </dt>
+                <dd className={Math.abs(photoPack.elevationGapAtAlignmentDeg) < 0.3 ? "text-emerald-300" : "text-amber-300"}>
+                  {photoPack.elevationGapAtAlignmentDeg > 0 ? "+" : ""}
+                  {photoPack.elevationGapAtAlignmentDeg.toFixed(3)}°
+                </dd>
+              </div>
+            )}
           </dl>
-          {photoShotFeasibility ? (
+          {photoShotFeasibility && photoPack.timeToAlignmentSec != null ? (
             <div className="rounded-2xl border border-white/[0.09] bg-zinc-900/50 px-2.5 py-2">
               <div className="flex items-center justify-between gap-2">
                 <span className="mt-section-label">Shot feasibility</span>
@@ -277,33 +314,37 @@ export function PhotographerToolsPanel({
               </p>
             </div>
           ) : null}
-          <ViewfinderPreview
-            className="pt-1"
-            simulatedEpochMs={referenceEpochMs}
-            angularSizeDeg={photoShotFeasibility?.angularSizeDeg ?? null}
-            distanceToObserverMeters={
-              photoShotFeasibility?.slantRangeMeters ?? photoPack.kin.slantRangeMeters
-            }
-            aircraftLengthMeters={selectedFlight?.wingspanMeters ?? null}
-            moonDiameterPxAtReferenceSensor={
-              photoShotFeasibility?.moonDiameterPxAtReferenceSensor ?? null
-            }
-            cameraFrameWidthPx={cameraFrameWidthPx}
-            cameraFrameHeightPx={cameraFrameHeightPx}
-            aircraftAltitudeMeters={
-              selectedFlight?.geoAltitudeMeters ?? selectedFlight?.baroAltitudeMeters ?? null
-            }
-            aircraftHeadingDeg={selectedFlight?.trackDeg ?? null}
-            aircraftGroundSpeedMps={selectedFlight?.groundSpeedMps ?? null}
-            aircraftIcao24={selectedFlight?.icao24 ?? selectedFlight?.id ?? null}
-            observerLat={observer.lat}
-            observerLng={observer.lng}
-            callSign={selectedFlight?.callSign ?? selectedFlight?.id ?? null}
-          />
+          {photoPack.timeToAlignmentSec != null && (
+            <ViewfinderPreview
+              className="pt-1"
+              simulatedEpochMs={referenceEpochMs}
+              angularSizeDeg={photoShotFeasibility?.angularSizeDeg ?? null}
+              distanceToObserverMeters={
+                photoShotFeasibility?.slantRangeMeters ?? photoPack.kin.slantRangeMeters
+              }
+              aircraftLengthMeters={selectedFlight?.wingspanMeters ?? null}
+              moonDiameterPxAtReferenceSensor={
+                photoShotFeasibility?.moonDiameterPxAtReferenceSensor ?? null
+              }
+              cameraFrameWidthPx={cameraFrameWidthPx}
+              cameraFrameHeightPx={cameraFrameHeightPx}
+              aircraftAltitudeMeters={
+                selectedFlight?.geoAltitudeMeters ?? selectedFlight?.baroAltitudeMeters ?? null
+              }
+              aircraftHeadingDeg={selectedFlight?.trackDeg ?? null}
+              aircraftGroundSpeedMps={selectedFlight?.groundSpeedMps ?? null}
+              aircraftIcao24={selectedFlight?.icao24 ?? selectedFlight?.id ?? null}
+              observerLat={observer.lat}
+              observerLng={observer.lng}
+              callSign={selectedFlight?.callSign ?? selectedFlight?.id ?? null}
+              elevationGapDeg={photoPack.currentElevationGapDeg}
+              azimuthGapDeg={photoPack.gapDeg}
+            />
+          )}
         </div>
       )}
 
-      {/* === 3. Field sounds toggle (samo kad je flight odabran) ============== */}
+      {/* === 3. Field sounds ================================================== */}
       {selectedFlightId ? (
         <div className="border-t border-white/[0.07] pt-3">
           <div className="flex items-center justify-between gap-2">
@@ -317,10 +358,10 @@ export function PhotographerToolsPanel({
                 }
                 onToggleBeep();
               }}
-              className={`rounded-xl px-2.5 py-1 text-xs font-medium ${
+              className={`rounded-xl px-2.5 py-1 text-[length:var(--fs-label)] font-medium ${
                 beepOnTransit
                   ? "bg-emerald-500/15 text-emerald-300"
-                  : "bg-zinc-800/70 text-zinc-400"
+                  : "bg-zinc-800/70 text-[color:var(--t-tertiary)]"
               }`}
             >
               {beepOnTransit ? "Sounds on" : "Sounds off"}
@@ -334,7 +375,7 @@ export function PhotographerToolsPanel({
         <p className="mt-section-label-emerald border-0 pb-0">Camera settings</p>
         <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
           <label className="flex min-h-0 min-w-0 flex-col gap-1 sm:col-span-2">
-            <span className="text-[length:var(--fs-label)] uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
+            <span className="mt-section-label">
               Camera preset
             </span>
             <div className="min-w-0">
@@ -345,7 +386,7 @@ export function PhotographerToolsPanel({
             </div>
           </label>
           <label className="flex min-h-0 min-w-0 flex-col gap-1">
-            <span className="text-[length:var(--fs-label)] uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
+            <span className="mt-section-label">
               Focal length (mm)
             </span>
             <input
@@ -368,11 +409,11 @@ export function PhotographerToolsPanel({
                   (e.target as HTMLInputElement).blur();
                 }
               }}
-              className="box-border h-9 w-full rounded-xl border border-white/[0.1] bg-zinc-900/70 px-2 font-mono text-[16px] leading-none text-zinc-100"
+              className="box-border h-9 w-full rounded-xl border border-white/[0.1] bg-zinc-900/70 px-2 font-mono text-[16px] leading-none text-[color:var(--t-primary)]"
             />
           </label>
           <label className="flex min-h-0 min-w-0 flex-col gap-1">
-            <span className="text-[length:var(--fs-label)] uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
+            <span className="mt-section-label">
               Sensor type
             </span>
             <div className="min-w-0">
@@ -384,7 +425,7 @@ export function PhotographerToolsPanel({
             </div>
           </label>
           <label className="flex min-h-0 min-w-0 flex-col gap-1">
-            <span className="text-[length:var(--fs-label)] uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
+            <span className="mt-section-label">
               Frame width (px)
             </span>
             <input
@@ -408,11 +449,11 @@ export function PhotographerToolsPanel({
                   (e.target as HTMLInputElement).blur();
                 }
               }}
-              className="box-border h-9 w-full rounded-xl border border-white/[0.1] bg-zinc-900/70 px-2 font-mono text-sm leading-none text-zinc-100 disabled:cursor-not-allowed disabled:opacity-55"
+              className="box-border h-9 w-full rounded-xl border border-white/[0.1] bg-zinc-900/70 px-2 font-mono text-[length:var(--fs-body-strong)] leading-none text-[color:var(--t-primary)] disabled:cursor-not-allowed disabled:opacity-55"
             />
           </label>
           <label className="flex min-h-0 min-w-0 flex-col gap-1">
-            <span className="text-[length:var(--fs-label)] uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
+            <span className="mt-section-label">
               Frame height (px)
             </span>
             <input
@@ -436,7 +477,7 @@ export function PhotographerToolsPanel({
                   (e.target as HTMLInputElement).blur();
                 }
               }}
-              className="box-border h-9 w-full rounded-xl border border-white/[0.1] bg-zinc-900/70 px-2 font-mono text-sm leading-none text-zinc-100 disabled:cursor-not-allowed disabled:opacity-55"
+              className="box-border h-9 w-full rounded-xl border border-white/[0.1] bg-zinc-900/70 px-2 font-mono text-[length:var(--fs-body-strong)] leading-none text-[color:var(--t-primary)] disabled:cursor-not-allowed disabled:opacity-55"
             />
           </label>
         </div>

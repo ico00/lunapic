@@ -5,6 +5,7 @@ import type { CameraSensorType } from "@/lib/domain/geometry/shotFeasibility";
 import type { GroundObserver } from "@/types/geo";
 import type { MoonState } from "@/types/moon";
 import type { FlightState } from "@/types/flight";
+import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useEffect, useMemo, useRef } from "react";
 
 type UseTransitFieldSoundsArgs = {
@@ -34,16 +35,20 @@ export function useTransitFieldSounds(a: UseTransitFieldSoundsArgs): void {
     cameraSensorType,
   } = a;
 
+  const openSkyLatencySkewMs = useMoonTransitStore((s) => s.openSkyLatencySkewMs);
+
   const shotFeasibleIds = useMemo(
     () =>
       computeShotFeasibleFlightIds(
         observer,
         moon,
         flights,
+        Date.now(),
+        openSkyLatencySkewMs,
         cameraFocalLengthMm,
         cameraSensorType
       ),
-    [observer, moon, flights, cameraFocalLengthMm, cameraSensorType]
+    [observer, moon, flights, openSkyLatencySkewMs, cameraFocalLengthMm, cameraSensorType]
   );
 
   const selectedIsShotFeasible = useMemo(
@@ -55,11 +60,11 @@ export function useTransitFieldSounds(a: UseTransitFieldSoundsArgs): void {
     if (selectedFlightId == null) {
       return false;
     }
-    const row = screenTransitCandidates(observer, moon, flights).find(
+    const row = screenTransitCandidates(observer, moon, flights, Date.now(), openSkyLatencySkewMs).find(
       (x) => x.flight.id === selectedFlightId
     );
     return row?.isPossibleTransit ?? false;
-  }, [observer, moon, flights, selectedFlightId]);
+  }, [observer, moon, flights, openSkyLatencySkewMs, selectedFlightId]);
 
   const holdRef = useRef<MoonTransitHoldTone | null>(null);
   const prevGreenRef = useRef(false);

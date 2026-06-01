@@ -2,6 +2,7 @@
 
 import { createPortal } from "react-dom";
 import {
+  Fragment,
   useCallback,
   useEffect,
   useId,
@@ -24,15 +25,10 @@ import {
 } from "@/types/flight-provider";
 
 function labelForProvider(id: FlightProviderId): string {
-  if (id === "mock") {
-    return "Mock";
-  }
-  if (id === "static") {
-    return "Routes (static)";
-  }
-  if (id === "adsbone") {
-    return "ADS-B One (free API)";
-  }
+  if (id === "mock") return "Mock";
+  if (id === "static") return "Routes (static)";
+  if (id === "adsbone") return "ADS-B One (free API)";
+  if (id === "localsdr") return "LunaPic ADS-B";
   return "OpenSky (ADS-B)";
 }
 
@@ -43,13 +39,14 @@ function triggerLabel(
   if (value !== "opensky" && value !== "adsbone") {
     return labelForProvider(value);
   }
+  const hasSdr = liveFlightFeeds.localsdr;
   if (liveFlightFeeds.opensky && liveFlightFeeds.adsbone) {
-    return "OpenSky + ADS-B One (merged)";
+    return hasSdr ? "LunaPic + OpenSky + ADS-B One" : "OpenSky + ADS-B One (merged)";
   }
   if (liveFlightFeeds.opensky) {
-    return labelForProvider("opensky");
+    return hasSdr ? "LunaPic + OpenSky" : labelForProvider("opensky");
   }
-  return labelForProvider("adsbone");
+  return hasSdr ? "LunaPic + ADS-B One" : labelForProvider("adsbone");
 }
 
 type FlightProviderSelectProps = {
@@ -151,11 +148,11 @@ export function FlightProviderSelect({
   const buttonText = triggerLabel(value, liveFlightFeeds);
 
   const optionRowBase =
-    "cursor-pointer select-none rounded-md px-2.5 py-1.5 text-left text-sm outline-none";
+    "cursor-pointer select-none rounded-md px-2.5 py-1.5 text-left text-[length:var(--fs-body)] outline-none";
   const liveRowClass = (feedOn: boolean) =>
     feedOn
-      ? `${optionRowBase} bg-blue-500/20 text-yellow-400`
-      : `${optionRowBase} text-zinc-200 hover:bg-zinc-800 hover:text-zinc-50 focus:bg-zinc-900`;
+      ? `${optionRowBase} bg-sky-500/20 text-sky-200`
+      : `${optionRowBase} text-[color:var(--t-primary)] hover:bg-white/[0.08] hover:text-[color:var(--t-primary)] focus:bg-white/[0.08]`;
 
   const listbox =
     open && pos && hasMounted ? (
@@ -175,44 +172,54 @@ export function FlightProviderSelect({
         }}
       >
         {FLIGHT_PROVIDER_COMBO_IDS.map((id) => {
+          const isLocalsdr = id === "localsdr";
           const feedOn =
             id === "opensky"
               ? liveFlightFeeds.opensky
-              : liveFlightFeeds.adsbone;
+              : id === "adsbone"
+                ? liveFlightFeeds.adsbone
+                : liveFlightFeeds.localsdr;
           return (
-            <li
-              key={id}
-              role="presentation"
-              className={liveRowClass(feedOn)}
-              onMouseDown={(e) => e.preventDefault()}
-            >
-              <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="checkbox"
-                  data-testid={
-                    id === "opensky"
-                      ? "live-feed-opensky"
-                      : "live-feed-adsbone"
-                  }
-                  checked={feedOn}
-                  onChange={(e) => {
-                    if (id === "opensky") {
-                      onLiveFlightFeedsChange({
-                        opensky: e.target.checked,
-                      });
-                    } else {
-                      onLiveFlightFeedsChange({
-                        adsbone: e.target.checked,
-                      });
-                    }
-                  }}
-                  className={shellAccentCheckboxClass}
+            <Fragment key={id}>
+              {isLocalsdr && (
+                <li
+                  role="separator"
+                  aria-hidden
+                  className="mx-2 my-1 border-t border-zinc-700/60"
                 />
-                <span className="min-w-0 flex-1 select-none">
-                  {labelForProvider(id)}
-                </span>
-              </label>
-            </li>
+              )}
+              <li
+                role="presentation"
+                className={liveRowClass(feedOn)}
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    data-testid={`live-feed-${id}`}
+                    checked={feedOn}
+                    onChange={(e) => {
+                      onLiveFlightFeedsChange(
+                        id === "opensky"
+                          ? { opensky: e.target.checked }
+                          : id === "adsbone"
+                            ? { adsbone: e.target.checked }
+                            : { localsdr: e.target.checked }
+                      );
+                    }}
+                    className={shellAccentCheckboxClass}
+                  />
+                  <span className="min-w-0 flex-1 select-none">
+                    {labelForProvider(id)}
+                  </span>
+                  {isLocalsdr && feedOn && (
+                    <span className="ml-1 shrink-0 text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
+                      ↑ priority
+                    </span>
+                  )}
+                </label>
+              </li>
+            </Fragment>
           );
         })}
       </ul>
@@ -244,7 +251,7 @@ export function FlightProviderSelect({
       >
         <span className="min-w-0 flex-1 truncate">{buttonText}</span>
         <svg
-          className={`h-4 w-4 shrink-0 text-zinc-500 transition ${open ? "rotate-180" : ""}`}
+          className={`h-4 w-4 shrink-0 text-[color:var(--t-tertiary)] transition ${open ? "rotate-180" : ""}`}
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

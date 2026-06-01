@@ -122,6 +122,13 @@ type MoonTransitState = {
   setFlightHistoryHeatmap: (v: boolean) => void;
   flightHistoryRoutes: boolean;
   setFlightHistoryRoutes: (v: boolean) => void;
+  /** ICAO24 selected from the Flight log panel — triggers trail render on the main map. */
+  flightLogSelectedIcao24: string | null;
+  flightLogDaysBack: number;
+  setFlightLogSelected: (icao24: string | null, days?: number) => void;
+  /** Callsign selected from the Flight log panel — triggers session history + mean path on map. */
+  flightLogSelectedCallsign: string | null;
+  setFlightLogSelectedCallsign: (callsign: string | null) => void;
   setFlightProvider: (id: FlightProviderId) => void;
   setLiveFlightFeeds: (patch: Partial<LiveFlightFeeds>) => void;
   /** Ako je još `static` (stari build), prebaci na live dual — static nije u comboboxu. */
@@ -173,7 +180,7 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   referenceEpochMs: 0,
   mapView: defaultMapViewState,
   flightProvider: "opensky",
-  liveFlightFeeds: { opensky: true, adsbone: true, localsdr: false },
+  liveFlightFeeds: { opensky: true, adsbone: true, localsdr: true },
   flights: [],
   providerFlightCounts: { opensky: 0, adsbone: 0, localsdr: 0 },
   isLoading: false,
@@ -309,6 +316,15 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   setFlightHistoryHeatmap: (v) => set({ flightHistoryHeatmap: v }),
   flightHistoryRoutes: false,
   setFlightHistoryRoutes: (v) => set({ flightHistoryRoutes: v }),
+  flightLogSelectedIcao24: null,
+  flightLogDaysBack: 7,
+  setFlightLogSelected: (icao24, days) =>
+    set((s) => ({
+      flightLogSelectedIcao24: icao24,
+      flightLogDaysBack: days ?? s.flightLogDaysBack,
+    })),
+  flightLogSelectedCallsign: null,
+  setFlightLogSelectedCallsign: (callsign) => set({ flightLogSelectedCallsign: callsign }),
   setFlightProvider: (id) =>
     set((s) => {
       let liveFlightFeeds = s.liveFlightFeeds;

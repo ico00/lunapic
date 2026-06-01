@@ -153,9 +153,14 @@ export function useFlightHistoryLayers(
 
     load();
     heatmapTimerRef.current = setInterval(load, REFRESH_MS);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       if (heatmapTimerRef.current) clearInterval(heatmapTimerRef.current);
       heatmapTimerRef.current = null;
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [heatmapEnabled, mapReadyTick, mapRef]);
 
@@ -191,9 +196,14 @@ export function useFlightHistoryLayers(
 
     load();
     routesTimerRef.current = setInterval(load, REFRESH_MS);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       if (routesTimerRef.current) clearInterval(routesTimerRef.current);
       routesTimerRef.current = null;
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [routesEnabled, mapReadyTick, mapRef]);
 }

@@ -33,7 +33,7 @@ describe("screenTransitCandidates", () => {
       phaseFraction: 0.3,
       illuminationFraction: 0.5,
     };
-    expect(screenTransitCandidates(observer, moon, [])).toEqual([]);
+    expect(screenTransitCandidates(observer, moon, [], 0, 0)).toEqual([]);
   });
 
   it("skips flights without any altitude", () => {
@@ -54,7 +54,7 @@ describe("screenTransitCandidates", () => {
       trackDeg: null,
       timestamp: 0,
     };
-    expect(screenTransitCandidates(observer, moon, [f])).toEqual([]);
+    expect(screenTransitCandidates(observer, moon, [f], 0, 0)).toEqual([]);
   });
 
   it("aligns sky direction with moon → low separation, possible transit", () => {
@@ -70,7 +70,7 @@ describe("screenTransitCandidates", () => {
       phaseFraction: 0.5,
       illuminationFraction: 1,
     };
-    const out = screenTransitCandidates(observer, moon, [flight("a", fLat, fLng, h)]);
+    const out = screenTransitCandidates(observer, moon, [flight("a", fLat, fLng, h)], 0, 0);
     expect(out).toHaveLength(1);
     expect(out[0]!.separationDeg).toBeLessThan(0.1);
     expect(out[0]!.isPossibleTransit).toBe(true);
@@ -93,7 +93,7 @@ describe("screenTransitCandidates", () => {
     const out = screenTransitCandidates(observer, m, [
       flight("far", f2Lat, f2Lng, h),
       flight("near", f1Lat, f1Lng, h),
-    ]);
+    ], 0, 0);
     expect(out.length).toBe(2);
     expect(out[0]!.separationDeg).toBeLessThanOrEqual(out[1]!.separationDeg);
   });

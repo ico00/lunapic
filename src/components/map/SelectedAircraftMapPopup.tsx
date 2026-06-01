@@ -5,6 +5,7 @@ import { useExtrapolatedFlightsForMap } from "@/hooks/useExtrapolatedFlightsForM
 import {
   SELECTED_AIRCRAFT_POPUP_SCREEN_X,
   SELECTED_AIRCRAFT_POPUP_SCREEN_Y,
+  mobileBottomUiHeightPx,
 } from "@/lib/map/selectedAircraftPopupAnchor";
 import { fetchOpenSkyAircraftTypeLabel } from "@/lib/flight/openskyAircraftIndexClient";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
@@ -69,86 +70,10 @@ function isMobileMapWidth(map: Map): boolean {
 }
 
 /**
- * Donji `padding` roditelja Mapbox containera (HomePageClient ostavlja traku za tabove).
- * Pomakne `Popup` s `anchor: bottom` vizualno u rezervu da se kartica spoji s tab trakom.
- */
-/** Ako se `padding-bottom` ne može pouzdano očitati s roditelja map canvasa. */
-const MOBILE_MAP_DOCK_PADDING_FALLBACK_PX = 88;
-/**
- * v2 layout: dock (~68px) + slim time ribbon (~44px @ bottom-5rem = 124px ukupno
- * + altitude/layers strip iznad). Sidrište podigneš dovoljno da popup bottom
- * sjedne IZNAD slim ribbona, ne ispod njega.
- */
-const MOBILE_POPUP_ANCHOR_ABOVE_MAP_BOTTOM_PX = 140;
-
-function readMobileDockPaddingBottomPx(map: Map): number {
-  let best = 0;
-  let el: HTMLElement | null = map.getContainer().parentElement;
-  for (let hop = 0; hop < 8 && el; hop++) {
-    const raw = getComputedStyle(el).paddingBottom;
-    const px = Number.parseFloat(raw);
-    if (Number.isFinite(px) && px >= 8) {
-      best = Math.max(best, Math.round(px));
-    }
-    el = el.parentElement;
-  }
-  /** Bez globalnog min(120px): to je diglo karticu predaleko od tabova kad je stvarni padding ~72px. */
-  if (best >= 48) {
-    return best;
-  }
-  return MOBILE_MAP_DOCK_PADDING_FALLBACK_PX;
-}
-
-function measuredMobilePrimaryNavHeightPx(): number {
-  if (typeof document === "undefined") {
-    return 0;
-  }
-  const nav = document.querySelector<HTMLElement>(
-    '[data-testid="mobile-primary-nav"]'
-  );
-  if (!nav) {
-    return 0;
-  }
-  return Math.ceil(nav.getBoundingClientRect().height);
-}
-
-/**
- * Pozitivna magnituda (px); u `setOffset` ide kao **negativan** Y za `anchor: bottom` (gore).
- * `base` = shell `padding-bottom` ispod karte — već uključuje traku za tabove; ne zbrajati opet punu
- * visinu nav-a (kartica bi „letjela“ iznad karte).
- */
-function mobileBottomPopupLiftMagnitudePx(map: Map): number {
-  const base = readMobileDockPaddingBottomPx(map);
-  if (!isMobileMapWidth(map)) {
-    return base;
-  }
-  const navH = measuredMobilePrimaryNavHeightPx();
-  /** Samo ako je nav stvarno viši od shell paddinga — inače par piksela za Mapbox / zaobljenje. */
-  const mismatch =
-    navH > 0 && navH > base + 8
-      ? Math.round((navH - base) * 0.35)
-      : 0;
-  return Math.max(0, Math.min(20, 1 + Math.round(base * 0.02) + mismatch));
-}
-
-/**
- * v2 layout: anchor već lifta popup iznad bottom kontrola, nudge ne treba —
- * postavi 0 da popup bottom ostane točno na sidrišnoj točki.
- */
-const MOBILE_POPUP_DOCK_DOWN_NUDGE_PX = 0;
-
-function mobilePopupBottomOffsetY(map: Map): number {
-  if (!isMobileMapWidth(map)) {
-    return 0;
-  }
-  const lift = mobileBottomPopupLiftMagnitudePx(map);
-  return -lift + MOBILE_POPUP_DOCK_DOWN_NUDGE_PX;
-}
-
-/**
  * Screen pixel anchor for `map.unproject` (origin top-left of the map container).
- * Mobile: bottom-centre of map canvas; {@link readMobileDockPaddingBottomPx} + `setOffset`
- * nosač spaja s bottom tab stripom. Desktop: HUD under header (`anchor: top-left`).
+ * Mobile: bottom-centre of map canvas; sidrište se mjeri iz stvarnog DOM elementa
+ * doka (isti pristup kao CSS varijable --mobile-dock-h u globals.css).
+ * Desktop: HUD ispod headera (`anchor: top-left`).
  */
 function popupScreenAnchor(map: Map): {
   x: number;
@@ -156,17 +81,10 @@ function popupScreenAnchor(map: Map): {
   anchor: "top-left" | "bottom";
 } {
   const rect = map.getContainer().getBoundingClientRect();
-  const mobile = isMobileMapWidth(map);
-  if (mobile) {
-    const y = Math.max(
-      1,
-      rect.height - MOBILE_POPUP_ANCHOR_ABOVE_MAP_BOTTOM_PX
-    );
-    return {
-      x: rect.width / 2,
-      y,
-      anchor: "bottom",
-    };
+  if (isMobileMapWidth(map)) {
+    const bottomUiPx = mobileBottomUiHeightPx();
+    const y = Math.max(1, rect.height - bottomUiPx);
+    return { x: rect.width / 2, y, anchor: "bottom" };
   }
   return {
     x: SELECTED_AIRCRAFT_POPUP_SCREEN_X,
@@ -265,7 +183,7 @@ export function SelectedAircraftMapPopup({
     popup.setLngLat(map.unproject([anchor.x, anchor.y]));
     const popupEl = popup.getElement();
     if (anchor.anchor === "bottom") {
-      popup.setOffset([0, mobilePopupBottomOffsetY(map)]);
+      popup.setOffset([0, 0]);
       if (isMobileMapWidth(map)) {
         const vw = Math.max(mobileViewportWidthPx(), map.getContainer().clientWidth);
         if (vw > 0) {
@@ -334,10 +252,7 @@ export function SelectedAircraftMapPopup({
         maxWidth: "none",
         className: "moon-transit-aircraft-popup",
         anchor: anchor.anchor,
-        offset:
-          anchor.anchor === "bottom"
-            ? ([0, mobilePopupBottomOffsetY(map)] as [number, number])
-            : undefined,
+        offset: undefined,
       })
         .setDOMContent(el)
         .addTo(map);

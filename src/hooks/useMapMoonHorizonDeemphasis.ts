@@ -53,7 +53,6 @@ const MOON_LAYER_PAINT: readonly {
     bright: 0.95,
     dim: 0.15,
   },
-  { id: "optimal-ground-line", prop: "line-opacity", bright: 0.4, dim: 0.08 },
   {
     id: "selected-aircraft-stand-fill",
     prop: "fill-opacity",

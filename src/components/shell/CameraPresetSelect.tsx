@@ -139,8 +139,8 @@ export function CameraPresetSelect({ value, onChange }: CameraPresetSelectProps)
               aria-selected={isSel}
               className={
                 isSel
-                  ? "cursor-pointer select-none whitespace-nowrap rounded-md bg-blue-500/20 px-2.5 py-1.5 text-left text-sm text-yellow-400"
-                  : "cursor-pointer select-none whitespace-nowrap rounded-md px-2.5 py-1.5 text-left text-sm text-zinc-200 outline-none hover:bg-zinc-800 hover:text-zinc-50 focus:bg-zinc-900"
+                  ? "cursor-pointer select-none whitespace-nowrap rounded-md bg-sky-500/20 px-2.5 py-1.5 text-left text-[length:var(--fs-body)] text-sky-200"
+                  : "cursor-pointer select-none whitespace-nowrap rounded-md px-2.5 py-1.5 text-left text-[length:var(--fs-body)] text-[color:var(--t-primary)] outline-none hover:bg-white/[0.08] hover:text-[color:var(--t-primary)] focus:bg-white/[0.08]"
               }
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => onPick(preset.id)}
@@ -170,7 +170,7 @@ export function CameraPresetSelect({ value, onChange }: CameraPresetSelectProps)
       >
         <span className="min-w-0 flex-1 text-left">{triggerLabel(value)}</span>
         <svg
-          className={`h-4 w-4 shrink-0 text-zinc-500 transition ${open ? "rotate-180" : ""}`}
+          className={`h-4 w-4 shrink-0 text-[color:var(--t-tertiary)] transition ${open ? "rotate-180" : ""}`}
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

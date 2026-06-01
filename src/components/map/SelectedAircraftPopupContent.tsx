@@ -6,7 +6,6 @@ import {
   flightAirlineLogoKiwiIata,
 } from "@/lib/flight/flightDisplayLabels";
 import { formatFixed, mpsToKnots } from "@/lib/format/numbers";
-import { useHasMounted } from "@/hooks/useHasMounted";
 import {
   computeContrailLikelihood,
   type ContrailLikelihood,
@@ -14,16 +13,11 @@ import {
 import { useWeatherStore } from "@/stores/weather-store";
 import type { FlightState } from "@/types/flight";
 
-function fmtDataTimestamp(ms: number): string {
-  return new Date(ms).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
+function providerLabel(id: string): string {
+  if (id === "adsbone") return "ADS-B One";
+  if (id === "localsdr") return "LunaPic ADS-B";
+  if (id === "opensky") return "OpenSky";
+  return id;
 }
 
 /** English UI copy when the feed omits value (all providers). */
@@ -109,7 +103,6 @@ export function SelectedAircraftPopupContent({
   // — refresh ikonica je uklonjena, live feed sam osvježava podatke.
   void onRefreshFlights;
   const [collapsed, setCollapsed] = useState(false);
-  const hasMounted = useHasMounted();
   const atmosphericLevels = useWeatherStore((s) => s.atmosphericLevels);
   const typeDisplay = flight
     ? flight.aircraftType?.trim() || AIRCRAFT_TYPE_FALLBACK
@@ -151,7 +144,7 @@ export function SelectedAircraftPopupContent({
               </p>
             </div>
             <svg
-              className={`h-4 w-4 shrink-0 text-[color:var(--t-tertiary)] transition-transform duration-200 ${collapsed ? "rotate-180" : ""}`}
+              className={`h-4 w-4 shrink-0 text-[color:var(--t-tertiary)] transition-transform duration-200 ${collapsed ? "" : "rotate-180"}`}
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -259,7 +252,7 @@ export function SelectedAircraftPopupContent({
                   {contrail != null ? CONTRAIL_LABEL[contrail] : "—"}
                 </div>
               </div>
-              <div className="col-span-2 min-w-0 rounded-xl border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/80 px-2.5 py-1.5 md:px-3 md:py-2">
+              <div className="min-w-0 rounded-xl border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/80 px-2.5 py-1.5 md:px-3 md:py-2">
                 <div className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
                   Position
                 </div>
@@ -268,14 +261,15 @@ export function SelectedAircraftPopupContent({
                   {formatFixed(flight.position.lng, 3)}°
                 </div>
               </div>
+              <div className="min-w-0 rounded-xl border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/80 px-2.5 py-1.5 md:px-3 md:py-2">
+                <div className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
+                  Source
+                </div>
+                <div className="mt-0.5 truncate font-mono text-[length:var(--fs-meta)] leading-snug text-[color:var(--t-primary)]">
+                  {flight.providerId ? providerLabel(flight.providerId) : "—"}
+                </div>
+              </div>
             </div>
-            <p
-              className="mt-2 border-t border-[color:var(--glass-stroke)] pt-2 text-center font-mono text-[length:var(--fs-label)] tabular-nums text-[color:var(--t-tertiary)]"
-              suppressHydrationWarning
-              title="Time when this aircraft state was reported by the feed"
-            >
-              {hasMounted ? fmtDataTimestamp(flight.timestamp) : "—"}
-            </p>
           </div>
         </>
       ) : null}

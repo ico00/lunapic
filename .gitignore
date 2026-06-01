@@ -50,3 +50,6 @@ next-env.d.ts
 
 # Flight history DB
 data/
+
+# Claude Code local state (sessions, worktrees) — never commit
+.claude/

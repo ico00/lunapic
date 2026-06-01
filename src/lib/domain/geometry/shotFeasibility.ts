@@ -16,6 +16,23 @@ export const CAMERA_SENSOR_CROP = {
   microFourThirds: 2.0,
 } as const satisfies Record<CameraSensorType, number>;
 
+/** Physical sensor height in mm (short edge of the imaging area). */
+export const CAMERA_SENSOR_HEIGHT_MM = {
+  fullFrame: 24.0,
+  apsC: 15.6,
+  apsC16: 14.9,
+  microFourThirds: 13.0,
+} as const satisfies Record<CameraSensorType, number>;
+
+/**
+ * Vertical field of view in degrees for a given focal length and sensor.
+ * Used to derive elevation-gap thresholds for transit candidate filtering.
+ */
+export function verticalFovDeg(focalLengthMm: number, sensorType: CameraSensorType): number {
+  const h = CAMERA_SENSOR_HEIGHT_MM[sensorType];
+  return (2 * Math.atan(h / (2 * focalLengthMm)) * 180) / Math.PI;
+}
+
 /** UI / iteration order (matches `CAMERA_SENSOR_CROP` keys). */
 export const CAMERA_SENSOR_ORDER = [
   "fullFrame",

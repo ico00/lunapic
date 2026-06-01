@@ -24,7 +24,7 @@ export const MOON_PATH_CURRENT_SOURCE = "moon-path-current-geo";
 /** Mapbox global DEM for `queryTerrainElevation` (observer ground height from map). */
 export const MAPBOX_TERRAIN_DEM_SOURCE = "lunapic-mapbox-terrain-dem";
 
-/** Krug radijusa API upita aviona (100 km oko observera). */
+/** Krug fotografski relevantnog dometa (80 km oko observera). */
 export const OBSERVER_RADIUS_SOURCE = "observer-radius-geo";
 export const OBSERVER_RADIUS_LAYER_ID = "observer-radius-layer";
 
@@ -33,8 +33,21 @@ export const VFR_OPENAIP_LAYER_ID = "vfr-openaip-layer";
 export const VFR_OPENAIP_MASK_SOURCE = "vfr-openaip-mask-source";
 export const VFR_OPENAIP_MASK_LAYER_ID = "vfr-openaip-mask-layer";
 
+/** Selected-aircraft historical trail (local ADS-B log, last N hours). */
+export const SELECTED_FLIGHT_TRAIL_SOURCE = "selected-flight-trail-geo";
+export const SELECTED_FLIGHT_TRAIL_LAYER_ID = "selected-flight-trail";
+
 /** Flight history overlay (local ADS-B log). */
 export const FLIGHT_HISTORY_HEATMAP_SOURCE = "flight-history-heatmap-geo";
 export const FLIGHT_HISTORY_HEATMAP_LAYER_ID = "flight-history-heatmap-layer";
 export const FLIGHT_HISTORY_ROUTES_SOURCE = "flight-history-routes-geo";
 export const FLIGHT_HISTORY_ROUTES_LAYER_ID = "flight-history-routes-layer";
+
+/** Selected-callsign history: individual session lines + mean path. */
+export const CALLSIGN_SESSIONS_SOURCE = "callsign-sessions-geo";
+export const CALLSIGN_SESSIONS_LAYER_ID = "callsign-sessions-layer";
+export const CALLSIGN_MEAN_SOURCE = "callsign-mean-geo";
+export const CALLSIGN_MEAN_LAYER_ID = "callsign-mean-layer";
+
+/** Green ring badge around aircraft with a confirmed disk transit predicted. */
+export const CONFIRMED_TRANSIT_BADGE_LAYER_ID = "confirmed-transit-badge-layer";

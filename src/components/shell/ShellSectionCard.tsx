@@ -41,7 +41,7 @@ const ACCENT_LABEL: Record<ShellSectionAccent, string> = {
   rose: "text-rose-300 border-rose-500/[0.16]",
   violet: "text-violet-300 border-violet-500/[0.16]",
   lime: "text-lime-300 border-lime-500/[0.16]",
-  zinc: "text-zinc-300 border-white/[0.10]",
+  zinc: "text-[color:var(--t-secondary)] border-white/[0.10]",
 };
 
 type SectionCardSurfaceProps = {
@@ -139,7 +139,7 @@ type ShellFootnoteProps = {
 export function ShellFootnote({ children, className = "" }: ShellFootnoteProps) {
   return (
     <div
-      className={`mt-3 rounded-xl border border-dashed border-white/[0.12] bg-white/[0.02] px-3.5 py-3 text-[13px] leading-relaxed text-zinc-300/80 ${className}`}
+      className={`mt-3 rounded-xl border border-dashed border-white/[0.12] bg-white/[0.02] px-3.5 py-3 text-[length:var(--fs-meta)] leading-relaxed text-[color:var(--t-secondary)] ${className}`}
     >
       {children}
     </div>

@@ -1,9 +1,10 @@
 "use client";
 
-import { useMoonStateComputed, useTransitCandidates } from "@/hooks/useTransitCandidates";
-import { mpsToKnots } from "@/lib/format/numbers";
+import { useTransitCandidates } from "@/hooks/useTransitCandidates";
 import { horizontalToPoint } from "@/lib/domain/geometry/horizontal";
+import { SelectedAircraftPopupContent } from "@/components/map/SelectedAircraftPopupContent";
 import { extrapolateFlightForDisplay } from "@/lib/flight/extrapolateFlightPosition";
+import { AstroService } from "@/lib/domain/astro/astroService";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useObserverStore } from "@/stores/observer-store";
 import type { FlightState } from "@/types";
@@ -22,10 +23,11 @@ type TrackedMarker = {
 type DevicePose = {
   headingDeg: number | null;
   pitchDeg: number;
+  compassAccuracyDeg: number | null; // null = not reported; iOS: degrees of error
 };
 
-const WATCHED_IDS_STORAGE_KEY = "moonTransitWatchedCandidateFlightIds";
 const MAX_TRACKED_MARKERS = 24;
+const AR_H_FOV_DEG = 62;
 
 function normalizeSignedAngleDeg(deg: number): number {
   return ((deg + 540) % 360) - 180;
@@ -44,6 +46,11 @@ function toCameraPitchDeg(beta: number | null): number {
   if (beta == null || !Number.isFinite(beta)) {
     return 0;
   }
+  // beta=90°  → phone upright  → camera horizontal → pitch=0°
+  // beta=180° → phone flat screen-down → camera pointing UP → pitch=+90°
+  // beta=0°   → phone flat screen-up   → camera pointing DOWN → pitch=-90°
+  // Back camera faces the same direction as the back of the phone:
+  // tilting up (screen goes face-down) increases beta, so pitch = beta - 90.
   const pitch = beta - 90;
   return Math.max(-80, Math.min(80, pitch));
 }
@@ -69,12 +76,6 @@ function markerFromFlight(
   };
 }
 
-function formatMaybeNumber(n: number | null | undefined, digits = 0): string {
-  if (n == null || !Number.isFinite(n)) {
-    return "—";
-  }
-  return n.toFixed(digits);
-}
 
 export function ArSkyCameraPanel() {
   const observer = useObserverStore((s) => s.observer);
@@ -84,22 +85,31 @@ export function ArSkyCameraPanel() {
   const referenceEpochMs = useMoonTransitStore((s) => s.referenceEpochMs);
   const openSkyLatencySkewMs = useMoonTransitStore((s) => s.openSkyLatencySkewMs);
   const candidates = useTransitCandidates();
-  const moon = useMoonStateComputed();
 
   const [open, setOpen] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [orientationError, setOrientationError] = useState<string | null>(null);
-  const [pose, setPose] = useState<DevicePose>({ headingDeg: null, pitchDeg: 0 });
+  const [pose, setPose] = useState<DevicePose>({ headingDeg: null, pitchDeg: 0, compassAccuracyDeg: null });
   const [calibrationOffsetDeg, setCalibrationOffsetDeg] = useState(0);
+  const [calibrating, setCalibrating] = useState(false);
   const [renderNowMs, setRenderNowMs] = useState(() => Date.now());
+
+  // AR kamera uvijek prikazuje REALNI TRENUTAK — koristimo renderNowMs, ne referenceEpochMs.
+  // Korisnik može imati vremenski klizač pomaknut na +20h, ali kamera vidi sadašnjost.
+  // Preračunavamo svako 10 s — Mjesec se miče ~0.5°/h, čestije je nepotrebno.
+  const moon = useMemo(
+    () => AstroService.getMoonState(new Date(renderNowMs), observer.lat, observer.lng, observer.groundHeightMeters),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [Math.floor(renderNowMs / 10_000), observer.lat, observer.lng, observer.groundHeightMeters]
+  );
   const [viewport, setViewport] = useState({ w: 360, h: 640 });
-  const [watchedFlightIds, setWatchedFlightIds] = useState<Set<string>>(new Set());
   const [showAllNearbyFlights, setShowAllNearbyFlights] = useState(true);
   const [infoFlightId, setInfoFlightId] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const headingSamplesRef = useRef(0);
 
   useEffect(() => {
     if (!open) {
@@ -113,28 +123,6 @@ export function ArSkyCameraPanel() {
     };
   }, [open]);
 
-  useEffect(() => {
-    if (!open || typeof globalThis === "undefined") {
-      return;
-    }
-    try {
-      const raw = globalThis.localStorage.getItem(WATCHED_IDS_STORAGE_KEY);
-      if (!raw) {
-        setWatchedFlightIds(new Set());
-        return;
-      }
-      const parsed = JSON.parse(raw) as unknown;
-      if (!Array.isArray(parsed)) {
-        setWatchedFlightIds(new Set());
-        return;
-      }
-      setWatchedFlightIds(
-        new Set(parsed.filter((value): value is string => typeof value === "string"))
-      );
-    } catch {
-      setWatchedFlightIds(new Set());
-    }
-  }, [open]);
 
   const trackedMarkers = useMemo(() => {
     const byId = new Map(flights.map((f) => [f.id, f] as const));
@@ -143,12 +131,6 @@ export function ArSkyCameraPanel() {
     if (selectedFlightId) {
       ids.add(selectedFlightId);
       orderedIds.push(selectedFlightId);
-    }
-    for (const watchedId of watchedFlightIds) {
-      if (!ids.has(watchedId)) {
-        ids.add(watchedId);
-        orderedIds.push(watchedId);
-      }
     }
     for (const candidate of candidates.slice(0, 6)) {
       if (!ids.has(candidate.flight.id)) {
@@ -181,7 +163,7 @@ export function ArSkyCameraPanel() {
           isSelected: marker.id === selectedFlightId,
         };
       })
-      .filter((marker) => marker.altitudeDeg >= -5)
+      .filter((marker) => marker.altitudeDeg >= 0)
       .slice(0, MAX_TRACKED_MARKERS);
   }, [
     candidates,
@@ -192,8 +174,12 @@ export function ArSkyCameraPanel() {
     renderNowMs,
     selectedFlightId,
     showAllNearbyFlights,
-    watchedFlightIds,
   ]);
+
+  const newestFlightMs = useMemo(
+    () => (trackedMarkers.length === 0 ? 0 : Math.max(...trackedMarkers.map((m) => m.flight.timestamp))),
+    [trackedMarkers]
+  );
 
   useEffect(() => {
     if (infoFlightId != null && !trackedMarkers.some((m) => m.id === infoFlightId)) {
@@ -217,7 +203,7 @@ export function ArSkyCameraPanel() {
     if (cameraAzimuthDeg == null) {
       return [];
     }
-    const horizontalFovDeg = 62;
+    const horizontalFovDeg = AR_H_FOV_DEG;
     const verticalFovDeg = 48;
     return trackedMarkers.map((marker) => {
       const dxDeg = normalizeSignedAngleDeg(marker.azimuthDeg - cameraAzimuthDeg);
@@ -248,8 +234,8 @@ export function ArSkyCameraPanel() {
               ? 90
               : -90
             : marker.dyDeg > 0
-              ? 180
-              : 0;
+              ? 0
+              : 180;
         return {
           ...marker,
           x: clampedX,
@@ -284,20 +270,49 @@ export function ArSkyCameraPanel() {
     if (cameraAzimuthDeg == null) {
       return null;
     }
-    const horizontalFovDeg = 62;
+    const horizontalFovDeg = AR_H_FOV_DEG;
     const verticalFovDeg = 48;
     const dxDeg = normalizeSignedAngleDeg(moon.azimuthDeg - cameraAzimuthDeg);
     const dyDeg = moon.altitudeDeg - pose.pitchDeg;
-    return {
-      x: viewport.w * (0.5 + dxDeg / horizontalFovDeg),
-      y: viewport.h * (0.5 - dyDeg / verticalFovDeg),
-      visible:
-        viewport.w * (0.5 + dxDeg / horizontalFovDeg) >= -40 &&
-        viewport.w * (0.5 + dxDeg / horizontalFovDeg) <= viewport.w + 40 &&
-        viewport.h * (0.5 - dyDeg / verticalFovDeg) >= -40 &&
-        viewport.h * (0.5 - dyDeg / verticalFovDeg) <= viewport.h + 40,
-    };
+    const x = viewport.w * (0.5 + dxDeg / horizontalFovDeg);
+    const y = viewport.h * (0.5 - dyDeg / verticalFovDeg);
+    const visible = x >= -40 && x <= viewport.w + 40 && y >= -40 && y <= viewport.h + 40;
+    return { x, y, dxDeg, dyDeg, visible };
   }, [cameraAzimuthDeg, moon.altitudeDeg, moon.azimuthDeg, pose.pitchDeg, viewport.h, viewport.w]);
+
+  const moonOffscreenArrow = useMemo(() => {
+    if (!moonScreen || moonScreen.visible) {
+      return null;
+    }
+    const clampedX = Math.min(viewport.w - 20, Math.max(20, moonScreen.x));
+    const clampedY = Math.min(viewport.h - 20, Math.max(20, moonScreen.y));
+    const angleDeg =
+      Math.abs(moonScreen.dxDeg) >= Math.abs(moonScreen.dyDeg)
+        ? moonScreen.dxDeg > 0
+          ? 90
+          : -90
+        : moonScreen.dyDeg > 0
+          ? 0
+          : 180;
+    return { x: clampedX, y: clampedY, angleDeg };
+  }, [moonScreen, viewport.h, viewport.w]);
+
+  const handleCalibrationTap = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!calibrating || pose.headingDeg == null) return;
+      e.stopPropagation();
+      const rect = e.currentTarget.getBoundingClientRect();
+      const tapX = e.clientX - rect.left;
+      // Horizontal angle between the tap position and the current camera center
+      const tapDxDeg = (tapX / viewport.w - 0.5) * AR_H_FOV_DEG;
+      // We want moon to appear at tapX, so we solve for the new calibrationOffset:
+      // moon.azimuthDeg = pose.headingDeg + newOffset + tapDxDeg  (mod 360)
+      const newOffset = normalizeSignedAngleDeg(moon.azimuthDeg - pose.headingDeg - tapDxDeg);
+      setCalibrationOffsetDeg(newOffset);
+      setCalibrating(false);
+    },
+    [calibrating, moon.azimuthDeg, pose.headingDeg, viewport.w]
+  );
 
   const requestOrientation = useCallback(async () => {
     setOrientationError(null);
@@ -317,6 +332,7 @@ export function ArSkyCameraPanel() {
       const onOrientation = (event: DeviceOrientationEvent) => {
         const webkitEvent = event as DeviceOrientationEvent & {
           webkitCompassHeading?: number;
+          webkitCompassAccuracy?: number;
         };
         const nextHeading =
           typeof webkitEvent.webkitCompassHeading === "number"
@@ -324,18 +340,35 @@ export function ArSkyCameraPanel() {
             : event.alpha == null
               ? null
               : (360 - event.alpha + 360) % 360;
+        const nextAccuracy =
+          typeof webkitEvent.webkitCompassAccuracy === "number" &&
+          webkitEvent.webkitCompassAccuracy >= 0
+            ? webkitEvent.webkitCompassAccuracy
+            : null;
         const nextPitch = toCameraPitchDeg(event.beta);
         setPose((prev) => {
-          const smoothedHeading =
-            nextHeading == null
-              ? null
-              : prev.headingDeg == null
-                ? nextHeading
-                : smoothAngleDeg(prev.headingDeg, nextHeading, 0.2);
-          const smoothedPitch = lerp(prev.pitchDeg, nextPitch, 0.22);
+          const smoothedHeading = (() => {
+            if (nextHeading == null) return null;
+            if (prev.headingDeg == null) {
+              headingSamplesRef.current = 1;
+              return nextHeading;
+            }
+            // Reject outliers: a jump >45° in one sensor sample is a magnetic
+            // glitch, not real rotation (~6°/frame max at 360°/s, 60 Hz).
+            const delta = normalizeSignedAngleDeg(nextHeading - prev.headingDeg);
+            if (Math.abs(delta) > 45) return prev.headingDeg;
+            // Warmup: high alpha for first ~60 samples (~1 s) for fast initial
+            // lock-on, then low alpha for long-term stability.
+            const n = headingSamplesRef.current;
+            headingSamplesRef.current = n + 1;
+            const alpha = n < 60 ? 0.25 : 0.06;
+            return smoothAngleDeg(prev.headingDeg, nextHeading, alpha);
+          })();
+          const smoothedPitch = lerp(prev.pitchDeg, nextPitch, 0.12);
           return {
             headingDeg: smoothedHeading,
             pitchDeg: smoothedPitch,
+            compassAccuracyDeg: nextAccuracy,
           };
         });
       };
@@ -353,6 +386,7 @@ export function ArSkyCameraPanel() {
     if (!open) {
       return;
     }
+    headingSamplesRef.current = 0;
     let cleanupOrientation: (() => void) | undefined;
     requestOrientation().then((cleanup) => {
       cleanupOrientation = cleanup;
@@ -450,34 +484,26 @@ export function ArSkyCameraPanel() {
           />
           <div
             ref={overlayRef}
-            className="absolute inset-0 overflow-hidden"
+            className={`absolute inset-0 overflow-hidden${calibrating ? " cursor-crosshair" : ""}`}
+            onClick={calibrating ? handleCalibrationTap : undefined}
           >
+            {/* Uputa za kalibraciju — prikazuje se samo kad je calibrating=true */}
+            {calibrating && (
+              <div className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 flex flex-col items-center gap-3 px-6">
+                <div className="rounded-2xl border border-amber-400/60 bg-black/85 px-4 py-3 text-center text-sm font-semibold text-amber-200 backdrop-blur-md">
+                  Tapni gdje stvarno vidiš Mjesec u kameri
+                </div>
+                <div className="text-3xl opacity-60 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">+</div>
+              </div>
+            )}
+
             {/* Info kartica gore — prikazuje se samo kad korisnik tapne callsign */}
-            {infoMarker ? (
-              <div className="absolute left-3 right-3 top-[max(0.75rem,env(safe-area-inset-top))] rounded-2xl border border-white/[0.14] bg-black/80 px-3 py-2.5 text-zinc-100 backdrop-blur-md">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-base font-bold text-amber-300 leading-tight">
-                      {infoMarker.label}
-                    </p>
-                    <p className="text-[length:var(--fs-label)] text-[color:var(--t-tertiary)] truncate">
-                      {infoMarker.flight.aircraftType?.trim() || "—"} · {infoMarker.flight.icao24 || "—"}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setInfoFlightId(null)}
-                    className="shrink-0 rounded-full border border-white/[0.15] bg-white/[0.08] px-2 py-0.5 text-[length:var(--fs-label)] text-[color:var(--t-secondary)]"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[length:var(--fs-label)] text-[color:var(--t-secondary)]">
-                  <p>Alt: {formatMaybeNumber(infoMarker.flight.baroAltitudeMeters ?? infoMarker.flight.geoAltitudeMeters, 0)} m</p>
-                  <p>GS: {infoMarker.flight.groundSpeedMps != null ? `${formatMaybeNumber(mpsToKnots(infoMarker.flight.groundSpeedMps), 0)} kt` : "—"}</p>
-                  <p>Track: {formatMaybeNumber(infoMarker.flight.trackDeg, 0)}°</p>
-                  <p>Sky: {formatMaybeNumber(infoMarker.azimuthDeg, 0)}° / {formatMaybeNumber(infoMarker.altitudeDeg, 1)}°</p>
-                </div>
+            {!calibrating && infoMarker ? (
+              <div className="absolute left-3 right-3 top-[max(0.75rem,env(safe-area-inset-top))] rounded-[var(--r-xl)] border border-white/[0.14] bg-black/80 backdrop-blur-md overflow-hidden">
+                <SelectedAircraftPopupContent
+                  flight={infoMarker.flight}
+                  onDismiss={() => setInfoFlightId(null)}
+                />
               </div>
             ) : null}
 
@@ -497,7 +523,7 @@ export function ArSkyCameraPanel() {
                   }`}
                   style={{ left: marker.x, top: marker.y }}
                 >
-                  {marker.label}
+                  {marker.label} <span className="opacity-70">+{marker.altitudeDeg.toFixed(0)}°</span>
                 </button>
               ) : null
             )}
@@ -523,36 +549,103 @@ export function ArSkyCameraPanel() {
                 >
                   ▲
                 </span>{" "}
-                {marker.label}
+                {marker.label} <span className="opacity-60">+{marker.altitudeDeg.toFixed(0)}°</span>
               </button>
             ))}
 
             {moonScreen?.visible ? (
               <div
-                className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 text-lg text-amber-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]"
+                className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-0.5"
                 style={{ left: moonScreen.x, top: moonScreen.y }}
               >
-                ○
+                <span className="text-2xl leading-none drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+                  ○
+                </span>
+                <span className="rounded border border-amber-400/60 bg-black/60 px-1.5 py-0.5 text-[0.6rem] font-semibold tracking-wide text-amber-300 backdrop-blur-sm">
+                  Moon
+                </span>
               </div>
             ) : null}
 
-            {/* Kompas — dolje desno */}
-            <div className="absolute bottom-16 right-3 flex h-14 w-14 items-center justify-center rounded-full border border-white/[0.18] bg-black/65 backdrop-blur-md">
+            {moonOffscreenArrow ? (
               <div
-                className="relative flex h-full w-full items-center justify-center"
-                style={{
-                  transform: cameraAzimuthDeg != null
-                    ? `rotate(${-cameraAzimuthDeg}deg)`
-                    : undefined,
-                }}
+                className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-0.5"
+                style={{ left: moonOffscreenArrow.x, top: moonOffscreenArrow.y }}
               >
-                <span className="absolute top-1 text-[0.5rem] font-bold text-amber-300">N</span>
-                <span className="absolute bottom-1 text-[0.45rem] text-zinc-400">S</span>
-                <span className="absolute left-1 text-[0.45rem] text-zinc-400">W</span>
-                <span className="absolute right-1 text-[0.45rem] text-zinc-400">E</span>
-                <div className="h-5 w-[2px] rounded-full bg-gradient-to-b from-amber-300 to-zinc-600" />
+                <span
+                  className="text-base leading-none text-amber-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]"
+                  style={{ transform: `rotate(${moonOffscreenArrow.angleDeg}deg)` }}
+                >
+                  ▲
+                </span>
+                <span className="rounded border border-amber-400/60 bg-black/60 px-1 py-0.5 text-[0.55rem] font-semibold text-amber-300 backdrop-blur-sm">
+                  Moon
+                </span>
               </div>
+            ) : null}
+
+            {/* Dijagnostički red — kurs, nagib, starost podataka */}
+            <div className="absolute bottom-[calc(4rem+2.5rem+0.5rem)] left-3 right-3 flex items-center justify-between gap-1 rounded-xl border border-white/[0.08] bg-black/55 px-2 py-1 text-[0.5rem] font-mono text-zinc-300 backdrop-blur-sm">
+              <span>
+                {cameraAzimuthDeg != null
+                  ? `↑ ${Math.round(cameraAzimuthDeg)}°`
+                  : "↑ –"}
+              </span>
+              <span>
+                {`∠ ${pose.pitchDeg >= 0 ? "+" : ""}${Math.round(pose.pitchDeg)}°`}
+              </span>
+              <span>
+                {newestFlightMs > 0
+                  ? Math.round((renderNowMs - newestFlightMs) / 1000) < 120
+                    ? <span className="text-emerald-400">{Math.round((renderNowMs - newestFlightMs) / 1000)}s</span>
+                    : <span className="text-rose-300">{Math.round((renderNowMs - newestFlightMs) / 60000)}m staro</span>
+                  : "–"}
+              </span>
+              <span className="text-zinc-500">
+                {`☽ ${Math.round(moon.azimuthDeg)}°/${Math.round(moon.altitudeDeg)}°`}
+              </span>
             </div>
+
+            {/* Kompas — dolje desno */}
+            <div className="absolute bottom-16 right-3 flex flex-col items-center gap-1">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/[0.18] bg-black/65 backdrop-blur-md">
+                <div
+                  className="relative flex h-full w-full items-center justify-center"
+                  style={{
+                    transform: cameraAzimuthDeg != null
+                      ? `rotate(${-cameraAzimuthDeg}deg)`
+                      : undefined,
+                  }}
+                >
+                  <span className="absolute top-1 text-[0.5rem] font-bold text-amber-300">N</span>
+                  <span className="absolute bottom-1 text-[0.45rem] text-zinc-400">S</span>
+                  <span className="absolute left-1 text-[0.45rem] text-zinc-400">W</span>
+                  <span className="absolute right-1 text-[0.45rem] text-zinc-400">E</span>
+                  <div className="h-5 w-[2px] rounded-full bg-gradient-to-b from-amber-300 to-zinc-600" />
+                </div>
+              </div>
+              {/* Accuracy badge — shows compass reliability */}
+              {pose.compassAccuracyDeg != null && (
+                <span
+                  className={`rounded px-1 py-0.5 text-[0.5rem] font-semibold leading-none backdrop-blur-sm ${
+                    pose.compassAccuracyDeg <= 10
+                      ? "border border-emerald-500/50 bg-black/60 text-emerald-400"
+                      : pose.compassAccuracyDeg <= 20
+                        ? "border border-amber-400/60 bg-black/60 text-amber-300"
+                        : "border border-rose-500/60 bg-black/70 text-rose-300"
+                  }`}
+                >
+                  ±{Math.round(pose.compassAccuracyDeg)}°
+                </span>
+              )}
+            </div>
+
+            {/* Compass interference warning — hidden when aircraft info card is open */}
+            {!infoMarker && pose.compassAccuracyDeg != null && pose.compassAccuracyDeg > 15 && (
+              <div className="absolute left-3 right-3 top-[max(0.75rem,env(safe-area-inset-top))] mt-1 rounded-2xl border border-rose-500/50 bg-black/80 px-3 py-2 text-xs text-rose-200 backdrop-blur-md">
+                ⚠️ Kompas netočan (±{Math.round(pose.compassAccuracyDeg)}°) — magnetska smetnja. Udalji se od metalnih konstrukcija radi točnog AR prikaza.
+              </div>
+            )}
 
             {/* Kontrole dole */}
             <div className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 right-20 flex items-center gap-2">
@@ -566,14 +659,24 @@ export function ArSkyCameraPanel() {
               <button
                 type="button"
                 onClick={() => {
-                  if (pose.headingDeg == null) return;
-                  setCalibrationOffsetDeg((prev) =>
-                    normalizeSignedAngleDeg(prev - pose.headingDeg!)
-                  );
+                  if (calibrating) {
+                    setCalibrating(false);
+                  } else if (calibrationOffsetDeg !== 0) {
+                    setCalibrationOffsetDeg(0);
+                    setCalibrating(false);
+                  } else {
+                    setCalibrating(true);
+                  }
                 }}
-                className="flex-1 rounded-xl border border-white/[0.12] bg-black/70 px-2 py-2 text-xs text-zinc-100 backdrop-blur-md"
+                className={`flex-1 rounded-xl border px-2 py-2 text-xs font-semibold backdrop-blur-md ${
+                  calibrating
+                    ? "border-amber-400/70 bg-amber-500/20 text-amber-200"
+                    : calibrationOffsetDeg !== 0
+                      ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-200"
+                      : "border-white/[0.12] bg-black/70 text-zinc-100"
+                }`}
               >
-                Recenter
+                {calibrating ? "Odustani" : calibrationOffsetDeg !== 0 ? `Cal ${calibrationOffsetDeg > 0 ? "+" : ""}${Math.round(calibrationOffsetDeg)}°` : "Cal ☽"}
               </button>
               <button
                 type="button"

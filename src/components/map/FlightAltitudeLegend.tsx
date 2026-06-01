@@ -5,11 +5,9 @@ import {
   flightAltitudeLegendGradientCss,
   type FlightAltitudeLegendUnit,
 } from "@/lib/map/flightAltitudeColor";
+import { shellGlassCheckboxClass } from "@/lib/ui/shellComboboxStyles";
 import { useEffect, useRef, useState } from "react";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
-
-const legendCheckboxClass =
-  "mt-0.5 h-4 w-4 shrink-0 rounded border border-white/15 bg-[color:var(--glass-1)] accent-[color:var(--mint)] text-[color:var(--mint)] outline-none focus:ring-2 focus:ring-sky-500/35 focus:ring-offset-0 sm:mt-0";
 
 const SLIDER_MAX = ALTITUDE_BANDS.length; // 0=All, 1–6=band
 
@@ -77,7 +75,7 @@ export function FlightAltitudeLegend() {
         <label className="flex min-w-0 flex-1 cursor-pointer touch-manipulation items-start gap-2 select-none sm:items-center">
           <input
             type="checkbox"
-            className={legendCheckboxClass}
+            className={`${shellGlassCheckboxClass} mt-0.5 sm:mt-0`}
             checked={mapAircraftAltitudeColors}
             onChange={(e) => setMapAircraftAltitudeColors(e.target.checked)}
             data-testid="flight-altitude-colors-toggle"
@@ -140,17 +138,29 @@ export function FlightAltitudeLegend() {
       <div
         className={`pointer-events-auto relative h-6 w-full transition-opacity ${mapAircraftAltitudeColors ? "opacity-100" : "opacity-40"}`}
       >
-        {/* Gradient background */}
+        {/* Neutral gray fill for the "All" zone */}
         <div
-          className="absolute inset-0 rounded-md ring-1 ring-inset ring-white/[0.08]"
-          style={{ background: flightAltitudeLegendGradientCss() }}
+          className="absolute top-0 bottom-0 left-0 rounded-l-md bg-white/10"
+          style={{ width: `${(1 / SLIDER_MAX) * 100}%` }}
+          aria-hidden
+        />
+        {/* Gradient background — starts at band 1 ("0"), not at "All" */}
+        <div
+          className="absolute top-0 bottom-0 right-0 rounded-md ring-1 ring-inset ring-white/[0.08]"
+          style={{
+            left: `${(1 / SLIDER_MAX) * 100}%`,
+            background: flightAltitudeLegendGradientCss(),
+          }}
           aria-hidden
         />
         {/* Active band inset border */}
         {activeBand && (
           <div
-            className="pointer-events-none absolute inset-0 rounded-md"
-            style={{ boxShadow: `inset 0 0 0 2px ${activeBand.color}` }}
+            className="pointer-events-none absolute top-0 bottom-0 right-0 rounded-md"
+            style={{
+              left: `${(1 / SLIDER_MAX) * 100}%`,
+              boxShadow: `inset 0 0 0 2px ${activeBand.color}`,
+            }}
             aria-hidden
           />
         )}
@@ -182,29 +192,35 @@ export function FlightAltitudeLegend() {
         />
       </div>
 
-      {/* Tick labels — replace the old stop-labels row */}
-      <div
-        className="grid font-mono text-[length:var(--fs-label)] leading-none tabular-nums"
-        style={{ gridTemplateColumns: `repeat(${SLIDER_MAX + 1}, minmax(0, 1fr))` }}
-        aria-hidden
-      >
-        {Array.from({ length: SLIDER_MAX + 1 }, (_, i) => {
-          const isActive = i === altitudeBandIndex;
-          const color = isActive && i > 0 ? ALTITUDE_BANDS[i - 1]?.color : undefined;
-          return (
-            <span
-              key={i}
-              className={`text-center transition-colors ${isActive ? "font-bold" : "text-[color:var(--t-tertiary)]"}`}
-              style={
-                isActive
-                  ? { color: color ?? "var(--t-primary)" }
-                  : undefined
-              }
-            >
-              {bandTickLabel(i, flightAltitudeLegendUnit)}
-            </span>
-          );
-        })}
+      {/* Tick labels */}
+      <div className="flex items-center gap-2 font-mono text-[length:var(--fs-label)] leading-none tabular-nums" aria-hidden>
+        {/* "All" — separate from the numerical scale */}
+        <span
+          className={`shrink-0 transition-colors ${altitudeBandIndex === 0 ? "font-bold text-[color:var(--t-primary)]" : "text-[color:var(--t-tertiary)]"}`}
+        >
+          All
+        </span>
+        <div className="h-3 w-px shrink-0 bg-white/20" />
+        {/* Numerical band ticks */}
+        <div
+          className="grid flex-1"
+          style={{ gridTemplateColumns: `repeat(${SLIDER_MAX}, minmax(0, 1fr))` }}
+        >
+          {Array.from({ length: SLIDER_MAX }, (_, i) => {
+            const bandIdx = i + 1;
+            const isActive = bandIdx === altitudeBandIndex;
+            const color = isActive ? ALTITUDE_BANDS[i]?.color : undefined;
+            return (
+              <span
+                key={i}
+                className={`text-center transition-colors ${isActive ? "font-bold" : "text-[color:var(--t-tertiary)]"}`}
+                style={isActive ? { color: color ?? "var(--t-primary)" } : undefined}
+              >
+                {bandTickLabel(bandIdx, flightAltitudeLegendUnit)}
+              </span>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

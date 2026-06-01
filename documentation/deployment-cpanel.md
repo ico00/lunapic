@@ -51,12 +51,122 @@ The production host does **not** need to mirror the full git tree.
 
 **Secrets:** prefer cPanel “Environment” (e.g. `NEXT_PUBLIC_MAPBOX_TOKEN`) or a server-only `.env` that is not committed, instead of copying `.env.local` from a laptop.
 
+## Environment variables — kritične napomene
+
+### `LOCAL_SDR_URL` (opcionalno — LunaPic ADS-B)
+
+Postavi samo ako imaš lokalni ADS-B prijemnik (dump1090 / readsb na Raspberry Pi):
+
+```
+LOCAL_SDR_URL=https://korisnik:lozinka@<node>.<tailnet>.ts.net/tar1090/data/aircraft.json
+```
+
+- Credentials (`korisnik:lozinka`) su obavezni jer je nginx na Pi-u zaštićen HTTP basic auth (vidi *nginx basic auth* niže).
+- API ruta automatski izvlači credentials iz URL-a i šalje ih kao `Authorization: Basic` header — Web Fetch API ne dopušta credentials direktno u URL-u.
+- Ako varijabla **nije postavljena**, API ruta vraća `{“aircraft”:[]}` i “LunaPic ADS-B” checkbox ne prikazuje avione (tiho, bez greške).
+- Vrijednost mora biti **javno dostupan** URL (ne LAN IP) jer cPanel server nije na kućnoj mreži — koristi **Tailscale Funnel** (vidi niže).
+
+### `ADMIN_SECRET` (opcionalno — debug endpoint)
+
+```
+ADMIN_SECRET=neki-dugi-random-string-min-32-znaka
+```
+
+Štiti `/api/flight-log/debug` koji otkriva interne serverske informacije (path, DB veličina, schema). Bez ovog env vara endpoint je u produkciji automatski **blokiran (403)**. Generiraj: `openssl rand -base64 32`.
+
+### `touch tmp/restart.txt` vs. full restart
+
+**`touch tmp/restart.txt`** (što deploy skripta radi) restarta Passenger proces ali **ne reloadira** environment varijable iz cPanel App Managera. Ako dodaš ili promijeniš env varijablu u cPanel App Manageru, moraš napraviti **Stop → Start** direktno iz App Manager UI-a — inače `process.env` neće vidjeti novu vrijednost.
+
+## Tailscale Funnel — pristup Pi-u iz produkcije
+
+Raspberry Pi je na kućnoj mreži (privatni IP). Da bi produkcijski cPanel server mogao dosegnuti Pi, koristi **Tailscale Funnel**:
+
+```bash
+# Na Pi-u (jednom):
+sudo tailscale set --operator=$USER   # da Funnel ne treba sudo svaki put
+sudo tailscale funnel --bg 80         # eksponira lighttpd (port 80) javno
+
+# Provjeri javni URL:
+tailscale funnel status
+# → https://lunapic.tailcdc789.ts.net (Funnel on)
+```
+
+- Funnel se automatski pokreće uz Tailscale daemon (`systemctl enable tailscaled`) — opstaje kroz reboot.
+- DNS propagacija novog Funnel URL-a može trajati do 30 min (provjeri s `dig <url>`).
+- Postavi Funnel URL kao `LOCAL_SDR_URL` u cPanel App Manageru i napravi **Stop → Start**.
+
+### Troubleshooting: Funnel pokazuje "on" ali ne prosljeđuje promet
+
+`tailscale funnel status` **nije pouzdan** — može prikazati Funnel kao aktivan dok promet zapravo ne prolazi. Ovo se događa nakon reboota Pi-ja, Tailscale auto-updatea ili `tailscale cert` obnove dok je Funnel aktivan.
+
+**Dijagnoza** — s cPanel servera (ne s Maca, ne s Pi-ja):
+```bash
+curl -s "https://lunapic.tailcdc789.ts.net/tar1090/data/aircraft.json" | head -c 200
+```
+Prazan output = Funnel ne radi, bez obzira što status kaže.
+
+**Fix:**
+```bash
+sudo tailscale funnel reset
+sudo tailscale funnel --bg 80
+```
+
+**Napomena:** Ne testiraj Funnel s Maca koji je na istom tailnetu — Tailscale interno preusmjerava promet i TLS handshake pada (`SSL_ERROR_SYSCALL`). Uvijek testiraj s cPanel servera ili s mreže koja nije na tailnetu.
+
+**Ne pokreći `tailscale cert`** dok Funnel radi — regeneracija certifikata može baciti Funnel u inkozistentno stanje.
+
+### nginx basic auth na Pi-u
+
+Direktan pristup Pi-u zaštićen je HTTP basic authom putem nginxa:
+
+```
+Internet → Tailscale Funnel (443) → nginx :80 [basic auth] → lighttpd :8080 → tar1090
+```
+
+- lighttpd (tar1090) sluša na **portu 8080** (interni, nije dostupan van Pi-ja)
+- nginx sluša na **portu 80**, zahtijeva credentials, proxira na `localhost:8080`
+- Tailscale Funnel i dalje prosljeđuje HTTPS (443) → nginx (80)
+- Credentials su u `/etc/nginx/.htpasswd`; dodaj novog korisnika: `sudo htpasswd /etc/nginx/.htpasswd novi_korisnik`
+
+Config: `/etc/nginx/sites-enabled/tar1090`
+
+### lighttpd konfiguracija na Pi-u
+
+`aircraft.json` je dostupan via lighttpd alias (tar1090):
+```
+/tar1090/data/aircraft.json  →  /run/readsb/aircraft.json
+```
+Config: `/etc/lighttpd/conf-enabled/88-tar1090.conf`
+Port: **8080** (promijenjen iz 80 zbog nginx auth layera — `/etc/lighttpd/lighttpd.conf`: `server.port = 8080`)
+
 ## cPanel notes
 
 - Application root in the Node UI should point at the app directory (may be **outside** `public_html`; that is normal).
 - Rebuild the app after any change to `cpanelBasePath.cjs` or to client/server code; restart the Node app when only runtime files change.
 - You may remove macOS `__MACOSX` directories if they appear in uploads.
 - For correct SEO canonicals/sitemap on production, set `NEXT_PUBLIC_SITE_URL` to the full public app URL (with subpath), e.g. `https://example.com/LunaPic`.
+
+## FileZilla deploy — važne napomene
+
+FileZilla (i većina FTP klijenata) uploadaju **samo nove i promijenjene** datoteke. **Ne brišu** datoteke na serveru koje više ne postoje lokalno.
+
+**Kad dodaš novi npm paket** — nakon uploada pokreni na serveru:
+```bash
+source /home/USERNAME/nodevenv/APP_DIR/20/bin/activate && cd /home/USERNAME/APP_DIR && npm install
+```
+
+**Kad ukloniš datoteku iz builda** — datoteka ostaje na serveru i može uzrokovati greške pri pokretanju. Obriši je ručno:
+```bash
+rm /home/USERNAME/APP_DIR/.next/server/IME_DATOTEKE.js
+```
+
+Primjer koji smo naišli: `instrumentation.js` je ostao u `.next/server/` nakon što je uklonjen iz builda, što je uzrokovalo `Cannot find module` grešku pri startu.
+
+**Restart aplikacije** nakon promjena:
+```bash
+touch /home/USERNAME/APP_DIR/tmp/restart.txt
+```
 
 ## E2E
 

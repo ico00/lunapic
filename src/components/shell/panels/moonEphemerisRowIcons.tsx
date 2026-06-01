@@ -1,7 +1,7 @@
 import type { SVGProps } from "react";
 
 const rowBase =
-  "h-3.5 w-3.5 shrink-0 text-yellow-400/85" as const;
+  "h-3.5 w-3.5 shrink-0 text-amber-400/85" as const;
 
 type RowIconProps = SVGProps<SVGSVGElement>;
 

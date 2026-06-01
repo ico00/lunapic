@@ -48,7 +48,7 @@ Native `<select>` remains acceptable only for **non-shell** contexts where clipp
 
 ## State (Zustand)
 
-- **Two stores** — `useMoonTransitStore` (flights, time, map view, provider, suncalc rise/set + `ephemerisRefetchKey` for `useAstronomySync`, selected flight) and `useObserverStore` (observer, map focus, lock). Don’t merge without a design discussion. **Deeper rationale:** `src/stores/README.md` (intentional single aggregate for the moon-transit slice; optional future split is documented in `documentation/architecture.md`). **Astronomy:** do not key `useAstronomySync` only on `referenceEpochMs` — use `ephemerisRefetchKey` + observer so UTC midnight while scrubbing does not replace `getMoonTimes` for the wrong day.
+- **Two stores** — `useMoonTransitStore` (flights, time, map view, provider, rise/set + `ephemerisRefetchKey` for `useAstronomySync`, selected flight) and `useObserverStore` (observer, map focus, lock). Don’t merge without a design discussion. **Deeper rationale:** `src/stores/README.md` (intentional single aggregate for the moon-transit slice; optional future split is documented in `documentation/architecture.md`). **Astronomy:** do not key `useAstronomySync` only on `referenceEpochMs` — use `ephemerisRefetchKey` + observer so UTC midnight while scrubbing does not replace `getMoonTimes` for the wrong day.
 - **Selectors** — Prefer `useStore(s => s.field)` to limit re-renders.
 - **Side effects** — Put in `useEffect` in components or in explicit hooks (`src/hooks`), not inside store setters, unless the effect is a single sync update.
 
@@ -65,6 +65,12 @@ Native `<select>` remains acceptable only for **non-shell** contexts where clipp
 - **WGS84** — Lat/lng order matches GeoJSON: `[lng, lat]` in coordinates; `{ lat, lng }` in app types.
 - **Angles** — Track/azimuth: **degrees**, clockwise from true north, range normalized per function contract (see `wgs84`, `useActiveTransits`, etc.).
 - **Domain code** under `lib/domain` should stay **testable and framework-agnostic** (no `useMoonTransitStore` inside pure geometry). **`GeometryEngine`** is a thin façade; implementations live in `geometryEngineMoonRay.ts` and `geometryEnginePhotographer.ts` next to the façade.
+
+## Moon ephemeris (astronomy-engine)
+
+- **Always use `AstroService`** — `src/lib/domain/astro/astroService.ts` is the single entry point for all moon-position and phase calculations. Do **not** call `suncalc` directly for moon azimuth, altitude, phase, or illumination anywhere in the application.
+- **`astronomy-engine` v2.1.19** — USNO-grade ephemeris (<1 arcminute accuracy). `getMoonState()` in `moon.ts` uses `Astronomy.Equator()` + `Astronomy.Horizon()` with atmospheric refraction. Phase/illumination uses `Astronomy.MoonPhase()` and angular elongation.
+- **Observer elevation** — Always pass `observer.groundHeightMeters` as the 4th argument to `getMoonState(lat, lng, epochMs, observerElevM)`. Omitting it defaults to 0 m (sea level) and silently degrades refraction accuracy for elevated observers. Every call site in the codebase passes this argument.
 
 ## Mapbox
 
@@ -108,6 +114,88 @@ Native `<select>` remains acceptable only for **non-shell** contexts where clipp
 - **Field / runtime performance** — `documentation/performance.md` — enable `NEXT_PUBLIC_FIELD_PERF=1` or `localStorage.moonTransitFieldPerf`; in-map violet overlay and hook labels (`useMapMoonOverlayFeatures`, `useMapGeoJsonSync`, `useExtrapolatedFlightsForMap`, Mapbox `moveend`→`idle`, React `Profiler` on the map block). Complement with Chrome Performance tab.
 - **CI** — [`.github/workflows/ci.yml`](../.github/workflows/ci.yml): on push/PR to `main` or `master`, after `npm ci` runs `npm audit`, `npm run lint`, `npx tsc --noEmit`, `npm run test:run`, `npm run build`, and Playwright (`npx playwright install` + `npx playwright test` on the runner). Optional: GitHub secret `NEXT_PUBLIC_MAPBOX_TOKEN` for an E2E build that inlines a token.
 - Before PR: same as CI locally, or at minimum `npm run lint`, `npm run test:run`, `npx tsc --noEmit`, `npm run build`, `npm audit` (all green), and `npx playwright test` with a prior `npm run build`.
+
+## AR sensor coordinate mapping
+
+Rules for `src/components/field/ArSkyCameraPanel.tsx` and any future AR/field overlay that reads device orientation events.
+
+### Compass heading (`webkitCompassHeading`)
+
+`webkitCompassHeading` returns the **tilt-compensated compass bearing of the camera's horizontal azimuth**, measured clockwise from true north. iOS applies full tilt compensation so the value already represents the direction the rear camera is pointing in the horizontal plane — regardless of how much the phone is tilted up toward the sky.
+
+**Rule:** use `headingDeg` directly as the camera azimuth — **no +180° offset**:
+
+```ts
+cameraAzimuthDeg = (pose.headingDeg + calibrationOffsetDeg + 360) % 360
+```
+
+Adding +180° inverts the azimuth: the compass shows South where North should be, and all sky objects appear on the opposite side of the screen. `CompassAimPanel` uses `headingDeg` without any offset and produces a correct compass display, confirming that no correction is needed.
+
+### Pitch from `DeviceOrientationEvent.beta`
+
+The rear camera is on the **back** of the phone. The physical mapping is:
+
+| beta | phone posture | camera direction |
+|------|--------------|-----------------|
+| 90°  | upright portrait, screen toward user | horizontal (pitch = 0°) |
+| 180° | flat, screen facing down | straight up (pitch = +90°) |
+| 0°   | flat, screen facing up | straight down (pitch = −90°) |
+
+Tilting the phone to view the sky (bringing the screen face-down toward the user) **increases** beta from 90° toward 180°.
+
+**Rule:** `pitch = beta − 90`
+
+```ts
+pitch = beta - 90   // NOT (90 - beta)
+```
+
+`90 − beta` has the wrong sign: it gives negative pitch when the camera points upward, so sky objects appear below the horizon and arrows point the user in the wrong direction.
+
+### Off-screen arrow direction
+
+The off-screen edge arrow uses `dyDeg = altitudeDeg − pitchDeg`:
+
+- `dyDeg > 0` → target is **above** the camera centre → arrow points **up** (`rotate(0deg)` on ▲)
+- `dyDeg < 0` → target is **below** the camera centre → arrow points **down** (`rotate(180deg)` on ▲)
+
+Do **not** swap these. If the arrow shows ▼ when the target is above the frame, the user tilts toward it and moves the target further off-screen.
+
+### Smoothing and outlier rejection
+
+Raw `webkitCompassHeading` readings can jump spuriously (magnetic glitches, fast phone movement). Two-stage filtering is applied:
+
+1. **Outlier rejection** — discard any reading that differs by more than 45° from the current smoothed heading. A realistic fast hand rotation (~360°/s at 60 Hz) produces at most ~6°/frame, so 45° can only be a sensor glitch.
+2. **Warmup / steady-state alpha** — use a higher alpha for the first ~60 samples (~1 s at 60 Hz) so the overlay locks on quickly after opening, then switch to a low alpha for long-term stability:
+
+```ts
+const alpha = sampleCount < 60 ? 0.25 : 0.06;
+smoothedHeading = smoothAngleDeg(prev, next, alpha);
+```
+
+Pitch uses a fixed `lerp` alpha of 0.12. Do **not** raise the steady-state heading alpha above ~0.08 — higher values allow magnetic glitches to cause visible jumps.
+
+### Compass accuracy and magnetic interference
+
+`webkitCompassAccuracy` (iOS-only, in degrees) indicates how reliable the magnetometer reading is. Values above ~20° mean significant local interference (metal window frames, reinforced concrete, electronics).
+
+- Display the accuracy badge next to the compass rose: **green ≤ 10°**, **amber ≤ 20°**, **red > 20°**.
+- Show a red warning text overlay when accuracy **exceeds 15°** (previously 30° — lowered because ±26° error shifts all sky objects by 26° horizontally, making the AR effectively useless).
+- The AR module is a **visual aid only** — the core transit calculations (moon position, aircraft geometry, transit screening) do not use the magnetometer and are unaffected by compass accuracy.
+
+### AR overlay aircraft filter
+
+Only aircraft with `altitudeDeg >= 0°` are shown in the AR overlay. Aircraft technically below the horizon (negative elevation) are geometrically valid but invisible to the eye and should not appear as overlay labels. The previous threshold was −5°.
+
+### AR moon tap calibration (`calibrationOffsetDeg`)
+
+When the magnetometer is disturbed, the user can correct the horizontal offset by tapping where the moon is actually visible in the camera frame. The app computes:
+
+```ts
+calibrationOffsetDeg = normalizeSignedAngleDeg(moon.azimuthDeg − headingDeg − tapDxDeg)
+// where tapDxDeg = (tapX / viewportW − 0.5) × AR_H_FOV_DEG
+```
+
+This solves for the offset that makes the moon marker land exactly at the tapped pixel. The "Cal ☽" button in the AR bottom bar enters calibration mode; tapping anywhere sets the offset. A green `Cal +X°` label is shown while a non-zero offset is active; tapping the button again resets it to 0.
 
 ## Git and changelog
 

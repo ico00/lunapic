@@ -86,7 +86,8 @@ export function buildMoonPathSamplesInTimeRange(
   t1LastMs: number,
   stepMs: number,
   observerLat: number,
-  observerLng: number
+  observerLng: number,
+  observerElevM = 0
 ): MoonPathSample[] {
   if (
     !Number.isFinite(t0Ms) ||
@@ -98,7 +99,7 @@ export function buildMoonPathSamplesInTimeRange(
   const out: MoonPathSample[] = [];
   const maxN = 2000;
   for (let t = t0Ms, n = 0; t <= t1LastMs + 1e-6 && n < maxN; t += stepMs, n++) {
-    const m = getMoonState(new Date(t), observerLat, observerLng);
+    const m = getMoonState(new Date(t), observerLat, observerLng, observerElevM);
     out.push({
       epochMs: t,
       azimuthDeg: m.azimuthDeg,
@@ -110,7 +111,7 @@ export function buildMoonPathSamplesInTimeRange(
     return out;
   }
   if (last.epochMs < t1LastMs - 0.5) {
-    const m = getMoonState(new Date(t1LastMs), observerLat, observerLng);
+    const m = getMoonState(new Date(t1LastMs), observerLat, observerLng, observerElevM);
     out.push({
       epochMs: t1LastMs,
       azimuthDeg: m.azimuthDeg,
@@ -120,6 +121,29 @@ export function buildMoonPathSamplesInTimeRange(
   return out;
 }
 
+// Moon position changes < 0.1 arcsecond per 10 s — imperceptible in any UI context.
+const MOON_CACHE_BUCKET_MS = 10_000;
+const MOON_CACHE_MAX = 60;
+const moonStateCache = new Map<string, MoonState>();
+
+function getMoonStateCached(
+  at: Date,
+  lat: number,
+  lng: number,
+  elevM: number
+): MoonState {
+  const bucket = Math.round(at.getTime() / MOON_CACHE_BUCKET_MS) * MOON_CACHE_BUCKET_MS;
+  const key = `${bucket}|${lat.toFixed(3)}|${lng.toFixed(3)}|${Math.round(elevM)}`;
+  const hit = moonStateCache.get(key);
+  if (hit) return hit;
+  if (moonStateCache.size >= MOON_CACHE_MAX) {
+    moonStateCache.delete(moonStateCache.keys().next().value!);
+  }
+  const result = getMoonState(new Date(bucket), lat, lng, elevM);
+  moonStateCache.set(key, result);
+  return result;
+}
+
 /**
  * Tanki servis (facade) iznad ephemeris funkcija — karta / UI ovise o ovom imenu, ne o Suncalca detaljima.
  */
@@ -127,9 +151,10 @@ export const AstroService = {
   getMoonState(
     at: Date,
     observerLat: number,
-    observerLng: number
+    observerLng: number,
+    observerElevM = 0
   ): MoonState {
-    return getMoonState(at, observerLat, observerLng);
+    return getMoonStateCached(at, observerLat, observerLng, observerElevM);
   },
 
   /**
@@ -150,12 +175,13 @@ export const AstroService = {
   getMoonPathSamples(
     referenceEpochMs: number,
     observerLat: number,
-    observerLng: number
+    observerLng: number,
+    observerElevM = 0
   ): readonly MoonPathSample[] {
     const out: MoonPathSample[] = [];
     for (let i = 0; i < MOON_PATH_SAMPLE_COUNT; i++) {
       const t = referenceEpochMs + i * MOON_PATH_STEP_MS;
-      const m = getMoonState(new Date(t), observerLat, observerLng);
+      const m = getMoonState(new Date(t), observerLat, observerLng, observerElevM);
       out.push({
         epochMs: t,
         azimuthDeg: m.azimuthDeg,
@@ -174,7 +200,9 @@ export const AstroService = {
     referenceEpochMs: number,
     observerLat: number,
     observerLng: number,
-    riseSet: MoonRiseSetTimes
+    riseSet: MoonRiseSetTimes,
+    observerElevM = 0,
+    stepMs = MOON_PATH_STEP_MS
   ): MoonPathMapSpec {
     const w = getMoonPathVisibilityWindowMs(referenceEpochMs, riseSet);
     if (w == null) {
@@ -183,9 +211,10 @@ export const AstroService = {
     const samples = buildMoonPathSamplesInTimeRange(
       w.t0,
       w.t1,
-      MOON_PATH_STEP_MS,
+      stepMs,
       observerLat,
-      observerLng
+      observerLng,
+      observerElevM
     );
     return { samples, labelWindowMs: w };
   },

@@ -4,6 +4,7 @@ import type { FlightState } from "@/types/flight";
 /** ICAO airline designator (3 znaka) → javno ime — nepotpuna lista, Europa + česti prijevoznici. */
 const AIRLINE_ICAO_NAMES: Readonly<Record<string, string>> = {
   AAL: "American Airlines",
+  AIZ: "Arkia Israeli Airlines",
   ACA: "Air Canada",
   AEA: "Air Europa",
   AFR: "Air France",
@@ -17,14 +18,17 @@ const AIRLINE_ICAO_NAMES: Readonly<Record<string, string>> = {
   CHH: "Hainan Airlines",
   CSA: "Czech Airlines",
   CTA: "Croatia Airlines",
+  CTN: "Croatia Airlines",
   DAL: "Delta Air Lines",
   DLH: "Lufthansa",
   EAI: "Emerald Airlines",
+  MSR: "EgyptAir",
   EIN: "Aer Lingus",
   ENY: "American Eagle (Envoy)",
   ETD: "Etihad Airways",
   EJU: "easyJet Europe",
   EWG: "Eurowings",
+  EXS: "Jet2.com",
   EZS: "easyJet Switzerland",
   EZY: "easyJet",
   FIN: "Finnair",
@@ -73,6 +77,7 @@ function normalizeIcaoKey(raw: string): string {
  */
 const AIRLINE_ICAO_TO_IATA_LOGO: Readonly<Record<string, string>> = {
   AAL: "AA",
+  AIZ: "IZ",
   ACA: "AC",
   AEA: "UX",
   AFR: "AF",
@@ -86,6 +91,7 @@ const AIRLINE_ICAO_TO_IATA_LOGO: Readonly<Record<string, string>> = {
   CHH: "HU",
   CSA: "OK",
   CTA: "OU",
+  CTN: "OU",
   DAL: "DL",
   DLH: "LH",
   EAI: "EA",
@@ -94,6 +100,7 @@ const AIRLINE_ICAO_TO_IATA_LOGO: Readonly<Record<string, string>> = {
   ETD: "EY",
   EJU: "EC",
   EWG: "EW",
+  EXS: "LS",
   EZS: "DS",
   EZY: "U2",
   FIN: "AY",
@@ -108,6 +115,7 @@ const AIRLINE_ICAO_TO_IATA_LOGO: Readonly<Record<string, string>> = {
   LOT: "LO",
   LXJ: "1I",
   MGL: "OM",
+  MSR: "MS",
   NAX: "DY",
   NOZ: "DY",
   OAL: "OA",
@@ -154,6 +162,17 @@ export function flightAirlineLogoKiwiIata(f: FlightState): string | null {
   if (!icao3) {
     return null;
   }
+  return AIRLINE_ICAO_TO_IATA_LOGO[icao3] ?? null;
+}
+
+/**
+ * Kao {@link flightAirlineLogoKiwiIata} ali prima samo callsign string (bez FlightState).
+ * Koristi se u Flight log panelu gdje imamo samo callsign iz baze.
+ */
+export function callsignToKiwiIata(callsign: string | null | undefined): string | null {
+  if (!callsign || callsign.length < 3) return null;
+  const icao3 = normalizeIcaoKey(callsign.slice(0, 3));
+  if (!/^[A-Za-z]{3}$/.test(icao3)) return null;
   return AIRLINE_ICAO_TO_IATA_LOGO[icao3] ?? null;
 }
 

@@ -366,7 +366,7 @@ export function StreetViewPanel({ moon, observer, nowMs, candidates, activeTrans
   return (
     <div className="flex flex-col gap-3">
       {/* Info row */}
-      <div className="flex items-center justify-between font-mono text-[11px] tabular-nums text-[color:var(--t-tertiary)]">
+      <div className="flex items-center justify-between font-mono text-[length:var(--fs-label)] tabular-nums text-[color:var(--t-tertiary)]">
         <span>
           Az <span className="text-amber-300">{moonAz.toFixed(1)}°</span>
           {" · "}
@@ -387,7 +387,7 @@ export function StreetViewPanel({ moon, observer, nowMs, candidates, activeTrans
           <div className="absolute inset-0 flex items-center justify-center bg-zinc-900/80 z-10">
             <div className="flex flex-col items-center gap-2">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-amber-400/40 border-t-amber-400" />
-              <span className="text-xs text-zinc-400">Loading Street View…</span>
+              <span className="text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">Loading Street View…</span>
             </div>
           </div>
         )}
@@ -395,9 +395,9 @@ export function StreetViewPanel({ moon, observer, nowMs, candidates, activeTrans
         {status === "unavailable" && (
           <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-zinc-900/90 z-10">
             <div className="text-center">
-              <div className="mb-1 text-2xl">📍</div>
-              <p className="text-sm font-medium text-zinc-300">Street View unavailable</p>
-              <p className="mt-0.5 text-xs text-zinc-500">
+              <div className="mb-1 text-[length:var(--fs-h1)]">📍</div>
+              <p className="text-[length:var(--fs-body)] font-medium text-[color:var(--t-secondary)]">Street View unavailable</p>
+              <p className="mt-0.5 text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
                 No panorama within 100 m of this location
               </p>
             </div>
@@ -416,7 +416,7 @@ export function StreetViewPanel({ moon, observer, nowMs, candidates, activeTrans
         />
       </div>
 
-      <p className="text-center text-[11px] text-[color:var(--t-tertiary)]">
+      <p className="text-center text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
         Drag to explore · dots = Moon path ±4 h · circle = now
       </p>
     </div>

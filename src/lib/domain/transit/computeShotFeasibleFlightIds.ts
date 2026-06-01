@@ -17,6 +17,8 @@ export function computeShotFeasibleFlightIds(
   observer: GroundObserver,
   moon: MoonState,
   flights: readonly FlightState[],
+  wallNowMs: number,
+  latencySkewMs: number,
   cameraFocalLengthMm: number,
   cameraSensorType: CameraSensorType
 ): ReadonlySet<string> {
@@ -24,7 +26,7 @@ export function computeShotFeasibleFlightIds(
   if (!isMoonVisibleFromMoonState(moon)) {
     return out;
   }
-  const candidates = screenTransitCandidates(observer, moon, flights);
+  const candidates = screenTransitCandidates(observer, moon, flights, wallNowMs, latencySkewMs);
   const candidateIds = new Set(
     candidates.filter((x) => x.isPossibleTransit).map((x) => x.flight.id)
   );

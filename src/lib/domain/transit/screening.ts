@@ -1,11 +1,14 @@
 import type { GroundObserver, MoonState, TransitCandidate } from "@/types";
 import type { FlightState } from "@/types/flight";
+import { extrapolateFlightForDisplay } from "@/lib/flight/extrapolateFlightPosition";
 import { horizontalToPoint } from "../geometry/horizontal";
 import { angularSeparationDeg } from "../geometry/sky-separation";
-import { geodeticToEcef } from "../geometry/wgs84";
+import { destinationByAzimuthMeters, geodeticToEcef } from "../geometry/wgs84";
 
 const DEFAULT_AIRCRAFT_ANGULAR_RADIUS_DEG = 0.01;
 const TYPICAL_FUSELAGE_LENGTH_M = 40;
+const APPROACH_LOOKAHEAD_SEC = 30;
+const MAX_SLANT_RANGE_METERS = 100_000;
 
 /**
  * Picks a reasonable ellipsoid height for a flight (prefer geometric altitude).
@@ -62,19 +65,27 @@ function aircraftApparentRadiusDeg(
 /**
  * Returns flights sorted by angular distance to the moon center, with
  * a flag when they overlap the two discs in the sky.
+ * wallNowMs + latencySkewMs: used to extrapolate stale ADS-B positions.
  */
 export function screenTransitCandidates(
   observer: GroundObserver,
   moon: MoonState,
-  flights: readonly FlightState[]
+  flights: readonly FlightState[],
+  wallNowMs: number,
+  latencySkewMs: number
 ): readonly TransitCandidate[] {
   const moonR = moon.apparentRadius.degrees;
   const out: TransitCandidate[] = [];
-  for (const flight of flights) {
+  for (const rawFlight of flights) {
+    const flight = extrapolateFlightForDisplay(rawFlight, wallNowMs, latencySkewMs);
     const h = targetEllipsoidHeightMeters(flight);
     if (h == null) {
       continue;
     }
+    if (slantRangeMeters(observer, flight.position.lat, flight.position.lng, h) > MAX_SLANT_RANGE_METERS) {
+      continue;
+    }
+
     const acDir = horizontalToPoint(
       observer,
       flight.position.lat,
@@ -85,9 +96,31 @@ export function screenTransitCandidates(
       { altitudeDeg: acDir.altitudeDeg, azimuthDeg: acDir.azimuthDeg },
       { altitudeDeg: moon.altitudeDeg, azimuthDeg: moon.azimuthDeg }
     );
+
+    // Odbaci avione koji se udaljuju od Mjeseca: ekstrapoliraj 30s naprijed i
+    // usporedi separaciju — ako raste, avion nema šanse za tranzit.
+    const v = flight.groundSpeedMps ?? 0;
+    const tr = flight.trackDeg;
+    if (v > 1 && tr != null && Number.isFinite(tr)) {
+      const futurePos = destinationByAzimuthMeters(
+        flight.position.lat,
+        flight.position.lng,
+        tr,
+        v * APPROACH_LOOKAHEAD_SEC
+      );
+      const futureDir = horizontalToPoint(observer, futurePos.lat, futurePos.lng, h);
+      const futureSepDeg = angularSeparationDeg(
+        { altitudeDeg: futureDir.altitudeDeg, azimuthDeg: futureDir.azimuthDeg },
+        { altitudeDeg: moon.altitudeDeg, azimuthDeg: moon.azimuthDeg }
+      );
+      if (futureSepDeg >= separationDeg) {
+        continue;
+      }
+    }
+
     const acR = aircraftApparentRadiusDeg(flight, observer);
     const isPossibleTransit = separationDeg <= moonR + acR;
-    out.push({ flight, separationDeg, isPossibleTransit });
+    out.push({ flight, separationDeg, isPossibleTransit, elevationGapDeg: null, willTransit: false });
   }
   return out.sort((a, b) => a.separationDeg - b.separationDeg);
 }

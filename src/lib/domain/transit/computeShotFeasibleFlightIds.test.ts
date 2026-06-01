@@ -37,6 +37,8 @@ describe("computeShotFeasibleFlightIds", () => {
       observer,
       moonLow,
       [flight("a", 45.81, 16.01)],
+      0,
+      0,
       400,
       "fullFrame"
     );

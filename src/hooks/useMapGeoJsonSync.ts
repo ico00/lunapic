@@ -11,7 +11,6 @@ import {
   FLIGHTS_ATC_LABEL_SOURCE,
   FLIGHTS_ATC_PREDICTION_SOURCE,
   FLIGHTS_SOURCE,
-  GROUND_OPTIMAL_SOURCE,
   MOON_AZ_SOURCE,
   MOON_AZ_NOW_SOURCE,
   MOON_AZ_NOW_LABEL_SOURCE,
@@ -20,7 +19,6 @@ import {
   MOON_PATH_SOURCE,
   MOON_PATH_FULL_DAY_SOURCE,
   MOON_PATH_CURRENT_SOURCE,
-  ROUTES_SOURCE,
   SELECTED_FLIGHT_TRAJECTORY_LABEL_SOURCE,
   SELECTED_FLIGHT_TRAJECTORY_SOURCE,
   SELECTED_STAND_SPINE_SOURCE,
@@ -33,8 +31,9 @@ import type { Feature } from "geojson";
 import { fieldPerfTime } from "@/lib/perf/fieldPerf";
 import { useEffect, useRef, type RefObject } from "react";
 
-/** Smanjuje broj punih GeoJSON zamjena pri ekstrapolaciji (mobilni Safari). */
-const FLIGHTS_GEOJSON_MIN_INTERVAL_MS = 300;
+// Minimum time between full GeoJSON rebuilds for the flights layer.
+// 80 ms matches the rAF tick in useExtrapolatedFlightsForMap; keeps Safari smooth.
+const FLIGHTS_GEOJSON_MIN_INTERVAL_MS = 80;
 const MPS_TO_KNOTS = 1.9438444924406048;
 
 type UseMapGeoJsonSyncArgs = {
@@ -44,7 +43,6 @@ type UseMapGeoJsonSyncArgs = {
   moonAzNowFeature: Feature;
   moonAzNowLabelFeature: Feature;
   intersectionFeatures: readonly Feature[];
-  optimalGroundFeatures: readonly Feature[];
   moonPathPack: MoonPathPack;
   flights: readonly FlightState[];
   /** Kad je postavljen, na karti se crta samo taj zrakoplov (ostali ADS-B markeri skriveni). */
@@ -58,6 +56,7 @@ type UseMapGeoJsonSyncArgs = {
   /** Label (npr. +90s) na vrhu predikcije putanje. */
   selectedFlightTrajectoryLabelFeature: Feature | null;
   shotFeasibleFlightIds?: ReadonlySet<string>;
+  confirmedTransitFlightIds?: ReadonlySet<string>;
   flightProvider: IFlightProvider;
 };
 export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
@@ -68,7 +67,6 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
     moonAzNowFeature,
     moonAzNowLabelFeature,
     intersectionFeatures,
-    optimalGroundFeatures,
     moonPathPack,
     flights,
     selectedFlightId,
@@ -77,6 +75,7 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
     selectedFlightTrajectoryFeature,
     selectedFlightTrajectoryLabelFeature,
     shotFeasibleFlightIds,
+    confirmedTransitFlightIds,
     flightProvider,
   } = a;
 
@@ -113,22 +112,12 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
       type: "FeatureCollection",
       features: [...intersectionFeatures],
     });
-    const og = map.getSource(GROUND_OPTIMAL_SOURCE) as
-      | mapboxgl.GeoJSONSource
-      | undefined;
-    if (og) {
-      og.setData({
-        type: "FeatureCollection",
-        features: [...optimalGroundFeatures],
-      });
-    }
     });
   }, [
     intersectionFeatures,
     moonAzFeature,
     moonAzNowFeature,
     moonAzNowLabelFeature,
-    optimalGroundFeatures,
     mapReadyTick,
     mapRef,
   ]);
@@ -260,6 +249,7 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
           return;
         }
         const src = m.getSource(FLIGHTS_SOURCE) as mapboxgl.GeoJSONSource;
+        const flushNowMs = Date.now();
         const fList = flightsRef.current;
         const sel = selectedFlightIdRef.current;
         const idForFilter =
@@ -291,6 +281,7 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
               atcLineSpd: buildAtcSpeedLine(f),
               atcLineHdg: buildAtcHeadingLine(f),
               isShotFeasible: shotFeasibleFlightIds?.has(f.id) ?? false,
+              isConfirmedTransit: confirmedTransitFlightIds?.has(f.id) ?? false,
               altitudeMeters: Math.max(
                 0,
                 f.geoAltitudeMeters ?? f.baroAltitudeMeters ?? 0
@@ -298,7 +289,8 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
               track:
                 typeof f.trackDeg === "number" && Number.isFinite(f.trackDeg)
                   ? ((f.trackDeg % 360) + 360) % 360
-                  : 0,
+                  : null,
+              staleness: Math.min(1, Math.max(0, (flushNowMs - f.timestamp - 15_000) / 30_000)),
               contrailLikelihood: levels != null
                 ? computeContrailLikelihood(f.baroAltitudeMeters, levels)
                 : "none",
@@ -382,27 +374,8 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
         clearTimeout(timeoutId);
       }
     };
-  }, [flights, mapRef, mapReadyTick, selectedFlightId, shotFeasibleFlightIds]);
+  }, [flights, mapRef, mapReadyTick, selectedFlightId, shotFeasibleFlightIds, confirmedTransitFlightIds]);
 
-  useEffect(() => {
-    fieldPerfTime("geojson:routes", () => {
-    const map = mapRef.current;
-    if (!map || !map.getSource(ROUTES_SOURCE)) {
-      return;
-    }
-    const b = map.getBounds();
-    if (!b) {
-      return;
-    }
-    const bounds = geoBoundsFromMapbox(b);
-    const routeSrc = map.getSource(ROUTES_SOURCE) as mapboxgl.GeoJSONSource;
-    const lines = flightProvider.getRouteLineFeatures?.(bounds) ?? [];
-    routeSrc.setData({
-      type: "FeatureCollection",
-      features: [...lines],
-    });
-    });
-  }, [flightProvider, mapRef, mapReadyTick]);
 }
 
 function buildAtcFlightLevelLine(f: FlightState): string {
