@@ -4,6 +4,9 @@ import type { FlightState } from "@/types/flight";
 import { horizontalToPoint } from "../geometry/horizontal";
 import { screenTransitCandidates } from "./screening";
 
+// speed/track namjerno null: po specu letovi bez kursa prolaze approach filter
+// bezuvjetno, pa ovi testovi izoliraju logiku separacije/sortiranja (a ne 30s
+// lookahead odbacivanje). Za test approach filtera koristi se zaseban scenarij.
 function flight(
   id: string,
   lat: number,
@@ -15,8 +18,8 @@ function flight(
     position: { lat, lng },
     baroAltitudeMeters: hM,
     geoAltitudeMeters: hM,
-    groundSpeedMps: 200,
-    trackDeg: 90,
+    groundSpeedMps: null,
+    trackDeg: null,
     timestamp: 0,
   };
 }

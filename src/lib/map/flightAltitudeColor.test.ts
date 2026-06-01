@@ -41,11 +41,11 @@ describe("flightAltitudeColor", () => {
       stops.map((s, i) =>
         flightAltitudeLegendStopLabel(s, "km", i === last)
       )
-    ).toEqual(["0m", "2k", "4.5k", "7k", "9.5k", "12k+"]);
+    ).toEqual(["0m", "1.5k", "4.6k", "7.6k", "10.7k", "13.7k+"]);
     expect(
       stops.map((s, i) =>
         flightAltitudeLegendStopLabel(s, "ft", i === last)
       )
-    ).toEqual(["0", "6.6k", "14.8k", "23k", "31.2k", "39.4k+"]);
+    ).toEqual(["0", "5k", "15k", "25k", "35k", "45k+"]);
   });
 });
