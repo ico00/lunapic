@@ -6,6 +6,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 where version bumps are made for releases (currently `0.x`).
 
+## [2026-06-02] — Server-side transit alerts (pozadinski Web Push)
+
+Vidi i: [architecture.md → Server-side transit scan](architecture.md#server-side-transit-scan-background-push) · [deployment-cpanel.md → Transit alerti / Web Push](deployment-cpanel.md)
+
+### Added
+
+- **Server-side detekcija tranzita → push neovisan o otvorenom tabu.** Alerti su prije
+  ovisili o foreground tabu (kad se ekran ugasi, JS se zamrzne → push se nikad ne pošalje).
+  Sada `server.js` poller na svakom ticku šalje pun snapshot letova internoj ruti
+  **`/api/transit/scan`**, koja računa kandidate **po pretplati** (svaka push subscription
+  nosi svoju `observer` lokaciju + `camera`) i šalje Web Push izravno. Radi i kad je ekran
+  ugašen / app u pozadini.
+- **Čiste funkcije `computeTransitCandidates` / `computeActiveTransits`** (`src/lib/domain/transit/`)
+  kao jedini izvor pragova pipelinea — dijele ih client hookovi (`useTransitCandidates` /
+  `useActiveTransits`, sad tanki wrapperi) i scan ruta. + unit testovi.
+- **`src/lib/server/webPush.ts`** — shared VAPID config + 410/404 expiry cleanup; koriste ga
+  i `/api/transit/scan` i `/api/push/send` (DRY).
+- **Pretplata nosi `observer` + `camera`** (`pushSubsStore`, subscribe route, `usePushRegistration`
+  s debounced re-upsertom na promjenu lokacije/kamere; toggle OFF → `DELETE`).
+
+### Changed
+
+- **Client više ne šalje push.** Uklonjena `document.hidden → /api/push/send` grana iz
+  `useCandidateAlerts` — server je jedini vlasnik notifikacija (nema duplih alerta). Client
+  radi samo in-app audio + toast dok je tab vidljiv.
+- **`server.js` poller** skuplja pun snapshot letova (prije `MIN_MOVE_M` filtera) i okida
+  `triggerTransitScan`. Pod **Phusion Passengerom** `server.listen()` ne veže TCP port, pa
+  trigger gađa **javni URL** (`NEXT_PUBLIC_SITE_URL`, override `SCAN_TRIGGER_URL`); na
+  `127.0.0.1:PORT` pada samo u lokalnom dev-u.
+- **`public/sw.js`** — jača/duža vibracija (Android) + `renotify`. (iOS ignorira `vibrate`/custom
+  zvuk — sistemski.)
+
+### Ops / env
+
+- Nove runtime env varijable na cPanelu: **`VAPID_PRIVATE_KEY`**, **`VAPID_SUBJECT`**,
+  **`NEXT_PUBLIC_SITE_URL`** (s basePathom), **`INTERNAL_SCAN_TOKEN`** (`openssl rand -hex 32`).
+  `server.js` VAPID gate provjerava samo runtime tajne — plain Node ne inlinea `NEXT_PUBLIC_*`.
+  Detalji u [deployment-cpanel.md](deployment-cpanel.md).
+
 ## [2026-06-01] — Senior code review, flight-log data-loss incident & git baseline
 
 Vidi i: [code review](code-review-analiza-260531.md) · [incident post-mortem](incident-flightlog-dataloss-2026-06-01.md)

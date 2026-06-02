@@ -74,9 +74,28 @@ ADMIN_SECRET=neki-dugi-random-string-min-32-znaka
 
 Štiti `/api/flight-log/debug` koji otkriva interne serverske informacije (path, DB veličina, schema). Bez ovog env vara endpoint je u produkciji automatski **blokiran (403)**. Generiraj: `openssl rand -base64 32`.
 
+### Transit alerti / Web Push (server-side scan)
+
+Da bi pozadinski push alerti radili (obavijest stigne i kad je ekran ugašen / app u pozadini), server-side scan ([architecture.md](./architecture.md#server-side-transit-scan-background-push)) treba ove env varijable u **runtime procesu** (cPanel App Manager → Environment variables):
+
+```
+VAPID_PRIVATE_KEY=<iz npx web-push generate-vapid-keys>
+VAPID_SUBJECT=mailto:ti@primjer.com
+NEXT_PUBLIC_SITE_URL=https://primjer.com/LunaPic      # mora uključivati basePath
+INTERNAL_SCAN_TOKEN=<openssl rand -hex 32>
+```
+
+- **`VAPID_PRIVATE_KEY` + `VAPID_SUBJECT`** — server-only tajne; **nisu** `NEXT_PUBLIC_`, pa se NE ugrađuju u build i moraju biti runtime env. Bez njih scan/`/api/push/send` vraćaju **503** (`VAPID not configured`). `NEXT_PUBLIC_VAPID_PUBLIC_KEY` se ugrađuje u build (potreban je clientu za `pushManager.subscribe`), pa ne mora biti runtime env — ali ne škodi.
+- **`NEXT_PUBLIC_SITE_URL`** — javni URL aplikacije s basePathom. **Kritično pod Passengerom:** `server.js` poller ne može doseći app preko `127.0.0.1:PORT` (Passenger ne veže TCP port), pa `triggerTransitScan` gađa ovaj javni URL. Ako fali ili nema basePath → trigger ide krivo/padne. (Override: `SCAN_TRIGGER_URL`.) Ista varijabla služi i za SEO canonical/sitemap.
+- **`INTERNAL_SCAN_TOKEN`** — dijeljena tajna kojom poller autentificira poziv na `/api/transit/scan` (header `x-internal-token`). Generiraj `openssl rand -hex 32`. Bez nje scan vraća **403** i poller tiho odustaje. Mora biti **stvaran slučajan string** — ne placeholder poput `<openssl rand -hex 32>`.
+- **Ovisi i o `LOCAL_SDR_URL`** (gore) — poller je heartbeat koji okida scan. Bez aktivnog localsdr pollera nema pozadinskih alerta.
+- **Provjera da radi:** u `~/access-logs/<domena>-ssl_log` traži `POST /<base>/api/transit/scan ... "node"` — treba se pojavljivati ~svakih 15 s sa statusom `200` (user-agent `node` = poller, ne browser).
+
 ### `touch tmp/restart.txt` vs. full restart
 
-**`touch tmp/restart.txt`** (što deploy skripta radi) restarta Passenger proces ali **ne reloadira** environment varijable iz cPanel App Managera. Ako dodaš ili promijeniš env varijablu u cPanel App Manageru, moraš napraviti **Stop → Start** direktno iz App Manager UI-a — inače `process.env` neće vidjeti novu vrijednost.
+**`touch tmp/restart.txt`** (što deploy skripta radi) restarta Passenger proces. Ako sumnjaš da `process.env` ne vidi novu env varijablu, najsigurnije je napraviti **Stop → Start** direktno iz App Manager UI-a.
+
+> **Napomena (provjereno 2026-06-02):** u praksi je respawn nakon `touch tmp/restart.txt` **ipak učitao** novo dodane cPanel env varijable (VAPID, `INTERNAL_SCAN_TOKEN`, `NEXT_PUBLIC_SITE_URL`) u novi proces — potvrđeno čitanjem `/proc/<pid>/environ`. Passenger respawna lijeno na prvi HTTP zahtjev, pa nakon touch-a pošalji jedan request (ili otvori app) da se proces ponovno pokrene. Stop → Start ostaje sigurna opcija ako respawn iz nekog razloga zapne.
 
 ## Tailscale Funnel — pristup Pi-u iz produkcije
 

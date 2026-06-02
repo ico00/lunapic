@@ -43,8 +43,8 @@ LunaPic helps you **line up a live ADS-B aircraft** with the **Moon** in the sky
   - **Δalt badge**: the signed elevation difference (aircraft − moon) at predicted alignment time. Emerald = within the moon disc (~0.26°), amber = near miss (up to 1.5°), grey = larger miss.
   - **Transit alerts** (bell icon in the panel header): enables automatic **sound + push notifications** whenever a new "Disk transit" candidate appears or a flight enters active transit (crossing the disc now).
     - Tab visible → **ATC-style audio** (squelch burst + beep) + **in-app toast banner**.
-    - Tab hidden / phone locked → **Web Push** OS notification (requires permission).
-    - On first enable, the browser asks for notification permission. On iOS, Web Push only works when LunaPic is **added to the Home Screen** (iOS 16.4+).
+    - Phone locked / app in the background / tab closed → **Web Push** OS notification (banner + vibration), sent by the server. This works even when LunaPic is not open: once you subscribe, your location and camera are remembered server-side and the server checks for transits on its own. (Requires the server to be configured — see deployment docs.)
+    - On first enable, the browser asks for notification permission. On iOS, Web Push only works when LunaPic is **added to the Home Screen** (iOS 16.4+), and the alert uses the **system notification sound** (iOS ignores custom sound/vibration).
     - If the permission prompt did not appear automatically on first load, tap the bell to trigger it.
     - Custom sounds: place `candidate-alert.mp3` / `active-transit-alert.mp3` in `public/sounds/` on the server.
 
