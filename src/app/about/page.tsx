@@ -100,6 +100,11 @@ const faqSections: { title: string; items: FaqItem[] }[] = [
           "Active Transits lists aircraft whose azimuth from your observer (corrected for aircraft altitude) is within 0.5° of the moon's azimuth — they are currently on the \"yellow ray\" where a geometric transit is happening. Each row shows callsign and delta azimuth (Δ) in blue.\n\nNudge arrow. Tap a row to select it. A nudge arrow appears below the list showing how many metres to walk and in which compass direction to reach the optimal stand where the transit centres exactly. When you close within 5 m, the arrow is replaced by a green Centered indicator and a short double chime plays.\n\nThe list only populates when moon visibility is in the Optimal tier. If it is empty, no aircraft are on the ray right now.",
       },
       {
+        question: "How do transit alerts and notifications work?",
+        answer:
+          "Turn on Transit alerts with the bell icon in the Transit Candidates panel header. You are then warned the moment a flight is predicted to cross the moon disc, or enters an active transit right now.\n\nApp open and on screen: an ATC-style sound (squelch + beep) plays and an in-app banner appears.\n\nScreen off, app in the background, or fully closed: you get a system push notification (banner + vibration). This keeps working even when LunaPic is not open because detection runs on the server — once you subscribe, your observer location and camera settings are remembered server-side and the server keeps checking for transits for you.\n\nFirst time: tapping the bell asks the browser for notification permission — choose Allow. On iPhone, push only works if you add LunaPic to the Home Screen (Share → Add to Home Screen) and open it from there; the alert then uses your phone's system notification sound (iOS does not allow a custom sound or vibration for web notifications).\n\nTurn the bell off to stop notifications. If you move your observer or change your camera, the saved settings update automatically.",
+      },
+      {
         question: "What is the countdown in Photographer tools?",
         answer:
           "It is an estimate of time until the selected plane's direction aligns with the moon direction from your observer. It is meant as a practical shooting aid, not a perfect physical simulation.",
