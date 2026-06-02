@@ -8,8 +8,13 @@ self.addEventListener("push", (event) => {
       tag: d.tag ?? "lunapic-alert",
       icon: self.registration.scope + "logo.png",
       badge: self.registration.scope + "logo.png",
-      vibrate: d.urgent ? [200, 100, 200, 100, 200] : [150],
+      // Jača/duža vibracija da bude primjetna na zaključanom Androidu.
+      // (iOS web-push ignorira `vibrate` i koristi sistemski zvuk notifikacije.)
+      vibrate: d.urgent
+        ? [400, 150, 400, 150, 400, 150, 600]
+        : [300, 120, 300],
       requireInteraction: !!d.urgent,
+      renotify: true,
     })
   );
 });

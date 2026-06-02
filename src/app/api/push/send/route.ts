@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import webpush from "web-push";
 import { rejectIfRateLimited } from "@/lib/server/rateLimiter";
-import { readSubs, writeSubs } from "@/lib/server/pushSubsStore";
+import { readSubs } from "@/lib/server/pushSubsStore";
+import { isVapidConfigured, sendToSubscriptions } from "@/lib/server/webPush";
 
 type SendBody = {
   title: string;
@@ -9,19 +9,6 @@ type SendBody = {
   tag?: string;
   urgent?: boolean;
 };
-
-const vapidConfigured =
-  process.env.VAPID_PRIVATE_KEY &&
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY &&
-  process.env.VAPID_SUBJECT;
-
-if (vapidConfigured) {
-  webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT!,
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-    process.env.VAPID_PRIVATE_KEY!
-  );
-}
 
 /** Allowed origins for push/send — only the app itself may call this endpoint. */
 const ALLOWED_ORIGINS = new Set(
@@ -78,7 +65,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  if (!vapidConfigured) {
+  if (!isVapidConfigured()) {
     return NextResponse.json({ error: "VAPID not configured" }, { status: 503 });
   }
   let body: SendBody;
@@ -100,45 +87,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing title" }, { status: 400 });
   }
 
-  const payload = JSON.stringify({
+  const { sent } = await sendToSubscriptions(Object.values(readSubs()), {
     title,
     body: text,
     tag: sanitizeTag(body.tag),
     urgent: body.urgent === true,
   });
-
-  const subs = readSubs();
-  const endpoints = Object.keys(subs);
-  if (endpoints.length === 0) {
-    return NextResponse.json({ sent: 0 });
-  }
-
-  const expired: string[] = [];
-  let sent = 0;
-
-  await Promise.allSettled(
-    endpoints.map(async (ep) => {
-      const sub = subs[ep];
-      try {
-        await webpush.sendNotification(
-          { endpoint: sub.endpoint, keys: sub.keys },
-          payload
-        );
-        sent++;
-      } catch (err) {
-        const status = (err as { statusCode?: number }).statusCode;
-        if (status === 410 || status === 404) {
-          expired.push(ep);
-        }
-      }
-    })
-  );
-
-  if (expired.length > 0) {
-    const updated = readSubs();
-    for (const ep of expired) delete updated[ep];
-    writeSubs(updated);
-  }
 
   return NextResponse.json({ sent });
 }

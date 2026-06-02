@@ -281,6 +281,9 @@ async function startFlightLogger() {
 
     const posRows = [];
     const metaRows = [];
+    // Pun snapshot SVIH validnih aviona ovog ticka (FlightState oblik), neovisno o
+    // MIN_MOVE filteru koji se tiče samo DB upisa. Koristi ga server-side transit scan.
+    const liveFlights = [];
 
     for (const row of aircraft) {
       const hexRaw = row.hex;
@@ -300,13 +303,6 @@ async function startFlightLogger() {
             : 0;
       const logged_at = Math.max(0, nowMs - ageSec * 1000);
 
-      const prev = lastSeen.get(icao24);
-      if (prev) {
-        const moved = haversineM(prev.lat, prev.lng, lat, lng);
-        if (moved < MIN_MOVE_M && logged_at - prev.logged_at < MAX_GAP_MS) continue;
-      }
-      lastSeen.set(icao24, { lat, lng, logged_at });
-
       const callRaw = row.flight;
       const callsign = typeof callRaw === "string" ? callRaw.trim() || null : null;
       const gs = row.gs;
@@ -321,8 +317,30 @@ async function startFlightLogger() {
       const registration = typeof row.r === "string" ? row.r.trim() || null : null;
       const aircraft_type = typeof row.t === "string" ? row.t.trim() || null : null;
       const description = typeof row.desc === "string" ? row.desc.trim() || null : null;
+      const alt_baro_m = altFtToM(row.alt_baro);
+      const alt_geom_m = altFtToM(row.alt_geom);
 
-      posRows.push([icao24, callsign, lat, lng, altFtToM(row.alt_baro), altFtToM(row.alt_geom),
+      liveFlights.push({
+        id: icao24,
+        icao24,
+        callSign: callsign,
+        position: { lat, lng },
+        baroAltitudeMeters: alt_baro_m,
+        geoAltitudeMeters: alt_geom_m,
+        groundSpeedMps: speed_mps,
+        trackDeg: track_deg,
+        timestamp: logged_at,
+        providerId: "localsdr",
+      });
+
+      const prev = lastSeen.get(icao24);
+      if (prev) {
+        const moved = haversineM(prev.lat, prev.lng, lat, lng);
+        if (moved < MIN_MOVE_M && logged_at - prev.logged_at < MAX_GAP_MS) continue;
+      }
+      lastSeen.set(icao24, { lat, lng, logged_at });
+
+      posRows.push([icao24, callsign, lat, lng, alt_baro_m, alt_geom_m,
         speed_mps, track_deg, vert_rate_fpm, squawk, rssi, registration, aircraft_type, logged_at]);
 
       if (registration || aircraft_type || description) {
@@ -383,11 +401,62 @@ async function startFlightLogger() {
     }
 
     if (posRows.length > 0) saveDb();
+
+    // Server-side transit scan: pošalji pun snapshot internoj ruti koja računa
+    // kandidate/aktivne tranzite po pretplati i šalje Web Push — radi i kad nema
+    // nijednog otvorenog taba (ugašen ekran / app u pozadini).
+    triggerTransitScan(liveFlights);
   }
 
   poll().catch(() => {});
   setInterval(() => poll().catch(() => {}), POLL_INTERVAL_MS);
   console.log(`[flight-logger] Started (sql.js) — polling every ${POLL_INTERVAL_MS / 1000}s`);
+}
+
+// ---------------------------------------------------------------------------
+// Server-side transit scan trigger
+// ---------------------------------------------------------------------------
+const INTERNAL_SCAN_TOKEN = process.env.INTERNAL_SCAN_TOKEN?.trim();
+// server.js je čisti Node (nije ga obradio Next build), pa `NEXT_PUBLIC_*` NIJE
+// inlinean — provjeravamo samo runtime tajne. Public VAPID ključ ionako validira
+// sama ruta (webPush.ts, gdje ga Next ugrađuje u build).
+const VAPID_READY = Boolean(
+  process.env.VAPID_PRIVATE_KEY && process.env.VAPID_SUBJECT
+);
+
+/**
+ * URL interne scan rute. Pod Phusion Passengerom (cPanel) `server.listen()` ne
+ * veže TCP port — Passenger presreće — pa `127.0.0.1:PORT` NIJE dostupan. Zato
+ * primarno gađamo javni URL (`NEXT_PUBLIC_SITE_URL`, koji već uključuje basePath),
+ * a na `127.0.0.1` padamo samo kad app sami pokrećemo nodeom (lokalni dev).
+ * `SCAN_TRIGGER_URL` je ručni override.
+ */
+function resolveScanUrl() {
+  const explicit = process.env.SCAN_TRIGGER_URL?.trim();
+  if (explicit) return explicit;
+  const site = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (site) return `${site.replace(/\/$/, "")}/api/transit/scan`;
+  return `http://127.0.0.1:${port}${basePathClean ?? ""}/api/transit/scan`;
+}
+
+/**
+ * Best-effort POST trenutnog snapshota letova `/api/transit/scan` ruti.
+ * Ruta računa kandidate po pretplati i šalje Web Push. Tiho odustaje ako token
+ * ili VAPID nisu konfigurirani (značajka isključena).
+ */
+function triggerTransitScan(flights) {
+  if (!INTERNAL_SCAN_TOKEN || !VAPID_READY) return;
+  if (!Array.isArray(flights) || flights.length === 0) return;
+  const url = resolveScanUrl();
+  fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-internal-token": INTERNAL_SCAN_TOKEN,
+    },
+    body: JSON.stringify({ flights }),
+    signal: AbortSignal.timeout(8_000),
+  }).catch(() => {});
 }
 
 app.prepare().then(async () => {

@@ -10,10 +10,27 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import type { CameraSensorType } from "@/lib/domain/geometry/shotFeasibility";
+
+/** Promatračeva lokacija spremljena uz pretplatu — server je treba za detekciju. */
+export type SubscriptionObserver = {
+  lat: number;
+  lng: number;
+  groundHeightMeters: number;
+};
+
+/** Kamera spremljena uz pretplatu — kontrolira FOV/willTransit klasifikaciju. */
+export type SubscriptionCamera = {
+  focalLengthMm: number;
+  sensorType: CameraSensorType;
+};
 
 export type PushSubscriptionRecord = {
   endpoint: string;
   keys: { p256dh: string; auth: string };
+  /** Opcionalno: legacy pretplate nemaju ovo i preskaču se u server-side scanu. */
+  observer?: SubscriptionObserver;
+  camera?: SubscriptionCamera;
 };
 
 const SUBS_FILE = path.join(process.cwd(), "data", "push-subscriptions.json");

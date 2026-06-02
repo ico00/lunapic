@@ -67,6 +67,24 @@ Svaki filter se primjenjuje redom. Ako let padne na bilo kojoj provjeri, **isklj
 **Zašto elevation gap umjesto 2D sky separation za `willTransit`:**
 Linearni azimutalni model divergira za letove koji su trenutno daleko od Mjeseca (dugi lookahead). `separationAtAlignmentDeg` tada nije pouzdan. `elevationGapAtAlignmentDeg` je potvrđen kao pouzdan u stvarnom snimanju (2026-05-23).
 
+### Dvije izvedbe iste detekcije (klijent + server)
+
+Pipeline iznad postoji u **čistim funkcijama** — jedini izvor istine pragova:
+`src/lib/domain/transit/computeTransitCandidates.ts` i `computeActiveTransits.ts`.
+Koriste ih dvije strane s **identičnim pragovima**:
+1. **Klijent** — hookovi `useTransitCandidates` / `useActiveTransits` (tanki
+   store-bound wrapperi) → in-app audio + toast dok je tab vidljiv
+   (`useCandidateAlerts`).
+2. **Server** — `server.js` flight-logger poller na svakom ticku POST-a pun
+   snapshot letova internoj ruti `/api/transit/scan` (auth: `x-internal-token` =
+   `INTERNAL_SCAN_TOKEN`). Ruta računa kandidate **po pretplati** (svaka push
+   subscription nosi svoju `observer` lokaciju + `camera`) i šalje Web Push
+   izravno → alerti rade i kad je ekran ugašen / app u pozadini. Ovisi o aktivnom
+   `LOCAL_SDR_URL` polleru i konfiguriranom VAPID-u; inače tiho isključeno.
+
+Klijent **ne** šalje push (uklonjena `document.hidden → /api/push/send` grana) —
+server je jedini vlasnik notifikacija, pa nema dvostrukih alerta.
+
 ## Aktivan transit (`useActiveTransits`)
 
 Let je u "active transit" kad mu je **puna 2D kutna separacija** od Mjeseca ≤ 0.5° (kombinacija azimuta + elevacije, ne samo azimut). Koristi `angularSeparationDeg` iz `sky-separation.ts`.

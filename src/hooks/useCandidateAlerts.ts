@@ -8,7 +8,6 @@ import type { ActiveTransitRow } from "@/hooks/useActiveTransits";
 import type { TransitCandidate } from "@/types";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const COOLDOWN_MS = 2 * 60 * 1000;
 
 export type AlertInfo = {
@@ -31,18 +30,6 @@ type Args = {
   candidates: readonly TransitCandidate[];
   activeTransits: readonly ActiveTransitRow[];
 };
-
-async function sendPush(title: string, body: string, tag: string, urgent: boolean) {
-  try {
-    await fetch(`${BASE_PATH}/api/push/send`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, body, tag, urgent }),
-    });
-  } catch {
-    // network error — push will be missed, not fatal
-  }
-}
 
 export function useCandidateAlerts({
   enabled,
@@ -83,19 +70,15 @@ export function useCandidateAlerts({
 
       const callsign = row.flight.callSign?.trim() || id;
       const separation = row.separationDeg;
-      const title = "LunaPic — active transit!";
-      const body = `${callsign} is crossing the moon now (${separation.toFixed(2)}°)`;
 
       stamp(id);
 
-      if (document.hidden) {
-        void sendPush(title, body, `transit-active-${id}`, true);
-      } else {
-        if (audioEnabled) playActiveTransitAlert();
-        /* eslint-disable react-hooks/set-state-in-effect -- alert state is driven by external flight data changes */
-        setLatestAlert({ flightId: id, callsign, separationDeg: separation, isActive: true, nudgeLine: row.nudgeLine });
-        /* eslint-enable react-hooks/set-state-in-effect */
-      }
+      // In-app UX only (audio + toast) for the visible tab. Background / screen-off
+      // notifications are owned by the server-side scan (/api/transit/scan).
+      if (audioEnabled) playActiveTransitAlert();
+      /* eslint-disable react-hooks/set-state-in-effect -- alert state is driven by external flight data changes */
+      setLatestAlert({ flightId: id, callsign, separationDeg: separation, isActive: true, nudgeLine: row.nudgeLine });
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
 
     // --- New candidates (only disc-transit predictions, not "in frame" only) ---
@@ -107,17 +90,11 @@ export function useCandidateAlerts({
 
       const callsign = c.flight.callSign?.trim() || id;
       const separation = c.separationDeg;
-      const title = "LunaPic — transit candidate";
-      const body = `${callsign} approaching moon (${separation.toFixed(2)}°)`;
 
       stamp(id);
 
-      if (document.hidden) {
-        void sendPush(title, body, `transit-candidate-${id}`, false);
-      } else {
-        if (audioEnabled) playTransitCandidateAlert();
-        setLatestAlert({ flightId: id, callsign, separationDeg: separation, isActive: false, nudgeLine: null }); // eslint-disable-line react-hooks/set-state-in-effect
-      }
+      if (audioEnabled) playTransitCandidateAlert();
+      setLatestAlert({ flightId: id, callsign, separationDeg: separation, isActive: false, nudgeLine: null });
     }
 
     lastCandidateIds.current = currentCandidateIds;
