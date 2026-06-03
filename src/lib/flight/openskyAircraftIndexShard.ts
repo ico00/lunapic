@@ -1,10 +1,22 @@
 import { canonicalIcao24Id } from "@/lib/flight/icao24CanonicalId";
 
 /**
- * Iz OpenSky CSV indeksa: `[typecode | icaoaircrafttype, model, manufacturername]`.
- * Stariji shardovi mogu imati samo prva dva člana.
+ * Iz OpenSky CSV indeksa: `[typecode | icaoaircrafttype, model, manufacturername, registration]`.
+ * Trailing-empty članovi odbačeni → shard može imati 1–4 člana (stariji 2–3, bez reg).
  */
-export type OpenSkyAircraftIndexTuple = readonly [string, string, string?];
+export type OpenSkyAircraftIndexTuple = readonly [
+  string,
+  string?,
+  string?,
+  string?,
+];
+
+/** Registracija (npr. `HA-LWU`) iz indeksa, ili prazan string ako je nema. */
+export function openSkyAircraftIndexRegistration(
+  tuple: OpenSkyAircraftIndexTuple
+): string {
+  return (tuple[3] ?? "").trim();
+}
 
 /**
  * Prva **tri** znaka ICAO24 (hex, lower) za putanju sharda `public/data/opensky-aircraft/{prefix}.json`.

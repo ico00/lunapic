@@ -4,7 +4,10 @@ import { appPath } from "@/lib/paths/appPath";
 import { callsignToCarrier } from "@/lib/flight/icaoAirline";
 import { callsignToKiwiIata } from "@/lib/flight/flightDisplayLabels";
 import { fetchOpenSkyAircraftIndexEntry } from "@/lib/flight/openskyAircraftIndexClient";
-import { formatOpenSkyAircraftIndexLabel } from "@/lib/flight/openskyAircraftIndexShard";
+import {
+  formatOpenSkyAircraftIndexLabel,
+  openSkyAircraftIndexRegistration,
+} from "@/lib/flight/openskyAircraftIndexShard";
 import type { AircraftListRow } from "@/lib/db/flightLogDb";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -48,6 +51,8 @@ export function FlightLogPanel() {
    * Keyed by icao24 lowercase.
    */
   const [typeOverrides, setTypeOverrides] = useState<Map<string, string>>(new Map());
+  /** Registracije iz OpenSky indeksa za retke gdje ih DB nema (Pi feed nema reg). Keyed icao24 lower. */
+  const [regOverrides, setRegOverrides] = useState<Map<string, string>>(new Map());
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -86,29 +91,35 @@ export function FlightLogPanel() {
     return () => { cancelled = true; };
   }, [daysBack]);
 
-  // Enrich missing aircraft_type from the OpenSky shard index (same source as the
-  // airplane popup). Runs whenever allRows changes; shards are cached in-memory so
-  // aircraft the popup already looked up are resolved instantly.
+  // Enrich missing aircraft_type AND registration from the OpenSky shard index
+  // (same source as the airplane popup; the Pi feed has neither in aircraft.json).
+  // Runs whenever allRows changes; shards are cached in-memory so aircraft already
+  // looked up resolve instantly.
   useEffect(() => {
     if (!allRows || allRows.length === 0) return;
-    const toEnrich = allRows.filter((r) => !r.aircraft_type);
+    const toEnrich = allRows.filter((r) => !r.aircraft_type || !r.registration);
     if (toEnrich.length === 0) return;
     let cancelled = false;
     Promise.allSettled(
       toEnrich.map(async (row) => {
         const entry = await fetchOpenSkyAircraftIndexEntry(row.icao24);
-        const label = entry ? formatOpenSkyAircraftIndexLabel(entry).trim() : "";
-        return { icao24: row.icao24.toLowerCase(), label };
+        return {
+          icao24: row.icao24.toLowerCase(),
+          label: entry ? formatOpenSkyAircraftIndexLabel(entry).trim() : "",
+          reg: entry ? openSkyAircraftIndexRegistration(entry) : "",
+        };
       })
     ).then((results) => {
       if (cancelled) return;
-      const next = new Map<string, string>();
+      const types = new Map<string, string>();
+      const regs = new Map<string, string>();
       for (const r of results) {
-        if (r.status === "fulfilled" && r.value.label) {
-          next.set(r.value.icao24, r.value.label);
-        }
+        if (r.status !== "fulfilled") continue;
+        if (r.value.label) types.set(r.value.icao24, r.value.label);
+        if (r.value.reg) regs.set(r.value.icao24, r.value.reg);
       }
-      if (next.size > 0) setTypeOverrides(next);
+      if (types.size > 0) setTypeOverrides(types);
+      if (regs.size > 0) setRegOverrides(regs);
     }).catch(() => {/* ignore */});
     return () => { cancelled = true; };
   }, [allRows]);
@@ -244,6 +255,7 @@ export function FlightLogPanel() {
                   key={row.icao24}
                   row={row}
                   typeOverride={typeOverrides.get(row.icao24.toLowerCase())}
+                  regOverride={regOverrides.get(row.icao24.toLowerCase())}
                   selectedCallsign={flightLogCallsign}
                   selectedIcao24={flightLogIcao24}
                   daysBack={daysBack}
@@ -322,6 +334,7 @@ function AirlineLogo({ callsign }: { callsign: string | null | undefined }) {
 function AircraftRow({
   row,
   typeOverride,
+  regOverride,
   selectedCallsign,
   selectedIcao24,
   daysBack,
@@ -331,6 +344,8 @@ function AircraftRow({
   row: AircraftListRow;
   /** Aircraft type from the OpenSky shard index (when DB has no aircraft_type). */
   typeOverride?: string;
+  /** Registration from the OpenSky shard index (when DB has no registration). */
+  regOverride?: string;
   selectedCallsign: string | null;
   selectedIcao24: string | null;
   daysBack: number;
@@ -375,7 +390,7 @@ function AircraftRow({
         {row.last_callsign ?? <span className="text-[color:var(--t-disabled)]">—</span>}
       </td>
       <td className="px-3 py-1.5 text-[color:var(--t-tertiary)]">
-        {row.registration ?? <span className="text-[color:var(--t-disabled)]">—</span>}
+        {(row.registration ?? regOverride) ?? <span className="text-[color:var(--t-disabled)]">—</span>}
       </td>
       <td className="px-3 py-1.5 text-[color:var(--t-tertiary)]">
         {(row.aircraft_type ?? typeOverride) ?? <span className="text-[color:var(--t-disabled)]">—</span>}

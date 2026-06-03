@@ -48,6 +48,15 @@ function shardPrefix(icao24) {
   return icao24.slice(0, 3);
 }
 
+/** Drop trailing empty strings from a positional tuple (keeps shard JSON small). */
+function trimTrailingEmpty(arr) {
+  let end = arr.length;
+  while (end > 1 && arr[end - 1] === "") {
+    end -= 1;
+  }
+  return arr.slice(0, end);
+}
+
 async function main() {
   console.info(`[opensky-aircraft-index] GET ${ZIP_URL}`);
   const zipRes = await fetch(ZIP_URL);
@@ -101,7 +110,8 @@ async function main() {
     const typecode = primaryTypeCode(record);
     const model = String(record.model ?? "").trim();
     const manufacturer = String(record.manufacturername ?? "").trim();
-    if (!typecode && !model && !manufacturer) {
+    const registration = String(record.registration ?? "").trim().toUpperCase();
+    if (!typecode && !model && !manufacturer && !registration) {
       continue;
     }
     const prefix = shardPrefix(icao24);
@@ -113,7 +123,9 @@ async function main() {
     if (shard[icao24] != null) {
       continue;
     }
-    shard[icao24] = /** @type {const} */ ([typecode, model, manufacturer]);
+    // Positional tuple [typecode, model, manufacturer, registration]; trailing
+    // empties dropped to keep shard JSON small (reader treats missing as "").
+    shard[icao24] = trimTrailingEmpty([typecode, model, manufacturer, registration]);
     kept += 1;
   }
 

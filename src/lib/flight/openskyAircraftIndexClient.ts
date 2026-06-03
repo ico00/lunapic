@@ -1,6 +1,7 @@
 import { appPath } from "@/lib/paths/appPath";
 import {
   formatOpenSkyAircraftIndexLabel,
+  openSkyAircraftIndexRegistration,
   openSkyAircraftIndexShardPrefix,
   type OpenSkyAircraftIndexTuple,
 } from "@/lib/flight/openskyAircraftIndexShard";
@@ -13,21 +14,11 @@ const inflightShard = new Map<string, Promise<Record<string, unknown>>>();
 const SHARD_FETCH_TIMEOUT_MS = 20_000;
 
 function isTuple(v: unknown): v is OpenSkyAircraftIndexTuple {
-  if (!Array.isArray(v)) {
-    return false;
-  }
-  if (
-    v.length === 2 &&
-    typeof v[0] === "string" &&
-    typeof v[1] === "string"
-  ) {
-    return true;
-  }
   return (
-    v.length === 3 &&
-    typeof v[0] === "string" &&
-    typeof v[1] === "string" &&
-    typeof v[2] === "string"
+    Array.isArray(v) &&
+    v.length >= 1 &&
+    v.length <= 4 &&
+    v.every((x) => typeof x === "string")
   );
 }
 
@@ -99,9 +90,7 @@ export async function fetchOpenSkyAircraftIndexEntry(
   if (!isTuple(raw)) {
     return null;
   }
-  return raw.length === 3
-    ? raw
-    : [raw[0], raw[1], ""] as const;
+  return raw;
 }
 
 /**
@@ -115,4 +104,14 @@ export async function fetchOpenSkyAircraftTypeLabel(
     return "";
   }
   return formatOpenSkyAircraftIndexLabel(row).trim();
+}
+
+/**
+ * Registracija (npr. `HA-LWU`) iz lokalnog OpenSky indeksa, ili prazan string.
+ */
+export async function fetchOpenSkyAircraftRegistration(
+  icao24: string
+): Promise<string> {
+  const row = await fetchOpenSkyAircraftIndexEntry(icao24);
+  return row ? openSkyAircraftIndexRegistration(row) : "";
 }
