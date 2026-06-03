@@ -71,7 +71,8 @@ export function FlightLogPanel() {
   useEffect(() => {
     const params = new URLSearchParams({
       days: String(daysBack),
-      limit: "1000",
+      // Dohvati cijeli prozor (ruta caps na 5000) pa filtriraj/pagina lokalno.
+      limit: "5000",
       offset: "0",
     });
     let cancelled = false;

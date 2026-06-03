@@ -14,7 +14,11 @@ export async function GET(req: NextRequest) {
   const toMs = Date.now();
   const fromMs = toMs - daysBack * 86_400_000;
   const search = sp.get("search") ?? "";
-  const limit = Math.min(Math.max(parseInt(sp.get("limit") ?? "50"), 1), 200);
+  // Cap 5000: FlightLogPanel dohvaća cijeli prozor (do ~2k aviona za 30d) i
+  // filtrira/pagina lokalno. Stari cap (200) je rezao panel na fiksne 4 strane
+  // bez obzira na odabrani raspon. Puna stranica (flight-log/page.tsx) ionako
+  // koristi server-side paginaciju s limit=50.
+  const limit = Math.min(Math.max(parseInt(sp.get("limit") ?? "50"), 1), 5000);
   const offset = Math.max(parseInt(sp.get("offset") ?? "0"), 0);
 
   try {
