@@ -101,7 +101,9 @@ RSYNC_OPTS=(
   # ⚠️ KRITIČNO: runtime stanje koje server SAM generira — NIKAD ne dirati deployom.
   # Bez ovoga `rsync --delete` briše produkcijski flight-log.db i push-subscriptions.json
   # (jer ih lokalni izvor nema), pa svaki deploy obriše prikupljenu bazu letova.
-  --exclude='data/'
+  # VODEĆA KOSA: izuzmi SAMO top-level /data/ — NE `public/data/` (OpenSky index!).
+  # `data/` (bez kose) bi hvatao i public/data/ i blokirao deploy indeksa.
+  --exclude='/data/'
 )
 
 rsync "${RSYNC_OPTS[@]}" "$PROJECT_DIR/" "${SSH_USER}@${SSH_HOST}:${SSH_PATH}/"
