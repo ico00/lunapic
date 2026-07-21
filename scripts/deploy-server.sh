@@ -95,9 +95,14 @@ RSYNC_OPTS=(
   --exclude='tsconfig.tsbuildinfo'
   # node_modules NE šaljemo — cPanel ih kreira kao symlink i sam ih održava.
   # Nakon prvog deploya ili promjene package.json pokreni na serveru: npm install --omit=dev
-  --exclude='node_modules/'
-  # Next.js build cache (ne treba na serveru)
+  # ⚠️ VODEĆA KOSA (isti footgun kao /data/): bez nje bi se isključio i
+  # `.next/node_modules/` — symlink aliasi koje build generira za
+  # serverExternalPackages (npr. node-sqlite3-wasm-<hash>). Bez njih runtime
+  # padne s "Failed to load external module <pkg>-<hash>".
+  --exclude='/node_modules/'
+  # Next.js build cache i dev-mode artefakti (ne trebaju na serveru)
   --exclude='.next/cache/'
+  --exclude='.next/dev/'
   # ⚠️ KRITIČNO: runtime stanje koje server SAM generira — NIKAD ne dirati deployom.
   # Bez ovoga `rsync --delete` briše produkcijski flight-log.db i push-subscriptions.json
   # (jer ih lokalni izvor nema), pa svaki deploy obriše prikupljenu bazu letova.
