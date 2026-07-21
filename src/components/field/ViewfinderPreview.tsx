@@ -26,6 +26,8 @@ type ViewfinderPreviewProps = {
   elevationGapDeg?: number | null;
   /** Signed azimuth difference aircraft − moon (degrees). Positive = aircraft CW / right of moon. */
   azimuthGapDeg?: number | null;
+  /** Predicted elevation gap aircraft − moon at azimuth alignment (degrees). */
+  elevationGapAtAlignmentDeg?: number | null;
   className?: string;
 };
 
@@ -128,6 +130,7 @@ export function ViewfinderPreview({
   callSign,
   elevationGapDeg,
   azimuthGapDeg,
+  elevationGapAtAlignmentDeg,
   className,
 }: ViewfinderPreviewProps) {
   /** When true: simulates Moon size on a 6000×4000 frame at current focal (small disk in crop). When false: “Zoom” / normalized Moon scale for comparison (~0.5°). */
@@ -368,6 +371,37 @@ export function ViewfinderPreview({
     };
   }, [moonRadiusPx, planeCenterX, planeCenterY, trajectoryDirection]);
 
+  // Predicted on-sky motion for the off-frame ghost: from the current gap
+  // position (azimuthGapDeg, elevationGapDeg) toward the alignment point
+  // (azimuth gap 0, elevationGapAtAlignmentDeg). Same alt-az gap space the
+  // plane position is plotted in, so the path always approaches from the
+  // plane's actual side — a compass-heading projection would be mirrored
+  // horizontally in the sky view.
+  const ghostDirection = useMemo(() => {
+    if (azimuthGapDeg == null || !Number.isFinite(azimuthGapDeg)) {
+      return null;
+    }
+    const dAzDeg = -azimuthGapDeg;
+    const dElDeg =
+      elevationGapAtAlignmentDeg != null &&
+      Number.isFinite(elevationGapAtAlignmentDeg) &&
+      elevationGapDeg != null &&
+      Number.isFinite(elevationGapDeg)
+        ? elevationGapAtAlignmentDeg - elevationGapDeg
+        : 0;
+    const len = Math.hypot(dAzDeg, dElDeg);
+    if (len === 0) {
+      return null;
+    }
+    // Screen coords: +x right (azimuth gap grows), +y down (elevation drops).
+    return { x: dAzDeg / len, y: -dElDeg / len };
+  }, [azimuthGapDeg, elevationGapAtAlignmentDeg, elevationGapDeg]);
+
+  const ghostRotationDeg =
+    ghostDirection != null
+      ? (Math.atan2(ghostDirection.x, -ghostDirection.y) * 180) / Math.PI
+      : correctedVisualRotationDeg ?? 0;
+
   const planeHeightPx = Math.max(6, planeWidthPx * 0.28);
 
   const planeTopPct = (planeCenterY / SENSOR_HEIGHT_PX) * 100;
@@ -501,7 +535,10 @@ export function ViewfinderPreview({
           {!planeIsInFrame && planeWidthPx > 0 ? (
             <div
               className="viewfinder-plane-ghost-layer pointer-events-none absolute inset-0 z-[2]"
-              style={styleVars}
+              style={{
+                ...styleVars,
+                "--viewfinder-ghost-rotation-deg": `${ghostRotationDeg}deg`,
+              } as CSSProperties}
               aria-hidden="true"
             >
               <div className="viewfinder-plane-ghost">
@@ -547,23 +584,18 @@ export function ViewfinderPreview({
             const labelX = SENSOR_CENTER_X + (dx * scale * 0.6);
             const labelY = SENSOR_CENTER_Y + (dy * scale * 0.6) + 20;
 
-            // Simulated path across the moon disc along the corrected heading.
+            // Simulated path across the moon disc along the predicted on-sky
+            // motion (gap space), so it always enters from the plane's side.
             const ghostPath = (() => {
-              if (
-                correctedHeadingDeg == null ||
-                !Number.isFinite(correctedHeadingDeg)
-              ) {
+              if (ghostDirection == null) {
                 return null;
               }
-              const headingRad = (correctedHeadingDeg * Math.PI) / 180;
-              const dirX = Math.sin(headingRad);
-              const dirY = -Math.cos(headingRad);
               const halfLen = moonRadiusPx * 1.18;
               return {
-                x1: SENSOR_CENTER_X - dirX * halfLen,
-                y1: SENSOR_CENTER_Y - dirY * halfLen,
-                x2: SENSOR_CENTER_X + dirX * halfLen,
-                y2: SENSOR_CENTER_Y + dirY * halfLen,
+                x1: SENSOR_CENTER_X - ghostDirection.x * halfLen,
+                y1: SENSOR_CENTER_Y - ghostDirection.y * halfLen,
+                x2: SENSOR_CENTER_X + ghostDirection.x * halfLen,
+                y2: SENSOR_CENTER_Y + ghostDirection.y * halfLen,
               };
             })();
 
@@ -691,7 +723,7 @@ export function ViewfinderPreview({
           position: absolute;
           left: 50%;
           top: 50%;
-          transform: translate(-50%, -50%) rotate(var(--viewfinder-plane-rotation-deg));
+          transform: translate(-50%, -50%) rotate(var(--viewfinder-ghost-rotation-deg, var(--viewfinder-plane-rotation-deg)));
           opacity: 0.6;
           filter: drop-shadow(0 0 3px rgba(250, 204, 21, 0.55));
         }

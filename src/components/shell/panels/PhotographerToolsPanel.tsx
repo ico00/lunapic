@@ -351,6 +351,7 @@ export function PhotographerToolsPanel({
               callSign={selectedFlight?.callSign ?? selectedFlight?.id ?? null}
               elevationGapDeg={photoPack.currentElevationGapDeg}
               azimuthGapDeg={photoPack.gapDeg}
+              elevationGapAtAlignmentDeg={photoPack.elevationGapAtAlignmentDeg}
             />
           )}
         </div>
