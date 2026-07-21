@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAircraftList } from "@/lib/db/flightLogDb";
+import { dbVersionKey, getAircraftList } from "@/lib/db/flightLogDb";
 import { rejectIfRateLimited } from "@/lib/server/rateLimiter";
+import { createTtlBodyCache } from "@/lib/server/ttlBodyCache";
 
 export const dynamic = "force-dynamic";
 
 const NO_CACHE = { "Cache-Control": "no-store" };
+const JSON_HEADERS = { ...NO_CACHE, "Content-Type": "application/json" };
+
+// Same memoization as the other flight-log routes: the GROUP BY over every
+// position row in the window is what stalls the process when the panel opens,
+// and its result only changes when the writer flushes the DB file. Search
+// variants get their own entries (16 slots — panel default + a few searches).
+const bodyCache = createTtlBodyCache(5 * 60_000, 16);
 
 export async function GET(req: NextRequest) {
   const reject = rejectIfRateLimited(req, 30, 60_000, "flight-log/aircraft-list");
@@ -21,9 +29,15 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(Math.max(parseInt(sp.get("limit") ?? "50"), 1), 5000);
   const offset = Math.max(parseInt(sp.get("offset") ?? "0"), 0);
 
+  const cacheKey = `${dbVersionKey()}|${daysBack}|${search}|${limit}|${offset}`;
+  const cached = bodyCache.get(cacheKey);
+  if (cached) return new NextResponse(cached, { headers: JSON_HEADERS });
+
   try {
     const result = await getAircraftList(fromMs, toMs, search, limit, offset);
-    return NextResponse.json(result, { headers: NO_CACHE });
+    const body = JSON.stringify(result);
+    bodyCache.set(cacheKey, body);
+    return new NextResponse(body, { headers: JSON_HEADERS });
   } catch (e) {
     console.error("[flight-log/aircraft-list]", e instanceof Error ? e.message : String(e));
     return NextResponse.json(
