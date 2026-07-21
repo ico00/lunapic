@@ -6,6 +6,72 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 where version bumps are made for releases (currently `0.x`).
 
+## [2026-07-21] — node-sqlite3-wasm migracija, route lines po prolazu, deploy rsync popravci
+
+Vidi i: [architecture.md → Storage: node-sqlite3-wasm](architecture.md) · [deployment-cpanel.md → Standardna deploy procedura + rsync pravila](deployment-cpanel.md)
+
+### Changed
+
+- **Flight-log baza: sql.js → node-sqlite3-wasm (file-based SQLite).** sql.js drži cijelu
+  bazu u WASM memoriji — svako čitanje je ponovno parsiralo cijelu datoteku, a writer ju je
+  svakih 30 s cijelu exportao i prepisivao; oba troška rasla su s veličinom baze, što je u
+  sukobu s ciljem da **povijest raste neograničeno** (više podataka = bolje planiranje).
+  Novi driver ima pravi VFS nad Node `fs`: čitanja povlače samo stranice koje upit treba
+  (trajna read-only konekcija, reopen po inode promjeni), writer commita **jednu transakciju
+  po poll ticku** — trajno na COMMIT-u, bez periodičkog flusha i bez 30-sekundnog prozora
+  gubitka kod pada procesa. Bez WAL-a (WASM ograničenje) → `busy_timeout` + retry na read
+  pathu; `data/flight-log.db-journal` uz bazu je normalan. I dalje čisti WASM: nema nativne
+  kompilacije (mac→linux rsync radi), neovisno o verziji Nodea na hostu (cPanel max = 20,
+  pa ugrađeni `node:sqlite` iz Node 22.5+ nije bio opcija). Provjereno: identični API
+  odgovori kao sql.js na istoj bazi, integritet nakon prune/VACUUM/reopen, čitanje i upis
+  **iza 4 GB granice** datoteke, 141/141 testova. Postojeća baza se otvara bez migracije.
+- **`/api/flight-log/routes` — jedna linija po *prolazu*, ne po callsignu.** Callsign koji
+  leti svaki dan bio je jedna polilinija koja cik-cak spaja prolaze različitih dana — ravne
+  "zrake" preko pola karte (zvijezda nad promatračem). Prolaz se sad reže na promjeni
+  callsigna, vremenskoj rupi > 20 min (isto pravilo kao `getCallsignSessions`) ili
+  prostornom skoku > 25 km (izlazak iz dosega prijemnika; susjedni fixevi su p50 3.4 km,
+  p99 < 16 km). Default prozor 30 → **7 dana**, uzorkovanje 500 → 150 točaka po prolazu,
+  novi `maxRoutes` cap (2000 najnovijih prolaza).
+- **UI: "Route lines (7 days)" / "Density heatmap (7 days)"** — oba flight-history togglea
+  prikazuju prozor iz zajedničke konstante `FLIGHT_HISTORY_DAYS` (`useFlightHistoryLayers`),
+  koju koriste i fetchevi — label ne može divergirati od podataka.
+
+### Fixed
+
+- **Deploy rsync footguni (2×, ista obitelj kao `/data/` iz 2026-06-01).**
+  (1) Nesidreni `--exclude='node_modules/'` gutao je i `.next/node_modules/` — symlink
+  aliase koje Next build generira za `serverExternalPackages` pakete
+  (`node-sqlite3-wasm-<hash>` → pravi paket); bez njih produkcija pada s
+  `Failed to load external module <pkg>-<hash>`. (2) Sidreni `/node_modules/` sa završnom
+  kosom matcha samo direktorije — a na serveru je `node_modules` **cPanel symlink** u
+  nodevenv, pa ga `--delete` obrisao (app bez ijednog paketa do ručnog `npm install`).
+  Konačno pravilo: `--exclude='/node_modules'` (sidreno, bez završne kose). Sva tri
+  pravila dokumentirana u [deployment-cpanel.md](deployment-cpanel.md) i u samoj skripti.
+- **`/api/flight-log/debug`** migriran na novi driver + eksplicitno provjerava da je
+  `node-sqlite3-wasm.wasm` preživio deploy (`wasmExists`).
+
+### Perf
+
+- **Memoizirani JSON odgovori** za `routes` / `heatmap` / `stats` / `aircraft-list`,
+  keyani na `dbVersionKey()` (mtime+size baze) + parametre — burst zahtjeva unutar jednog
+  write ticka računa jednom. (Ključni dobitak: otvaranje flight-log panela više ne blokira
+  proces — GROUP BY preko cijele tablice išao je na svaki zahtjev, ostali API pozivi bi
+  stali, pozicije aviona ostarjele i stale-hide filter ih skidao s karte.)
+
+### Ops / pouke
+
+- **`FLIGHT_LOG_RETENTION_DAYS` NE koristiti.** Retention (30 d) je danas kratko bio
+  postavljen na produkciji kao "perf popravak" i mogao je obrisati ~3 tjedna povijesti;
+  uklonjen prije štete (baza 288 547 pozicija, lipanj netaknut). **Velika baza je cilj**,
+  ne problem — perf se rješava arhitekturom (gornja migracija), nikad brisanjem podataka.
+  Env varijabla ostaje samo kao opt-in sigurnosni ventil s sanity-guardom.
+- **`chmod 444` recovery trik iz sql.js ere više ne vrijedi** — writer ne presnimava bazu
+  iz memorije; recovery je sad Stop → restore → provjera → Start
+  (vidi [deployment-cpanel.md](deployment-cpanel.md)).
+- Klijentski simptomi "sve je sporo + slojevi se ne prebacuju + VFR ne učitava" na jednom
+  stroju, a nigdje drugdje = **degradirani WebGL kontekst dugoživućeg taba** — restart
+  preglednika/stroja prije kopanja po kodu.
+
 ## [2026-06-02] — Server-side transit alerts (pozadinski Web Push)
 
 Vidi i: [architecture.md → Server-side transit scan](architecture.md#server-side-transit-scan-background-push) · [deployment-cpanel.md → Transit alerti / Web Push](deployment-cpanel.md)

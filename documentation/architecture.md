@@ -180,33 +180,23 @@ Keep **pure functions** in `lib/domain` (no React, no `window` except where a mo
 
 ## Flight history logging (local ADS-B log)
 
-When the LunaPic ADS-B (localsdr) provider is active, the application records all observed aircraft positions to a local SQLite database. This enables three map features: a historical trail behind a selected aircraft, a density heatmap of past flight activity, and route polylines per callsign.
+When the LunaPic ADS-B (localsdr) provider is active, the application records all observed aircraft positions to a local SQLite database. This enables three map features: a historical trail behind a selected aircraft, a density heatmap of past flight activity, and route polylines per flight pass. **The database is meant to grow without bound** — accumulated history is the raw material for flight planning (corridors, per-hour density, seasonal patterns). Do not add retention/pruning; solve performance in the read/write architecture instead (see the migration note below).
 
-### Storage: sql.js (pure WASM SQLite)
+### Storage: node-sqlite3-wasm (file-based WASM SQLite)
 
-The database layer uses **sql.js** (`src/lib/db/flightLogDb.ts`) — a pure JavaScript/WebAssembly port of SQLite with no native compilation needed. This is critical for cPanel shared hosting where native addon compilation is unreliable.
+The database layer uses **node-sqlite3-wasm** (`src/lib/db/flightLogDb.ts`) — SQLite compiled to WebAssembly with a real VFS over Node's `fs` API. No native compilation is needed (critical for cPanel shared hosting, and for the mac→linux deploy), and unlike the earlier **sql.js** driver it does **direct file access**: queries read only the pages they touch, and writes go straight to the file.
 
-**Key implementation pattern** — avoid Turbopack module-name mangling:
+> **Migration note (2026-07-21).** The original driver was sql.js, which holds the *entire* database in WASM memory — every read reopened the whole file and the writer re-exported and rewrote the whole file every 30 s. Both costs scaled with total DB size, which conflicts with the product goal that the history **grows without bound** (more history = better flight planning). node-sqlite3-wasm removes that scaling; verified working past the 4 GB file-offset boundary (32-bit WASM concerns do not apply to file size).
 
-```typescript
-// Inside getSql() — NOT a top-level import
-const init = require("sql.js") as (config?: object) => Promise<SqlJsStatic>;
-_sqlPromise = init({
-  locateFile: (file: string) =>
-    path.join(process.cwd(), "node_modules", "sql.js", "dist", file),
-});
-```
+**Read path** (`flightLogDb.ts`) — one persistent read-only connection shared by all API Route Handlers. It is keyed by inode: if the file is *replaced* (backup restore), the inode changes and the connection is reopened; in-place writes by the poller need no reopen — every query sees fresh committed data. Public helper signatures are unchanged from the sql.js era (all `async`, all wrap SQL in `try { … } catch { return []; }` so a bad DB never causes API 500s).
 
-- `require()` inside a function body (not top-level `import`) avoids Turbopack's bug where packages with dots in their names (e.g. `sql.js`) get hash-suffixed module IDs when listed in `serverExternalPackages`.
-- `locateFile` provides the absolute path to `sql-wasm.wasm` so it is found regardless of bundling context.
-- `sql.js` must **not** appear in `serverExternalPackages` in `next.config.ts` for this reason.
-- The singleton `_sqlPromise` caches the sql.js init result for the process lifetime.
+**Write path** (`server.js`) — opens the same file directly and commits **one transaction per poll tick** (~15 s): tens of INSERTs become one fsync, and readers never see a half-written tick. Data is durable at COMMIT — the old 30 s full-file flush (and its crash-loss window) is gone. On SIGTERM/SIGINT the handler closes the DB and **must** call `process.exit(0)` (see the 2026-06-01 incident).
 
-**Write path** — `server.js` holds an in-memory sql.js `Database` object throughout the process lifetime. Every 30 s (and after each batch write, and on process exit/SIGTERM) it calls `db.export()` and writes the result to `data/flight-log.db` with `fs.writeFileSync`. On startup, if the file exists it is loaded into memory: `new SQL.Database(fs.readFileSync(path))`.
+**Concurrency — no WAL.** WASM builds cannot use WAL (needs shared memory), so the file runs in rollback-journal mode: a reader that collides with the writer's commit gets `SQLITE_BUSY`. Both sides set `PRAGMA busy_timeout`; the read path additionally retries through `withBusyRetry` (4 attempts, 60 ms backoff). Collisions are rare — one writer, 15 s cadence, ms-long transactions. A `data/flight-log.db-journal` file appearing next to the DB is normal.
 
-**Read path** — each API Route Handler opens a fresh read-only in-memory copy per request: `new SQL.Database(fs.readFileSync(dbPath()))`. This avoids any shared mutable state between concurrent requests.
+**Bundling** — `node-sqlite3-wasm` is listed in `serverExternalPackages` (`next.config.ts`) because it loads its `.wasm` from an fs path relative to the module; bundling breaks that resolution. The production build resolves externals through **symlink aliases in `.next/node_modules/`** (`node-sqlite3-wasm-<hash>` → real package) — these must reach the server, see the rsync rules in [deployment-cpanel.md](./deployment-cpanel.md). The `/api/flight-log/debug` endpoint verifies the whole chain (`wasmExists` / `driverInit` / `dbQueryTest`).
 
-**Important:** sql.js reads only the main DB file bytes. If the file was written by a WAL-mode SQLite (e.g. better-sqlite3, system sqlite3 CLI), the WAL journal data may not be reflected in the main file and SQL errors like "no such table" will occur. All production writes use sql.js `db.export()` which always produces a clean non-WAL snapshot. All read functions wrap their SQL operations in `try { … } catch { return []; }` so a bad or incomplete DB file never causes API 500s.
+**Response memoization** — the expensive endpoints (`routes`, `heatmap`, `stats`, `aircraft-list`) memoize their JSON bodies keyed on `dbVersionKey()` (mtime+size of the DB file) + params, so request bursts within one write tick reuse one computation.
 
 ### Schema
 
@@ -225,10 +215,10 @@ Indexes: `icao24`, `logged_at`, `callsign` on `positions`; `icao24` PK on `aircr
 
 `startFlightLogger()` runs as an async background task inside `server.js` (the custom Next.js server). It:
 
-1. Initialises sql.js, loads existing DB from disk if present, runs `migrateDb()` to create tables and indexes idempotently.
+1. Opens `data/flight-log.db` with node-sqlite3-wasm and runs `migrate()` (from root-level `flightLogSchema.cjs`, the single schema source) to create tables and indexes idempotently.
 2. Polls `LOCAL_SDR_URL` (the Raspberry Pi readsb endpoint) every 15 s.
-3. For each aircraft with a valid position, writes a row to `positions` and upserts metadata to `aircraft` (using `ON CONFLICT(icao24) DO UPDATE SET … = COALESCE(excluded.field, field)` so existing non-null metadata is not overwritten by null).
-4. Saves to disk every 30 s, after each write batch, and on `process.exit` / `SIGTERM`.
+3. For each aircraft with a valid position, writes a row to `positions` and upserts metadata to `aircraft` (using `ON CONFLICT(icao24) DO UPDATE SET … = COALESCE(excluded.field, field)` so existing non-null metadata is not overwritten by null) — all inserts of one tick inside a single transaction, durable at COMMIT.
+4. Closes the DB cleanly on `process.exit` / `SIGTERM` / `SIGINT` (no periodic flush — writes are already on disk).
 
 The poller only runs in the server process — no browser code ever imports `flightLogDb.ts` directly.
 
@@ -260,7 +250,7 @@ All under `src/app/api/flight-log/`, all `force-dynamic`, all return `no-store`:
 |---|---|
 | `track/[icao24]?hours=N` | GeoJSON `FeatureCollection` with one `LineString` (`[lng, lat, alt_baro_m]` coordinates). `hours` clamped to 0.5–**720** (30 days), default 24. |
 | `heatmap?days=N&res=R` | GeoJSON `FeatureCollection` of `Point` features with `weight` property (normalised count per grid cell of size `res`°). Used for Mapbox `heatmap` layer. |
-| `routes?days=N&minPoints=M` | GeoJSON `FeatureCollection` of `LineString` features, one per callsign. Long routes sub-sampled to ≤ 500 points. |
+| `routes?days=N&minPoints=M&maxRoutes=K` | GeoJSON `FeatureCollection` of `LineString` features, **one per flight pass** — a pass ends at a callsign change, a > 20 min time gap, or a > 25 km coverage jump (same gap rule as `getCallsignSessions`; grouping by callsign alone drew day-spanning straight chords — a “starburst” over the observer). Default window **7 days**; passes sub-sampled to ≤ 150 points; payload capped at `maxRoutes` most recent passes (default 2000). |
 | `stats` | `{ total, last24h, uniqueIcao, topCallsigns[] }` — overall DB statistics. |
 | `aircraft/[icao24]` | Aircraft metadata row (`AircraftRow`) or `null`. |
 | `aircraft-list?days=N&limit=L&offset=O` | `{ rows: AircraftListRow[], total }` — paginated list of distinct aircraft seen in the time window, with last callsign, registration, and aircraft type. `getAircraftList` uses `COALESCE(aircraft.field, MAX(positions.field))` so metadata from the `positions` table is used as a fallback when the `aircraft` table row is sparse. |
@@ -272,7 +262,7 @@ Five hooks manage the map layers for flight history:
 
 - **`useSelectedFlightTrail`** (`src/hooks/`) — watches `selectedFlightId` + `liveFlightFeeds.localsdr` **and** `flightLogSelectedIcao24` + `flightLogDaysBack`. When a **Flight Log panel** selection is active (`flightLogSelectedIcao24`), it fetches the track for up to `daysBack × 24` hours (capped at 720 h / 30 days); otherwise it shows the live 2-hour trail for the currently selected live aircraft. Uses `AbortController` to cancel stale requests. The Mapbox layer uses `line-gradient` (requires `lineMetrics: true` on the source): amber gradient from transparent at the oldest end to `rgba(253, 230, 138, 0.9)` at the current position.
 
-- **`useFlightHistoryLayers`** (`src/hooks/`) — manages the optional heatmap and route-lines overlays. Layers are added lazily when first enabled and refreshed every 5 min. Toggled by `flightHistoryHeatmap` / `flightHistoryRoutes` store flags (both default `false`).
+- **`useFlightHistoryLayers`** (`src/hooks/`) — manages the optional heatmap and route-lines overlays. Layers are added lazily when first enabled and refreshed every 5 min. Toggled by `flightHistoryHeatmap` / `flightHistoryRoutes` store flags (both default `false`). Both layers fetch a **`FLIGHT_HISTORY_DAYS` = 7-day** window (exported constant — the layer toggles in `MapDisplayModeLayersControl` render “(7 days)” from it so the label can never drift from the fetch).
 
 - **`useCallsignHistoryLayer`** (`src/hooks/`) — watches `flightLogSelectedCallsign` + `flightLogDaysBack` from the store. When a callsign is selected in the Flight Log panel, fetches `/api/flight-log/callsign-analysis` and populates two Mapbox sources: individual session lines (sky-400 at 28 %, 1.5 px, slight blur — overlap creates a natural heat corridor) and the mean path (glow pass 7 px + crisp centre line 2.2 px, sky-200 at 92 %). Clears both sources when no callsign is selected.
 

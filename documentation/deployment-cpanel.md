@@ -42,8 +42,8 @@ The production host does **not** need to mirror the full git tree.
 
 **Required to run** (after a successful `next build` on a machine with the same `cpanelBasePath.cjs`):
 
-- `.next/`, `public/`, `node_modules/`, `package.json` (+ lockfile optional but recommended)
-- `server.js`, `next.config.ts`, `cpanelBasePath.cjs`
+- `.next/` **including `.next/node_modules/`** (symlink aliases for `serverExternalPackages` — see the rsync rules below), `public/`, `node_modules/`, `package.json` (+ lockfile recommended — the server `npm install` reads it)
+- `server.js`, `next.config.ts`, `cpanelBasePath.cjs` + root runtime CJS moduli (`flightLogSchema.cjs`, `sdrSnapshot.cjs`, `sdrUrl.cjs`)
 
 **Not required** for run-only: `src/`, `e2e/`, tests, `documentation/`, `.git/`, and most dev config — as long as `.next` is complete.
 
@@ -166,6 +166,25 @@ Port: **8080** (promijenjen iz 80 zbog nginx auth layera — `/etc/lighttpd/ligh
 - You may remove macOS `__MACOSX` directories if they appear in uploads.
 - For correct SEO canonicals/sitemap on production, set `NEXT_PUBLIC_SITE_URL` to the full public app URL (with subpath), e.g. `https://example.com/LunaPic`.
 
+## Standardna deploy procedura (rsync)
+
+```bash
+./scripts/deploy-server.sh
+```
+
+1. Skripta builda lokalno (s produkcijskim Mapbox tokenom iz `.env`), rsynca deploy set i
+   touchne `tmp/restart.txt`.
+2. **Samo ako se mijenjao `package.json`**: na serveru pokreni `npm install --omit=dev`
+   (cPanel gumb *Run NPM Install*, ili SSH uz nodevenv activate) — `node_modules` se
+   **ne** rsynca.
+3. U cPanelu **Stop → Start** (ne *Restart* — Passenger kod restarta zna zadržati stari
+   proces sa starim env varijablama).
+4. **Provjera:** otvori `https://<domena>/LunaPic/api/flight-log/debug?secret=<ADMIN_SECRET>` —
+   mora vratiti `"wasmExists": true`, `"driverInit": "ok"`, `"dbQueryTest": "ok"`.
+   `wasmExists: false` → paket nije na serveru (korak 2) ili je `.wasm` stripan;
+   `Failed to load external module <pkg>-<hash>` → `.next/node_modules/` aliasi nisu
+   stigli (vidi rsync pravila niže).
+
 ## FileZilla deploy — važne napomene
 
 FileZilla (i većina FTP klijenata) uploadaju **samo nove i promijenjene** datoteke. **Ne brišu** datoteke na serveru koje više ne postoje lokalno.
@@ -198,8 +217,24 @@ generira**, gitignored, i **ne postoje u lokalnom izvoru**. Deploy ih ne smije n
 brisati:
 
 - **`scripts/deploy-server.sh` (rsync)** koristi `--delete`. **Mora** imati
-  `--exclude='data/'` — inače `rsync --delete` obriše produkcijsku bazu jer je nema lokalno.
+  `--exclude='/data/'` — inače `rsync --delete` obriše produkcijsku bazu jer je nema lokalno.
   (To je bio uzrok incidenta 2026-06-01.)
+
+### ⚠️ rsync exclude pravila — tri dokazana footguna (2026-06-01 i 2026-07-21)
+
+Svaku promjenu exclude liste provjeri na sva tri pitanja:
+
+1. **Je li uzorak sidren vodećom kosom?** `data/` matcha na *svakoj* dubini (hvatao je i
+   `public/data/` OpenSky indeks); `/data/` samo top-level. Isto: nesidreni `node_modules/`
+   je gutao i **`.next/node_modules/`** — symlink aliase koje Next build generira za
+   `serverExternalPackages` pakete (npr. `node-sqlite3-wasm-<hash>` → pravi paket). Bez njih
+   produkcija pada s `Failed to load external module <pkg>-<hash>`.
+2. **Matcha li i symlink varijantu?** Na serveru je `node_modules` **cPanel symlink** u
+   nodevenv, a uzorak sa **završnom kosom matcha samo direktorije** — symlink ostane
+   nezaštićen i `--delete` ga obriše (app ostane bez ijednog paketa dok se ne obnovi s
+   `npm install`). Ispravno: `--exclude='/node_modules'` (bez završne kose).
+3. **Štiti li runtime state od `--delete`?** `/data/` (flight-log.db,
+   push-subscriptions.json) server sam generira i ne postoji lokalno.
 - **FileZilla / FTP** ne brišu, ali pazi da ne uploadaš prazan lokalni `data/` preko punog.
 
 ### Čisto zaustavljanje aplikacije
@@ -223,20 +258,19 @@ Ako se baza izgubi/isprazni (32 KB = prazna shema):
 1. **Zaustavi app** (cPanel Stop + potvrdi `ps` prazan; `kill -9` ako treba).
 2. **JetBackup → Home Directory** → odaberi backup **prije** gubitka → restore/download
    `APP_DIR/data/flight-log.db`. (Download daje arhivu; restore stavi file direktno.)
-3. **Provjeri da je valjan i pun** prije starta (asm sql.js, isto kao poller):
+3. **Provjeri da je valjan i pun** prije starta (node-sqlite3-wasm, isti driver kao app):
    ```bash
    cd ~/APP_DIR && ~/nodevenv/APP_DIR/20/bin/node -e \
-   'const fs=require("fs");require("sql.js/dist/sql-asm.js")().then(S=>{const d=new S.Database(fs.readFileSync("data/flight-log.db"));const s=d.prepare("SELECT COUNT(*) n FROM positions");s.step();console.log("rows:",s.getAsObject().n);})'
+   'const {Database}=require("node-sqlite3-wasm");const d=new Database("data/flight-log.db",{readOnly:true});console.log("rows:",d.get("SELECT COUNT(*) AS n FROM positions").n);d.close();'
    ```
-4. **Ako živi proces presnimava file dok ga vraćaš** — zaključaj ga dok ne proradi svjež proces:
-   ```bash
-   cp data/flight-log-RESTORE.db data/flight-log.db && chmod 444 data/flight-log.db
-   # Start app → novi proces učita pune podatke u memoriju (čitanje radi na 444),
-   # writeFileSync na 444 baca EACCES koji saveDb-ov catch{} proguta → file ostaje.
-   # Kad /api/flight-log/stats pokaže pune podatke, otključaj pisanje:
-   chmod 644 data/flight-log.db
-   ```
-   (`chmod 444` štiti od **presnimavanja**, ne od brisanja na razini direktorija.)
+4. Obriši eventualni zaostali `data/flight-log.db-journal` iz **starog** procesa prije
+   vraćanja datoteke (journal pripada staroj bazi; uz vraćenu kopiju bio bi nekonzistentan).
+
+> **Napomena (2026-07-21, migracija na node-sqlite3-wasm):** stari `chmod 444` trik iz
+> sql.js ere više **ne vrijedi**. Writer više ne drži bazu u memoriji niti je presnimava
+> svakih 30 s — otvara datoteku izravno i commita po ticku, a read-path prepoznaje zamjenu
+> datoteke po inode-u. Recovery je zato jednostavniji: Stop (potvrdi `ps` prazan) →
+> restore → provjera (korak 3) → Start.
 
 ### Retention (opcionalno, default OFF)
 

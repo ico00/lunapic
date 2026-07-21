@@ -105,3 +105,13 @@ Lanac dokaza koji je na kraju razriješio slučaj:
 - Recovery runbook + deploy pravila: [`deployment-cpanel.md`](deployment-cpanel.md)
 - Code review iz iste sesije: [`code-review-analiza-260531.md`](code-review-analiza-260531.md)
 - Changelog unos: `[2026-06-01]` u [`changelog.md`](changelog.md)
+
+---
+
+> **Addendum 2026-07-21.** Driver migriran sa sql.js na **node-sqlite3-wasm** (izravno
+> pisanje u datoteku, commit po ticku — nema više `saveDb` petlje ni 30-sekundnog prozora
+> gubitka). Time je **`chmod 444` recovery trik iz §5 zastario** — novi writer ne
+> presnimava bazu iz memorije; aktualni recovery postupak je u
+> [`deployment-cpanel.md`](deployment-cpanel.md). Pouke o `--delete` exclude pravilima
+> dobile su nastavak: ista obitelj footguna (sidrenje + symlink matching) srušila je
+> produkciju 2026-07-21 — vidi `[2026-07-21]` u [`changelog.md`](changelog.md).
