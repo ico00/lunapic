@@ -498,6 +498,19 @@ export function ViewfinderPreview({
               </defs>
             </svg>
           ) : null}
+          {!planeIsInFrame && planeWidthPx > 0 ? (
+            <div
+              className="viewfinder-plane-ghost-layer pointer-events-none absolute inset-0 z-[2]"
+              style={styleVars}
+              aria-hidden="true"
+            >
+              <div className="viewfinder-plane-ghost">
+                <ViewfinderAircraftSilhouette
+                  className="h-[var(--viewfinder-plane-height-px)] w-[var(--viewfinder-plane-width-px)]"
+                />
+              </div>
+            </div>
+          ) : null}
           {!planeIsInFrame && planeWidthPx > 0 ? (() => {
             // Direction from viewfinder centre toward the off-screen plane.
             const dx = planeOffsetXPx;
@@ -534,12 +547,46 @@ export function ViewfinderPreview({
             const labelX = SENSOR_CENTER_X + (dx * scale * 0.6);
             const labelY = SENSOR_CENTER_Y + (dy * scale * 0.6) + 20;
 
+            // Simulated path across the moon disc along the corrected heading.
+            const ghostPath = (() => {
+              if (
+                correctedHeadingDeg == null ||
+                !Number.isFinite(correctedHeadingDeg)
+              ) {
+                return null;
+              }
+              const headingRad = (correctedHeadingDeg * Math.PI) / 180;
+              const dirX = Math.sin(headingRad);
+              const dirY = -Math.cos(headingRad);
+              const halfLen = moonRadiusPx * 1.18;
+              return {
+                x1: SENSOR_CENTER_X - dirX * halfLen,
+                y1: SENSOR_CENTER_Y - dirY * halfLen,
+                x2: SENSOR_CENTER_X + dirX * halfLen,
+                y2: SENSOR_CENTER_Y + dirY * halfLen,
+              };
+            })();
+
             return (
               <svg
                 viewBox={`0 0 ${SENSOR_WIDTH_PX} ${SENSOR_HEIGHT_PX}`}
                 className="pointer-events-none absolute inset-0 z-[4] h-full w-full"
                 aria-hidden="true"
               >
+                {ghostPath ? (
+                  <line
+                    x1={ghostPath.x1}
+                    y1={ghostPath.y1}
+                    x2={ghostPath.x2}
+                    y2={ghostPath.y2}
+                    stroke="#facc15"
+                    strokeWidth={4}
+                    strokeDasharray="8 8"
+                    strokeLinecap="round"
+                    opacity={0.55}
+                    markerEnd="url(#viewfinder-ghost-path-arrow)"
+                  />
+                ) : null}
                 <path d={triPath} fill="#facc15" opacity={0.92} />
                 <text
                   x={labelX}
@@ -552,6 +599,29 @@ export function ViewfinderPreview({
                 >
                   {label}
                 </text>
+                <text
+                  x={20}
+                  y={SENSOR_HEIGHT_PX - 20}
+                  fill="#facc15"
+                  fontSize={26}
+                  fontFamily="monospace"
+                  opacity={0.6}
+                >
+                  SIM size + heading
+                </text>
+                <defs>
+                  <marker
+                    id="viewfinder-ghost-path-arrow"
+                    markerWidth="8"
+                    markerHeight="8"
+                    refX="6.5"
+                    refY="3.5"
+                    orient="auto"
+                    markerUnits="strokeWidth"
+                  >
+                    <path d="M0,0 L0,7 L7,3.5 z" fill="#facc15" opacity="0.6" />
+                  </marker>
+                </defs>
               </svg>
             );
           })() : null}
@@ -610,8 +680,9 @@ export function ViewfinderPreview({
           {planeWidthPx > 0 ? `${planeWidthPx.toFixed(1)} px` : "N/A"}
           {callSign ? ` (${callSign.trim() || "N/A"})` : ""}. Heading{" "}
           {correctedHeadingDeg != null ? `${correctedHeadingDeg.toFixed(1)}°` : "N/A"} (ADS-B corrected by parallactic
-          angle {parallacticAngleDeg.toFixed(1)}°). Moon disk: NASA/GSFC SVS hourly phase (north up); falls back
-          to a static texture if the frame cannot load.
+          angle {parallacticAngleDeg.toFixed(1)}°). While the plane is outside the frame, a simulated silhouette
+          on the moon shows its apparent size and crossing direction at current range. Moon disk: NASA/GSFC SVS
+          hourly phase (north up); falls back to a static texture if the frame cannot load.
         </p>
       </details>
       <style jsx>{`
@@ -624,6 +695,17 @@ export function ViewfinderPreview({
           filter: drop-shadow(0 0 4px #facc15) drop-shadow(0 0 10px rgba(250, 204, 21, 0.55));
         }
         .viewfinder-plane-static-layer {
+          display: block;
+        }
+        .viewfinder-plane-ghost {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          transform: translate(-50%, -50%) rotate(var(--viewfinder-plane-rotation-deg));
+          opacity: 0.6;
+          filter: drop-shadow(0 0 3px rgba(250, 204, 21, 0.55));
+        }
+        .viewfinder-plane-ghost-layer {
           display: block;
         }
       `}</style>
