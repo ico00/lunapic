@@ -281,31 +281,63 @@ export function ViewfinderPreview({
     return normalizeHeadingDeg(aircraftHeadingDeg - parallacticAngleDeg);
   }, [aircraftHeadingDeg, parallacticAngleDeg]);
 
-  const correctedVisualRotationDeg = useMemo(() => {
+  // Fallback direction when gap data is missing: parallactic-corrected compass
+  // heading mapped like a chart (north up, east right). Note this is mirrored
+  // horizontally relative to the actual sky view — prefer the gap-space vector.
+  const headingDirection = useMemo(() => {
     if (correctedHeadingDeg == null || !Number.isFinite(correctedHeadingDeg)) {
       return null;
     }
-    // ADS-B heading is clockwise from north; native silhouette nose is up.
-    return correctedHeadingDeg;
+    const headingRad = (correctedHeadingDeg * Math.PI) / 180;
+    return { x: Math.sin(headingRad), y: -Math.cos(headingRad) };
   }, [correctedHeadingDeg]);
+
+  // Predicted on-sky motion: from the current gap position (azimuthGapDeg,
+  // elevationGapDeg) toward the alignment point (azimuth gap 0,
+  // elevationGapAtAlignmentDeg). Same alt-az gap space the plane position is
+  // plotted in, so the path always approaches from the plane's actual side —
+  // a compass-heading projection would be mirrored horizontally in sky view.
+  const skyMotionDirection = useMemo(() => {
+    if (azimuthGapDeg == null || !Number.isFinite(azimuthGapDeg)) {
+      return null;
+    }
+    const dAzDeg = -azimuthGapDeg;
+    const dElDeg =
+      elevationGapAtAlignmentDeg != null &&
+      Number.isFinite(elevationGapAtAlignmentDeg) &&
+      elevationGapDeg != null &&
+      Number.isFinite(elevationGapDeg)
+        ? elevationGapAtAlignmentDeg - elevationGapDeg
+        : 0;
+    const len = Math.hypot(dAzDeg, dElDeg);
+    if (len === 0) {
+      return null;
+    }
+    // Screen coords: +x right (azimuth gap grows), +y down (elevation drops).
+    return { x: dAzDeg / len, y: -dElDeg / len };
+  }, [azimuthGapDeg, elevationGapAtAlignmentDeg, elevationGapDeg]);
+
+  const motionDirection = skyMotionDirection ?? headingDirection;
+  // Silhouette nose (natively up) follows the on-sky motion vector.
+  const motionRotationDeg =
+    motionDirection != null
+      ? (Math.atan2(motionDirection.x, -motionDirection.y) * 180) / Math.PI
+      : 0;
 
   const trajectoryLine = useMemo(() => {
     if (showReferenceSensorScale) {
       return null;
     }
     if (
-      correctedHeadingDeg == null ||
-      !Number.isFinite(correctedHeadingDeg) ||
+      motionDirection == null ||
       distanceToObserverMeters == null ||
       !Number.isFinite(distanceToObserverMeters) ||
       distanceToObserverMeters <= 0
     ) {
       return null;
     }
-    const headingRad = (correctedHeadingDeg * Math.PI) / 180;
-    // Convert north-clockwise heading to screen vector (x right, y down).
-    const directionX = Math.sin(headingRad);
-    const directionY = -Math.cos(headingRad);
+    const directionX = motionDirection.x;
+    const directionY = motionDirection.y;
     // Use speed to estimate on-sky motion over a short horizon.
     const speedMps =
       aircraftGroundSpeedMps != null &&
@@ -334,28 +366,16 @@ export function ViewfinderPreview({
     };
   }, [
     aircraftGroundSpeedMps,
-    correctedHeadingDeg,
     distanceToObserverMeters,
     moonDiameterPx,
+    motionDirection,
     pixelsPerDegree,
     planeCenterX,
     planeCenterY,
     showReferenceSensorScale,
   ]);
 
-  const trajectoryDirection = useMemo(() => {
-    if (showReferenceSensorScale) {
-      return null;
-    }
-    if (correctedHeadingDeg == null || !Number.isFinite(correctedHeadingDeg)) {
-      return null;
-    }
-    const headingRad = (correctedHeadingDeg * Math.PI) / 180;
-    return {
-      x: Math.sin(headingRad),
-      y: -Math.cos(headingRad),
-    };
-  }, [correctedHeadingDeg, showReferenceSensorScale]);
+  const trajectoryDirection = showReferenceSensorScale ? null : motionDirection;
 
   const trajectoryDirectionArrow = useMemo(() => {
     if (!trajectoryDirection) {
@@ -371,37 +391,6 @@ export function ViewfinderPreview({
     };
   }, [moonRadiusPx, planeCenterX, planeCenterY, trajectoryDirection]);
 
-  // Predicted on-sky motion for the off-frame ghost: from the current gap
-  // position (azimuthGapDeg, elevationGapDeg) toward the alignment point
-  // (azimuth gap 0, elevationGapAtAlignmentDeg). Same alt-az gap space the
-  // plane position is plotted in, so the path always approaches from the
-  // plane's actual side — a compass-heading projection would be mirrored
-  // horizontally in the sky view.
-  const ghostDirection = useMemo(() => {
-    if (azimuthGapDeg == null || !Number.isFinite(azimuthGapDeg)) {
-      return null;
-    }
-    const dAzDeg = -azimuthGapDeg;
-    const dElDeg =
-      elevationGapAtAlignmentDeg != null &&
-      Number.isFinite(elevationGapAtAlignmentDeg) &&
-      elevationGapDeg != null &&
-      Number.isFinite(elevationGapDeg)
-        ? elevationGapAtAlignmentDeg - elevationGapDeg
-        : 0;
-    const len = Math.hypot(dAzDeg, dElDeg);
-    if (len === 0) {
-      return null;
-    }
-    // Screen coords: +x right (azimuth gap grows), +y down (elevation drops).
-    return { x: dAzDeg / len, y: -dElDeg / len };
-  }, [azimuthGapDeg, elevationGapAtAlignmentDeg, elevationGapDeg]);
-
-  const ghostRotationDeg =
-    ghostDirection != null
-      ? (Math.atan2(ghostDirection.x, -ghostDirection.y) * 180) / Math.PI
-      : correctedVisualRotationDeg ?? 0;
-
   const planeHeightPx = Math.max(6, planeWidthPx * 0.28);
 
   const planeTopPct = (planeCenterY / SENSOR_HEIGHT_PX) * 100;
@@ -410,7 +399,7 @@ export function ViewfinderPreview({
   const styleVars = {
     "--viewfinder-plane-width-px": `${planeWidthPx}px`,
     "--viewfinder-plane-height-px": `${planeHeightPx}px`,
-    "--viewfinder-plane-rotation-deg": `${correctedVisualRotationDeg ?? 0}deg`,
+    "--viewfinder-plane-rotation-deg": `${motionRotationDeg}deg`,
     "--viewfinder-plane-top-pct": `${planeTopPct}%`,
     "--viewfinder-plane-left-pct": `${planeLeftPct}%`,
   } as CSSProperties;
@@ -535,10 +524,7 @@ export function ViewfinderPreview({
           {!planeIsInFrame && planeWidthPx > 0 ? (
             <div
               className="viewfinder-plane-ghost-layer pointer-events-none absolute inset-0 z-[2]"
-              style={{
-                ...styleVars,
-                "--viewfinder-ghost-rotation-deg": `${ghostRotationDeg}deg`,
-              } as CSSProperties}
+              style={styleVars}
               aria-hidden="true"
             >
               <div className="viewfinder-plane-ghost">
@@ -587,15 +573,15 @@ export function ViewfinderPreview({
             // Simulated path across the moon disc along the predicted on-sky
             // motion (gap space), so it always enters from the plane's side.
             const ghostPath = (() => {
-              if (ghostDirection == null) {
+              if (motionDirection == null) {
                 return null;
               }
               const halfLen = moonRadiusPx * 1.18;
               return {
-                x1: SENSOR_CENTER_X - ghostDirection.x * halfLen,
-                y1: SENSOR_CENTER_Y - ghostDirection.y * halfLen,
-                x2: SENSOR_CENTER_X + ghostDirection.x * halfLen,
-                y2: SENSOR_CENTER_Y + ghostDirection.y * halfLen,
+                x1: SENSOR_CENTER_X - motionDirection.x * halfLen,
+                y1: SENSOR_CENTER_Y - motionDirection.y * halfLen,
+                x2: SENSOR_CENTER_X + motionDirection.x * halfLen,
+                y2: SENSOR_CENTER_Y + motionDirection.y * halfLen,
               };
             })();
 
@@ -723,7 +709,7 @@ export function ViewfinderPreview({
           position: absolute;
           left: 50%;
           top: 50%;
-          transform: translate(-50%, -50%) rotate(var(--viewfinder-ghost-rotation-deg, var(--viewfinder-plane-rotation-deg)));
+          transform: translate(-50%, -50%) rotate(var(--viewfinder-plane-rotation-deg));
           opacity: 0.6;
           filter: drop-shadow(0 0 3px rgba(250, 204, 21, 0.55));
         }
