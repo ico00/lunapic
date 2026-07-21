@@ -80,8 +80,15 @@ const nextConfig: NextConfig = {
   },
   transpilePackages: ["mapbox-gl"],
   // Sentry server-side paketi ne smiju biti bundlani — moraju se loadati
-  // iz node_modules na runtime (Turbopack ih ne zna bundlati ispravno)
-  serverExternalPackages: ["@sentry/nextjs", "@sentry/core", "require-in-the-middle"],
+  // iz node_modules na runtime (Turbopack ih ne zna bundlati ispravno).
+  // node-sqlite3-wasm isto: loada svoj .wasm s fs putanje relativne na modul,
+  // pa bundlanje razbije rezoluciju te putanje.
+  serverExternalPackages: [
+    "@sentry/nextjs",
+    "@sentry/core",
+    "require-in-the-middle",
+    "node-sqlite3-wasm",
+  ],
   async headers() {
     return [
       {

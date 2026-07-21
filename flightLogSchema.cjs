@@ -10,7 +10,8 @@
  *
  * Ako mijenjaš shemu, mijenjaš je SAMO ovdje.
  *
- * @param {{ run: (sql: string) => void }} db  sql.js Database instanca
+ * @param {{ run: (sql: string) => void }} db  SQLite Database instanca
+ *   (node-sqlite3-wasm; svaki driver s `run(sql)` metodom radi)
  */
 function migrate(db) {
   db.run(`

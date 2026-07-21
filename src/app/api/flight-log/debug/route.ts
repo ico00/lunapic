@@ -33,42 +33,33 @@ export async function GET(req: Request) {
     results.dbSizeBytes = fs.statSync(dbFile).size;
   }
 
-  // 2. sql.js WASM file
-  const wasmFile = path.join(process.cwd(), "node_modules", "sql.js", "dist", "sql-wasm.wasm");
+  // 2. node-sqlite3-wasm .wasm file — cPanel deploy zna stripati .wasm datoteke,
+  // pa eksplicitno provjeri da je stigla (bez nje driver ne može ni initi).
+  const wasmFile = path.join(
+    process.cwd(), "node_modules", "node-sqlite3-wasm", "dist", "node-sqlite3-wasm.wasm"
+  );
   results.wasmPath = wasmFile;
   results.wasmExists = fs.existsSync(wasmFile);
 
-  // 3. Try to init sql.js — koristi asm.js (čisti JS) varijantu, ISTU kao read-path
-  // i poller. WASM varijanta (`require("sql.js")`) treba sql-wasm.wasm koji cPanel
-  // stripa, pa bi ovdje javljala lažni ENOENT iako prava baza radi.
+  // 3. Try to open the DB with the same driver the read-path and poller use.
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const init = require("sql.js/dist/sql-asm.js") as (c?: object) => Promise<unknown>;
-    const SQL = await init();
-    results.sqlJsInit = "ok";
+    const { Database } = require("node-sqlite3-wasm") as
+      typeof import("node-sqlite3-wasm");
+    results.driverInit = "ok";
 
     if (results.dbExists) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sqlAny = SQL as any;
-      const buf = fs.readFileSync(dbFile);
-      const db = new sqlAny.Database(buf);
+      const db = new Database(dbFile, { readOnly: true });
       try {
-        const stmt = db.prepare("SELECT COUNT(*) AS n FROM positions");
-        stmt.step();
-        results.positionCount = stmt.getAsObject();
-        stmt.free();
-
-        const stmt2 = db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table'");
-        stmt2.step();
-        results.tableCount = stmt2.getAsObject();
-        stmt2.free();
-
-        const stmt3 = db.prepare("SELECT name FROM sqlite_master WHERE type='table'");
-        const tables: string[] = [];
-        while (stmt3.step()) tables.push((stmt3.getAsObject() as { name: string }).name);
-        stmt3.free();
-        results.tables = tables;
-
+        results.positionCount = db.get("SELECT COUNT(*) AS n FROM positions");
+        results.tableCount = db.get(
+          "SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table'"
+        );
+        results.tables = (
+          db.all("SELECT name FROM sqlite_master WHERE type='table'") as Array<{
+            name: string;
+          }>
+        ).map((t) => t.name);
         results.dbQueryTest = "ok";
       } catch (e) {
         results.dbQueryError = e instanceof Error ? e.message : String(e);
@@ -77,7 +68,7 @@ export async function GET(req: Request) {
       }
     }
   } catch (e) {
-    results.sqlJsInitError = e instanceof Error ? e.message : String(e);
+    results.driverInitError = e instanceof Error ? e.message : String(e);
   }
 
   return NextResponse.json(results, {

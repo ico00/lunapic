@@ -224,38 +224,36 @@ async function startFlightLogger() {
   // Radi u oba smjera: push (Pi šalje snapshot) ili pull (LOCAL_SDR_URL).
   if (!SDR_INGEST_ENABLED && (!LOCAL_SDR_URL || !LOCAL_SDR_URL_RAW)) return;
 
-  // sql.js — pure JS/WASM SQLite, no native compilation needed
+  // node-sqlite3-wasm — pravi file-based SQLite preko WASM VFS-a. Piše izravno
+  // u datoteku (nema sql.js obrasca "cijela baza u RAM-u + export svakih 30 s"),
+  // pa trošak upisa više ne raste s veličinom baze — baza smije rasti neograničeno
+  // (proizvodni cilj, vidi AGENTS.md). I dalje bez nativne kompilacije, pa
+  // mac→linux rsync node_modules deploya i dalje radi.
   let db;
   try {
-    const initSqlJs = require("sql.js/dist/sql-asm.js");
-    const SQL = await initSqlJs();
+    const { Database } = require("node-sqlite3-wasm");
     const dataDir = path.join(process.cwd(), "data");
     if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
     const dbFile = path.join(dataDir, "flight-log.db");
-    db = fs.existsSync(dbFile)
-      ? new SQL.Database(fs.readFileSync(dbFile))
-      : new SQL.Database();
+    db = new Database(dbFile);
+    try { db.exec("PRAGMA busy_timeout = 5000"); } catch {}
     migrateFlightLogDb(db);
   } catch (e) {
-    console.error("[flight-logger] Failed to init sql.js:", e.message);
+    console.error("[flight-logger] Failed to init node-sqlite3-wasm:", e.message);
     return;
   }
 
-  function saveDb() {
-    try {
-      const buf = db.export();
-      fs.writeFileSync(path.join(process.cwd(), "data", "flight-log.db"), Buffer.from(buf));
-    } catch {}
+  function closeDb() {
+    try { db.close(); } catch {}
   }
 
-  // Save to disk every 30s and on process exit
-  setInterval(saveDb, 30_000);
-  process.on("exit", saveDb);
-  // VAŽNO: nakon saveDb MORA process.exit(), inače handler "proguta" SIGTERM i
+  // Upisi su sada durable na svakom COMMIT-u — nema periodičkog flusha.
+  process.on("exit", closeDb);
+  // VAŽNO: handler MORA završiti s process.exit(), inače "proguta" SIGTERM i
   // proces nikad ne završi → cPanel Stop / Passenger restart ne mogu ugasiti app
   // (stari proces nastavi pisati u bazu). Bez exita app je praktički nezaustavljiv.
-  process.on("SIGTERM", () => { saveDb(); process.exit(0); });
-  process.on("SIGINT", () => { saveDb(); process.exit(0); });
+  process.on("SIGTERM", () => { closeDb(); process.exit(0); });
+  process.on("SIGINT", () => { closeDb(); process.exit(0); });
 
   /**
    * Briše zapise starije od retencije i povremeno VACUUM-a bazu.
@@ -263,19 +261,12 @@ async function startFlightLogger() {
    * Sanity-guard: prebroji koliko bi redaka obrisao i koliko ostaje. Ako bi
    * obrisao SVE (a tablica nije prazna), to je gotovo sigurno scale/units
    * problem (npr. logged_at u sekundama vs cutoff u ms) — preskoči i glasno
-   * upozori umjesto da uništi bazu. sql.js je sinkron → kratko blokira loop.
+   * upozori umjesto da uništi bazu. Driver je sinkron → kratko blokira loop.
    */
   function pruneOldData() {
     const cutoff = Date.now() - RETENTION_DAYS * 86_400_000;
     try {
-      const count = (sql, params) => {
-        const s = db.prepare(sql);
-        if (params) s.bind(params);
-        s.step();
-        const n = s.getAsObject().n;
-        s.free();
-        return n;
-      };
+      const count = (sql, params) => db.get(sql, params).n;
       const totalPos = count(`SELECT COUNT(*) AS n FROM positions`);
       const toDelete = count(
         `SELECT COUNT(*) AS n FROM positions WHERE logged_at < ?`,
@@ -293,8 +284,7 @@ async function startFlightLogger() {
 
       db.run(`DELETE FROM positions WHERE logged_at < ?`, [cutoff]);
       db.run(`DELETE FROM aircraft  WHERE last_seen < ?`, [cutoff]);
-      db.run(`VACUUM`);
-      saveDb();
+      db.exec(`VACUUM`);
       console.log(
         `[flight-logger] Pruned ${toDelete}/${totalPos} positions older than ${RETENTION_DAYS}d ` +
           `(cutoff ${new Date(cutoff).toISOString()})`
@@ -500,29 +490,38 @@ async function startFlightLogger() {
       }
     }
 
-    for (const r of posRows) {
-      db.run(
-        `INSERT INTO positions (icao24,callsign,lat,lng,alt_baro_m,alt_geom_m,speed_mps,track_deg,vert_rate_fpm,squawk,rssi,registration,aircraft_type,logged_at)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, r
-      );
-    }
-    for (const r of metaRows) {
+    // Jedna transakcija po ticku: ~desetci INSERT-a postanu jedan fsync, i
+    // čitači nikad ne vide poluupisan tick.
+    if (posRows.length > 0 || metaRows.length > 0) {
       try {
-        db.run(
-          `INSERT INTO aircraft (icao24,registration,aircraft_type,description,first_seen,last_seen)
-           VALUES (?,?,?,?,?,?)
-           ON CONFLICT(icao24) DO UPDATE SET
-             registration  = COALESCE(excluded.registration,  registration),
-             aircraft_type = COALESCE(excluded.aircraft_type, aircraft_type),
-             description   = COALESCE(excluded.description,   description),
-             last_seen     = excluded.last_seen`, r
-        );
+        db.exec("BEGIN");
+        for (const r of posRows) {
+          db.run(
+            `INSERT INTO positions (icao24,callsign,lat,lng,alt_baro_m,alt_geom_m,speed_mps,track_deg,vert_rate_fpm,squawk,rssi,registration,aircraft_type,logged_at)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, r
+          );
+        }
+        for (const r of metaRows) {
+          try {
+            db.run(
+              `INSERT INTO aircraft (icao24,registration,aircraft_type,description,first_seen,last_seen)
+               VALUES (?,?,?,?,?,?)
+               ON CONFLICT(icao24) DO UPDATE SET
+                 registration  = COALESCE(excluded.registration,  registration),
+                 aircraft_type = COALESCE(excluded.aircraft_type, aircraft_type),
+                 description   = COALESCE(excluded.description,   description),
+                 last_seen     = excluded.last_seen`, r
+            );
+          } catch (e) {
+            console.error("[flight-logger] aircraft upsert failed:", e.message, r[0]);
+          }
+        }
+        db.exec("COMMIT");
       } catch (e) {
-        console.error("[flight-logger] aircraft upsert failed:", e.message, r[0]);
+        try { db.exec("ROLLBACK"); } catch {}
+        console.error("[flight-logger] tick write failed:", e.message);
       }
     }
-
-    if (posRows.length > 0) saveDb();
 
     // Server-side transit scan: pošalji pun snapshot internoj ruti koja računa
     // kandidate/aktivne tranzite po pretplati i šalje Web Push — radi i kad nema
@@ -532,7 +531,7 @@ async function startFlightLogger() {
 
   poll().catch(() => {});
   setInterval(() => poll().catch(() => {}), POLL_INTERVAL_MS);
-  console.log(`[flight-logger] Started (sql.js) — polling every ${POLL_INTERVAL_MS / 1000}s`);
+  console.log(`[flight-logger] Started (node-sqlite3-wasm) — polling every ${POLL_INTERVAL_MS / 1000}s`);
 }
 
 // ---------------------------------------------------------------------------

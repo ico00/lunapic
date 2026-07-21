@@ -1,14 +1,23 @@
 /**
- * sql.js-backed flight position log.
+ * node-sqlite3-wasm-backed flight position log (read side).
  *
- * Used ONLY in Node.js server context (server.js background poller,
- * App Router Route Handlers). Never imported in browser-side code.
+ * Used ONLY in Node.js server context (App Router Route Handlers; the writer
+ * lives in `server.js`). Never imported in browser-side code.
  *
- * Write path: server.js opens its own in-memory DB and saves to disk every 30s.
- * Read path: API routes open a fresh read-only copy from the file on each request.
+ * Driver history: sql.js (in-memory, whole-file parse per open) → replaced
+ * 2026-07 by node-sqlite3-wasm, which implements a real SQLite VFS over Node's
+ * fs API. Reads pull only the pages a query touches, so cost no longer scales
+ * with total database size — the property that lets the log grow unbounded
+ * (growing history is a product goal, see AGENTS.md). Still pure WASM: no
+ * native compilation, so the mac→linux `node_modules` rsync deploy keeps
+ * working, and the driver is independent of the host's Node version.
+ *
+ * Concurrency: the writer (`server.js`) commits short transactions on the same
+ * file. Without WAL (unsupported in WASM builds) a reader can hit SQLITE_BUSY
+ * during a write — queries run through `withBusyRetry`.
  */
 
-import type { Database, SqlJsStatic } from "sql.js";
+import { Database } from "node-sqlite3-wasm";
 import path from "node:path";
 import fs from "node:fs";
 
@@ -62,93 +71,94 @@ export interface CallsignRoute {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Connection
 // ---------------------------------------------------------------------------
 
 export function dbPath(): string {
   return path.join(process.cwd(), "data", "flight-log.db");
 }
 
-let _sqlPromise: Promise<SqlJsStatic> | null = null;
-
-export async function getSql(): Promise<SqlJsStatic> {
-  if (!_sqlPromise) {
-    // Use asm.js (pure JS) variant — avoids WASM file dependency on hosts
-    // that strip .wasm files (e.g. cPanel). Same API, no locateFile needed.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const init = require("sql.js/dist/sql-asm.js") as (config?: object) => Promise<SqlJsStatic>;
-    _sqlPromise = init();
-  }
-  return _sqlPromise;
-}
-
-// Shema (CREATE TABLE/INDEX) je jedini-izvor-istine u `flightLogSchema.cjs` u rootu,
-// koji izvršava writer (server.js poller). Read-path ovdje otvara samo postojeće
-// kopije baze i nikad ne migrira, pa duplikat sheme više ne stoji ovdje.
-
-/** Open a fresh read-only in-memory copy from the DB file. Returns null if no file yet. */
 /**
- * Parsed read-only snapshot of the database, shared by every read helper.
- *
- * sql.js has no incremental file access — `new SQL.Database(buf)` copies the
- * whole file into the WASM heap. Doing that per API call made every read scale
- * with total database size regardless of how selective the query was, which is
- * what made the flight-log endpoints crawl once the log grew past a few tens of
- * MB. The parse is cached and reused until the file actually changes.
- *
- * Invalidation is by (mtime, size): `server.js` rewrites the whole file every
- * 30 s, so the snapshot is at most one write cycle stale — the same staleness
- * the previous code had between a request's read and the next writer flush.
+ * Persistent read-only connection, reused across requests. The file is
+ * modified in place by the writer, so an open handle always sees fresh
+ * committed data — no reopen per request. Keyed by inode: if the file is
+ * *replaced* (backup restore, manual copy), the inode changes and the stale
+ * handle would keep reading the old blocks, so reopen then.
  */
-let cachedDb: { key: string; db: Database } | null = null;
-/** In-flight load, so concurrent misses parse the file once instead of N times. */
-let loadingDb: { key: string; promise: Promise<Database> } | null = null;
+let conn: { ino: bigint | number; db: Database } | null = null;
 
-function dbStatKey(file: string): string | null {
+function openReadDb(): Database | null {
+  const file = dbPath();
+  let ino: bigint | number;
   try {
-    const st = fs.statSync(file);
-    return `${st.mtimeMs}:${st.size}`;
+    ino = fs.statSync(file).ino;
+  } catch {
+    return null;
+  }
+  if (conn?.ino === ino) return conn.db;
+
+  try {
+    conn?.db.close();
+  } catch {
+    // Old handle already dead (file replaced under it) — nothing to release.
+  }
+  conn = null;
+
+  try {
+    const db = new Database(file, { readOnly: true });
+    try {
+      // Wait up to 2 s on the writer's lock before surfacing SQLITE_BUSY.
+      db.exec("PRAGMA busy_timeout = 2000");
+    } catch {
+      // Pragma support varies in WASM builds; withBusyRetry covers the gap.
+    }
+    conn = { ino, db };
+    return db;
   } catch {
     return null;
   }
 }
 
 /**
- * Opaque version of the on-disk database ("none" while the file doesn't exist).
- * Changes whenever the writer flushes. API routes use it to memoize expensive
- * responses: same version → same data, recompute only after a flush.
+ * Opaque version of the on-disk database ("none" while the file doesn't
+ * exist). API routes use it to memoize expensive responses. The writer now
+ * commits directly every poll tick (~15 s), so this changes often; the TTL
+ * body caches still collapse request bursts within a tick, which is the case
+ * that matters.
  */
 export function dbVersionKey(): string {
-  return dbStatKey(dbPath()) ?? "none";
-}
-
-async function openReadDb(): Promise<Database | null> {
-  const file = dbPath();
-  const key = dbStatKey(file);
-  if (key == null) return null;
-
-  if (cachedDb?.key === key) return cachedDb.db;
-  if (loadingDb?.key === key) return loadingDb.promise;
-
-  const promise = (async () => {
-    const SQL = await getSql();
-    const db = new SQL.Database(fs.readFileSync(file));
-    // Safe to free the previous snapshot: read helpers run their queries
-    // synchronously after awaiting this function, so nobody is mid-query on it.
-    cachedDb?.db.close();
-    cachedDb = { key, db };
-    return db;
-  })();
-  loadingDb = { key, promise };
   try {
-    return await promise;
-  } finally {
-    if (loadingDb?.promise === promise) loadingDb = null;
+    const st = fs.statSync(dbPath());
+    return `${st.mtimeMs}:${st.size}`;
+  } catch {
+    return "none";
   }
 }
 
+/**
+ * Rollback-journal SQLite returns SQLITE_BUSY to a reader that collides with
+ * the writer's commit. Collisions are rare (one writer, ~15 s cadence, ms-long
+ * transactions) and transient, so a short blocking backoff is enough.
+ */
+function withBusyRetry<T>(fn: () => T): T {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (attempt > 0) {
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 60);
+    }
+    try {
+      return fn();
+    } catch (e) {
+      lastErr = e;
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!/busy|locked/i.test(msg)) throw e;
+    }
+  }
+  throw lastErr;
+}
+
 // ---------------------------------------------------------------------------
-// Read helpers (used by API routes — each opens a fresh copy)
+// Read helpers (used by API routes)
 // ---------------------------------------------------------------------------
 
 export async function getTrack(
@@ -156,19 +166,17 @@ export async function getTrack(
   fromMs: number,
   toMs: number
 ): Promise<PositionRow[]> {
-  const db = await openReadDb();
+  const db = openReadDb();
   if (!db) return [];
   try {
-    const stmt = db.prepare(
-      `SELECT * FROM positions
-       WHERE icao24 = ? AND logged_at >= ? AND logged_at <= ?
-       ORDER BY logged_at ASC LIMIT 10000`
-    );
-    stmt.bind([icao24, fromMs, toMs]);
-    const rows: PositionRow[] = [];
-    while (stmt.step()) rows.push(stmt.getAsObject() as unknown as PositionRow);
-    stmt.free();
-    return rows;
+    return withBusyRetry(() =>
+      db.all(
+        `SELECT * FROM positions
+         WHERE icao24 = ? AND logged_at >= ? AND logged_at <= ?
+         ORDER BY logged_at ASC LIMIT 10000`,
+        [icao24, fromMs, toMs]
+      )
+    ) as unknown as PositionRow[];
   } catch {
     return [];
   }
@@ -188,7 +196,7 @@ export async function getHeatmapCells(
   resolution = 0.05,
   hourFilter?: HeatmapHourFilter
 ): Promise<HeatmapCell[]> {
-  const db = await openReadDb();
+  const db = openReadDb();
   if (!db) return [];
   try {
     // Local hour of day derived from epoch ms + viewer tz offset. The window is
@@ -208,28 +216,20 @@ export async function getHeatmapCells(
         );
       }
     }
-    const stmt = db.prepare(
-      `SELECT
-         ROUND(lat / ?) * ? AS cell_lat,
-         ROUND(lng / ?) * ? AS cell_lng,
-         COUNT(*) AS cnt
-       FROM positions
-       WHERE logged_at >= ?${hourClause}
-       GROUP BY cell_lat, cell_lng
-       HAVING cnt >= 2`
-    );
-    stmt.bind([resolution, resolution, resolution, resolution, fromMs, ...hourArgs]);
-    const cells: HeatmapCell[] = [];
-    while (stmt.step()) {
-      const r = stmt.getAsObject() as unknown as {
-        cell_lat: number;
-        cell_lng: number;
-        cnt: number;
-      };
-      cells.push({ lat: r.cell_lat, lng: r.cell_lng, count: r.cnt });
-    }
-    stmt.free();
-    return cells;
+    const rows = withBusyRetry(() =>
+      db.all(
+        `SELECT
+           ROUND(lat / ?) * ? AS cell_lat,
+           ROUND(lng / ?) * ? AS cell_lng,
+           COUNT(*) AS cnt
+         FROM positions
+         WHERE logged_at >= ?${hourClause}
+         GROUP BY cell_lat, cell_lng
+         HAVING cnt >= 2`,
+        [resolution, resolution, resolution, resolution, fromMs, ...hourArgs]
+      )
+    ) as unknown as Array<{ cell_lat: number; cell_lng: number; cnt: number }>;
+    return rows.map((r) => ({ lat: r.cell_lat, lng: r.cell_lng, count: r.cnt }));
   } catch {
     return [];
   }
@@ -249,17 +249,25 @@ export async function getRoutesByCallsign(
   maxPointsPerRoute = 150,
   maxRoutes = 2000
 ): Promise<CallsignRoute[]> {
-  const db = await openReadDb();
+  const db = openReadDb();
   if (!db) return [];
   try {
-    const stmt = db.prepare(
-      `SELECT callsign, lat, lng, alt_baro_m, logged_at
-       FROM positions
-       WHERE callsign IS NOT NULL AND callsign != ''
-         AND logged_at >= ? AND logged_at <= ?
-       ORDER BY callsign ASC, logged_at ASC`
-    );
-    stmt.bind([fromMs, toMs]);
+    const rows = withBusyRetry(() =>
+      db.all(
+        `SELECT callsign, lat, lng, alt_baro_m, logged_at
+         FROM positions
+         WHERE callsign IS NOT NULL AND callsign != ''
+           AND logged_at >= ? AND logged_at <= ?
+         ORDER BY callsign ASC, logged_at ASC`,
+        [fromMs, toMs]
+      )
+    ) as unknown as Array<{
+      callsign: string;
+      lat: number;
+      lng: number;
+      alt_baro_m: number | null;
+      logged_at: number;
+    }>;
 
     const GAP_MS = 20 * 60_000;
     // Consecutive fixes sit ~3.4 km apart at cruise (p50) and 99 % are under
@@ -283,31 +291,26 @@ export async function getRoutesByCallsign(
 
     // Rows arrive ordered by (callsign, logged_at), so a pass ends at a
     // callsign change, a time gap over GAP_MS, or a coverage jump.
-    // Positional get() instead of getAsObject(): this is the hottest row loop
-    // in the file (tens of thousands of rows per call) and the per-row object
-    // build with column-name lookup measurably dominates it (~40 %).
-    while (stmt.step()) {
-      const [callsign, lat, lng, alt_baro_m, logged_at] = stmt.get() as [
-        string,
-        number,
-        number,
-        number | null,
-        number,
-      ];
+    for (const r of rows) {
       const prev = current[current.length - 1];
       if (
-        callsign !== currentCallsign ||
+        r.callsign !== currentCallsign ||
         (prev &&
-          (logged_at - prev.logged_at > GAP_MS ||
-            approxDistanceKm(prev.lat, prev.lng, lat, lng) > MAX_SEGMENT_KM))
+          (r.logged_at - prev.logged_at > GAP_MS ||
+            approxDistanceKm(prev.lat, prev.lng, r.lat, r.lng) >
+              MAX_SEGMENT_KM))
       ) {
         flush();
-        currentCallsign = callsign;
+        currentCallsign = r.callsign;
       }
-      current.push({ lat, lng, alt_baro_m, logged_at });
+      current.push({
+        lat: r.lat,
+        lng: r.lng,
+        alt_baro_m: r.alt_baro_m,
+        logged_at: r.logged_at,
+      });
     }
     flush();
-    stmt.free();
 
     // Cap the payload by keeping the most recent passes — an unbounded feature
     // count is what makes the layer both unreadable and slow.
@@ -331,42 +334,33 @@ export async function getStats(): Promise<{
   uniqueIcao: number;
   topCallsigns: Array<{ callsign: string; count: number }>;
 }> {
-  const db = await openReadDb();
+  const db = openReadDb();
   if (!db) return { total: 0, last24h: 0, uniqueIcao: 0, topCallsigns: [] };
   const since24h = Date.now() - 86_400_000;
-
-  const s1 = db.prepare("SELECT COUNT(*) AS n FROM positions");
-  s1.step(); const total = (s1.getAsObject() as { n: number }).n; s1.free();
-
-  const s2 = db.prepare("SELECT COUNT(*) AS n FROM positions WHERE logged_at >= ?");
-  s2.bind([since24h]); s2.step();
-  const last24h = (s2.getAsObject() as { n: number }).n; s2.free();
-
-  const s3 = db.prepare("SELECT COUNT(DISTINCT icao24) AS n FROM positions");
-  s3.step(); const uniqueIcao = (s3.getAsObject() as { n: number }).n; s3.free();
-
-  const s4 = db.prepare(
-    `SELECT callsign, COUNT(*) AS count FROM positions
-     WHERE callsign IS NOT NULL AND logged_at >= ?
-     GROUP BY callsign ORDER BY count DESC LIMIT 20`
-  );
-  s4.bind([since24h]);
-  const topCallsigns: Array<{ callsign: string; count: number }> = [];
-  while (s4.step()) topCallsigns.push(s4.getAsObject() as unknown as { callsign: string; count: number });
-  s4.free();
-
-  return { total, last24h, uniqueIcao, topCallsigns };
+  return withBusyRetry(() => {
+    const total = (db.get("SELECT COUNT(*) AS n FROM positions") as { n: number }).n;
+    const last24h = (
+      db.get("SELECT COUNT(*) AS n FROM positions WHERE logged_at >= ?", since24h) as { n: number }
+    ).n;
+    const uniqueIcao = (
+      db.get("SELECT COUNT(DISTINCT icao24) AS n FROM positions") as { n: number }
+    ).n;
+    const topCallsigns = db.all(
+      `SELECT callsign, COUNT(*) AS count FROM positions
+       WHERE callsign IS NOT NULL AND logged_at >= ?
+       GROUP BY callsign ORDER BY count DESC LIMIT 20`,
+      since24h
+    ) as unknown as Array<{ callsign: string; count: number }>;
+    return { total, last24h, uniqueIcao, topCallsigns };
+  });
 }
 
 export async function getAircraftMeta(icao24: string): Promise<AircraftRow | null> {
-  const db = await openReadDb();
+  const db = openReadDb();
   if (!db) return null;
-  const stmt = db.prepare("SELECT * FROM aircraft WHERE icao24 = ?");
-  stmt.bind([icao24]);
-  if (!stmt.step()) { stmt.free(); return null; }
-  const row = stmt.getAsObject() as unknown as AircraftRow;
-  stmt.free();
-  return row;
+  return withBusyRetry(() =>
+    db.get("SELECT * FROM aircraft WHERE icao24 = ?", icao24)
+  ) as unknown as AircraftRow | null;
 }
 
 export interface AircraftListRow {
@@ -387,7 +381,7 @@ export async function getAircraftList(
   limit = 50,
   offset = 0
 ): Promise<{ rows: AircraftListRow[]; total: number }> {
-  const db = await openReadDb();
+  const db = openReadDb();
   if (!db) return { rows: [], total: 0 };
   const sl = search.trim().toUpperCase();
   const hasSearch = sl.length > 0;
@@ -398,40 +392,38 @@ export async function getAircraftList(
   const baseArgs: (string | number)[] = [fromMs, toMs];
   const searchArgs: string[] = hasSearch ? [sl, sl, sl] : [];
 
-  const s1 = db.prepare(
-    `SELECT COUNT(DISTINCT p.icao24) AS n
-     FROM positions p
-     LEFT JOIN aircraft a ON a.icao24 = p.icao24
-     WHERE p.logged_at >= ? AND p.logged_at <= ?${searchClause}`
-  );
-  s1.bind([...baseArgs, ...searchArgs]);
-  s1.step();
-  const total = (s1.getAsObject() as { n: number }).n;
-  s1.free();
+  return withBusyRetry(() => {
+    const total = (
+      db.get(
+        `SELECT COUNT(DISTINCT p.icao24) AS n
+         FROM positions p
+         LEFT JOIN aircraft a ON a.icao24 = p.icao24
+         WHERE p.logged_at >= ? AND p.logged_at <= ?${searchClause}`,
+        [...baseArgs, ...searchArgs]
+      ) as { n: number }
+    ).n;
 
-  const s2 = db.prepare(
-    `SELECT
-       p.icao24,
-       COALESCE(a.registration,  MAX(p.registration))  AS registration,
-       COALESCE(a.aircraft_type, MAX(p.aircraft_type)) AS aircraft_type,
-       a.description,
-       COUNT(*)                                           AS position_count,
-       MIN(p.logged_at)                                  AS first_seen,
-       MAX(p.logged_at)                                  AS last_seen,
-       MAX(CASE WHEN p.callsign != '' THEN p.callsign END) AS last_callsign
-     FROM positions p
-     LEFT JOIN aircraft a ON a.icao24 = p.icao24
-     WHERE p.logged_at >= ? AND p.logged_at <= ?${searchClause}
-     GROUP BY p.icao24
-     ORDER BY last_seen DESC
-     LIMIT ? OFFSET ?`
-  );
-  s2.bind([...baseArgs, ...searchArgs, limit, offset]);
-  const rows: AircraftListRow[] = [];
-  while (s2.step()) rows.push(s2.getAsObject() as unknown as AircraftListRow);
-  s2.free();
+    const rows = db.all(
+      `SELECT
+         p.icao24,
+         COALESCE(a.registration,  MAX(p.registration))  AS registration,
+         COALESCE(a.aircraft_type, MAX(p.aircraft_type)) AS aircraft_type,
+         a.description,
+         COUNT(*)                                           AS position_count,
+         MIN(p.logged_at)                                  AS first_seen,
+         MAX(p.logged_at)                                  AS last_seen,
+         MAX(CASE WHEN p.callsign != '' THEN p.callsign END) AS last_callsign
+       FROM positions p
+       LEFT JOIN aircraft a ON a.icao24 = p.icao24
+       WHERE p.logged_at >= ? AND p.logged_at <= ?${searchClause}
+       GROUP BY p.icao24
+       ORDER BY last_seen DESC
+       LIMIT ? OFFSET ?`,
+      [...baseArgs, ...searchArgs, limit, offset]
+    ) as unknown as AircraftListRow[];
 
-  return { rows, total };
+    return { rows, total };
+  });
 }
 
 export interface ScanPositionRow {
@@ -456,24 +448,22 @@ export async function getPositionsInBounds(
   lngMin: number,
   lngMax: number
 ): Promise<ScanPositionRow[]> {
-  const db = await openReadDb();
+  const db = openReadDb();
   if (!db) return [];
   try {
-    const stmt = db.prepare(
-      `SELECT icao24, callsign, lat, lng,
-              COALESCE(alt_geom_m, alt_baro_m) AS alt_m,
-              logged_at
-       FROM positions
-       WHERE logged_at >= ? AND logged_at <= ?
-         AND lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?
-         AND (alt_geom_m IS NOT NULL OR alt_baro_m IS NOT NULL)
-       ORDER BY logged_at ASC`
-    );
-    stmt.bind([fromMs, toMs, latMin, latMax, lngMin, lngMax]);
-    const rows: ScanPositionRow[] = [];
-    while (stmt.step()) rows.push(stmt.getAsObject() as unknown as ScanPositionRow);
-    stmt.free();
-    return rows;
+    return withBusyRetry(() =>
+      db.all(
+        `SELECT icao24, callsign, lat, lng,
+                COALESCE(alt_geom_m, alt_baro_m) AS alt_m,
+                logged_at
+         FROM positions
+         WHERE logged_at >= ? AND logged_at <= ?
+           AND lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?
+           AND (alt_geom_m IS NOT NULL OR alt_baro_m IS NOT NULL)
+         ORDER BY logged_at ASC`,
+        [fromMs, toMs, latMin, latMax, lngMin, lngMax]
+      )
+    ) as unknown as ScanPositionRow[];
   } catch {
     return [];
   }
@@ -490,21 +480,18 @@ export async function getCallsignSessions(
   toMs: number,
   maxPointsPerSession = 150
 ): Promise<RoutePoint[][]> {
-  const db = await openReadDb();
+  const db = openReadDb();
   if (!db) return [];
   try {
-    const stmt = db.prepare(
-      `SELECT lat, lng, alt_baro_m, logged_at
-       FROM positions
-       WHERE callsign = ? AND logged_at >= ? AND logged_at <= ?
-       ORDER BY logged_at ASC`
-    );
-    stmt.bind([callsign, fromMs, toMs]);
-    const rows: RoutePoint[] = [];
-    while (stmt.step()) {
-      rows.push(stmt.getAsObject() as unknown as RoutePoint);
-    }
-    stmt.free();
+    const rows = withBusyRetry(() =>
+      db.all(
+        `SELECT lat, lng, alt_baro_m, logged_at
+         FROM positions
+         WHERE callsign = ? AND logged_at >= ? AND logged_at <= ?
+         ORDER BY logged_at ASC`,
+        [callsign, fromMs, toMs]
+      )
+    ) as unknown as RoutePoint[];
 
     const GAP_MS = 20 * 60_000;
     const sessions: RoutePoint[][] = [];
