@@ -599,16 +599,6 @@ export function ViewfinderPreview({
                 >
                   {label}
                 </text>
-                <text
-                  x={20}
-                  y={SENSOR_HEIGHT_PX - 20}
-                  fill="#facc15"
-                  fontSize={26}
-                  fontFamily="monospace"
-                  opacity={0.6}
-                >
-                  SIM size + heading
-                </text>
                 <defs>
                   <marker
                     id="viewfinder-ghost-path-arrow"
