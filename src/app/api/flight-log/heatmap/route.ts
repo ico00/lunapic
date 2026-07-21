@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getHeatmapCells, type HeatmapHourFilter } from "@/lib/db/flightLogDb";
+import { dbVersionKey, getHeatmapCells, type HeatmapHourFilter } from "@/lib/db/flightLogDb";
 import { rejectIfRateLimited } from "@/lib/server/rateLimiter";
+import { createTtlBodyCache } from "@/lib/server/ttlBodyCache";
 
 export const dynamic = "force-dynamic";
 
 const NO_CACHE = { "Cache-Control": "no-store" };
+const JSON_HEADERS = { ...NO_CACHE, "Content-Type": "application/json" };
+
+// Same memoization as flight-log/routes: the GROUP BY over the whole window is
+// the cost, the result only changes when the writer flushes the DB file, and
+// every map client polls on a 5-min timer. Keyed per (db version, params);
+// hour-filter variants get their own entries.
+const bodyCache = createTtlBodyCache(5 * 60_000, 16);
 
 export async function GET(req: NextRequest) {
   const reject = rejectIfRateLimited(req, 20, 60_000, "flight-log/heatmap");
@@ -38,6 +46,12 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  const cacheKey = `${dbVersionKey()}|${daysBack}|${resolution}|${
+    hourFilter ? `${hourFilter.fromHour}-${hourFilter.toHour}-${hourFilter.tzOffsetMs}` : "all"
+  }`;
+  const cached = bodyCache.get(cacheKey);
+  if (cached) return new NextResponse(cached, { headers: JSON_HEADERS });
+
   let cells;
   try {
     cells = await getHeatmapCells(fromMs, resolution, hourFilter);
@@ -68,19 +82,18 @@ export async function GET(req: NextRequest) {
     },
   }));
 
-  return NextResponse.json(
-    {
-      type: "FeatureCollection",
-      features,
-      meta: {
-        cells: cells.length,
-        daysBack,
-        resolution,
-        fromMs,
-        hourFrom: hourFilter?.fromHour ?? null,
-        hourTo: hourFilter?.toHour ?? null,
-      },
+  const body = JSON.stringify({
+    type: "FeatureCollection",
+    features,
+    meta: {
+      cells: cells.length,
+      daysBack,
+      resolution,
+      fromMs,
+      hourFrom: hourFilter?.fromHour ?? null,
+      hourTo: hourFilter?.toHour ?? null,
     },
-    { headers: NO_CACHE }
-  );
+  });
+  bodyCache.set(cacheKey, body);
+  return new NextResponse(body, { headers: JSON_HEADERS });
 }

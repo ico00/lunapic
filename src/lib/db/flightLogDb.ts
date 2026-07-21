@@ -87,12 +87,64 @@ export async function getSql(): Promise<SqlJsStatic> {
 // kopije baze i nikad ne migrira, pa duplikat sheme više ne stoji ovdje.
 
 /** Open a fresh read-only in-memory copy from the DB file. Returns null if no file yet. */
+/**
+ * Parsed read-only snapshot of the database, shared by every read helper.
+ *
+ * sql.js has no incremental file access — `new SQL.Database(buf)` copies the
+ * whole file into the WASM heap. Doing that per API call made every read scale
+ * with total database size regardless of how selective the query was, which is
+ * what made the flight-log endpoints crawl once the log grew past a few tens of
+ * MB. The parse is cached and reused until the file actually changes.
+ *
+ * Invalidation is by (mtime, size): `server.js` rewrites the whole file every
+ * 30 s, so the snapshot is at most one write cycle stale — the same staleness
+ * the previous code had between a request's read and the next writer flush.
+ */
+let cachedDb: { key: string; db: Database } | null = null;
+/** In-flight load, so concurrent misses parse the file once instead of N times. */
+let loadingDb: { key: string; promise: Promise<Database> } | null = null;
+
+function dbStatKey(file: string): string | null {
+  try {
+    const st = fs.statSync(file);
+    return `${st.mtimeMs}:${st.size}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Opaque version of the on-disk database ("none" while the file doesn't exist).
+ * Changes whenever the writer flushes. API routes use it to memoize expensive
+ * responses: same version → same data, recompute only after a flush.
+ */
+export function dbVersionKey(): string {
+  return dbStatKey(dbPath()) ?? "none";
+}
+
 async function openReadDb(): Promise<Database | null> {
   const file = dbPath();
-  if (!fs.existsSync(file)) return null;
-  const SQL = await getSql();
-  const buf = fs.readFileSync(file);
-  return new SQL.Database(buf);
+  const key = dbStatKey(file);
+  if (key == null) return null;
+
+  if (cachedDb?.key === key) return cachedDb.db;
+  if (loadingDb?.key === key) return loadingDb.promise;
+
+  const promise = (async () => {
+    const SQL = await getSql();
+    const db = new SQL.Database(fs.readFileSync(file));
+    // Safe to free the previous snapshot: read helpers run their queries
+    // synchronously after awaiting this function, so nobody is mid-query on it.
+    cachedDb?.db.close();
+    cachedDb = { key, db };
+    return db;
+  })();
+  loadingDb = { key, promise };
+  try {
+    return await promise;
+  } finally {
+    if (loadingDb?.promise === promise) loadingDb = null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -119,8 +171,6 @@ export async function getTrack(
     return rows;
   } catch {
     return [];
-  } finally {
-    db.close();
   }
 }
 
@@ -182,8 +232,6 @@ export async function getHeatmapCells(
     return cells;
   } catch {
     return [];
-  } finally {
-    db.close();
   }
 }
 
@@ -235,31 +283,28 @@ export async function getRoutesByCallsign(
 
     // Rows arrive ordered by (callsign, logged_at), so a pass ends at a
     // callsign change, a time gap over GAP_MS, or a coverage jump.
+    // Positional get() instead of getAsObject(): this is the hottest row loop
+    // in the file (tens of thousands of rows per call) and the per-row object
+    // build with column-name lookup measurably dominates it (~40 %).
     while (stmt.step()) {
-      const r = stmt.getAsObject() as unknown as {
-        callsign: string;
-        lat: number;
-        lng: number;
-        alt_baro_m: number | null;
-        logged_at: number;
-      };
+      const [callsign, lat, lng, alt_baro_m, logged_at] = stmt.get() as [
+        string,
+        number,
+        number,
+        number | null,
+        number,
+      ];
       const prev = current[current.length - 1];
       if (
-        r.callsign !== currentCallsign ||
+        callsign !== currentCallsign ||
         (prev &&
-          (r.logged_at - prev.logged_at > GAP_MS ||
-            approxDistanceKm(prev.lat, prev.lng, r.lat, r.lng) >
-              MAX_SEGMENT_KM))
+          (logged_at - prev.logged_at > GAP_MS ||
+            approxDistanceKm(prev.lat, prev.lng, lat, lng) > MAX_SEGMENT_KM))
       ) {
         flush();
-        currentCallsign = r.callsign;
+        currentCallsign = callsign;
       }
-      current.push({
-        lat: r.lat,
-        lng: r.lng,
-        alt_baro_m: r.alt_baro_m,
-        logged_at: r.logged_at,
-      });
+      current.push({ lat, lng, alt_baro_m, logged_at });
     }
     flush();
     stmt.free();
@@ -277,8 +322,6 @@ export async function getRoutesByCallsign(
     return result;
   } catch {
     return [];
-  } finally {
-    db.close();
   }
 }
 
@@ -290,48 +333,40 @@ export async function getStats(): Promise<{
 }> {
   const db = await openReadDb();
   if (!db) return { total: 0, last24h: 0, uniqueIcao: 0, topCallsigns: [] };
-  try {
-    const since24h = Date.now() - 86_400_000;
+  const since24h = Date.now() - 86_400_000;
 
-    const s1 = db.prepare("SELECT COUNT(*) AS n FROM positions");
-    s1.step(); const total = (s1.getAsObject() as { n: number }).n; s1.free();
+  const s1 = db.prepare("SELECT COUNT(*) AS n FROM positions");
+  s1.step(); const total = (s1.getAsObject() as { n: number }).n; s1.free();
 
-    const s2 = db.prepare("SELECT COUNT(*) AS n FROM positions WHERE logged_at >= ?");
-    s2.bind([since24h]); s2.step();
-    const last24h = (s2.getAsObject() as { n: number }).n; s2.free();
+  const s2 = db.prepare("SELECT COUNT(*) AS n FROM positions WHERE logged_at >= ?");
+  s2.bind([since24h]); s2.step();
+  const last24h = (s2.getAsObject() as { n: number }).n; s2.free();
 
-    const s3 = db.prepare("SELECT COUNT(DISTINCT icao24) AS n FROM positions");
-    s3.step(); const uniqueIcao = (s3.getAsObject() as { n: number }).n; s3.free();
+  const s3 = db.prepare("SELECT COUNT(DISTINCT icao24) AS n FROM positions");
+  s3.step(); const uniqueIcao = (s3.getAsObject() as { n: number }).n; s3.free();
 
-    const s4 = db.prepare(
-      `SELECT callsign, COUNT(*) AS count FROM positions
-       WHERE callsign IS NOT NULL AND logged_at >= ?
-       GROUP BY callsign ORDER BY count DESC LIMIT 20`
-    );
-    s4.bind([since24h]);
-    const topCallsigns: Array<{ callsign: string; count: number }> = [];
-    while (s4.step()) topCallsigns.push(s4.getAsObject() as unknown as { callsign: string; count: number });
-    s4.free();
+  const s4 = db.prepare(
+    `SELECT callsign, COUNT(*) AS count FROM positions
+     WHERE callsign IS NOT NULL AND logged_at >= ?
+     GROUP BY callsign ORDER BY count DESC LIMIT 20`
+  );
+  s4.bind([since24h]);
+  const topCallsigns: Array<{ callsign: string; count: number }> = [];
+  while (s4.step()) topCallsigns.push(s4.getAsObject() as unknown as { callsign: string; count: number });
+  s4.free();
 
-    return { total, last24h, uniqueIcao, topCallsigns };
-  } finally {
-    db.close();
-  }
+  return { total, last24h, uniqueIcao, topCallsigns };
 }
 
 export async function getAircraftMeta(icao24: string): Promise<AircraftRow | null> {
   const db = await openReadDb();
   if (!db) return null;
-  try {
-    const stmt = db.prepare("SELECT * FROM aircraft WHERE icao24 = ?");
-    stmt.bind([icao24]);
-    if (!stmt.step()) { stmt.free(); return null; }
-    const row = stmt.getAsObject() as unknown as AircraftRow;
-    stmt.free();
-    return row;
-  } finally {
-    db.close();
-  }
+  const stmt = db.prepare("SELECT * FROM aircraft WHERE icao24 = ?");
+  stmt.bind([icao24]);
+  if (!stmt.step()) { stmt.free(); return null; }
+  const row = stmt.getAsObject() as unknown as AircraftRow;
+  stmt.free();
+  return row;
 }
 
 export interface AircraftListRow {
@@ -354,53 +389,49 @@ export async function getAircraftList(
 ): Promise<{ rows: AircraftListRow[]; total: number }> {
   const db = await openReadDb();
   if (!db) return { rows: [], total: 0 };
-  try {
-    const sl = search.trim().toUpperCase();
-    const hasSearch = sl.length > 0;
-    const searchClause = hasSearch
-      ? ` AND (UPPER(p.icao24) LIKE '%' || ? || '%' OR UPPER(COALESCE(p.callsign,'')) LIKE '%' || ? || '%' OR UPPER(COALESCE(a.registration,'')) LIKE '%' || ? || '%')`
-      : "";
+  const sl = search.trim().toUpperCase();
+  const hasSearch = sl.length > 0;
+  const searchClause = hasSearch
+    ? ` AND (UPPER(p.icao24) LIKE '%' || ? || '%' OR UPPER(COALESCE(p.callsign,'')) LIKE '%' || ? || '%' OR UPPER(COALESCE(a.registration,'')) LIKE '%' || ? || '%')`
+    : "";
 
-    const baseArgs: (string | number)[] = [fromMs, toMs];
-    const searchArgs: string[] = hasSearch ? [sl, sl, sl] : [];
+  const baseArgs: (string | number)[] = [fromMs, toMs];
+  const searchArgs: string[] = hasSearch ? [sl, sl, sl] : [];
 
-    const s1 = db.prepare(
-      `SELECT COUNT(DISTINCT p.icao24) AS n
-       FROM positions p
-       LEFT JOIN aircraft a ON a.icao24 = p.icao24
-       WHERE p.logged_at >= ? AND p.logged_at <= ?${searchClause}`
-    );
-    s1.bind([...baseArgs, ...searchArgs]);
-    s1.step();
-    const total = (s1.getAsObject() as { n: number }).n;
-    s1.free();
+  const s1 = db.prepare(
+    `SELECT COUNT(DISTINCT p.icao24) AS n
+     FROM positions p
+     LEFT JOIN aircraft a ON a.icao24 = p.icao24
+     WHERE p.logged_at >= ? AND p.logged_at <= ?${searchClause}`
+  );
+  s1.bind([...baseArgs, ...searchArgs]);
+  s1.step();
+  const total = (s1.getAsObject() as { n: number }).n;
+  s1.free();
 
-    const s2 = db.prepare(
-      `SELECT
-         p.icao24,
-         COALESCE(a.registration,  MAX(p.registration))  AS registration,
-         COALESCE(a.aircraft_type, MAX(p.aircraft_type)) AS aircraft_type,
-         a.description,
-         COUNT(*)                                           AS position_count,
-         MIN(p.logged_at)                                  AS first_seen,
-         MAX(p.logged_at)                                  AS last_seen,
-         MAX(CASE WHEN p.callsign != '' THEN p.callsign END) AS last_callsign
-       FROM positions p
-       LEFT JOIN aircraft a ON a.icao24 = p.icao24
-       WHERE p.logged_at >= ? AND p.logged_at <= ?${searchClause}
-       GROUP BY p.icao24
-       ORDER BY last_seen DESC
-       LIMIT ? OFFSET ?`
-    );
-    s2.bind([...baseArgs, ...searchArgs, limit, offset]);
-    const rows: AircraftListRow[] = [];
-    while (s2.step()) rows.push(s2.getAsObject() as unknown as AircraftListRow);
-    s2.free();
+  const s2 = db.prepare(
+    `SELECT
+       p.icao24,
+       COALESCE(a.registration,  MAX(p.registration))  AS registration,
+       COALESCE(a.aircraft_type, MAX(p.aircraft_type)) AS aircraft_type,
+       a.description,
+       COUNT(*)                                           AS position_count,
+       MIN(p.logged_at)                                  AS first_seen,
+       MAX(p.logged_at)                                  AS last_seen,
+       MAX(CASE WHEN p.callsign != '' THEN p.callsign END) AS last_callsign
+     FROM positions p
+     LEFT JOIN aircraft a ON a.icao24 = p.icao24
+     WHERE p.logged_at >= ? AND p.logged_at <= ?${searchClause}
+     GROUP BY p.icao24
+     ORDER BY last_seen DESC
+     LIMIT ? OFFSET ?`
+  );
+  s2.bind([...baseArgs, ...searchArgs, limit, offset]);
+  const rows: AircraftListRow[] = [];
+  while (s2.step()) rows.push(s2.getAsObject() as unknown as AircraftListRow);
+  s2.free();
 
-    return { rows, total };
-  } finally {
-    db.close();
-  }
+  return { rows, total };
 }
 
 export interface ScanPositionRow {
@@ -445,8 +476,6 @@ export async function getPositionsInBounds(
     return rows;
   } catch {
     return [];
-  } finally {
-    db.close();
   }
 }
 
@@ -498,8 +527,6 @@ export async function getCallsignSessions(
     return sessions;
   } catch {
     return [];
-  } finally {
-    db.close();
   }
 }
 

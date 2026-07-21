@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRoutesByCallsign } from "@/lib/db/flightLogDb";
+import { dbVersionKey, getRoutesByCallsign } from "@/lib/db/flightLogDb";
 import { rejectIfRateLimited } from "@/lib/server/rateLimiter";
+import { createTtlBodyCache } from "@/lib/server/ttlBodyCache";
 
 export const dynamic = "force-dynamic";
 
 const NO_CACHE = { "Cache-Control": "no-store" };
+const JSON_HEADERS = { ...NO_CACHE, "Content-Type": "application/json" };
+
+// The pass-splitting scan walks every position row in the window (~2 s on a
+// week of SDR logging) and its result only changes when the writer flushes the
+// DB file, yet every map client re-requests it on a 5-min timer. Memoize the
+// serialized body per (db version, params); the TTL only bounds staleness of
+// the Date.now()-anchored window between flushes.
+const bodyCache = createTtlBodyCache(5 * 60_000, 8);
 
 export async function GET(req: NextRequest) {
   const reject = rejectIfRateLimited(req, 20, 60_000, "flight-log/routes");
@@ -19,6 +28,10 @@ export async function GET(req: NextRequest) {
     Math.max(parseInt(sp.get("maxRoutes") ?? "2000", 10), 100),
     20_000
   );
+
+  const cacheKey = `${dbVersionKey()}|${daysBack}|${minPoints}|${maxRoutes}`;
+  const cached = bodyCache.get(cacheKey);
+  if (cached) return new NextResponse(cached, { headers: JSON_HEADERS });
 
   const toMs = Date.now();
   const fromMs = toMs - daysBack * 86_400_000;
@@ -60,12 +73,11 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  return NextResponse.json(
-    {
-      type: "FeatureCollection",
-      features,
-      meta: { routes: routes.length, daysBack, fromMs, toMs },
-    },
-    { headers: NO_CACHE }
-  );
+  const body = JSON.stringify({
+    type: "FeatureCollection",
+    features,
+    meta: { routes: routes.length, daysBack, fromMs, toMs },
+  });
+  bodyCache.set(cacheKey, body);
+  return new NextResponse(body, { headers: JSON_HEADERS });
 }
