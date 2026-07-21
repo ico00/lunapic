@@ -99,7 +99,11 @@ RSYNC_OPTS=(
   # `.next/node_modules/` — symlink aliasi koje build generira za
   # serverExternalPackages (npr. node-sqlite3-wasm-<hash>). Bez njih runtime
   # padne s "Failed to load external module <pkg>-<hash>".
-  --exclude='/node_modules/'
+  # ⚠️ BEZ ZAVRŠNE KOSE: na serveru je node_modules SYMLINK u nodevenv, a
+  # uzorak sa završnom kosom matcha samo direktorije — symlink ostane
+  # nezaštićen i --delete ga obriše (dogodilo se 2026-07-21; app ostane bez
+  # ijednog paketa dok se symlink ručno ne obnovi s npm install).
+  --exclude='/node_modules'
   # Next.js build cache i dev-mode artefakti (ne trebaju na serveru)
   --exclude='.next/cache/'
   --exclude='.next/dev/'
