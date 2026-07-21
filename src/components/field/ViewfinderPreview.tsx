@@ -28,6 +28,8 @@ type ViewfinderPreviewProps = {
   azimuthGapDeg?: number | null;
   /** Predicted elevation gap aircraft − moon at azimuth alignment (degrees). */
   elevationGapAtAlignmentDeg?: number | null;
+  /** Predicted slant range at azimuth alignment (meters) — sizes the off-frame ghost silhouette. Falls back to `distanceToObserverMeters` when absent. */
+  futureSlantRangeMeters?: number | null;
   className?: string;
 };
 
@@ -46,6 +48,14 @@ function clamp(value: number, min: number, max: number): number {
 
 function normalizeHeadingDeg(value: number): number {
   return ((value % 360) + 360) % 360;
+}
+
+function angularSizeDegFromLengthAndDistance(
+  lengthMeters: number,
+  distanceMeters: number
+): number {
+  const thetaRad = 2 * Math.atan(lengthMeters / (2 * distanceMeters));
+  return (thetaRad * 180) / Math.PI;
 }
 
 function formatMeters(value: number | null): string {
@@ -131,6 +141,7 @@ export function ViewfinderPreview({
   elevationGapDeg,
   azimuthGapDeg,
   elevationGapAtAlignmentDeg,
+  futureSlantRangeMeters,
   className,
 }: ViewfinderPreviewProps) {
   /** When true: simulates Moon size on a 6000×4000 frame at current focal (small disk in crop). When false: “Zoom” / normalized Moon scale for comparison (~0.5°). */
@@ -220,15 +231,46 @@ export function ViewfinderPreview({
     ) {
       return null;
     }
-    const thetaRad =
-      2 * Math.atan(resolvedAircraftLengthM / (2 * distanceToObserverMeters));
-    return (thetaRad * 180) / Math.PI;
+    return angularSizeDegFromLengthAndDistance(
+      resolvedAircraftLengthM,
+      distanceToObserverMeters
+    );
   }, [distanceToObserverMeters, resolvedAircraftLengthM]);
 
   const effectiveAngularSizeDeg =
     angularSizeDeg != null && Number.isFinite(angularSizeDeg) && angularSizeDeg > 0
       ? angularSizeDeg
       : derivedAngularSizeDeg;
+
+  // Off-frame ghost sizes itself at the predicted range when the aircraft
+  // reaches azimuth alignment — not the current range — so a plane still far
+  // out doesn't preview undersized relative to what it'll actually look like
+  // at the moment it lines up with the moon. Falls back to current range.
+  const hasFutureSlantRange =
+    futureSlantRangeMeters != null &&
+    Number.isFinite(futureSlantRangeMeters) &&
+    futureSlantRangeMeters > 0;
+  const ghostAngularSizeDeg = useMemo(() => {
+    const distanceMeters = hasFutureSlantRange
+      ? futureSlantRangeMeters
+      : distanceToObserverMeters;
+    if (
+      distanceMeters == null ||
+      !Number.isFinite(distanceMeters) ||
+      distanceMeters <= 0
+    ) {
+      return null;
+    }
+    return angularSizeDegFromLengthAndDistance(
+      resolvedAircraftLengthM,
+      distanceMeters
+    );
+  }, [
+    distanceToObserverMeters,
+    hasFutureSlantRange,
+    futureSlantRangeMeters,
+    resolvedAircraftLengthM,
+  ]);
 
   // Vertical offset: SVG Y axis inverted — positive elevationGap (above moon) → negative Y offset.
   const planeOffsetYPx = useMemo(() => {
@@ -260,6 +302,17 @@ export function ViewfinderPreview({
     }
     return clamp(effectiveAngularSizeDeg * pixelsPerDegree, 8, SENSOR_WIDTH_PX * 1.2);
   }, [effectiveAngularSizeDeg, pixelsPerDegree]);
+
+  const ghostWidthPx = useMemo(() => {
+    if (
+      ghostAngularSizeDeg == null ||
+      !Number.isFinite(ghostAngularSizeDeg) ||
+      ghostAngularSizeDeg <= 0
+    ) {
+      return 0;
+    }
+    return clamp(ghostAngularSizeDeg * pixelsPerDegree, 8, SENSOR_WIDTH_PX * 1.2);
+  }, [ghostAngularSizeDeg, pixelsPerDegree]);
 
   const parallacticAngleDeg = useMemo(
     () =>
@@ -392,6 +445,7 @@ export function ViewfinderPreview({
   }, [moonRadiusPx, planeCenterX, planeCenterY, trajectoryDirection]);
 
   const planeHeightPx = Math.max(6, planeWidthPx * 0.28);
+  const ghostHeightPx = Math.max(6, ghostWidthPx * 0.28);
 
   const planeTopPct = (planeCenterY / SENSOR_HEIGHT_PX) * 100;
   const planeLeftPct = (planeCenterX / SENSOR_WIDTH_PX) * 100;
@@ -404,7 +458,16 @@ export function ViewfinderPreview({
     "--viewfinder-plane-left-pct": `${planeLeftPct}%`,
   } as CSSProperties;
 
+  // Separate width/height from the real silhouette — the ghost previews the
+  // predicted alignment-range size, which can differ from the current one.
+  const ghostStyleVars = {
+    "--viewfinder-plane-width-px": `${ghostWidthPx}px`,
+    "--viewfinder-plane-height-px": `${ghostHeightPx}px`,
+    "--viewfinder-plane-rotation-deg": `${motionRotationDeg}deg`,
+  } as CSSProperties;
+
   const showPlane = planeWidthPx > 0 && planeIsInFrame;
+  const showGhost = ghostWidthPx > 0 && !planeIsInFrame;
 
   return (
     <div className={className}>
@@ -521,10 +584,10 @@ export function ViewfinderPreview({
               </defs>
             </svg>
           ) : null}
-          {!planeIsInFrame && planeWidthPx > 0 ? (
+          {showGhost ? (
             <div
               className="viewfinder-plane-ghost-layer pointer-events-none absolute inset-0 z-[2]"
-              style={styleVars}
+              style={ghostStyleVars}
               aria-hidden="true"
             >
               <div className="viewfinder-plane-ghost">
@@ -689,8 +752,9 @@ export function ViewfinderPreview({
           {callSign ? ` (${callSign.trim() || "N/A"})` : ""}. Heading{" "}
           {correctedHeadingDeg != null ? `${correctedHeadingDeg.toFixed(1)}°` : "N/A"} (ADS-B corrected by parallactic
           angle {parallacticAngleDeg.toFixed(1)}°). While the plane is outside the frame, a simulated silhouette
-          on the moon shows its apparent size and crossing direction at current range. Moon disk: NASA/GSFC SVS
-          hourly phase (north up); falls back to a static texture if the frame cannot load.
+          on the moon shows its crossing direction and apparent size at{" "}
+          {hasFutureSlantRange ? "the predicted alignment range" : "current range (no alignment prediction yet)"}.
+          Moon disk: NASA/GSFC SVS hourly phase (north up); falls back to a static texture if the frame cannot load.
         </p>
       </details>
       <style jsx>{`
