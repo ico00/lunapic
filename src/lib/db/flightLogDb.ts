@@ -124,24 +124,51 @@ export async function getTrack(
   }
 }
 
+export interface HeatmapHourFilter {
+  /** Local hour of day 0–23 (inclusive window start). */
+  fromHour: number;
+  /** Local hour of day 0–23 (inclusive window end; may be < fromHour = wraps midnight). */
+  toHour: number;
+  /** Offset to add to UTC epoch ms so hours land in the viewer's local day. */
+  tzOffsetMs: number;
+}
+
 export async function getHeatmapCells(
   fromMs: number,
-  resolution = 0.05
+  resolution = 0.05,
+  hourFilter?: HeatmapHourFilter
 ): Promise<HeatmapCell[]> {
   const db = await openReadDb();
   if (!db) return [];
   try {
+    // Local hour of day derived from epoch ms + viewer tz offset. The window is
+    // inclusive on both ends; from > to wraps around midnight (e.g. 22–04).
+    let hourClause = "";
+    const hourArgs: number[] = [];
+    if (hourFilter) {
+      const hourExpr = `CAST(((logged_at + ?) / 3600000) % 24 AS INTEGER)`;
+      if (hourFilter.fromHour <= hourFilter.toHour) {
+        hourClause = ` AND ${hourExpr} BETWEEN ? AND ?`;
+        hourArgs.push(hourFilter.tzOffsetMs, hourFilter.fromHour, hourFilter.toHour);
+      } else {
+        hourClause = ` AND (${hourExpr} >= ? OR ${hourExpr} <= ?)`;
+        hourArgs.push(
+          hourFilter.tzOffsetMs, hourFilter.fromHour,
+          hourFilter.tzOffsetMs, hourFilter.toHour
+        );
+      }
+    }
     const stmt = db.prepare(
       `SELECT
          ROUND(lat / ?) * ? AS cell_lat,
          ROUND(lng / ?) * ? AS cell_lng,
          COUNT(*) AS cnt
        FROM positions
-       WHERE logged_at >= ?
+       WHERE logged_at >= ?${hourClause}
        GROUP BY cell_lat, cell_lng
        HAVING cnt >= 2`
     );
-    stmt.bind([resolution, resolution, resolution, resolution, fromMs]);
+    stmt.bind([resolution, resolution, resolution, resolution, fromMs, ...hourArgs]);
     const cells: HeatmapCell[] = [];
     while (stmt.step()) {
       const r = stmt.getAsObject() as unknown as {
@@ -160,11 +187,19 @@ export async function getHeatmapCells(
   }
 }
 
+/**
+ * One feature per *pass*, not per callsign. A callsign that flies the corridor
+ * daily yields one polyline per flight; concatenating its 30 days of points
+ * into a single LineString drew long straight jumps between the end of one
+ * day's pass and the start of the next — the starburst of rays over the
+ * observer. Same 20-minute gap rule as `getCallsignSessions`.
+ */
 export async function getRoutesByCallsign(
   fromMs: number,
   toMs: number,
   minPoints = 10,
-  maxPointsPerRoute = 500
+  maxPointsPerRoute = 150,
+  maxRoutes = 2000
 ): Promise<CallsignRoute[]> {
   const db = await openReadDb();
   if (!db) return [];
@@ -178,7 +213,28 @@ export async function getRoutesByCallsign(
     );
     stmt.bind([fromMs, toMs]);
 
-    const byCallsign = new Map<string, RoutePoint[]>();
+    const GAP_MS = 20 * 60_000;
+    // Consecutive fixes sit ~3.4 km apart at cruise (p50) and 99 % are under
+    // 16 km. Anything past 25 km is the aircraft dropping out of receiver
+    // coverage and reappearing — joining those two fixes draws a straight
+    // chord that never happened, so cut the pass there instead.
+    const MAX_SEGMENT_KM = 25;
+    const result: CallsignRoute[] = [];
+    let currentCallsign: string | null = null;
+    let current: RoutePoint[] = [];
+
+    const flush = () => {
+      if (currentCallsign !== null && current.length >= minPoints) {
+        result.push({
+          callsign: currentCallsign,
+          points: evenSample(current, maxPointsPerRoute),
+        });
+      }
+      current = [];
+    };
+
+    // Rows arrive ordered by (callsign, logged_at), so a pass ends at a
+    // callsign change, a time gap over GAP_MS, or a coverage jump.
     while (stmt.step()) {
       const r = stmt.getAsObject() as unknown as {
         callsign: string;
@@ -187,16 +243,36 @@ export async function getRoutesByCallsign(
         alt_baro_m: number | null;
         logged_at: number;
       };
-      let arr = byCallsign.get(r.callsign);
-      if (!arr) { arr = []; byCallsign.set(r.callsign, arr); }
-      arr.push({ lat: r.lat, lng: r.lng, alt_baro_m: r.alt_baro_m, logged_at: r.logged_at });
+      const prev = current[current.length - 1];
+      if (
+        r.callsign !== currentCallsign ||
+        (prev &&
+          (r.logged_at - prev.logged_at > GAP_MS ||
+            approxDistanceKm(prev.lat, prev.lng, r.lat, r.lng) >
+              MAX_SEGMENT_KM))
+      ) {
+        flush();
+        currentCallsign = r.callsign;
+      }
+      current.push({
+        lat: r.lat,
+        lng: r.lng,
+        alt_baro_m: r.alt_baro_m,
+        logged_at: r.logged_at,
+      });
     }
+    flush();
     stmt.free();
 
-    const result: CallsignRoute[] = [];
-    for (const [callsign, pts] of byCallsign) {
-      if (pts.length < minPoints) continue;
-      result.push({ callsign, points: evenSample(pts, maxPointsPerRoute) });
+    // Cap the payload by keeping the most recent passes — an unbounded feature
+    // count is what makes the layer both unreadable and slow.
+    if (result.length > maxRoutes) {
+      result.sort(
+        (a, b) =>
+          b.points[b.points.length - 1].logged_at -
+          a.points[a.points.length - 1].logged_at
+      );
+      result.length = maxRoutes;
     }
     return result;
   } catch {
@@ -327,6 +403,53 @@ export async function getAircraftList(
   }
 }
 
+export interface ScanPositionRow {
+  icao24: string;
+  callsign: string | null;
+  lat: number;
+  lng: number;
+  alt_m: number;
+  logged_at: number;
+}
+
+/**
+ * Positions inside a lat/lng bounding box with a usable altitude, for the
+ * retro transit scan. Ordered by time so consecutive rows of one aircraft
+ * can be grouped into events.
+ */
+export async function getPositionsInBounds(
+  fromMs: number,
+  toMs: number,
+  latMin: number,
+  latMax: number,
+  lngMin: number,
+  lngMax: number
+): Promise<ScanPositionRow[]> {
+  const db = await openReadDb();
+  if (!db) return [];
+  try {
+    const stmt = db.prepare(
+      `SELECT icao24, callsign, lat, lng,
+              COALESCE(alt_geom_m, alt_baro_m) AS alt_m,
+              logged_at
+       FROM positions
+       WHERE logged_at >= ? AND logged_at <= ?
+         AND lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?
+         AND (alt_geom_m IS NOT NULL OR alt_baro_m IS NOT NULL)
+       ORDER BY logged_at ASC`
+    );
+    stmt.bind([fromMs, toMs, latMin, latMax, lngMin, lngMax]);
+    const rows: ScanPositionRow[] = [];
+    while (stmt.step()) rows.push(stmt.getAsObject() as unknown as ScanPositionRow);
+    stmt.free();
+    return rows;
+  } catch {
+    return [];
+  } finally {
+    db.close();
+  }
+}
+
 /**
  * Returns all position points for a specific callsign, grouped into flight
  * sessions. A new session begins when the gap between consecutive positions
@@ -383,6 +506,22 @@ export async function getCallsignSessions(
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/** Equirectangular approximation — plenty accurate for the tens-of-km
+ *  comparisons this file makes, and far cheaper than haversine per row. */
+function approxDistanceKm(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number {
+  const R = 6371;
+  const toRad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * toRad;
+  const dLng = (lng2 - lng1) * toRad;
+  const midLat = ((lat1 + lat2) / 2) * toRad;
+  return R * Math.hypot(dLat, dLng * Math.cos(midLat));
+}
 
 function evenSample<T>(arr: T[], n: number): T[] {
   if (arr.length <= n) return arr;

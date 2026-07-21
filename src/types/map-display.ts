@@ -1,2 +1,2 @@
-export type MapDisplayMode = "default" | "atc" | "vfr" | "streetview";
+export type MapDisplayMode = "default" | "2d" | "atc" | "vfr" | "streetview";
 

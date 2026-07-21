@@ -15,6 +15,7 @@ import {
   CALLSIGN_MEAN_LAYER_ID,
 } from "@/lib/map/mapSourceIds";
 import { appPath } from "@/lib/paths/appPath";
+import { fitGeoJsonBounds } from "@/lib/map/fitGeoJsonBounds";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import type mapboxgl from "mapbox-gl";
 import { useEffect, useRef, type RefObject } from "react";
@@ -35,9 +36,9 @@ function ensureSessionsLayer(map: mapboxgl.Map) {
     type: "line",
     source: CALLSIGN_SESSIONS_SOURCE,
     paint: {
-      "line-color": "rgba(56,189,248,0.28)",   // sky-400 at 28 %
-      "line-width": 1.5,
-      "line-blur": 0.6,
+      "line-color": "rgba(56,189,248,0.5)",   // sky-400 at 50 %
+      "line-width": 1.8,
+      "line-blur": 0.4,
     },
     layout: { "line-cap": "round", "line-join": "round" },
   });
@@ -83,6 +84,8 @@ export function useCallsignHistoryLayer(
 ): void {
   const callsign = useMoonTransitStore((s) => s.flightLogSelectedCallsign);
   const daysBack = useMoonTransitStore((s) => s.flightLogDaysBack);
+  const setNextPass = useMoonTransitStore((s) => s.setFlightLogNextPass);
+  const setAltitude = useMoonTransitStore((s) => s.setFlightLogAltitude);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -98,6 +101,8 @@ export function useCallsignHistoryLayer(
 
     if (!callsign) {
       clearLayers(map);
+      setNextPass(null);
+      setAltitude(null);
       return;
     }
 
@@ -123,11 +128,24 @@ export function useCallsignHistoryLayer(
         src1?.setData(data.sessions as Parameters<typeof src1.setData>[0]);
         const src2 = map.getSource(CALLSIGN_MEAN_SOURCE) as mapboxgl.GeoJSONSource | undefined;
         src2?.setData(data.mean as Parameters<typeof src2.setData>[0]);
+        // Bring the route into view — layers render at their real location, which
+        // may be outside the current viewport. Fit to all session lines.
+        fitGeoJsonBounds(map, data.sessions ?? data.mean);
+        const np = data.nextPass as {
+          estimateMs: number; stdMinutes: number; sessionCount: number;
+        } | null | undefined;
+        setNextPass(
+          np
+            ? { callsign, estimateMs: np.estimateMs, stdMinutes: np.stdMinutes, sessionCount: np.sessionCount }
+            : null
+        );
+        const alt = data.altitude as { minM: number; medianM: number; maxM: number } | null | undefined;
+        setAltitude(alt ? { callsign, ...alt } : null);
       })
       .catch(() => {
         // Abort or error — leave layers empty
       });
 
     return () => { ctrl.abort(); };
-  }, [callsign, daysBack, mapReadyTick, mapRef]);
+  }, [callsign, daysBack, mapReadyTick, mapRef, setNextPass, setAltitude]);
 }

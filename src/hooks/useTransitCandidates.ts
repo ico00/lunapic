@@ -18,19 +18,22 @@ export function useTransitCandidates() {
   const flights = useMoonTransitStore((s) => s.flights);
   const focalLengthMm = useMoonTransitStore((s) => s.cameraFocalLengthMm);
   const sensorType = useMoonTransitStore((s) => s.cameraSensorType);
-  return useMemo(
-    () =>
-      computeTransitCandidates({
-        observer,
-        focalLengthMm,
-        sensorType,
-        flights,
-        at: new Date(referenceEpochMs),
-        wallNowMs: Date.now(),
-        latencySkewMs: openSkyLatencySkewMs,
-      }),
-    [observer, referenceEpochMs, openSkyLatencySkewMs, flights, focalLengthMm, sensorType]
-  );
+  const timeAnchorIsPlanned = useMoonTransitStore((s) => s.timeAnchorIsPlanned);
+  return useMemo(() => {
+    // Planning mode: budući Mjesec + današnji živi letovi nemaju smisla zajedno.
+    if (timeAnchorIsPlanned) {
+      return [];
+    }
+    return computeTransitCandidates({
+      observer,
+      focalLengthMm,
+      sensorType,
+      flights,
+      at: new Date(referenceEpochMs),
+      wallNowMs: Date.now(),
+      latencySkewMs: openSkyLatencySkewMs,
+    });
+  }, [observer, referenceEpochMs, openSkyLatencySkewMs, flights, focalLengthMm, sensorType, timeAnchorIsPlanned]);
 }
 
 export function useMoonStateComputed() {

@@ -39,6 +39,7 @@ Koordinatni standard: **WGS84**. GeoJSON: `[longitude, latitude]`. Tipovi aplika
 | `--mt-glow-a` | `rgba(16, 185, 129, 0.11)` | **Emerald** radial u pozadinskoj atmosferi |
 | `--mt-glow-b` | `rgba(56, 189, 248, 0.08)` | **Sky** radial |
 | `--mt-glow-c` | `rgba(251, 191, 36, 0.06)` | **Amber** radial |
+| `--fs-micro` | `10px` | Count badge / mikrotekst (vidi §2.6) |
 
 ### 2.2 Pozadina aplikacije
 
@@ -74,6 +75,9 @@ Koordinatni standard: **WGS84**. GeoJSON: `[longitude, latitude]`. Tipovi aplika
 
 - **`--font-geist-sans`**, **`--font-geist-mono`**, **`--font-outfit`** (Outfit težine 500–700).
 - Shell naslovi / label klase preferiraju **Outfit**; numerički readouti često **`font-mono`** + `tabular-nums`.
+- **Skala veličina — jedini dopušteni tokeni** (`globals.css`): `--fs-display`, `--fs-h1`, `--fs-h2`, `--fs-body` (15.5px), `--fs-body-strong` (16px), `--fs-meta` (13px), `--fs-label` (12px), `--fs-micro` (10px). U komponentama **isključivo** `text-[length:var(--fs-…)]` — Tailwind `text-xs/sm/base/lg` je zabranjen.
+- **`--fs-micro`** je rezerviran za count badge (dock/rail brojčić) — nikad za čitljivi sadržaj.
+- **Iznimka — instrumentalni mikrotekst:** oznake unutar grafike instrumenta (kompas ruža N/E/S/W ticks, AR radar disc kardinalne točke) smiju koristiti fiksni `text-[0.45–0.55rem]` jer su dio crteža, ne teksta sučelja. Boje i tada idu preko tokena (`--t-secondary` / `--t-tertiary`) ili semantičkog akcenta (amber za N).
 
 ### 2.7 Paleta u praksi (Tailwind)
 
@@ -117,7 +121,12 @@ Sažetak iz `documentation/technicalconventions.md` + implementacije:
 - **Lista:** `createPortal(..., document.body)`, `position: fixed`, izračun iz `getBoundingClientRect()` (`top: bottom + 4px`, širina = trigger).
 - **Stacking:** **`z-[280]`** da prelazi `ShellSectionCard` **`overflow-hidden`**.
 - **Stil liste:** staklo — npr. `border-white/10`, `bg-zinc-900/95`, `backdrop-blur-md`; opcije s sky hover/selected stanjima.
-- **Reference:** `FlightProviderSelect.tsx`, `CameraSensorSelect.tsx`.
+- **Obavezni izvor klasa (`src/lib/ui/shellComboboxStyles.ts`) — nikad kopirati string literale:**
+  - okidač → `shellComboboxTriggerClass` (veličina `--fs-body`, boja `--t-primary`)
+  - portal lista → `shellComboboxListboxPortalClass`
+  - **redak opcije → `shellComboboxOptionClass(selected)`** — `rounded-md`, `--fs-body`; selektirano `bg-sky-500/20 text-sky-200`, inače hover `bg-white/[0.08]`
+- **Selekcija je uvijek sky** — i u multi-selectu s checkboxom. `violet` / `rose` / `lime` su rezervirani za accent liniju `ShellSectionCard` (§2.7), nikad za stanje opcije.
+- **Reference:** `FlightProviderSelect.tsx`, `CameraSensorSelect.tsx`, `CameraPresetSelect.tsx`, `FlightFiltersPanel.tsx` (multi-select).
 
 ---
 
@@ -325,6 +334,24 @@ Korijen aplikacije u shellu: `mt-app-root`, `h-dvh`, `overflow-hidden`, `flex-co
 - **Hydracija:** `useHasMounted` — labela „—” dok nije klijent (izbjegava mismatch datuma).
 - **Horizon dim:** ako je mjesec ispod horizonta i ephemeris spreman: `opacity-60 saturate-[0.65]` na korijenu panela.
 - **Prikaz vremena:** `referenceEpochMs` kao `toLocaleString("en-GB", …)` s `suppressHydrationWarning` gdje treba.
+
+### 10.1 Planning date picker (time ribbon)
+
+- **Uzorak:** okrugli ikonski gumb (kalendar outline SVG, isti stroke stil kao Sync ikona) otvara **custom kalendar popup** po combobox uzorku (§4): `createPortal(..., document.body)`, `position: fixed`, **`z-[280]`**, staklo (`border-white/10 bg-zinc-900/95 backdrop-blur-md rounded-2xl`). Native `<input type="date">` je zabranjen — popup mu se ne može ni pozicionirati ni stilizirati (bježi ispod ruba na full-screenu). Referenca: `PlanningDateButton` + `PlanningCalendarPopup` u `HomePageClient.tsx`.
+- **Pozicioniranje popupa (desktop, `md+`):** **iznad sidra** (`bottom = innerHeight − rect.top + 8`), desni rub poravnat s gumbom, clamp na rubove viewporta (`8px`). Širina 272 px.
+- **Mobile (`<md`):** **full-screen modal** — backdrop `fixed inset-0 z-[280] bg-black/70 backdrop-blur-sm`, kartica centrirana (`w-[min(22rem,100%)]`), dnevne ćelije povećane na `h-11 w-11` (touch target), dodatni ✕ gumb u headeru. Backdrop tap i Escape zatvaraju. Razlog: anchored popup se na malom ekranu miješa s altitude legendom i dockom.
+- **Kalendar semantika:** tjedan počinje ponedjeljkom (`Mo…Su`); prošli dani disabled (`text-zinc-600`); **danas** = emerald ring; **odabrani (planning) dan** = amber (`bg-amber-500/25 ring-amber-400/60`); hover slobodnih dana amber. Mjesečna navigacija ne ide u mjesece prije tekućeg. Zatvaranje: klik izvan + Escape.
+- **Pozicija:** u time ribbonu između slidera i Sync gumba (mobile `h-8 w-8`, desktop `h-9 w-9`).
+- **Stanja:** neaktivno = neutralno (`border-white/15`, `text-zinc-300`, hover amber); **planning mode aktivan** = amber (`border-amber-500/50 bg-amber-500/[0.16] text-amber-300`) — amber jer je vremenska manipulacija (isti akcent kao slider).
+- **Ograničenja:** `min` = današnji lokalni datum; odabir današnjeg (ili ranijeg) datuma = povratak u live (`syncTimeToNow`). Budući datum → `setTimeAnchorPlanned(lokalna ponoć)`.
+- **Planning mode semantika:** store flag `timeAnchorIsPlanned`; `tickLiveTime` tada NE povlači sidro na now. Live-ovisni izračuni (kandidati, active transits, photographer) vraćaju prazno / reason `planningMode`; paneli prikazuju amber napomenu (`border-amber-500/30 bg-amber-500/10 text-amber-300/90`). Ephemeris slojevi (Mjesec, putanja, koridor) rade normalno za odabrani dan.
+
+### 10.2 Best hours (planning mode, Transit candidates panel)
+
+- **Izvor:** `computeBestTransitHours` (`src/lib/domain/astro/bestTransitHours.ts`) — 24 satna uzorka (sredina sata): elevacija Mjeseca → `slant = (11 km − visina promatrača)/sin(elev)` → % promjera Mjeseca za default 40 m avion. Čisti ephemeris, bez live podataka.
+- **Tierovi (konstante u istoj datoteci):** `great` ≥ 15 % diska (emerald `bg-emerald-500/25 text-emerald-300`), `ok` 8–15 % (amber `bg-amber-500/20 text-amber-300`), `poor` < 8 % (`bg-white/[0.05]`, tercijarni tekst), `belowHorizon` < 5° elevacije (prozirno, `text-zinc-700`).
+- **Prikaz:** grid `grid-cols-8` (24 ćelije `h-8 rounded-lg`, font-mono sat `HH`), legenda s tri točke, sažetak "Best around HH:00 …". Aktivni (simulirani) sat: `ring-1 ring-sky-400/70` (sky = selekcija, §4a).
+- **Interakcija:** klik na sat → `setTimeOffsetMs` na **sredinu** tog sata (HH:30) — mapa/paneli skoče na taj trenutak. Renderira se samo u planning modeu, ispod amber napomene u `TransitCandidatesPanel`.
 
 ---
 

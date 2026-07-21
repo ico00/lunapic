@@ -5,7 +5,29 @@
 
 /** Gumb okidač comboboxa (puna širina, zinc + sky hover, emerald fokus ring per design system). */
 export const shellComboboxTriggerClass =
-  "inline-flex h-9 w-full min-w-0 shrink-0 items-center justify-between gap-2 rounded-md border border-zinc-700 bg-zinc-900/80 px-2.5 pr-2 text-left text-sm leading-none text-zinc-200 shadow-inner outline-none ring-inset backdrop-blur-sm transition hover:border-sky-500/35 hover:bg-zinc-900 focus:ring-2 focus:ring-emerald-500/50";
+  "inline-flex h-9 w-full min-w-0 shrink-0 items-center justify-between gap-2 rounded-md border border-zinc-700 bg-zinc-900/80 px-2.5 pr-2 text-left text-[length:var(--fs-body)] leading-none text-[color:var(--t-primary)] shadow-inner outline-none ring-inset backdrop-blur-sm transition hover:border-sky-500/35 hover:bg-zinc-900 focus:ring-2 focus:ring-emerald-500/50";
+
+/**
+ * Redak opcije u listboxu — zajednička baza. Selekcija je **sky** (spec §4 / §4a.2);
+ * violet / rose / lime su rezervirani za accent liniju kartice, ne za stanja opcija.
+ */
+export const shellComboboxOptionBaseClass =
+  "cursor-pointer select-none rounded-md px-2.5 py-1.5 text-left text-[length:var(--fs-body)] outline-none";
+
+/** Odabrana opcija (`aria-selected` / checked). */
+export const shellComboboxOptionSelectedClass =
+  "bg-sky-500/20 text-sky-200";
+
+/** Neodabrana opcija — hover/fokus na staklenom highlightu. */
+export const shellComboboxOptionIdleClass =
+  "text-[color:var(--t-primary)] hover:bg-white/[0.08] hover:text-[color:var(--t-primary)] focus:bg-white/[0.08]";
+
+/** Spoji bazu + stanje: `shellComboboxOptionClass(isSelected)`. */
+export function shellComboboxOptionClass(selected: boolean): string {
+  return `${shellComboboxOptionBaseClass} ${
+    selected ? shellComboboxOptionSelectedClass : shellComboboxOptionIdleClass
+  }`;
+}
 
 /**
  * Portal listbox (`fixed` + `z-[280]`). Dodati inline `style` za `top` / `left` / širinu.

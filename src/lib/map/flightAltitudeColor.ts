@@ -1,6 +1,6 @@
 import type { Map } from "mapbox-gl";
 
-import { FLIGHTS_LAYER_ID } from "@/lib/map/mapSourceIds";
+import { FLIGHTS_2D_LAYER_ID, FLIGHTS_LAYER_ID } from "@/lib/map/mapSourceIds";
 
 const ATC_FLIGHTS_DOT_LAYER_ID = "atc-flights-dot-layer";
 
@@ -41,6 +41,30 @@ export function flightFeatureColorMapboxExpression(): unknown[] {
       13716,
       "#9C27B0",
     ],
+  ];
+}
+
+/**
+ * Isti altitude ramp, ali na proizvoljnom GeoJSON propertyju (npr. `medianAltM`
+ * na povijesnim rutama) — bez shot-feasible grane.
+ */
+export function altitudePropertyColorMapboxExpression(propName: string): unknown[] {
+  return [
+    "interpolate",
+    ["linear"],
+    ["coalesce", ["to-number", ["get", propName]], 0],
+    0,
+    "#FF4D4D",
+    1524,
+    "#FFA500",
+    4572,
+    "#FFD700",
+    7620,
+    "#4CAF50",
+    10668,
+    "#2196F3",
+    13716,
+    "#9C27B0",
   ];
 }
 
@@ -87,6 +111,12 @@ export function applyFlightLayerColorPaint(
       | undefined;
     if (atcDotLayer?.type === "circle") {
       map.setPaintProperty(ATC_FLIGHTS_DOT_LAYER_ID, "circle-stroke-color", ex);
+    }
+    const flat2dLayer = map.getLayer(FLIGHTS_2D_LAYER_ID) as
+      | { type?: string }
+      | undefined;
+    if (flat2dLayer?.type === "symbol") {
+      map.setPaintProperty(FLIGHTS_2D_LAYER_ID, "icon-color", ex);
     }
   } catch {
     /* stil / sloj u tranziciji */

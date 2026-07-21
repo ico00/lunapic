@@ -90,7 +90,7 @@ export function CompassAimPanel() {
                   className={`absolute left-1/2 top-1/2 select-none text-[0.55rem] font-semibold leading-none ${
                     label === "N"
                       ? "text-amber-400/95"
-                      : "text-zinc-400/95"
+                      : "text-[color:var(--t-secondary)]"
                   }`}
                   style={{
                     transform: `translate(-50%, -50%) rotate(${deg}deg) translateY(-2.35rem) rotate(${headingForRose}deg)`,
@@ -102,7 +102,7 @@ export function CompassAimPanel() {
               {INTERCARDINALS.map(({ label, deg }) => (
                 <span
                   key={label}
-                  className="absolute left-1/2 top-1/2 select-none text-[0.45rem] font-medium leading-none text-zinc-500/85"
+                  className="absolute left-1/2 top-1/2 select-none text-[0.45rem] font-medium leading-none text-[color:var(--t-tertiary)]"
                   style={{
                     transform: `translate(-50%, -50%) rotate(${deg}deg) translateY(-2.1rem) rotate(${headingForRose}deg)`,
                   }}

@@ -5,6 +5,7 @@ import { clampFloatingMenuLeft } from "@/lib/ui/clampFloatingMenuLeft";
 import {
   shellAccentCheckboxClass,
   shellComboboxListboxPortalClass,
+  shellComboboxOptionClass,
   shellComboboxTriggerClass,
 } from "@/lib/ui/shellComboboxStyles";
 import { createPortal } from "react-dom";
@@ -130,11 +131,7 @@ export function FlightFiltersPanel({
             <li
               key={typeLabel}
               role="presentation"
-              className={`cursor-pointer select-none rounded-xl px-2.5 py-1.5 text-left text-[length:var(--fs-body)] outline-none ${
-                checked
-                  ? "bg-violet-500/15 text-violet-200"
-                  : "text-[color:var(--t-primary)] hover:bg-zinc-800/70 hover:text-[color:var(--t-primary)]"
-              }`}
+              className={shellComboboxOptionClass(checked)}
               onMouseDown={(e) => e.preventDefault()}
             >
               <label className="flex cursor-pointer items-center gap-2">

@@ -61,6 +61,7 @@
   --fs-body-strong: 16px;
   --fs-meta: 13px;
   --fs-label: 12px;
+  --fs-micro: 10px; /* count badge, instrument tick mikrotekst — nikad za čitljivi sadržaj */
 
   /* — Razmaci (8pt grid) ——————————————————— */
   --s-1: 4px;  --s-2: 8px;   --s-3: 12px;  --s-4: 16px;

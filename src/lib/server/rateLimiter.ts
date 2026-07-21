@@ -31,22 +31,30 @@ setInterval(
 /**
  * Provjeri je li IP prekoračio limit.
  *
+ * Brojač je **per bucket + IP**: svaka ruta nosi svoj `bucket` pa jedna ruta s
+ * čestim pollingom (npr. flight-state na svaki pan/zoom) ne troši kvotu druge
+ * rute s niskim limitom (npr. callsign-analysis). Bez bucketa bi zajednički
+ * IP-brojač lažno vraćao 429 na rijetko korištene rute.
+ *
  * @param ip       - IP adresa pozivatelja
  * @param limit    - maksimalan broj zahtjeva u prozoru (default: 60)
  * @param windowMs - duljina prozora u ms (default: 60 s)
+ * @param bucket   - logička grupa (obično ime rute); izolira brojač
  * @returns `{ allowed: true }` ili `{ allowed: false, retryAfterMs: number }`
  */
 export function checkRateLimit(
   ip: string,
   limit = 60,
-  windowMs = 60_000
+  windowMs = 60_000,
+  bucket = "global"
 ): { allowed: true } | { allowed: false; retryAfterMs: number } {
   const now = Date.now();
-  const existing = store.get(ip);
+  const key = `${bucket}:${ip}`;
+  const existing = store.get(key);
 
   if (!existing || now - existing.windowStart >= windowMs) {
     // Novi prozor
-    store.set(ip, { windowStart: now, count: 1 });
+    store.set(key, { windowStart: now, count: 1 });
     return { allowed: true };
   }
 
@@ -74,15 +82,16 @@ export function getClientIp(req: Request): string {
  * ili `null` ako je zahtjev dopušten. Koristiti kao jednu liniju na vrhu handlera.
  *
  * @example
- *   const reject = rejectIfRateLimited(req, 30, 60_000);
+ *   const reject = rejectIfRateLimited(req, 30, 60_000, "flight-log/track");
  *   if (reject) return reject;
  */
 export function rejectIfRateLimited(
   req: Request,
   limit: number,
-  windowMs = 60_000
+  windowMs = 60_000,
+  bucket = "global"
 ): NextResponse | null {
-  const rl = checkRateLimit(getClientIp(req), limit, windowMs);
+  const rl = checkRateLimit(getClientIp(req), limit, windowMs, bucket);
   if (rl.allowed) return null;
   return NextResponse.json(
     { error: "Previše zahtjeva. Pokušaj ponovo za nekoliko sekundi." },

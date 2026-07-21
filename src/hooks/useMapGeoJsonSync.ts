@@ -35,6 +35,11 @@ import { useEffect, useRef, type RefObject } from "react";
 // 80 ms matches the rAF tick in useExtrapolatedFlightsForMap; keeps Safari smooth.
 const FLIGHTS_GEOJSON_MIN_INTERVAL_MS = 80;
 const MPS_TO_KNOTS = 1.9438444924406048;
+/** Staleness fade: full opacity until 15s old, then fades to fully-stale (1.0) at 45s. */
+const STALE_FADE_START_MS = 15_000;
+const STALE_FADE_RAMP_MS = 30_000;
+/** Display-only: drop a flight from the map once fully faded (≥45s with no fresh position). */
+const STALE_HIDE_AGE_MS = STALE_FADE_START_MS + STALE_FADE_RAMP_MS;
 
 type UseMapGeoJsonSyncArgs = {
   mapRef: RefObject<mapboxgl.Map | null>;
@@ -258,8 +263,18 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
             : fList.some((f) => f.id === sel)
               ? sel
               : null;
-        const visibleFlights =
+        const baseFlights =
           idForFilter == null ? fList : fList.filter((f) => f.id === idForFilter);
+        // Display-only: hide fully-stale flights (≥45s without a fresh position —
+        // staleness has reached 1, fully faded) from the map so frozen ghosts and
+        // stale same-callsign duplicates disappear. The selected flight is kept so
+        // selection never loses its anchor. store.flights is untouched, so transit
+        // candidates / alerts still consider these flights.
+        const visibleFlights = baseFlights.filter(
+          (f) =>
+            f.id === idForFilter ||
+            flushNowMs - f.timestamp < STALE_HIDE_AGE_MS
+        );
         const levels = atmosphericLevelsRef.current;
         const bandIdx = altitudeBandIndexRef.current;
         const activeBand = bandIdx > 0 ? ALTITUDE_BANDS[bandIdx - 1] : null;
@@ -290,7 +305,7 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
                 typeof f.trackDeg === "number" && Number.isFinite(f.trackDeg)
                   ? ((f.trackDeg % 360) + 360) % 360
                   : null,
-              staleness: Math.min(1, Math.max(0, (flushNowMs - f.timestamp - 15_000) / 30_000)),
+              staleness: Math.min(1, Math.max(0, (flushNowMs - f.timestamp - STALE_FADE_START_MS) / STALE_FADE_RAMP_MS)),
               contrailLikelihood: levels != null
                 ? computeContrailLikelihood(f.baroAltitudeMeters, levels)
                 : "none",

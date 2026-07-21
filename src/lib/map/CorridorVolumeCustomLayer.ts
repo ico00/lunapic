@@ -47,8 +47,19 @@ export class CorridorVolumeCustomLayer {
   private uAlphaEdge: WebGLUniformLocation | null = null;
   private meshes: Mesh[] = [];
   private pendingFeatures: readonly Feature[] | null = null;
+  private map: mapboxgl.Map | null = null;
+  /** Hidden in flat 2D mode — the 2D fill footprint represents the corridor instead. */
+  private visible = true;
 
-  onAdd(_map: mapboxgl.Map, gl: WebGLRenderingContext): void {
+  /** Toggle the 3D volume render (used by the 2D display mode). */
+  setVisible(visible: boolean): void {
+    if (this.visible === visible) return;
+    this.visible = visible;
+    this.map?.triggerRepaint();
+  }
+
+  onAdd(map: mapboxgl.Map, gl: WebGLRenderingContext): void {
+    this.map = map;
     this.gl = gl;
 
     const vs = compileShader(gl, gl.VERTEX_SHADER, `
@@ -169,7 +180,7 @@ export class CorridorVolumeCustomLayer {
   }
 
   render(gl: WebGLRenderingContext, matrix: number[]): void {
-    if (!this.program || this.meshes.length === 0) return;
+    if (!this.visible || !this.program || this.meshes.length === 0) return;
 
     gl.useProgram(this.program);
     gl.enable(gl.BLEND);
@@ -205,5 +216,6 @@ export class CorridorVolumeCustomLayer {
       this.program = null;
     }
     this.gl = null;
+    this.map = null;
   }
 }

@@ -45,6 +45,8 @@ export interface FlightState {
   readonly airlineName?: string | null;
   /** Wingspan in meters when available; fallback heuristics are used otherwise. */
   readonly wingspanMeters?: number | null;
+  /** Duljina trupa u metrima (iz typecode tablice dimenzija), ili null. */
+  readonly lengthMeters?: number | null;
   /** Aircraft registration (e.g. "9A-CTG") — local ADS-B only. */
   readonly registration?: string | null;
   /** Squawk transponder code — local ADS-B only. */

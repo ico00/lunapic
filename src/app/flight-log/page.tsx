@@ -97,15 +97,17 @@ function FlightLogMap({ tracks }: { tracks: LoadedTrack[] }) {
 
     const activeIds = new Set(tracks.map((t) => t.icao24));
 
-    // Remove layers/sources for deselected aircraft
+    // Remove layers/sources for deselected aircraft. Match on the line layer but
+    // tear down ALL layers bound to the source (line, glow, dot) before removing
+    // the source — Mapbox throws if a source is removed while any layer uses it.
     const style = map.getStyle();
     for (const layer of style?.layers ?? []) {
-      if (!layer.id.startsWith("fllog-line-")) continue;
+      if (!layer.id.startsWith("fllog-line-") || layer.id.endsWith("-glow")) continue;
       const id = layer.id.replace("fllog-line-", "");
       if (!activeIds.has(id)) {
-        map.off("mouseenter", layer.id, () => {});
-        map.off("mouseleave", layer.id, () => {});
-        map.removeLayer(layer.id);
+        for (const lid of [`fllog-line-${id}`, `fllog-line-${id}-glow`, `fllog-dot-${id}`]) {
+          if (map.getLayer(lid)) map.removeLayer(lid);
+        }
         if (map.getSource(`fllog-src-${id}`)) map.removeSource(`fllog-src-${id}`);
       }
     }
@@ -372,6 +374,17 @@ export default function FlightLogPage() {
   const totalPages = Math.ceil(totalItems / PAGE_SIZE);
   const listLoading = listData === null;
 
+  // Direct page-number entry — uncontrolled input (keyed on `page`); commits a
+  // clamped value on Enter/blur.
+  const commitPageInput = useCallback((raw: string) => {
+    const n = parseInt(raw, 10);
+    const clamped = Number.isFinite(n)
+      ? Math.min(Math.max(1, n), Math.max(1, totalPages))
+      : page + 1;
+    setPage(clamped - 1);
+    return clamped;
+  }, [totalPages, page]);
+
   return (
     <div
       className="min-h-dvh w-full overflow-x-hidden px-4 py-8 sm:px-6 lg:px-8"
@@ -617,8 +630,22 @@ export default function FlightLogPage() {
                   className="flex items-center justify-between px-4 py-3"
                   style={{ borderTop: "1px solid var(--glass-stroke)" }}
                 >
-                  <span className="text-xs" style={{ color: "var(--t-tertiary)" }}>
-                    {fmtNumber(totalItems)} aviona · stranica {page + 1}/{totalPages}
+                  <span className="flex items-center gap-1.5 text-xs" style={{ color: "var(--t-tertiary)" }}>
+                    {fmtNumber(totalItems)} aviona · stranica
+                    <input
+                      key={page}
+                      type="text"
+                      inputMode="numeric"
+                      aria-label="Idi na stranicu"
+                      defaultValue={page + 1}
+                      onChange={(e) => { e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, ""); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                      onBlur={(e) => { e.currentTarget.value = String(commitPageInput(e.currentTarget.value)); }}
+                      onFocus={(e) => e.currentTarget.select()}
+                      className="w-11 rounded-[6px] border px-1.5 py-0.5 text-center outline-none"
+                      style={{ background: "var(--glass-3)", borderColor: "var(--glass-stroke-strong)", color: "var(--t-primary)" }}
+                    />
+                    /{totalPages}
                   </span>
                   <div className="flex gap-2">
                     <button

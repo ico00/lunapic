@@ -2,7 +2,7 @@
 
 import { Fragment } from "react";
 import { shellAccentCheckboxClass } from "@/lib/ui/shellComboboxStyles";
-import type { LiveFlightFeeds } from "@/stores/moon-transit-store";
+import { type LiveFlightFeeds, useMoonTransitStore } from "@/stores/moon-transit-store";
 import {
   FLIGHT_PROVIDER_COMBO_IDS,
   type FlightProviderId,
@@ -46,12 +46,16 @@ export function FlightSourcePanel({
   onLiveFlightFeedsChange,
   providerFlightCounts,
 }: FlightSourcePanelProps) {
+  const localsdrStatus = useMoonTransitStore((s) => s.localsdrStatus);
+  const sdrUnreachable =
+    liveFlightFeeds.localsdr && localsdrStatus === "unreachable";
   return (
     <div className="flex flex-col gap-0.5">
       {FLIGHT_PROVIDER_COMBO_IDS.map((id) => {
         const isLocalsdr = id === "localsdr";
         const feedOn = feedFor(id, liveFlightFeeds);
         const count = countFor(id, providerFlightCounts);
+        const rowUnreachable = isLocalsdr && feedOn && sdrUnreachable;
         return (
           <Fragment key={id}>
             {isLocalsdr && (
@@ -74,20 +78,44 @@ export function FlightSourcePanel({
                 className={shellAccentCheckboxClass}
               />
               <span className="min-w-0 flex-1">{labelForProvider(id)}</span>
-              {feedOn && count > 0 && (
-                <span className="shrink-0 text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
-                  ({count})
+              {rowUnreachable ? (
+                <span
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full border border-rose-400/40 bg-rose-500/15 px-2 py-0.5 text-[length:var(--fs-label)] font-semibold text-rose-300"
+                  data-testid="localsdr-offline"
+                >
+                  <span className="inline-block size-1.5 rounded-full bg-rose-400" aria-hidden />
+                  offline
                 </span>
-              )}
-              {isLocalsdr && feedOn && (
-                <span className="shrink-0 text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
-                  ↑ priority
-                </span>
+              ) : (
+                <>
+                  {feedOn && count > 0 && (
+                    <span className="shrink-0 text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
+                      ({count})
+                    </span>
+                  )}
+                  {isLocalsdr && feedOn && (
+                    <span className="shrink-0 text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
+                      ↑ priority
+                    </span>
+                  )}
+                </>
               )}
             </label>
           </Fragment>
         );
       })}
+
+      {sdrUnreachable && (
+        <div className="mt-1.5 flex items-start gap-2 rounded-md border border-rose-400/25 bg-rose-500/[0.07] px-2.5 py-2 text-[length:var(--fs-label)] text-rose-200">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden>
+            <path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+          </svg>
+          <span>
+            LunaPic ADS-B prijemnik nedostupan — provjeri Raspberry Pi i Tailscale Funnel.
+            Prikazuju se samo web izvori (ako su uključeni).
+          </span>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,0 +1,14 @@
+[Unit]
+Description=LunaPic — pošalji ADS-B snapshot serveru
+# Bez mreže nema smisla pokušavati; timer će svejedno ponoviti za 15 s.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/lunapic-sdr-push.env
+ExecStart=/usr/local/bin/lunapic-sdr-push
+# Neuspjeh ostaje vidljiv kao `failed` u `systemctl status` — bez maskiranja,
+# inače bi greška izgledala kao "Finished successfully" i lako bi promakla.
+# Timer svejedno okida dalje; rate limit isključen da ga niz grešaka ne blokira.
+StartLimitIntervalSec=0

@@ -9,6 +9,7 @@ import {
   useMoonStateComputed,
   useTransitCandidates,
 } from "@/hooks/useTransitCandidates";
+import { computeBestTransitHours } from "@/lib/domain/astro/bestTransitHours";
 import { isMoonVisibleFromMoonState } from "@/lib/domain/astro/moonVisibility";
 import { getTimeSliderWindowMs } from "@/lib/domain/astro/astroService";
 import { isDefaultObserverLocation } from "@/lib/defaultObserverLocation";
@@ -164,6 +165,54 @@ export function useHomeShellOrchestration() {
     syncTimeToNow();
   }, [syncTimeToNow]);
 
+  /* ---- Planning date picker (budući datum, lokalna ponoć kao sidro) ---- */
+  const isPlanned = useMoonTransitStore((s) => s.timeAnchorIsPlanned);
+  const setTimeAnchorPlanned = useMoonTransitStore((s) => s.setTimeAnchorPlanned);
+  const planningDateValue = useMemo(() => {
+    const d = new Date(isPlanned ? timeAnchorMs : Date.now());
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${d.getFullYear()}-${mm}-${dd}`;
+  }, [isPlanned, timeAnchorMs]);
+  const onPlanningDate = useCallback(
+    (value: string) => {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+      if (!m) {
+        return;
+      }
+      const anchor = new Date(
+        Number(m[1]),
+        Number(m[2]) - 1,
+        Number(m[3]),
+        0,
+        0,
+        0,
+        0
+      ).getTime();
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      // Danas (ili prošlost) = povratak u live mode.
+      if (anchor <= todayStart.getTime()) {
+        syncTimeToNow();
+        return;
+      }
+      setTimeAnchorPlanned(anchor);
+    },
+    [setTimeAnchorPlanned, syncTimeToNow]
+  );
+
+  /* ---- Best hours za planirani dan (čisti ephemeris) ---- */
+  const bestHours = useMemo(
+    () => (isPlanned ? computeBestTransitHours(obs, timeAnchorMs) : null),
+    [isPlanned, obs, timeAnchorMs]
+  );
+  const onSelectPlanningHour = useCallback(
+    (hourStartMs: number) => {
+      setTimeOffsetMs(hourStartMs + 1_800_000 - timeAnchorMs);
+    },
+    [setTimeOffsetMs, timeAnchorMs]
+  );
+
   const offsetHours = timeOffsetMs / 3_600_000;
   const onSlider = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -211,6 +260,11 @@ export function useHomeShellOrchestration() {
     gpsBusy,
     gpsError,
     syncTime,
+    isPlanned,
+    planningDateValue,
+    onPlanningDate,
+    bestHours,
+    onSelectPlanningHour,
     offsetHours,
     onSlider,
     showEphemeris,

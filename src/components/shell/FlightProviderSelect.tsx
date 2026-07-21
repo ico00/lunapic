@@ -16,6 +16,7 @@ import { clampFloatingMenuLeft } from "@/lib/ui/clampFloatingMenuLeft";
 import {
   shellAccentCheckboxClass,
   shellComboboxListboxPortalClass,
+  shellComboboxOptionClass,
   shellComboboxTriggerClass,
 } from "@/lib/ui/shellComboboxStyles";
 import type { LiveFlightFeeds } from "@/stores/moon-transit-store";
@@ -147,12 +148,7 @@ export function FlightProviderSelect({
 
   const buttonText = triggerLabel(value, liveFlightFeeds);
 
-  const optionRowBase =
-    "cursor-pointer select-none rounded-md px-2.5 py-1.5 text-left text-[length:var(--fs-body)] outline-none";
-  const liveRowClass = (feedOn: boolean) =>
-    feedOn
-      ? `${optionRowBase} bg-sky-500/20 text-sky-200`
-      : `${optionRowBase} text-[color:var(--t-primary)] hover:bg-white/[0.08] hover:text-[color:var(--t-primary)] focus:bg-white/[0.08]`;
+  const liveRowClass = (feedOn: boolean) => shellComboboxOptionClass(feedOn);
 
   const listbox =
     open && pos && hasMounted ? (

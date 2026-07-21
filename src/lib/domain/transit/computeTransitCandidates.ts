@@ -62,7 +62,9 @@ export function computeTransitCandidates({
   const screened = screenTransitCandidates(observer, moon, flights, wallNowMs, latencySkewMs);
   const enriched: TransitCandidate[] = [];
   for (const c of screened) {
-    const pack = GeometryEngine.photographerPack(observer, c.flight, moon, at, {});
+    const pack = GeometryEngine.photographerPack(observer, c.flight, moon, at, {
+      airlinerLengthMeters: c.flight.lengthMeters ?? undefined,
+    });
     // Nema predviđenog azimutalnog alignmenta → avion nema šanse biti u kadru s Mjesecom.
     if (pack !== null && pack.timeToAlignmentSec === null) {
       continue;

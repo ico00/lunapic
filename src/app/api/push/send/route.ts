@@ -57,7 +57,7 @@ function sanitizeTag(raw: unknown): string {
 
 export async function POST(req: Request) {
   // Broadcast je skup (pogađa svaki uređaj), pa držimo limit nisko: 5 / min / IP.
-  const reject = rejectIfRateLimited(req, 5, 60_000);
+  const reject = rejectIfRateLimited(req, 5, 60_000, "push/send");
   if (reject) return reject;
 
   // Only allow calls originating from the app itself (prevents external abuse)

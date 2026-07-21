@@ -24,7 +24,9 @@ export function computeConfirmedTransitFlightIds(
   }
   const candidates = screenTransitCandidates(observer, moon, flights, wallNowMs, latencySkewMs);
   for (const { flight } of candidates) {
-    const pack = GeometryEngine.photographerPack(observer, flight, moon, at, {});
+    const pack = GeometryEngine.photographerPack(observer, flight, moon, at, {
+      airlinerLengthMeters: flight.lengthMeters ?? undefined,
+    });
     if (pack?.willActuallyTransit) {
       out.add(flight.id);
     }

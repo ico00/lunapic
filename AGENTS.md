@@ -80,14 +80,61 @@ Koriste ih dvije strane s **identičnim pragovima**:
    `INTERNAL_SCAN_TOKEN`). Ruta računa kandidate **po pretplati** (svaka push
    subscription nosi svoju `observer` lokaciju + `camera`) i šalje Web Push
    izravno → alerti rade i kad je ekran ugašen / app u pozadini. Ovisi o aktivnom
-   `LOCAL_SDR_URL` polleru i konfiguriranom VAPID-u; inače tiho isključeno.
+   SDR feedu (vidi niže) i konfiguriranom VAPID-u; inače tiho isključeno.
 
 Klijent **ne** šalje push (uklonjena `document.hidden → /api/push/send` grana) —
 server je jedini vlasnik notifikacija, pa nema dvostrukih alerta.
 
+### Kako ADS-B podaci s Pija dolaze do servera (push, ne pull)
+
+**Produkcija — Pi šalje.** Pi svakih 15 s (systemd timer) POST-a svoj
+`aircraft.json` na `/api/localsdr/ingest` (auth: `x-sdr-token` =
+`SDR_INGEST_TOKEN`). Ruta validira da je tar1090 JSON i atomično zapiše
+`data/sdr-snapshot.json`. Čitaju ga `/api/localsdr/aircraft` i `server.js`
+poller; snapshot stariji od 60 s smatra se mrtvim.
+
+**Zašto push:** ranije je server **povlačio** podatke s Pija preko Tailscale
+Funnela. To zahtijeva da Pi bude javno dostupan — Funnel → javni DNS → cert →
+ingress. Ta se registracija pokazala nestabilnom: javni DNS zapis za
+`<node>.<tailnet>.ts.net` je titrao (jedni resolveri ga vide, drugi ne, mijenja
+se iz minute u minutu), pa je feed padao svakih par dana uz poruku
+`fetch failed: ENOTFOUND`. Dijagnosticirano 2026-07-20. Pi ima pouzdan
+**izlazni** internet, pa je smjer obrnut i Funnel više nije potreban.
+
+**Datoteka, ne memorija:** Next rute i `server.js` ne dijele pouzdano modulnu
+memoriju (bundler ih razdvaja), a Passenger može podići više procesa. Logika je
+u `sdrSnapshot.cjs` na korijenu — isti CJS/ESM shared obrazac kao `sdrUrl.cjs`;
+`src/lib/server/sdrSnapshotStore.ts` je samo typed wrapper.
+
+**Pull i dalje radi** kao fallback kad snapshota nema a `LOCAL_SDR_URL` je
+postavljen — koristi se u lokalnom devu na istoj mreži (`lunapic.local`).
+
+Instalacija na Piju: `scripts/pi-sdr-push.sh` + `lunapic-sdr-push.{service,timer}`
+(upute u zaglavlju skripte).
+
 ## Aktivan transit (`useActiveTransits`)
 
 Let je u "active transit" kad mu je **puna 2D kutna separacija** od Mjeseca ≤ 0.5° (kombinacija azimuta + elevacije, ne samo azimut). Koristi `angularSeparationDeg` iz `sky-separation.ts`.
+
+## Dimenzije zrakoplova (wingspan / length)
+
+Geometrija (shot feasibility, viewfinder, transit duration) koristi **stvarne
+dimenzije** kad su poznate, inače default 40 m:
+
+1. OpenSky indeks (`public/data/opensky-aircraft/`) daje ICAO typecode za
+   icao24 (tuple[0]).
+2. `aircraftTypeDimensions.ts` mapira typecode → `{wingspanMeters, lengthMeters}`
+   (~150 tipova + obiteljski prefix fallback, npr. `B73*` → B738).
+3. `useFlightAircraftTypeIndexPrefetch` puni `FlightState.wingspanMeters` /
+   `lengthMeters` u store (patch ne gazi vrijednosti iz providera);
+   `mergeStickyFlightMetadata` ih zadržava preko poll tickova.
+4. Potrošači: `evaluateShotFeasibility` (wingspan → coverage %),
+   `photographerPack` (`airlinerLengthMeters` → transit duration + willTransit
+   disk radius), `ViewfinderPreview` (length → silueta).
+
+Avion bez zapisa u indeksu (novi/vojni/čarter) ostaje na defaultu 40 m —
+konzervativno veći disk. **Server-side scan** (`/api/transit/scan`) ne radi
+index lookup pa uvijek koristi 40 m default.
 
 ## Shot feasibility — zelena ikona na mapi
 
@@ -110,6 +157,32 @@ Rating u `PhotographerToolsPanel`:
 - **Transit-at-alignment filter**: 100 km (buduća slant udaljenost pri predviđenom poravnanju)
 
 Sve četiri vrijednosti su namjerno različite. Ne miješati ih.
+
+### Zašto baš 80 km za vizualni prsten (floor vidljivosti)
+
+Prsten od 80 km nije proizvoljan — to je **prva linija ispod koje kadar vrijedi
+gledati u savršenim uvjetima**. Granica je postavljena na temelju stvarne
+rezolucije, ne osjećaja:
+
+- Tipičan putnički avion (raspon krila 40 m, `DEFAULT_WINGSPAN_M`) na 80 km ima
+  kutnu veličinu `2·atan(40 / (2·80000))` ≈ **0.0286° ≈ 103″**.
+- Pri 600 mm full-frame Mjesec (0.5° = 1800″) renderira se na **948 px**
+  (`REFERENCE_MOON_DIAMETER_PX_AT_600MM_FULL_FRAME`), pa avion na 80 km zauzme
+  **~54 px** širine i **~5.7 %** promjera Mjeseca — **jasno prepoznatljiva
+  silueta** (detekcija "nešto je preletjelo" treba par px, prepoznavanje aviona
+  ~20–30 px).
+- Čisto rezolucijski 600 mm doseže i dalje (gola silueta čitljiva i preko
+  100 km), ALI 80 km je točka gdje se poklapaju tri stvari: (a) prijelaz
+  pokrivenosti iz "excellent" u "fair", (b) deklarirani baseline dosega
+  120 km @ 600 mm postaje "fair" zona, i (c) geometrija počinje gurati avion u
+  nisku elevaciju (na 80 km slant + 11 km visine elevacija je ~7.9°, tj.
+  `caution` zona vidljivosti Mjeseca) gdje atmosferski seeing i izmaglica gutaju
+  detalj.
+
+Zaključak: prsten je **namjerno konzervativan** — granica "sve dalje od 80 km se
+ne isplati ni gledati". Limitator iznad 80 km u praksi nije objektiv nego
+atmosfera + niska elevacija. Brojevi: vidi `shotFeasibility.ts`
+(`aircraftAngularSizeDeg`, `BASELINE_RANGE_M`, `moonDiameterPxAtReferenceSensor`).
 
 ---
 

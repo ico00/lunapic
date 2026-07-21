@@ -32,7 +32,7 @@ const UPSTREAM_HEADERS: Record<string, string> = {
  * hosting IP-eva. Kratka predmemorija po (lat, lng, radius).
  */
 export async function GET(req: Request) {
-  const rl = checkRateLimit(getClientIp(req), 60, 60_000);
+  const rl = checkRateLimit(getClientIp(req), 60, 60_000, "adsbone/point");
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Previše zahtjeva. Pokušaj ponovo za nekoliko sekundi." },

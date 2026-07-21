@@ -100,16 +100,24 @@ async function fetchOpenSkyWithinBudget(
   if (forBody < 1) {
     throw new Error("OpenSky: no budget left for response body (slow TTFB)");
   }
-  const bodyText = await Promise.race([
-    r.text(),
-    new Promise<never>((_, rej) => {
-      setTimeout(
-        () => rej(new Error("OpenSky: response body read timeout")),
-        forBody
-      );
-    }),
-  ]);
-  return { r, bodyText };
+  // Na timeout MORA se prekinuti i sam zahtjev: inače `r.text()` ostaje viseti,
+  // a undici ne vraća konekciju u pool dok se tijelo ne pročita ili ne uništi
+  // (isti mehanizam koji je rušio SDR feed — vidi `discardBody` u server.js).
+  let bodyTid: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const bodyText = await Promise.race([
+      r.text(),
+      new Promise<never>((_, rej) => {
+        bodyTid = setTimeout(() => {
+          ac.abort();
+          rej(new Error("OpenSky: response body read timeout"));
+        }, forBody);
+      }),
+    ]);
+    return { r, bodyText };
+  } finally {
+    clearTimeout(bodyTid);
+  }
 }
 
 /**
@@ -120,7 +128,7 @@ async function fetchOpenSkyWithinBudget(
  * zahtjeva u kratkom roku (pan, više komponenti, dev Strict Mode).
  */
 export async function GET(req: Request) {
-  const rl = checkRateLimit(getClientIp(req), 60, 60_000);
+  const rl = checkRateLimit(getClientIp(req), 60, 60_000, "opensky/states");
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Previše zahtjeva. Pokušaj ponovo za nekoliko sekundi." },

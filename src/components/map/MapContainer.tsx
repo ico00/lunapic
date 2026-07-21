@@ -227,7 +227,7 @@ export function MapContainer({
     return (
       <div
         data-testid="map-missing-token"
-        className="flex h-full items-center justify-center bg-gradient-to-b from-black via-zinc-900 to-black px-4 text-center text-sm text-yellow-400/90 ring-1 ring-inset ring-zinc-700"
+        className="flex h-full items-center justify-center bg-gradient-to-b from-black via-zinc-900 to-black px-4 text-center text-[length:var(--fs-meta)] text-amber-300/90 ring-1 ring-inset ring-zinc-700"
       >
         Set <code className="mx-1 rounded bg-zinc-800 px-1.5 py-0.5">NEXT_PUBLIC_MAPBOX_TOKEN</code> in
         .env.local

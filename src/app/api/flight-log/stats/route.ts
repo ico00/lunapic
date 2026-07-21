@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 const NO_CACHE = { "Cache-Control": "no-store" };
 
 export async function GET(req: Request) {
-  const reject = rejectIfRateLimited(req, 30, 60_000);
+  const reject = rejectIfRateLimited(req, 30, 60_000, "flight-log/stats");
   if (reject) return reject;
   let stats;
   try {

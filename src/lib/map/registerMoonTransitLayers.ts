@@ -13,6 +13,8 @@ import {
 import { ensureMapboxTerrain } from "@/lib/map/mapboxTerrainElevation";
 import {
   FLIGHTS_LAYER_ID,
+  FLIGHTS_2D_LAYER_ID,
+  FLIGHT_2D_ICON_ID,
   FLIGHTS_ATC_LEADER_SOURCE,
   FLIGHTS_ATC_LABEL_SOURCE,
   FLIGHTS_ATC_PREDICTION_SOURCE,
@@ -70,6 +72,116 @@ function buildFlightModelScaleByAltitudeExpression(zoom: number): unknown[] {
     12000,
     ["literal", [14 * factor, 14 * factor, 14 * factor]],
   ];
+}
+
+/** Z-translacija modela aviona = nadmorska visina rute (3D podizanje iznad tla). */
+const FLIGHT_MODEL_ALTITUDE_TRANSLATION = [
+  0,
+  0,
+  ["coalesce", ["to-number", ["get", "altitudeMeters"]], 0],
+] as const;
+
+const FLIGHT_2D_ICON_SIZE_PX = 64;
+
+/**
+ * Crta bijelu top-down siluetu putničkog aviona (nos = sjever) za SDF ikonu.
+ * Samo alpha kanal je bitan — `icon-color` zatim boji ikonu po visini, isto kao
+ * `model-color` / `circle-color` na 3D/circle sloju.
+ */
+function buildFlight2dIconImage(): ImageData | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  const size = FLIGHT_2D_ICON_SIZE_PX;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return null;
+  }
+  const s = size / 64; // crtež je definiran u referentnom 64px prostoru
+  ctx.clearRect(0, 0, size, size);
+  ctx.fillStyle = "#ffffff";
+  ctx.translate(size / 2, size / 2);
+  ctx.beginPath();
+  ctx.moveTo(0, -29 * s); // nos
+  ctx.lineTo(3.5 * s, -15 * s);
+  ctx.lineTo(3.5 * s, -6 * s);
+  ctx.lineTo(29 * s, 6 * s); // desni vrh krila
+  ctx.lineTo(29 * s, 12 * s);
+  ctx.lineTo(3.5 * s, 7 * s);
+  ctx.lineTo(3 * s, 22 * s);
+  ctx.lineTo(11 * s, 28 * s); // desni stabilizator
+  ctx.lineTo(11 * s, 31 * s);
+  ctx.lineTo(0, 27 * s);
+  ctx.lineTo(-11 * s, 31 * s); // lijevi stabilizator
+  ctx.lineTo(-11 * s, 28 * s);
+  ctx.lineTo(-3 * s, 22 * s);
+  ctx.lineTo(-3.5 * s, 7 * s);
+  ctx.lineTo(-29 * s, 12 * s); // lijevi vrh krila
+  ctx.lineTo(-29 * s, 6 * s);
+  ctx.lineTo(-3.5 * s, -6 * s);
+  ctx.lineTo(-3.5 * s, -15 * s);
+  ctx.closePath();
+  ctx.fill();
+  return ctx.getImageData(0, 0, size, size);
+}
+
+function addFlight2dIcon(map: Map): void {
+  if (map.hasImage(FLIGHT_2D_ICON_ID)) {
+    return;
+  }
+  const img = buildFlight2dIconImage();
+  if (!img) {
+    return;
+  }
+  map.addImage(FLIGHT_2D_ICON_ID, img, { sdf: true });
+}
+
+/**
+ * Ravni 2D simbol sloj zrakoplova. Simboli su sidreni uz tlo (`*-alignment: map`)
+ * pa nemaju visinsku paralaksu kao podignuti 3D model — ikona sjedi točno na
+ * svojoj liniji predikcije bez obzira gdje je na ekranu. `icon-color` zadržava
+ * bojanje po visini (SDF ikona). Prikazuje se samo u `2d` modu.
+ */
+function addFlights2dSymbolLayer(map: Map): void {
+  addFlight2dIcon(map);
+  if (map.getLayer(FLIGHTS_2D_LAYER_ID)) {
+    return;
+  }
+  map.addLayer({
+    id: FLIGHTS_2D_LAYER_ID,
+    type: "symbol",
+    source: FLIGHTS_SOURCE,
+    filter: ["!=", ["get", "track"], null],
+    layout: {
+      visibility: "none",
+      "icon-image": FLIGHT_2D_ICON_ID,
+      "icon-size": [
+        "interpolate", ["linear"], ["zoom"],
+        6, 0.42,
+        11, 0.6,
+        14, 0.78,
+      ],
+      "icon-rotate": ["coalesce", ["to-number", ["get", "track"]], 0],
+      "icon-rotation-alignment": "map",
+      "icon-pitch-alignment": "map",
+      "icon-allow-overlap": true,
+      "icon-ignore-placement": true,
+    },
+    paint: {
+      "icon-color": flightFeatureColorMapboxExpressionForAltitudeTint(
+        true
+      ) as never,
+      "icon-opacity": [
+        "interpolate", ["linear"],
+        ["coalesce", ["to-number", ["get", "staleness"]], 0],
+        0, 1.0,
+        1, 0.28,
+      ] as never,
+    },
+  } as unknown as AnyLayer);
 }
 
 function applyFlightModelZoomScaleCompensation(map: Map): void {
@@ -331,11 +443,7 @@ function addFlightsModelLayer(map: Map): void {
     paint: {
       "model-type": "common-3d",
       "model-scale": buildFlightModelScaleByAltitudeExpression(map.getZoom()),
-      "model-translation": [
-        0,
-        0,
-        ["coalesce", ["to-number", ["get", "altitudeMeters"]], 0],
-      ],
+      "model-translation": FLIGHT_MODEL_ALTITUDE_TRANSLATION as unknown as number[],
       "model-rotation": [
         0,
         0,
@@ -790,6 +898,28 @@ export function registerMoonTransitLayers(
     },
   });
   map.addLayer({
+    id: "transit-opportunity-corridor-label",
+    type: "symbol",
+    source: SELECTED_STAND_SOURCE,
+    filter: ["==", ["get", "kind"], "transitOpportunityCorridorLabel"],
+    layout: {
+      "text-field": ["get", "label"],
+      "text-size": 12,
+      "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+      "text-offset": ["coalesce", ["get", "textOffset"], ["literal", [0, -0.9]]],
+      "text-pitch-alignment": "viewport",
+      "text-rotation-alignment": "viewport",
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
+    },
+    paint: {
+      "text-color": "#bbf7d0",
+      "text-halo-color": "#052e16",
+      "text-halo-width": 1.2,
+      "text-opacity": 0.98,
+    },
+  });
+  map.addLayer({
     id: "selected-aircraft-stand-fill",
     type: "fill",
     source: SELECTED_STAND_SOURCE,
@@ -936,6 +1066,7 @@ export function registerMoonTransitLayers(
   addFlightsCircleFallback(map);
   addConfirmedTransitBadgeLayer(map);
   addAtcFlightsLayers(map);
+  addFlights2dSymbolLayer(map);
 
   if (map.getLayer(FLIGHTS_SHADOW_LAYER_ID) && map.getLayer(FLIGHTS_LAYER_ID)) {
     map.moveLayer(FLIGHTS_SHADOW_LAYER_ID, FLIGHTS_LAYER_ID);
@@ -954,6 +1085,9 @@ export function registerMoonTransitLayers(
   }
   if (map.getLayer(ATC_FLIGHTS_LABEL_LAYER_ID)) {
     map.moveLayer(ATC_FLIGHTS_LABEL_LAYER_ID);
+  }
+  if (map.getLayer(FLIGHTS_2D_LAYER_ID)) {
+    map.moveLayer(FLIGHTS_2D_LAYER_ID);
   }
   ensureFlightLayerWith3dModel(map);
   onLayersReady?.();

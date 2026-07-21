@@ -34,6 +34,8 @@ type ActiveTransitsPanelProps = {
   showEphemeris: boolean;
   selectedFlightId: string | null;
   onSelectFlight: (id: string) => void;
+  /** Planning mode (budući datum): živi transiti su pauzirani, prikaži napomenu. */
+  planningMode?: boolean;
 };
 
 function bearingToCardinal(deg: number): string {
@@ -107,9 +109,21 @@ export function ActiveTransitsPanel({
   showEphemeris,
   selectedFlightId,
   onSelectFlight,
+  planningMode = false,
 }: ActiveTransitsPanelProps) {
   const selectedRow = rows.find((r) => r.flight.id === selectedFlightId) ?? null;
   useCenteredChime(selectedRow?.nudgeMeters ?? null);
+
+  if (planningMode) {
+    return (
+      <div>
+        <p className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-[length:var(--fs-meta)] leading-relaxed text-amber-300/90">
+          Planning a future date — active transits need live traffic, so this
+          list is paused. Press Sync to return to live traffic.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div>

@@ -39,5 +39,14 @@ export const FLIGHT_3D_MODEL_URL =
  */
 export const FLIGHT_3D_MODEL_UI_PREVIEW_PATH = "/images/flight-3d-model-thumb.png";
 
+/** Ikone modova prikaza aviona ("Aircraft display" popover) — vidi `public/images/icons/`. */
+export const MAP_DISPLAY_MODE_ICON_PATHS = {
+  default: "/images/icons/mode-3d.svg",
+  "2d": "/images/icons/mode-2d.svg",
+  atc: "/images/icons/mode-atc.svg",
+  vfr: "/images/icons/mode-vfr.svg",
+  streetview: "/images/icons/mode-street-view.svg",
+} as const;
+
 /** ID modela u stilu (`map.addModel` / layout `model-id`). */
 export const FLIGHT_3D_MODEL_ID = "lunapic-aircraft-3d";

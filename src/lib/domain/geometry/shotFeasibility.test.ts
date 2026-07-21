@@ -3,6 +3,7 @@ import {
   aircraftAngularSizeDeg,
   classifyShotFeasibility,
   effectiveFocalLengthMm,
+  evaluateShotFeasibility,
   maxShotRangeMetersForCamera,
   moonCoveragePercent,
   moonDiameterPxAtReferenceSensor,
@@ -67,6 +68,37 @@ describe("shotFeasibility", () => {
     expect(classifyShotFeasibility(100_000, 5)).toBe("fair");
     expect(classifyShotFeasibility(170_000, 9)).toBe("poor");
     expect(classifyShotFeasibility(90_000, 2.5)).toBe("poor");
+  });
+
+  it("evaluateShotFeasibility koristi stvarni wingspan leta umjesto defaulta 40 m", () => {
+    const observer = { lat: 45.8, lng: 16.0, groundHeightMeters: 120 };
+    const camera = { focalLengthMm: 600, sensorType: "fullFrame" as const };
+    const flightBase = {
+      position: { lat: 46.1, lng: 16.3 },
+      baroAltitudeMeters: 11_000,
+      geoAltitudeMeters: 11_000,
+      groundSpeedMps: 230,
+      trackDeg: 270,
+    };
+    const withDefault = evaluateShotFeasibility(
+      observer,
+      { ...flightBase, wingspanMeters: null },
+      camera
+    );
+    const withRealSpan = evaluateShotFeasibility(
+      observer,
+      { ...flightBase, wingspanMeters: 28.7 },
+      camera
+    );
+    expect(withDefault).not.toBeNull();
+    expect(withRealSpan).not.toBeNull();
+    // Isti let, ista udaljenost → omjer kutnih veličina = omjer raspona.
+    expect(
+      withRealSpan!.angularSizeDeg / withDefault!.angularSizeDeg
+    ).toBeCloseTo(28.7 / 40, 3);
+    expect(withRealSpan!.moonCoveragePercent).toBeLessThan(
+      withDefault!.moonCoveragePercent
+    );
   });
 });
 

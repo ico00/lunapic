@@ -1,8 +1,9 @@
 "use client";
 
+import { FLIGHT_HISTORY_DAYS } from "@/hooks/useFlightHistoryLayers";
 import { useHasMounted } from "@/hooks/useHasMounted";
 import { clampFloatingMenuLeft } from "@/lib/ui/clampFloatingMenuLeft";
-import { FLIGHT_3D_MODEL_UI_PREVIEW_PATH } from "@/lib/map/mapOverlayConstants";
+import { MAP_DISPLAY_MODE_ICON_PATHS } from "@/lib/map/mapOverlayConstants";
 import { appPath } from "@/lib/paths/appPath";
 import {
   shellGlassCheckboxClass,
@@ -39,96 +40,41 @@ function LayersStackIcon({ className }: { className?: string }) {
   );
 }
 
-function Preview3DModel() {
+/**
+ * Pločica moda prikaza — ikona iz `public/images/icons/` centrirana na tamnoj
+ * podlozi. Ikone nose vlastite boje (sky/indigo), pa se renderiraju kao `<img>`
+ * umjesto `currentColor` SVG-a.
+ */
+function previewForMode(mode: MapDisplayMode) {
   return (
-    <div className="relative h-full w-full overflow-hidden bg-[color:var(--bg-2)]" aria-hidden>
-      {/* eslint-disable-next-line @next/next/no-img-element -- small static preview; avoids next/image basePath coupling */}
+    <div
+      className="relative flex h-full w-full items-center justify-center overflow-hidden bg-[color:var(--bg-2)]"
+      aria-hidden
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element -- static ikona; izbjegava next/image basePath spregu */}
       <img
-        src={appPath(FLIGHT_3D_MODEL_UI_PREVIEW_PATH)}
+        src={appPath(MAP_DISPLAY_MODE_ICON_PATHS[mode])}
         alt=""
-        width={280}
-        height={210}
-        className="h-full w-full object-cover object-center"
+        width={64}
+        height={64}
+        className="h-[58%] w-[58%] object-contain"
         draggable={false}
       />
     </div>
   );
 }
 
-function PreviewAtcStyle() {
-  return (
-    <div
-      className="relative flex h-full w-full items-center justify-center overflow-hidden bg-gradient-to-br from-[color:var(--bg-1)] via-sky-950/40 to-[color:var(--bg-2)]"
-      aria-hidden
-    >
-      <div className="absolute h-10 w-10 rounded-full border-2 border-sky-400/35" />
-      <div className="absolute h-6 w-6 rounded-full border-2 border-sky-200/45" />
-      <div className="absolute h-2 w-2 rounded-full bg-sky-100/90 shadow-[0_0_12px_rgba(224,242,254,0.55)]" />
-    </div>
-  );
-}
-
-function PreviewVfrStyle() {
-  return (
-    <div
-      className="relative flex h-full w-full items-center justify-center overflow-hidden bg-[#0d1a0d]"
-      aria-hidden
-    >
-      <div className="absolute h-11 w-11 rounded-full border-2 border-green-500/40" />
-      <div className="absolute h-7 w-7 rounded-full border-2 border-amber-400/55" />
-      <div className="absolute h-3.5 w-3.5 rounded-full border-[1.5px] border-cyan-400/65" />
-      <div className="absolute h-1.5 w-1.5 rounded-full bg-amber-400/90 shadow-[0_0_8px_rgba(251,191,36,0.6)]" />
-      <div
-        className="absolute inset-0 opacity-15"
-        style={{
-          background:
-            "repeating-linear-gradient(35deg, transparent, transparent 12px, rgba(74,222,128,0.18) 12px, rgba(74,222,128,0.18) 13px)",
-        }}
-      />
-    </div>
-  );
-}
-
-function PreviewStreetViewStyle() {
-  return (
-    <div
-      className="relative flex h-full w-full items-center justify-center overflow-hidden bg-gradient-to-b from-sky-900/60 to-zinc-900"
-      aria-hidden
-    >
-      {/* Sky */}
-      <div className="absolute inset-0 bg-gradient-to-b from-sky-800/50 via-sky-950/30 to-zinc-900" />
-      {/* Horizon line */}
-      <div className="absolute left-0 right-0 top-[55%] h-px bg-zinc-500/40" />
-      {/* Moon circle */}
-      <div className="absolute top-[30%] left-1/2 -translate-x-1/2 h-6 w-6 rounded-full border-2 border-amber-400/80 bg-amber-400/10 shadow-[0_0_12px_rgba(251,191,36,0.5)]" />
-      {/* Path dots */}
-      <div className="absolute top-[38%] left-[35%] h-1.5 w-1.5 rounded-full bg-amber-400/50" />
-      <div className="absolute top-[34%] left-[43%] h-1.5 w-1.5 rounded-full bg-amber-400/60" />
-      <div className="absolute top-[28%] left-[60%] h-1.5 w-1.5 rounded-full bg-amber-400/50" />
-      {/* Street */}
-      <div className="absolute bottom-0 left-0 right-0 h-[30%] bg-zinc-800/60" />
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 h-[30%] w-[2px] bg-zinc-500/30" />
-    </div>
-  );
-}
-
-function previewForMode(mode: MapDisplayMode) {
-  if (mode === "atc") return <PreviewAtcStyle />;
-  if (mode === "vfr") return <PreviewVfrStyle />;
-  if (mode === "streetview") return <PreviewStreetViewStyle />;
-  return <Preview3DModel />;
-}
-
-/** Minijatura na gumbu = sljedeći mod u ciklusu (default→atc→vfr→streetview→default). */
-function alternateMapDisplayMode(mode: MapDisplayMode): MapDisplayMode {
-  if (mode === "default") return "atc";
-  if (mode === "atc") return "vfr";
-  if (mode === "vfr") return "streetview";
-  return "default";
-}
+const MODE_LABELS: Record<MapDisplayMode, string> = {
+  default: "3D Model",
+  "2d": "2D Flat",
+  atc: "ATC Style",
+  vfr: "VFR Map",
+  streetview: "Street View",
+};
 
 const OPTIONS: readonly { id: MapDisplayMode; label: string }[] = [
   { id: "default", label: "3D" },
+  { id: "2d", label: "2D" },
   { id: "atc", label: "ATC" },
   { id: "vfr", label: "VFR" },
   { id: "streetview", label: "Street View" },
@@ -139,6 +85,8 @@ export function MapDisplayModeLayersControl() {
   const setMapDisplayMode = useMoonTransitStore((s) => s.setMapDisplayMode);
   const flightHistoryHeatmap = useMoonTransitStore((s) => s.flightHistoryHeatmap);
   const setFlightHistoryHeatmap = useMoonTransitStore((s) => s.setFlightHistoryHeatmap);
+  const hourFilter = useMoonTransitStore((s) => s.flightHistoryHourFilter);
+  const setHourFilter = useMoonTransitStore((s) => s.setFlightHistoryHourFilter);
   const flightHistoryRoutes = useMoonTransitStore((s) => s.flightHistoryRoutes);
   const setFlightHistoryRoutes = useMoonTransitStore((s) => s.setFlightHistoryRoutes);
   const hasMounted = useHasMounted();
@@ -150,22 +98,30 @@ export function MapDisplayModeLayersControl() {
     top: number;
     left: number;
     width: number;
+    anchorTop: number;
+    anchorBottom: number;
   } | null>(null);
+
+  const GAP_PX = 10;
+  const VIEWPORT_MARGIN_PX = 8;
 
   const updateMenuPos = useCallback(() => {
     const el = triggerRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    const gap = 10;
-    const w = Math.max(320, r.width * 4.5);
-    const left = r.left;
+    const w = Math.max(360, r.width * 5.2);
+    // Preliminary placement uses a height estimate; the post-render effect below
+    // re-measures the actual menu height and corrects `top` so it never overlaps
+    // the trigger or the controls to its right.
     const estMenuHeightPx = 136;
-    const topAbove = r.top - gap - estMenuHeightPx;
-    const placeAbove = topAbove >= 8;
+    const topAbove = r.top - GAP_PX - estMenuHeightPx;
+    const placeAbove = topAbove >= VIEWPORT_MARGIN_PX;
     setMenuPos({
-      top: placeAbove ? topAbove : r.bottom + gap,
-      left,
+      top: placeAbove ? topAbove : r.bottom + GAP_PX,
+      left: r.left,
       width: w,
+      anchorTop: r.top,
+      anchorBottom: r.bottom,
     });
   }, []);
 
@@ -178,10 +134,24 @@ export function MapDisplayModeLayersControl() {
     if (!open || !menuPos) return;
     const menu = menuRef.current;
     if (!menu) return;
-    const w = menu.getBoundingClientRect().width;
-    const nextLeft = clampFloatingMenuLeft(menuPos.left, w);
-    if (Math.abs(nextLeft - menuPos.left) >= 1) {
-      setMenuPos((p) => (p ? { ...p, left: nextLeft } : null));
+    const rect = menu.getBoundingClientRect();
+
+    // Correct horizontal position against the measured width.
+    const nextLeft = clampFloatingMenuLeft(menuPos.left, rect.width);
+
+    // Correct vertical position against the measured height: prefer sitting fully
+    // above the trigger, otherwise drop below it.
+    const topAbove = menuPos.anchorTop - GAP_PX - rect.height;
+    const nextTop =
+      topAbove >= VIEWPORT_MARGIN_PX ? topAbove : menuPos.anchorBottom + GAP_PX;
+
+    if (
+      Math.abs(nextLeft - menuPos.left) >= 1 ||
+      Math.abs(nextTop - menuPos.top) >= 1
+    ) {
+      setMenuPos((p) =>
+        p ? { ...p, left: nextLeft, top: nextTop } : null,
+      );
     }
   }, [open, menuPos]);
 
@@ -254,7 +224,10 @@ export function MapDisplayModeLayersControl() {
           <div className="flex flex-col gap-1.5">
             <label className="flex cursor-pointer items-center justify-between gap-3">
               <span className="text-[length:var(--fs-label)] text-[color:var(--t-primary)]">
-                Density heatmap
+                Density heatmap{" "}
+                <span className="text-[color:var(--t-tertiary)]">
+                  ({FLIGHT_HISTORY_DAYS} days)
+                </span>
               </span>
               <input
                 type="checkbox"
@@ -264,9 +237,53 @@ export function MapDisplayModeLayersControl() {
                 aria-label="Toggle flight history density heatmap"
               />
             </label>
+            {flightHistoryHeatmap && (
+              <div className="flex items-center justify-between gap-2 pl-3">
+                <span className="text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
+                  Hours
+                </span>
+                <div className="flex items-center gap-1">
+                  <select
+                    value={hourFilter ? String(hourFilter.from) : "all"}
+                    onChange={(e) => {
+                      if (e.target.value === "all") { setHourFilter(null); return; }
+                      const from = parseInt(e.target.value, 10);
+                      setHourFilter({ from, to: hourFilter?.to ?? (from + 6) % 24 });
+                    }}
+                    aria-label="Heatmap hour window start"
+                    className="rounded-[var(--r-sm)] border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)] px-1.5 py-0.5 text-[length:var(--fs-label)] text-[color:var(--t-primary)] outline-none focus-visible:ring-1 focus-visible:ring-sky-400/40"
+                  >
+                    <option value="all">All</option>
+                    {Array.from({ length: 24 }, (_, h) => (
+                      <option key={h} value={h}>{String(h).padStart(2, "0")}h</option>
+                    ))}
+                  </select>
+                  {hourFilter && (
+                    <>
+                      <span className="text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">–</span>
+                      <select
+                        value={String(hourFilter.to)}
+                        onChange={(e) =>
+                          setHourFilter({ from: hourFilter.from, to: parseInt(e.target.value, 10) })
+                        }
+                        aria-label="Heatmap hour window end"
+                        className="rounded-[var(--r-sm)] border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)] px-1.5 py-0.5 text-[length:var(--fs-label)] text-[color:var(--t-primary)] outline-none focus-visible:ring-1 focus-visible:ring-sky-400/40"
+                      >
+                        {Array.from({ length: 24 }, (_, h) => (
+                          <option key={h} value={h}>{String(h).padStart(2, "0")}h</option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
             <label className="flex cursor-pointer items-center justify-between gap-3">
               <span className="text-[length:var(--fs-label)] text-[color:var(--t-primary)]">
-                Route lines
+                Route lines{" "}
+                <span className="text-[color:var(--t-tertiary)]">
+                  ({FLIGHT_HISTORY_DAYS} days)
+                </span>
               </span>
               <input
                 type="checkbox"
@@ -279,7 +296,7 @@ export function MapDisplayModeLayersControl() {
           </div>
         </div>
 
-        <div className="grid min-h-0 flex-1 grid-cols-4 gap-2 overflow-y-auto p-2">
+        <div className="grid min-h-0 flex-1 grid-cols-5 gap-2 overflow-y-auto p-2">
           {OPTIONS.map((opt) => {
             const active = mapDisplayMode === opt.id;
             return (
@@ -329,13 +346,13 @@ export function MapDisplayModeLayersControl() {
           aria-expanded={open}
           aria-haspopup="dialog"
           aria-controls={open ? menuId : undefined}
-          aria-label={`Switch aircraft map view. Currently ${mapDisplayMode === "atc" ? "ATC Style" : mapDisplayMode === "vfr" ? "VFR Map" : "3D Model"}; thumbnail previews the next option.`}
+          aria-label={`Switch aircraft map view. Currently ${MODE_LABELS[mapDisplayMode]}.`}
           data-testid="map-display-mode-layers-trigger"
           data-value={mapDisplayMode}
           onClick={() => setOpen((v) => !v)}
         >
           <div className="relative min-h-0 w-full flex-1 md:h-[4.5rem] md:flex-none">
-            {previewForMode(alternateMapDisplayMode(mapDisplayMode))}
+            {previewForMode(mapDisplayMode)}
           </div>
           <div className="flex min-h-[1.35rem] shrink-0 items-center justify-center gap-1 border-t border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)] px-1 py-0.5 text-[length:var(--fs-label)] font-semibold leading-none tracking-wide text-[color:var(--t-secondary)]">
             <LayersStackIcon className="h-3.5 w-3.5 shrink-0 text-[color:var(--t-tertiary)]" />

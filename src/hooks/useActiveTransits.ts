@@ -23,16 +23,19 @@ export function useActiveTransits(
   const referenceEpochMs = useMoonTransitStore((s) => s.referenceEpochMs);
   const openSkyLatencySkewMs = useMoonTransitStore((s) => s.openSkyLatencySkewMs);
   const flights = useMoonTransitStore((s) => s.flights);
-  return useMemo(
-    () =>
-      computeActiveTransits({
-        observer,
-        flights,
-        at: new Date(referenceEpochMs),
-        wallNowMs: Date.now(),
-        latencySkewMs: openSkyLatencySkewMs,
-        toleranceDeg,
-      }),
-    [observer, referenceEpochMs, openSkyLatencySkewMs, flights, toleranceDeg]
-  );
+  const timeAnchorIsPlanned = useMoonTransitStore((s) => s.timeAnchorIsPlanned);
+  return useMemo(() => {
+    // Planning mode: budući Mjesec + današnji živi letovi nemaju smisla zajedno.
+    if (timeAnchorIsPlanned) {
+      return [];
+    }
+    return computeActiveTransits({
+      observer,
+      flights,
+      at: new Date(referenceEpochMs),
+      wallNowMs: Date.now(),
+      latencySkewMs: openSkyLatencySkewMs,
+      toleranceDeg,
+    });
+  }, [observer, referenceEpochMs, openSkyLatencySkewMs, flights, toleranceDeg, timeAnchorIsPlanned]);
 }

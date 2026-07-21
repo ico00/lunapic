@@ -23,7 +23,7 @@ export function WeatherOverlay() {
   return (
     <div className="pointer-events-none flex min-w-0 shrink-0 items-center self-center">
       <div
-        className="flex min-w-0 items-center gap-1.5 text-xs text-zinc-200"
+        className="flex min-w-0 items-center gap-1.5 text-[length:var(--fs-label)] text-[color:var(--t-primary)]"
         title={title}
         aria-live="polite"
       >

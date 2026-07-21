@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 const NO_CACHE = { "Cache-Control": "no-store" };
 
 export async function GET(req: NextRequest) {
-  const reject = rejectIfRateLimited(req, 30, 60_000);
+  const reject = rejectIfRateLimited(req, 30, 60_000, "flight-log/aircraft-list");
   if (reject) return reject;
   const sp = req.nextUrl.searchParams;
   const daysBack = Math.min(Math.max(parseFloat(sp.get("days") ?? "7"), 0.1), 365);

@@ -1,6 +1,8 @@
 "use client";
 
-import { fetchOpenSkyAircraftTypeLabel } from "@/lib/flight/openskyAircraftIndexClient";
+import { resolveAircraftDimensionsByTypecode } from "@/lib/flight/aircraftTypeDimensions";
+import { fetchOpenSkyAircraftIndexEntry } from "@/lib/flight/openskyAircraftIndexClient";
+import { formatOpenSkyAircraftIndexLabel } from "@/lib/flight/openskyAircraftIndexShard";
 import type { FlightState } from "@/types/flight";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useEffect, useRef } from "react";
@@ -18,9 +20,10 @@ function icaoForIndexLookup(f: FlightState): string | null {
 }
 
 /**
- * Punjenje `FlightState.aircraftType` iz lokalnog OpenSky indeksa za sve letove
- * koji još nemaju tip — isto kao lazy lookup u {@link SelectedAircraftMapPopup},
- * ali bez čekanja na odabir na karti (Filter / aircraft type multi-select).
+ * Punjenje `FlightState.aircraftType` + stvarnih dimenzija (`wingspanMeters`,
+ * `lengthMeters` preko typecode tablice) iz lokalnog OpenSky indeksa za sve
+ * letove koji ih još nemaju — isto kao lazy lookup u
+ * {@link SelectedAircraftMapPopup}, ali bez čekanja na odabir na karti.
  */
 export function useFlightAircraftTypeIndexPrefetch(): void {
   const flights = useMoonTransitStore((s) => s.flights);
@@ -39,7 +42,11 @@ export function useFlightAircraftTypeIndexPrefetch(): void {
       runAbortRef.current = ac;
 
       const need = flights
-        .filter((f) => !f.aircraftType?.trim() && icaoForIndexLookup(f))
+        .filter(
+          (f) =>
+            (!f.aircraftType?.trim() || f.wingspanMeters == null) &&
+            icaoForIndexLookup(f)
+        )
         .slice(0, MAX_FLIGHTS);
 
       if (need.length === 0) {
@@ -59,11 +66,17 @@ export function useFlightAircraftTypeIndexPrefetch(): void {
               continue;
             }
             try {
-              const label = await fetchOpenSkyAircraftTypeLabel(icao);
-              if (ac.signal.aborted || !label.trim()) {
+              const entry = await fetchOpenSkyAircraftIndexEntry(icao);
+              if (ac.signal.aborted || !entry) {
                 continue;
               }
-              patch(f.id, label);
+              const label = formatOpenSkyAircraftIndexLabel(entry).trim();
+              // tuple[0] = ICAO typecode (npr. B738) → stvarne dimenzije aviona.
+              const dimensions = resolveAircraftDimensionsByTypecode(entry[0]);
+              if (!label && !dimensions) {
+                continue;
+              }
+              patch(f.id, label, dimensions);
             } catch (e) {
               if (!ac.signal.aborted) {
                 console.warn(

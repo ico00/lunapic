@@ -16,6 +16,7 @@ import {
   clearOpenSkyFlightRetention,
   mergeFlightsWithOpenSkyRetention,
 } from "@/lib/flight/mergeFlightsWithOpenSkyRetention";
+import type { AircraftDimensions } from "@/lib/flight/aircraftTypeDimensions";
 import { getFlightProvider } from "@/lib/flight/flightProviderRegistry";
 import type { FlightAltitudeLegendUnit } from "@/lib/map/flightAltitudeColor";
 import { useObserverStore } from "@/stores/observer-store";
@@ -34,6 +35,22 @@ export type LiveFlightFeeds = {
 import { defaultMapViewState } from "@/types/map";
 import { create } from "zustand";
 
+/** Next-pass prediction for a flight-log callsign (mirror of the API's NextPassPrediction). */
+export type FlightLogNextPass = {
+  readonly callsign: string;
+  readonly estimateMs: number;
+  readonly stdMinutes: number;
+  readonly sessionCount: number;
+};
+
+/** Altitude profile of the selected callsign over the observer area, metres. */
+export type FlightLogAltitude = {
+  readonly callsign: string;
+  readonly minM: number;
+  readonly medianM: number;
+  readonly maxM: number;
+};
+
 /** Širina klizača u ms (civilni dan naprijed od sidra). */
 export const TIME_SLIDER_WINDOW_MS = UTC_DAY_MS;
 
@@ -46,12 +63,27 @@ type MoonTransitState = {
   /** Pomak u ms od `timeAnchorMs` (0 … `UTC_DAY_MS`). */
   timeOffsetMs: number;
   referenceEpochMs: number;
+  /**
+   * Planning mode: sidro je ručno postavljeno na budući datum (date picker),
+   * pa `tickLiveTime` NE smije povlačiti sidro na `Date.now()`. Live-ovisni
+   * izračuni (kandidati, active transits, photographer countdown) se gase.
+   * `syncTimeToNow` vraća na `false`.
+   */
+  timeAnchorIsPlanned: boolean;
+  /** Postavi sidro na zadani trenutak (lokalna ponoć odabranog dana) i uđi u planning mode. */
+  setTimeAnchorPlanned: (anchorMs: number) => void;
   mapView: MapViewState;
   flightProvider: FlightProviderId;
   /** Vrijedi kad je `flightProvider` `opensky` ili `adsbone`; inače se ignorira pri učitavanju. */
   liveFlightFeeds: LiveFlightFeeds;
   flights: readonly FlightState[];
   providerFlightCounts: { opensky: number; adsbone: number; localsdr: number };
+  /**
+   * Reachability of the local SDR upstream (Pi via `/api/localsdr/aircraft`).
+   * `idle` = feed off; `ok` = last fetch succeeded; `unreachable` = last fetch
+   * failed (Pi/Funnel down). Lets the UI warn instead of showing a silent empty list.
+   */
+  localsdrStatus: "idle" | "ok" | "unreachable";
   isLoading: boolean;
   error: string | null;
   /** Zrakoplov za odbrojavanje udarca / alata. */
@@ -120,15 +152,26 @@ type MoonTransitState = {
   /** Flight history overlay: show heatmap and/or route lines from local ADS-B log. */
   flightHistoryHeatmap: boolean;
   setFlightHistoryHeatmap: (v: boolean) => void;
+  /** Hour-of-day window (viewer-local, inclusive; from > to wraps midnight). null = all hours. */
+  flightHistoryHourFilter: { from: number; to: number } | null;
+  setFlightHistoryHourFilter: (f: { from: number; to: number } | null) => void;
   flightHistoryRoutes: boolean;
   setFlightHistoryRoutes: (v: boolean) => void;
   /** ICAO24 selected from the Flight log panel — triggers trail render on the main map. */
   flightLogSelectedIcao24: string | null;
   flightLogDaysBack: number;
   setFlightLogSelected: (icao24: string | null, days?: number) => void;
+  /** Keeps the map layers' lookback window in sync with the panel's range pills. */
+  setFlightLogDaysBack: (days: number) => void;
   /** Callsign selected from the Flight log panel — triggers session history + mean path on map. */
   flightLogSelectedCallsign: string | null;
-  setFlightLogSelectedCallsign: (callsign: string | null) => void;
+  setFlightLogSelectedCallsign: (callsign: string | null, days?: number) => void;
+  /** Next-pass prediction for the selected callsign (from callsign-analysis API). */
+  flightLogNextPass: FlightLogNextPass | null;
+  setFlightLogNextPass: (p: FlightLogNextPass | null) => void;
+  /** Altitude profile for the selected callsign (from callsign-analysis API). */
+  flightLogAltitude: FlightLogAltitude | null;
+  setFlightLogAltitude: (a: FlightLogAltitude | null) => void;
   setFlightProvider: (id: FlightProviderId) => void;
   setLiveFlightFeeds: (patch: Partial<LiveFlightFeeds>) => void;
   /** Ako je još `static` (stari build), prebaci na live dual — static nije u comboboxu. */
@@ -141,7 +184,8 @@ type MoonTransitState = {
    */
   patchFlightAircraftTypeFromIndex: (
     flightId: string,
-    aircraftType: string
+    aircraftType: string,
+    dimensions?: AircraftDimensions | null
   ) => void;
   loadFlightsInBounds: (bounds: GeoBounds) => Promise<void>;
   resetError: () => void;
@@ -178,11 +222,13 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   timeAnchorMs: 0,
   timeOffsetMs: 0,
   referenceEpochMs: 0,
+  timeAnchorIsPlanned: false,
   mapView: defaultMapViewState,
   flightProvider: "opensky",
   liveFlightFeeds: { opensky: true, adsbone: true, localsdr: true },
   flights: [],
   providerFlightCounts: { opensky: 0, adsbone: 0, localsdr: 0 },
+  localsdrStatus: "idle",
   isLoading: false,
   error: null,
   selectedFlightId: null,
@@ -281,12 +327,26 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
       timeAnchorMs: now,
       timeOffsetMs: 0,
       referenceEpochMs: now,
+      timeAnchorIsPlanned: false,
+      ephemerisRefetchKey: s.ephemerisRefetchKey + 1,
+    });
+  },
+  setTimeAnchorPlanned: (anchorMs) => {
+    if (!Number.isFinite(anchorMs) || anchorMs <= 0) {
+      return;
+    }
+    const s = get();
+    set({
+      timeAnchorMs: anchorMs,
+      timeOffsetMs: 0,
+      referenceEpochMs: anchorMs,
+      timeAnchorIsPlanned: true,
       ephemerisRefetchKey: s.ephemerisRefetchKey + 1,
     });
   },
   tickLiveTime: () => {
     const s = get();
-    if (s.timeOffsetMs !== 0) return;
+    if (s.timeOffsetMs !== 0 || s.timeAnchorIsPlanned) return;
     const now = Date.now();
     const prevRef = s.referenceEpochMs;
     const crossedDay =
@@ -310,10 +370,12 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
     set({ flightAltitudeLegendUnit: unit }),
   altitudeBandIndex: 0,
   setAltitudeBandIndex: (i) => set({ altitudeBandIndex: i }),
-  mapDisplayMode: "default",
+  mapDisplayMode: "2d",
   setMapDisplayMode: (mode) => set({ mapDisplayMode: mode }),
   flightHistoryHeatmap: false,
   setFlightHistoryHeatmap: (v) => set({ flightHistoryHeatmap: v }),
+  flightHistoryHourFilter: null,
+  setFlightHistoryHourFilter: (f) => set({ flightHistoryHourFilter: f }),
   flightHistoryRoutes: false,
   setFlightHistoryRoutes: (v) => set({ flightHistoryRoutes: v }),
   flightLogSelectedIcao24: null,
@@ -323,8 +385,20 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
       flightLogSelectedIcao24: icao24,
       flightLogDaysBack: days ?? s.flightLogDaysBack,
     })),
+  setFlightLogDaysBack: (days) => set({ flightLogDaysBack: days }),
   flightLogSelectedCallsign: null,
-  setFlightLogSelectedCallsign: (callsign) => set({ flightLogSelectedCallsign: callsign }),
+  setFlightLogSelectedCallsign: (callsign, days) =>
+    set((s) => ({
+      flightLogSelectedCallsign: callsign,
+      flightLogDaysBack: days ?? s.flightLogDaysBack,
+      // Prediction/profile belong to the previous callsign — clear until the new fetch lands
+      flightLogNextPass: null,
+      flightLogAltitude: null,
+    })),
+  flightLogNextPass: null,
+  setFlightLogNextPass: (p) => set({ flightLogNextPass: p }),
+  flightLogAltitude: null,
+  setFlightLogAltitude: (a) => set({ flightLogAltitude: a }),
   setFlightProvider: (id) =>
     set((s) => {
       let liveFlightFeeds = s.liveFlightFeeds;
@@ -407,9 +481,9 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
       ),
     }));
   },
-  patchFlightAircraftTypeFromIndex: (flightId, aircraftType) => {
+  patchFlightAircraftTypeFromIndex: (flightId, aircraftType, dimensions) => {
     const t = aircraftType.trim();
-    if (!t) {
+    if (!t && !dimensions) {
       return;
     }
     set((s) => ({
@@ -417,11 +491,23 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
         if (f.id !== flightId) {
           return f;
         }
-        const prev = f.aircraftType?.trim() ?? "";
-        if (prev) {
+        // Popuni samo praznine — izvor (provider) ima prednost pred indeksom.
+        const nextType = f.aircraftType?.trim() ? f.aircraftType : t || f.aircraftType;
+        const nextWingspan = f.wingspanMeters ?? dimensions?.wingspanMeters ?? null;
+        const nextLength = f.lengthMeters ?? dimensions?.lengthMeters ?? null;
+        if (
+          nextType === f.aircraftType &&
+          nextWingspan === (f.wingspanMeters ?? null) &&
+          nextLength === (f.lengthMeters ?? null)
+        ) {
           return f;
         }
-        return { ...f, aircraftType: t };
+        return {
+          ...f,
+          aircraftType: nextType,
+          wingspanMeters: nextWingspan,
+          lengthMeters: nextLength,
+        };
       }),
     }));
   },
@@ -452,6 +538,7 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
           sel != null && merged.some((f) => f.id === sel);
         set({
           flights: merged,
+          localsdrStatus: "idle",
           isLoading: false,
           ...(keepSel ? {} : { selectedFlightId: null }),
         });
@@ -465,8 +552,15 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
       // fallback samo ako localsdr nije uključen — SDR-only mod je valjan
       if (ids.length === 0 && !feeds.localsdr) ids.push("opensky");
 
+      // Track SDR reachability separately from the (silently caught) result so
+      // the UI can tell "Pi has 0 aircraft" apart from "Pi/Funnel unreachable".
+      let sdrReachable = true;
       const sdrPromise: Promise<readonly FlightState[]> = feeds.localsdr
-        ? getFlightProvider("localsdr").getFlightsInBounds(query).catch(() => [])
+        ? getFlightProvider("localsdr").getFlightsInBounds(query).catch((e) => {
+            sdrReachable = false;
+            console.warn("[MoonTransit] localsdr upstream unreachable:", e instanceof Error ? e.message : e);
+            return [];
+          })
         : Promise.resolve([]);
 
       const [settled, sdrList] = await Promise.all([
@@ -475,6 +569,12 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
         ),
         sdrPromise,
       ]);
+
+      const localsdrStatus: "idle" | "ok" | "unreachable" = !feeds.localsdr
+        ? "idle"
+        : sdrReachable
+        ? "ok"
+        : "unreachable";
 
       const lists: (readonly FlightState[])[] = [];
       const errors: string[] = [];
@@ -506,6 +606,7 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
         set({
           flights: merged,
           providerFlightCounts: { opensky: 0, adsbone: 0, localsdr: sdrList.length },
+          localsdrStatus,
           isLoading: false,
           ...(sel != null && merged.some((f) => f.id === sel)
             ? {}
@@ -520,6 +621,7 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
         set({
           flights: [],
           providerFlightCounts: { opensky: 0, adsbone: 0, localsdr: 0 },
+          localsdrStatus,
           isLoading: false,
           selectedFlightId: null,
         });
@@ -558,6 +660,7 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
       set({
         flights: merged,
         providerFlightCounts: { ...rawCounts, localsdr: sdrList.length },
+        localsdrStatus,
         isLoading: false,
         ...(keepSel ? {} : { selectedFlightId: null }),
       });

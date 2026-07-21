@@ -92,7 +92,10 @@ export function photographerPack(
   moon: MoonState,
   at: Date,
   extra: {
-    /** Tipičan Airbus A320; prosječna kutna veličina u tranzitu. */
+    /**
+     * Stvarna duljina zrakoplova (`FlightState.lengthMeters` iz typecode
+     * tablice dimenzija) kad je poznata; default 40 m ≈ tipičan airliner.
+     */
     readonly airlinerLengthMeters?: number;
   } = {}
 ): {

@@ -82,6 +82,31 @@ const faqSections: { title: string; items: FaqItem[] }[] = [
     ],
   },
   {
+    title: "Transit size & geometry",
+    items: [
+      {
+        question: "Why does the plane look so tiny against the moon in my photos?",
+        answer:
+          "Because of one number only: the straight-line (slant) distance from you to the aircraft. The moon is always about 0.5° across — on a 600 mm full-frame setup it renders at roughly the same ~950 px every night. The plane's share of that disc shrinks linearly with distance.\n\nRule of thumb for a typical airliner (~36–40 m wingspan):\n\n~15 km away → about 25–30% of the moon's diameter — a dramatic, detailed silhouette.\n\n~40 km away → about 11% — clearly a plane, but small.\n\n~80–100 km away → 4–6% — a sliver you may barely notice in the frame.\n\nThe Photographer panel shows this distance live as \"Straight-line distance to plane\", and the coverage percentage above it tells you exactly how big the silhouette will be. If it reads 80+ km, the plane will be tiny no matter what camera you use.",
+      },
+      {
+        question: "What is slant (straight-line) distance?",
+        answer:
+          "It is the length of your actual line of sight to the aircraft — the hypotenuse of the triangle formed by you, the point on the ground below the plane, and the plane. Not the plane's altitude, and not the map distance: light travels the full diagonal from the aircraft to your lens, and that diagonal is what sets the silhouette size.\n\nFor a transit, the aircraft must sit exactly on your sight-line to the moon. Cruising jets all fly on an invisible \"ceiling\" at roughly 11 km, so the distance to a transiting jet is simply where your sight-line pierces that ceiling:\n\nslant ≈ cruise altitude ÷ sin(moon elevation)\n\nLook up steeply (moon high, say 50°) and the line pierces the ceiling almost overhead — about 14 km away. Look shallow (moon at 8°) and the line travels ~78 km before reaching cruise altitude. Same moon, same jet — five times the distance, one fifth the silhouette.",
+      },
+      {
+        question: "If the moon is always the same size, why does moon elevation matter?",
+        answer:
+          "Moon elevation is not a separate factor — it is the mechanism that controls the only factor: plane distance.\n\nThe moon's apparent size barely changes (±7% over a month; a horizon moon is actually ~1.5% smaller than an overhead one — the \"huge moon at the horizon\" is an illusion). What elevation does control is the angle of your sight-line, and therefore how far away a cruise-altitude aircraft must be to cross it. Low moon → shallow line → distant planes → tiny silhouettes. High moon → steep line → close planes → big silhouettes.\n\nThe exception: aircraft that are not at cruise altitude. A plane on approach at 500–3000 m crosses your sight-line close to you regardless of moon elevation. That is why photos of low-flying aircraft in front of a low moon look so spectacular — low moon plus low traffic is the one combination where elevation stops mattering.",
+      },
+      {
+        question: "When do I get the biggest silhouettes?",
+        answer:
+          "Two working strategies:\n\n1. High moon + ordinary cruise traffic. Wait for sessions when the moon is 40°+ above the horizon (check Moon nowcast, or scrub the time slider ahead). A transiting jet is then only 13–16 km away — 25–35% of the disc. The trade-off: the transit corridor on the ground narrows with distance (roughly slant × 0.0087, so ~800 m wide at 90 km but only ~120 m at 14 km), which makes alerts and small repositioning moves matter much more. Use the candidate alerts and the nudge arrow, and be ready to walk.\n\n2. Low moon + airport traffic. Position yourself where an approach or departure path visually crosses the moon. A plane on final at a few km slant can appear as large as the moon disc or bigger. Positioning is metre-precise (the approach path is a fixed line in the sky — you move until it intersects the moon) and the crossing lasts a fraction of a second, so prefocus on the moon and shoot bursts.\n\nThe worst combination is the one that produces most disappointing photos: a low moon with only cruise traffic — every transit is then locked to 70–100 km and physics guarantees a tiny plane. If the Photographer panel shows FAIR with 4–6% coverage, that is what is happening.",
+      },
+    ],
+  },
+  {
     title: "Panels",
     items: [
       {

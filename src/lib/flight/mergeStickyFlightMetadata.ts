@@ -24,12 +24,16 @@ export function mergeStickyFlightMetadata(
     const airlineName = f.airlineName ?? old.airlineName;
     const originCountry = f.originCountry ?? old.originCountry;
     const airlineIcao = f.airlineIcao ?? old.airlineIcao;
+    const wingspanMeters = f.wingspanMeters ?? old.wingspanMeters;
+    const lengthMeters = f.lengthMeters ?? old.lengthMeters;
     if (
       adsbEmitterCategory === f.adsbEmitterCategory &&
       aircraftType === f.aircraftType &&
       airlineName === f.airlineName &&
       originCountry === f.originCountry &&
-      airlineIcao === f.airlineIcao
+      airlineIcao === f.airlineIcao &&
+      wingspanMeters === f.wingspanMeters &&
+      lengthMeters === f.lengthMeters
     ) {
       return f;
     }
@@ -40,6 +44,8 @@ export function mergeStickyFlightMetadata(
       airlineName,
       originCountry,
       airlineIcao,
+      wingspanMeters,
+      lengthMeters,
     };
   });
 }

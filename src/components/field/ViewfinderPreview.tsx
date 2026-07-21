@@ -566,8 +566,8 @@ export function ViewfinderPreview({
               type="button"
               className={
                 showReferenceSensorScale
-                  ? "min-w-[4.6rem] rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-zinc-900 shadow-sm bg-zinc-100"
-                  : "min-w-[4.6rem] rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-zinc-400 transition hover:bg-zinc-800/90 hover:text-zinc-200"
+                  ? "min-w-[4.6rem] rounded px-2 py-0.5 text-[length:var(--fs-label)] font-semibold uppercase tracking-wide text-zinc-900 shadow-sm bg-zinc-100"
+                  : "min-w-[4.6rem] rounded px-2 py-0.5 text-[length:var(--fs-label)] font-semibold uppercase tracking-wide text-[color:var(--t-tertiary)] transition hover:bg-zinc-800/90 hover:text-[color:var(--t-secondary)]"
               }
               aria-pressed={showReferenceSensorScale}
               onClick={() => {
@@ -580,8 +580,8 @@ export function ViewfinderPreview({
               type="button"
               className={
                 !showReferenceSensorScale
-                  ? "min-w-[4.6rem] rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-zinc-900 shadow-sm bg-zinc-100"
-                  : "min-w-[4.6rem] rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-zinc-400 transition hover:bg-zinc-800/90 hover:text-zinc-200"
+                  ? "min-w-[4.6rem] rounded px-2 py-0.5 text-[length:var(--fs-label)] font-semibold uppercase tracking-wide text-zinc-900 shadow-sm bg-zinc-100"
+                  : "min-w-[4.6rem] rounded px-2 py-0.5 text-[length:var(--fs-label)] font-semibold uppercase tracking-wide text-[color:var(--t-tertiary)] transition hover:bg-zinc-800/90 hover:text-[color:var(--t-secondary)]"
               }
               aria-pressed={!showReferenceSensorScale}
               onClick={() => {

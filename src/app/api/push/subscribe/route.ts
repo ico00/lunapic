@@ -56,7 +56,7 @@ type SubscribeBody = {
 };
 
 export async function POST(req: Request) {
-  const reject = rejectIfRateLimited(req, 10, 60_000);
+  const reject = rejectIfRateLimited(req, 10, 60_000, "push/subscribe");
   if (reject) return reject;
 
   let body: SubscribeBody;
@@ -84,7 +84,7 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const reject = rejectIfRateLimited(req, 10, 60_000);
+  const reject = rejectIfRateLimited(req, 10, 60_000, "push/subscribe");
   if (reject) return reject;
 
   let body: { endpoint?: string };

@@ -94,7 +94,7 @@ export function FieldOverlaysSection() {
             onClick={() => {
               addSkew(-1_000);
             }}
-            className="shrink-0 rounded border border-zinc-600 px-2 py-1 text-xs text-zinc-200"
+            className="shrink-0 rounded border border-zinc-600 px-2 py-1 text-[length:var(--fs-label)] text-[color:var(--t-primary)]"
           >
             −1 s
           </button>
@@ -107,7 +107,7 @@ export function FieldOverlaysSection() {
             onChange={(e) => {
               setSkew(parseFloat(e.target.value) * 1_000);
             }}
-            className="h-1.5 w-full min-w-0 flex-1 accent-blue-500"
+            className="h-1.5 w-full min-w-0 flex-1 accent-sky-500"
             aria-label="Aircraft time offset in seconds"
           />
           <button
@@ -115,12 +115,12 @@ export function FieldOverlaysSection() {
             onClick={() => {
               addSkew(1_000);
             }}
-            className="shrink-0 rounded border border-zinc-600 px-2 py-1 text-xs text-zinc-200"
+            className="shrink-0 rounded border border-zinc-600 px-2 py-1 text-[length:var(--fs-label)] text-[color:var(--t-primary)]"
           >
             +1 s
           </button>
         </div>
-        <p className="mt-1 text-center font-mono text-sm text-amber-400/85">
+        <p className="mt-1 text-center font-mono text-[length:var(--fs-meta)] text-amber-400/85">
           {skewSec >= 0 ? "+" : ""}
           {num(skewSec, 1)} s
         </p>
@@ -146,10 +146,10 @@ export function FieldOverlaysSection() {
           onClick={() => {
             setLocked(!locked);
           }}
-          className={`rounded px-3 py-1.5 text-sm ${
+          className={`rounded px-3 py-1.5 text-[length:var(--fs-meta)] ${
             locked
               ? "bg-emerald-500/15 text-emerald-300"
-              : "bg-zinc-800/70 text-zinc-400"
+              : "bg-zinc-800/70 text-[color:var(--t-tertiary)]"
           }`}
         >
           {locked ? "Unlock" : "Lock"}
@@ -161,7 +161,7 @@ export function FieldOverlaysSection() {
           <button
             type="button"
             onClick={onExportText}
-            className="flex-1 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-1.5 text-sm font-medium text-emerald-100"
+            className="flex-1 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-1.5 text-[length:var(--fs-meta)] font-medium text-emerald-100"
           >
             Cheat sheet (.txt)
           </button>
@@ -169,7 +169,7 @@ export function FieldOverlaysSection() {
             type="button"
             onClick={onExportPng}
             disabled={exportBusy}
-            className="flex-1 rounded-xl border border-white/[0.1] bg-zinc-800/60 py-1.5 text-sm text-zinc-200 disabled:opacity-50"
+            className="flex-1 rounded-xl border border-white/[0.1] bg-zinc-800/60 py-1.5 text-[length:var(--fs-meta)] text-[color:var(--t-secondary)] disabled:opacity-50"
           >
             {exportBusy ? "…" : "Snapshot (.png)"}
           </button>

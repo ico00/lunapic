@@ -5,6 +5,10 @@
 export const FLIGHTS_SOURCE = "flights-geo";
 /** Circle layer za pozicije zrakoplova (klik → odabir leta). */
 export const FLIGHTS_LAYER_ID = "flights-layer";
+/** Ravni 2D simbol (top-down ikona) zrakoplova — prilijepljen uz tlo, bez paralakse. */
+export const FLIGHTS_2D_LAYER_ID = "flights-2d-layer";
+/** SDF ikona aviona za 2D simbol sloj (bijela silueta → boji se `icon-color` po visini). */
+export const FLIGHT_2D_ICON_ID = "flight-2d-plane";
 export const FLIGHTS_ATC_LEADER_SOURCE = "flights-atc-leader-geo";
 export const FLIGHTS_ATC_PREDICTION_SOURCE = "flights-atc-prediction-geo";
 export const FLIGHTS_ATC_LABEL_SOURCE = "flights-atc-label-geo";

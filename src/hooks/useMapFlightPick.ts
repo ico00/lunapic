@@ -1,4 +1,4 @@
-import { FLIGHTS_LAYER_ID } from "@/lib/map/mapSourceIds";
+import { FLIGHTS_2D_LAYER_ID, FLIGHTS_LAYER_ID } from "@/lib/map/mapSourceIds";
 import { ATC_FLIGHTS_DOT_LAYER_ID } from "@/lib/map/registerMoonTransitLayers";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import type { Map, MapMouseEvent } from "mapbox-gl";
@@ -17,9 +17,11 @@ export function useMapFlightPick(
     if (!map) {
       return;
     }
-    const pickableLayers = [FLIGHTS_LAYER_ID, ATC_FLIGHTS_DOT_LAYER_ID].filter(
-      (id) => !!map.getLayer(id)
-    );
+    const pickableLayers = [
+      FLIGHTS_LAYER_ID,
+      FLIGHTS_2D_LAYER_ID,
+      ATC_FLIGHTS_DOT_LAYER_ID,
+    ].filter((id) => !!map.getLayer(id));
     if (pickableLayers.length === 0) {
       return;
     }
@@ -47,22 +49,18 @@ export function useMapFlightPick(
     };
 
     map.on("click", onClick);
-    if (map.getLayer(FLIGHTS_LAYER_ID)) {
-      map.on("mouseenter", FLIGHTS_LAYER_ID, onEnter);
-      map.on("mouseleave", FLIGHTS_LAYER_ID, onLeave);
-    }
-    if (map.getLayer(ATC_FLIGHTS_DOT_LAYER_ID)) {
-      map.on("mouseenter", ATC_FLIGHTS_DOT_LAYER_ID, onEnter);
-      map.on("mouseleave", ATC_FLIGHTS_DOT_LAYER_ID, onLeave);
+    for (const layerId of pickableLayers) {
+      map.on("mouseenter", layerId, onEnter);
+      map.on("mouseleave", layerId, onLeave);
     }
 
     return () => {
       // Avoid getLayer in teardown — style may already be removed (narrow resize).
       map.off("click", onClick);
-      map.off("mouseenter", FLIGHTS_LAYER_ID, onEnter);
-      map.off("mouseleave", FLIGHTS_LAYER_ID, onLeave);
-      map.off("mouseenter", ATC_FLIGHTS_DOT_LAYER_ID, onEnter);
-      map.off("mouseleave", ATC_FLIGHTS_DOT_LAYER_ID, onLeave);
+      for (const layerId of pickableLayers) {
+        map.off("mouseenter", layerId, onEnter);
+        map.off("mouseleave", layerId, onLeave);
+      }
     };
   }, [mapRef, mapReadyTick]);
 }

@@ -350,7 +350,7 @@ export function StreetViewFullscreen({ moon, observer, nowMs, candidates, active
         <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/80 z-[10000]">
           <div className="flex flex-col items-center gap-3">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-amber-400/40 border-t-amber-400" />
-            <span className="text-sm text-zinc-300">Loading Street View…</span>
+            <span className="text-[length:var(--fs-meta)] text-[color:var(--t-secondary)]">Loading Street View…</span>
           </div>
         </div>
       )}
@@ -360,8 +360,8 @@ export function StreetViewFullscreen({ moon, observer, nowMs, candidates, active
         <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/90 z-[10000]">
           <div className="text-center">
             <div className="mb-2 text-4xl">📍</div>
-            <p className="text-base font-semibold text-zinc-200">Street View unavailable</p>
-            <p className="mt-1 text-sm text-zinc-500">No panorama within 100 m of observer location</p>
+            <p className="text-[length:var(--fs-body-strong)] font-semibold text-[color:var(--t-primary)]">Street View unavailable</p>
+            <p className="mt-1 text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">No panorama within 100 m of observer location</p>
           </div>
         </div>
       )}

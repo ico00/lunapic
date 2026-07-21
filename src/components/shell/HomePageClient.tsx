@@ -325,12 +325,14 @@ function FloatingRail({
   onSelect,
   onClose,
   badges,
+  warnIds,
   children,
 }: {
   expandedId: PanelId | null;
   onSelect: (id: PanelId) => void;
   onClose: () => void;
   badges: Partial<Record<PanelId, number>>;
+  warnIds?: Partial<Record<PanelId, boolean>>;
   children: React.ReactNode;
 }) {
   const expanded = expandedId !== null;
@@ -354,6 +356,7 @@ function FloatingRail({
           const Icon = item.icon;
           const isOpen = expandedId === item.id;
           const badge = badges[item.id];
+          const warn = warnIds?.[item.id] ?? false;
           return (
             <button
               key={item.id}
@@ -374,10 +377,15 @@ function FloatingRail({
               {badge && badge > 0 ? (
                 <span
                   aria-hidden
-                  className="absolute right-1 top-1 grid min-w-[18px] place-items-center rounded-full bg-amber-400 px-1 font-mono text-[10px] font-bold leading-[18px] text-zinc-900"
+                  className="absolute right-1 top-1 grid min-w-[18px] place-items-center rounded-full bg-amber-400 px-1 font-mono text-[length:var(--fs-micro)] font-bold leading-[18px] text-zinc-900"
                 >
                   {badge}
                 </span>
+              ) : warn ? (
+                <span
+                  aria-hidden
+                  className="absolute right-1.5 top-1.5 size-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)] ring-2 ring-[color:var(--bg-1)]"
+                />
               ) : null}
               {isOpen ? (
                 <span
@@ -444,6 +452,279 @@ function FloatingRail({
 
 /* ---------------- Time ribbon (bottom) ------------------------------------- */
 
+function localDateInputValue(ms: number): string {
+  const d = new Date(ms);
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+const CALENDAR_WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"] as const;
+
+function localMidnightMs(ms: number): number {
+  const d = new Date(ms);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+/**
+ * Custom kalendar popup u stilu comboboxa (spec §4 / §10.1): portal na body,
+ * `position: fixed`, otvara se IZNAD sidra (native date popup se ne može ni
+ * pozicionirati ni stilizirati, pa je na full-screenu bježao ispod ruba).
+ */
+function PlanningCalendarPopup(props: {
+  anchor: HTMLElement;
+  selectedValue: string;
+  isPlanned: boolean;
+  onPick: (value: string) => void;
+  onClose: () => void;
+}) {
+  const { anchor, selectedValue, isPlanned, onPick, onClose } = props;
+  // Mobile: full-screen modal s backdropom (anchored popup se gura preko
+  // altitude legende i docka — previše elemenata). Desktop: popup iznad ribbona.
+  const isMdUp = useIsMdUp();
+  const popupRef = useRef<HTMLDivElement | null>(null);
+  const todayMs = localMidnightMs(Date.now());
+  const selectedMs = useMemo(() => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(selectedValue);
+    return m
+      ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getTime()
+      : todayMs;
+  }, [selectedValue, todayMs]);
+  const [viewYear, setViewYear] = useState(() => new Date(selectedMs).getFullYear());
+  const [viewMonth, setViewMonth] = useState(() => new Date(selectedMs).getMonth());
+
+  useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (!popupRef.current?.contains(t) && !anchor.contains(t)) {
+        onClose();
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [anchor, onClose]);
+
+  const rect = anchor.getBoundingClientRect();
+  const POPUP_WIDTH = 272;
+  const left = Math.max(
+    8,
+    Math.min(rect.right - POPUP_WIDTH, window.innerWidth - POPUP_WIDTH - 8)
+  );
+  const bottom = window.innerHeight - rect.top + 8;
+  const dayCellClass = isMdUp ? "h-8 w-8" : "h-11 w-11";
+
+  const monthTitle = new Date(viewYear, viewMonth, 1).toLocaleDateString("en-GB", {
+    month: "long",
+    year: "numeric",
+  });
+  const firstOfMonth = new Date(viewYear, viewMonth, 1);
+  const leadingBlanks = (firstOfMonth.getDay() + 6) % 7; // ponedjeljak prvi
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const canGoPrev =
+    new Date(viewYear, viewMonth, 1).getTime() >
+    new Date(new Date(todayMs).getFullYear(), new Date(todayMs).getMonth(), 1).getTime();
+
+  const cells: (number | null)[] = [
+    ...Array.from({ length: leadingBlanks }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+
+  const card = (
+    <div
+      ref={popupRef}
+      className={`rounded-2xl border border-white/10 bg-zinc-900/95 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.8)] backdrop-blur-md ${
+        isMdUp ? "fixed z-[280] p-3" : "w-[min(22rem,100%)] p-4"
+      }`}
+      style={isMdUp ? { left, bottom, width: POPUP_WIDTH } : undefined}
+      role="dialog"
+      aria-label="Pick a planning date"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            const prev = new Date(viewYear, viewMonth - 1, 1);
+            setViewYear(prev.getFullYear());
+            setViewMonth(prev.getMonth());
+          }}
+          disabled={!canGoPrev}
+          className="grid h-9 w-9 place-items-center rounded-full text-[color:var(--t-secondary)] transition hover:bg-white/[0.08] hover:text-amber-300 disabled:opacity-30 disabled:hover:bg-transparent"
+          aria-label="Previous month"
+        >
+          ‹
+        </button>
+        <p className="text-[length:var(--fs-label)] font-semibold text-[color:var(--t-primary)]">
+          {monthTitle}
+        </p>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => {
+              const next = new Date(viewYear, viewMonth + 1, 1);
+              setViewYear(next.getFullYear());
+              setViewMonth(next.getMonth());
+            }}
+            className="grid h-9 w-9 place-items-center rounded-full text-[color:var(--t-secondary)] transition hover:bg-white/[0.08] hover:text-amber-300"
+            aria-label="Next month"
+          >
+            ›
+          </button>
+          {!isMdUp && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="grid h-9 w-9 place-items-center rounded-full text-[color:var(--t-secondary)] transition hover:bg-white/[0.08] hover:text-[color:var(--t-primary)]"
+              aria-label="Close calendar"
+            >
+              <svg
+                className="h-4 w-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                aria-hidden
+              >
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="mt-2 grid grid-cols-7 gap-y-0.5 text-center">
+        {CALENDAR_WEEKDAY_LABELS.map((w) => (
+          <span
+            key={w}
+            className="py-1 text-[length:var(--fs-meta)] font-medium text-[color:var(--t-tertiary)]"
+          >
+            {w}
+          </span>
+        ))}
+        {cells.map((day, i) => {
+          if (day == null) {
+            return <span key={`b${i}`} />;
+          }
+          const cellMs = new Date(viewYear, viewMonth, day).getTime();
+          const isPast = cellMs < todayMs;
+          const isToday = cellMs === todayMs;
+          const isSelected = isPlanned && cellMs === selectedMs;
+          const mm = String(viewMonth + 1).padStart(2, "0");
+          const dd = String(day).padStart(2, "0");
+          return (
+            <button
+              key={day}
+              type="button"
+              disabled={isPast}
+              onClick={() => onPick(`${viewYear}-${mm}-${dd}`)}
+              className={`mx-auto grid ${dayCellClass} place-items-center rounded-full font-mono text-[length:var(--fs-label)] tabular-nums transition ${
+                isSelected
+                  ? "bg-amber-500/25 font-semibold text-amber-300 ring-1 ring-amber-400/60"
+                  : isToday
+                    ? "text-emerald-300 ring-1 ring-emerald-500/45 hover:bg-emerald-500/[0.12]"
+                    : isPast
+                      ? "text-zinc-600"
+                      : "text-[color:var(--t-secondary)] hover:bg-amber-500/[0.12] hover:text-amber-200"
+              }`}
+              aria-label={`${dd}/${mm}/${viewYear}`}
+              aria-pressed={isSelected}
+            >
+              {day}
+            </button>
+          );
+        })}
+      </div>
+      <p className="mt-2 border-t border-white/[0.07] pt-2 text-center text-[length:var(--fs-meta)] leading-snug text-[color:var(--t-tertiary)]">
+        {isPlanned
+          ? "Pick today or press Sync to return to live."
+          : "Pick a future date to plan moon geometry."}
+      </p>
+    </div>
+  );
+
+  if (!isMdUp) {
+    // Mobile: full-screen modal — backdrop prekriva altitude legendu, dock i
+    // ribbon, pa se kalendar ne miješa s ostalim elementima.
+    return createPortal(
+      <div className="fixed inset-0 z-[280] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+        {card}
+      </div>,
+      document.body
+    );
+  }
+
+  return createPortal(card, document.body);
+}
+
+/** Kalendar gumb — otvara custom popup IZNAD ribbona (spec §10.1). */
+function PlanningDateButton(props: {
+  isPlanned: boolean;
+  planningDateValue: string;
+  onPlanningDate: (value: string) => void;
+  sizeClass: string;
+  iconClass: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`grid shrink-0 place-items-center rounded-full border transition active:scale-[0.95] ${props.sizeClass} ${
+          props.isPlanned
+            ? "border-amber-500/50 bg-amber-500/[0.16] text-amber-300"
+            : "border-white/15 bg-white/[0.06] text-[color:var(--t-secondary)] hover:border-amber-400/40 hover:bg-amber-500/[0.08] hover:text-amber-300"
+        }`}
+        title={
+          props.isPlanned
+            ? "Planning mode — pick another date, or Sync to return to live"
+            : "Plan a future date"
+        }
+        aria-label="Plan a future date"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+      >
+        <svg
+          className={props.iconClass}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <rect x="3" y="5" width="18" height="16" rx="2" />
+          <path d="M8 3v4M16 3v4M3 9h18" />
+        </svg>
+      </button>
+      {open && btnRef.current && (
+        <PlanningCalendarPopup
+          anchor={btnRef.current}
+          selectedValue={props.planningDateValue}
+          isPlanned={props.isPlanned}
+          onPick={(value) => {
+            props.onPlanningDate(value);
+            setOpen(false);
+          }}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </>
+  );
+}
+
 function TimeRibbon(props: {
   referenceEpochMs: number;
   offsetHours: number;
@@ -455,6 +736,9 @@ function TimeRibbon(props: {
   timeSliderEndLabel: string;
   timeSliderMode: "forward24h";
   syncTime: () => void;
+  isPlanned: boolean;
+  planningDateValue: string;
+  onPlanningDate: (value: string) => void;
   compact?: boolean;
 }) {
   if (props.compact) {
@@ -476,6 +760,13 @@ function TimeRibbon(props: {
             timeSliderMode={props.timeSliderMode}
           />
         </div>
+        <PlanningDateButton
+          isPlanned={props.isPlanned}
+          planningDateValue={props.planningDateValue}
+          onPlanningDate={props.onPlanningDate}
+          sizeClass="h-8 w-8"
+          iconClass="h-4 w-4"
+        />
         <button
           type="button"
           onClick={props.syncTime}
@@ -518,6 +809,13 @@ function TimeRibbon(props: {
           timeSliderMode={props.timeSliderMode}
         />
       </div>
+      <PlanningDateButton
+        isPlanned={props.isPlanned}
+        planningDateValue={props.planningDateValue}
+        onPlanningDate={props.onPlanningDate}
+        sizeClass="h-9 w-9"
+        iconClass="h-[18px] w-[18px]"
+      />
       <button
         type="button"
         onClick={props.syncTime}
@@ -665,7 +963,7 @@ function MobileDock({
               {badge && badge > 0 ? (
                 <span
                   aria-hidden
-                  className="absolute right-2 top-1.5 min-w-[18px] rounded-full bg-amber-400 px-1 text-center font-mono text-[10px] font-bold leading-[18px] text-zinc-900"
+                  className="absolute right-2 top-1.5 min-w-[18px] rounded-full bg-amber-400 px-1 text-center font-mono text-[length:var(--fs-micro)] font-bold leading-[18px] text-zinc-900"
                 >
                   {badge}
                 </span>
@@ -732,6 +1030,7 @@ function StreetViewExitButton() {
 export function HomePageClient() {
   const s = useHomeShellOrchestration();
   const flights = useMoonTransitStore((st) => st.flights);
+  const localsdrStatus = useMoonTransitStore((st) => st.localsdrStatus);
   const mapDisplayMode = useMoonTransitStore((st) => st.mapDisplayMode);
   const isWide = useIsMdUp();
   const [flightFilterCriteria, setFlightFilterCriteria] = useState<FlightFilterCriteria>({
@@ -827,6 +1126,16 @@ export function HomePageClient() {
     return b;
   }, [s.activeTransits.length, s.candidatesDisplay.length]);
 
+  // Warning dot on the Flight source rail icon when the local SDR upstream is
+  // down — visible even with the panel closed.
+  const railWarn: Partial<Record<PanelId, boolean>> = useMemo(
+    () =>
+      s.liveFlightFeeds.localsdr && localsdrStatus === "unreachable"
+        ? { flight: true }
+        : {},
+    [s.liveFlightFeeds.localsdr, localsdrStatus]
+  );
+
   const dockBadges: Partial<Record<DockId, number>> = useMemo(() => {
     const b: Partial<Record<DockId, number>> = {};
     if (s.activeTransits.length > 0) b.active = s.activeTransits.length;
@@ -844,6 +1153,7 @@ export function HomePageClient() {
             showEphemeris={s.showEphemeris}
             selectedFlightId={s.selectedFlightId}
             onSelectFlight={handleSelectFlightFromPanel}
+            planningMode={s.isPlanned}
           />
         );
       }
@@ -875,6 +1185,10 @@ export function HomePageClient() {
             alertsEnabled={s.alertsEnabled}
             onToggleAlerts={() => s.setAlertsEnabled((a) => !a)}
             onSubscribeToPush={subscribeToPush}
+            planningMode={s.isPlanned}
+            bestHours={s.bestHours}
+            referenceEpochMs={s.referenceEpochMs}
+            onSelectHour={s.onSelectPlanningHour}
           />
         );
       }
@@ -1073,6 +1387,7 @@ export function HomePageClient() {
             }
             onClose={() => setRailOpenId(null)}
             badges={railBadges}
+            warnIds={railWarn}
           >
             {railOpenId ? renderPanel(railOpenId) : null}
           </FloatingRail>
@@ -1089,6 +1404,9 @@ export function HomePageClient() {
             timeSliderEndLabel={s.timeSliderEndLabel}
             timeSliderMode={s.timeSliderMode}
             syncTime={handleSyncTime}
+            isPlanned={s.isPlanned}
+            planningDateValue={s.planningDateValue}
+            onPlanningDate={s.onPlanningDate}
           />
 
           {/* Green zone alert */}
@@ -1219,6 +1537,9 @@ export function HomePageClient() {
               timeSliderEndLabel={s.timeSliderEndLabel}
               timeSliderMode={s.timeSliderMode}
               syncTime={handleSyncTime}
+              isPlanned={s.isPlanned}
+              planningDateValue={s.planningDateValue}
+              onPlanningDate={s.onPlanningDate}
               compact
             />
           </div>

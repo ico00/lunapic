@@ -11,7 +11,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ icao24: string }> }
 ) {
-  const reject = rejectIfRateLimited(req, 30, 60_000);
+  const reject = rejectIfRateLimited(req, 30, 60_000, "flight-log/track");
   if (reject) return reject;
   const { icao24 } = await params;
   if (!/^[0-9a-f]{1,8}$/i.test(icao24)) {

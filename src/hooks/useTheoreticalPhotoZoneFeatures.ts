@@ -135,11 +135,43 @@ export function useTransitOpportunityCorridorFeatures(a: Args): readonly Feature
         coordinates: [ring],
       },
     }));
+    // Oznaka na čelu koridora: koliko je daleko prva točka gdje avion u
+    // krstarenju može presjeći Mjesec. Ta udaljenost diktira veličinu siluete
+    // (vidi `bestTransitHours.ts`), pa je korisna prije nego digneš stativ.
+    const nearEdge = destinationByAzimuthMeters(
+      observer.lat,
+      observer.lng,
+      moon.azimuthDeg,
+      nearAlong
+    );
+    const nearSlantM = Math.hypot(nearAlong, CRUISE_FL_M);
+    // Screen-space pomak (em) u smjeru koridora — pri visokom Mjesecu čelo je
+    // blizu promatrača, pa bi label inače pao pod ikonu kamere. Konstantan u
+    // pikselima na svim zoomovima; y raste prema dolje.
+    const azRad = (moon.azimuthDeg * Math.PI) / 180;
+    const LABEL_OFFSET_EM = 2.4;
+    const labelFeature = {
+      type: "Feature" as const,
+      properties: {
+        kind: "transitOpportunityCorridorLabel",
+        label: `${(nearSlantM / 1000).toFixed(0)} km`,
+        textOffset: [
+          Math.sin(azRad) * LABEL_OFFSET_EM,
+          -Math.cos(azRad) * LABEL_OFFSET_EM,
+        ] as [number, number],
+      },
+      geometry: {
+        type: "Point" as const,
+        coordinates: [nearEdge.lng, nearEdge.lat] as [number, number],
+      },
+    };
+
     // Single volume feature for the gradient WebGL layer.
     // The shader interpolates opacity from the centre spine (high confidence)
     // to the outer edge (low confidence) — no need for separate medium/high meshes.
     return [
       ...zoneFeatures,
+      labelFeature,
       {
         type: "Feature",
         properties: {

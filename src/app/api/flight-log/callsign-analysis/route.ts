@@ -9,6 +9,78 @@ const EMPTY_FC = { type: "FeatureCollection", features: [] };
 
 const MEAN_SAMPLES = 80;
 
+const DAY_MS = 86_400_000;
+
+export interface NextPassPrediction {
+  /** Predicted epoch ms of the next pass (UTC). */
+  estimateMs: number;
+  /** Circular std of time-of-day across sessions, minutes. */
+  stdMinutes: number;
+  /** Number of sessions the prediction is based on. */
+  sessionCount: number;
+  /** UTC weekdays (0=Sun..6=Sat) on which this callsign was observed. */
+  weekdays: number[];
+}
+
+/** Min / median / max barometric altitude over all session points, metres. */
+function computeAltitudeSummary(
+  sessions: RoutePoint[][]
+): { minM: number; medianM: number; maxM: number } | null {
+  const alts: number[] = [];
+  for (const s of sessions) {
+    for (const p of s) {
+      if (p.alt_baro_m != null) alts.push(p.alt_baro_m);
+    }
+  }
+  if (alts.length === 0) return null;
+  alts.sort((a, b) => a - b);
+  return {
+    minM: Math.round(alts[0]),
+    medianM: Math.round(alts[Math.floor(alts.length / 2)]),
+    maxM: Math.round(alts[alts.length - 1]),
+  };
+}
+
+/**
+ * Predict the next pass from session mid-times using circular statistics on
+ * time-of-day. Airline schedules repeat daily/weekly, so the circular mean of
+ * time-of-day is a robust estimator even with missed days in between.
+ */
+function computeNextPass(sessions: RoutePoint[][], nowMs: number): NextPassPrediction | null {
+  if (sessions.length < 2) return null;
+
+  const midTimes = sessions.map((s) => (s[0].logged_at + s[s.length - 1].logged_at) / 2);
+
+  // Circular mean of time-of-day (UTC)
+  let sx = 0, sy = 0;
+  for (const t of midTimes) {
+    const angle = ((t % DAY_MS) / DAY_MS) * 2 * Math.PI;
+    sx += Math.cos(angle);
+    sy += Math.sin(angle);
+  }
+  const n = midTimes.length;
+  const R = Math.sqrt(sx * sx + sy * sy) / n;
+  if (R < 0.5) return null; // times scattered across the day — not a regular schedule
+
+  const meanAngle = Math.atan2(sy, sx);
+  const meanDayMs = (((meanAngle / (2 * Math.PI)) * DAY_MS) + DAY_MS) % DAY_MS;
+  const stdMinutes = Math.sqrt(-2 * Math.log(R)) * (1440 / (2 * Math.PI));
+
+  const weekdays = [...new Set(midTimes.map((t) => new Date(t).getUTCDay()))].sort();
+  // Weekday filter only when we have enough sessions to trust the pattern
+  const useWeekdays = n >= 4 && weekdays.length < 7;
+
+  // Next occurrence of meanDayMs after now (search up to 8 days ahead)
+  const todayStart = Math.floor(nowMs / DAY_MS) * DAY_MS;
+  for (let d = 0; d < 8; d++) {
+    const candidate = todayStart + d * DAY_MS + meanDayMs;
+    if (candidate <= nowMs) continue;
+    if (useWeekdays && !weekdays.includes(new Date(candidate).getUTCDay())) continue;
+    return { estimateMs: candidate, stdMinutes: Math.round(stdMinutes), sessionCount: n, weekdays };
+  }
+  return null;
+}
+
 /**
  * Resample a session to exactly n evenly-spaced points by cumulative path length.
  * This ensures point i of one session corresponds to the same fraction of the
@@ -76,7 +148,7 @@ function computeMeanPath(sessions: RoutePoint[][]): [number, number][] {
 }
 
 export async function GET(req: NextRequest) {
-  const reject = rejectIfRateLimited(req, 20, 60_000);
+  const reject = rejectIfRateLimited(req, 20, 60_000, "flight-log/callsign-analysis");
   if (reject) return reject;
 
   const sp = req.nextUrl.searchParams;
@@ -102,7 +174,7 @@ export async function GET(req: NextRequest) {
 
   if (sessions.length === 0) {
     return NextResponse.json(
-      { sessions: EMPTY_FC, mean: EMPTY_FC, sessionCount: 0 },
+      { sessions: EMPTY_FC, mean: EMPTY_FC, sessionCount: 0, nextPass: null, altitude: null },
       { headers: NO_CACHE }
     );
   }
@@ -135,6 +207,8 @@ export async function GET(req: NextRequest) {
       sessions: { type: "FeatureCollection", features: sessionFeatures },
       mean: { type: "FeatureCollection", features: meanFeatures },
       sessionCount: sessions.length,
+      nextPass: computeNextPass(sessions, Date.now()),
+      altitude: computeAltitudeSummary(sessions),
     },
     { headers: NO_CACHE }
   );

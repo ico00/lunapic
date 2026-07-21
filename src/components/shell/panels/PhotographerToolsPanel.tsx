@@ -42,6 +42,9 @@ function reasonText(
   if (reason === "missingInputs") {
     return "This aircraft is missing speed/track/altitude for the calculation.";
   }
+  if (reason === "planningMode") {
+    return "Planning a future date — live-flight tools are paused. Moon position, path and corridor stay accurate; press Sync to return to live traffic.";
+  }
   return "Calculation is currently unavailable.";
 }
 
@@ -190,13 +193,20 @@ export function PhotographerToolsPanel({
   return (
     <div className="space-y-4">
       {/* === 1. Status poruke (ako nema flighta ili nema podataka) ============ */}
-      {selectedFlightId == null && (
+      {selectedFlightId == null && photoUnavailableReason !== "planningMode" && (
         <p className="text-[length:var(--fs-body)] text-[color:var(--t-tertiary)]">No flight selected.</p>
       )}
-      {selectedFlightId && !photoPack && (
-        <p className="text-[length:var(--fs-body)] text-amber-300/90">
+      {photoUnavailableReason === "planningMode" ? (
+        <p className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-[length:var(--fs-meta)] leading-relaxed text-amber-300/90">
           {reasonText(photoUnavailableReason)}
         </p>
+      ) : (
+        selectedFlightId != null &&
+        !photoPack && (
+          <p className="text-[length:var(--fs-body)] text-amber-300/90">
+            {reasonText(photoUnavailableReason)}
+          </p>
+        )
       )}
 
       {/* === 2. PhotoPack — countdown + kinematika + shot feasibility ========= */}
@@ -322,7 +332,9 @@ export function PhotographerToolsPanel({
               distanceToObserverMeters={
                 photoShotFeasibility?.slantRangeMeters ?? photoPack.kin.slantRangeMeters
               }
-              aircraftLengthMeters={selectedFlight?.wingspanMeters ?? null}
+              aircraftLengthMeters={
+                selectedFlight?.lengthMeters ?? selectedFlight?.wingspanMeters ?? null
+              }
               moonDiameterPxAtReferenceSensor={
                 photoShotFeasibility?.moonDiameterPxAtReferenceSensor ?? null
               }

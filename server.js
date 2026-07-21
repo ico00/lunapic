@@ -83,22 +83,82 @@ const { url: LOCAL_SDR_URL, authHeader: LOCAL_SDR_AUTH } = LOCAL_SDR_URL_RAW
   ? parseSdrUrl(LOCAL_SDR_URL_RAW)
   : { url: null, authHeader: null };
 
+// Snapshot koji Pi šalje na `/api/localsdr/ingest` — u produkciji zamjenjuje
+// povlačenje s Pija. Dijeli se s `sdrSnapshotStore.ts`.
+const { readSdrSnapshot, isSnapshotFresh } = requireFromRoot(
+  path.resolve(process.cwd(), "sdrSnapshot.cjs")
+);
+
+/** Push smjer je konfiguriran kad postoji ingest token (Pi tada šalje). */
+const SDR_INGEST_ENABLED = Boolean(process.env.SDR_INGEST_TOKEN?.trim());
+
 // tar1090 serves per-aircraft metadata at /db/[2-char-prefix]/[hex].js —
 // the same source its web UI uses for registration/type lookups.
 const TAR1090_DB_BASE = LOCAL_SDR_URL
   ? LOCAL_SDR_URL.replace(/\/data\/aircraft\.json$/, "/db/")
   : null;
 
+/**
+ * Odbaci tijelo odgovora koje ne čitamo.
+ *
+ * Node `fetch` (undici) **ne vraća konekciju u pool dok se tijelo ne pročita ili
+ * ne uništi**. Svaki `return` bez čitanja tijela zato trajno zauzme jednu
+ * konekciju; kod polla svakih 15 s to se kroz dan-dva nakupi i svi odlazni
+ * zahtjevi prema tom originu počnu visjeti do timeouta. Undici drži pool **po
+ * originu** — zato je "offline" javljao samo LunaPic ADS-B dok su OpenSky i
+ * ADS-B One radili. Restart procesa je brisao pool → "restart u cPanelu pomogne".
+ */
+function discardBody(res) {
+  try {
+    res?.body?.cancel?.();
+  } catch {
+    /* već potrošeno ili nema tijela */
+  }
+}
+
+/**
+ * Keep-alive prema SDR-u ne donosi ništa (poll je svakih 15 s, socket ionako
+ * istekne prije idućeg), a kroz Tailscale Funnel nosi rizik da undici reciklira
+ * poluotvoreni socket nakon što tunel tiho padne.
+ */
+const SDR_CONNECTION_HEADERS = { Connection: "close" };
+
+/**
+ * `fetch` baca generički `TypeError: fetch failed`, a pravi razlog
+ * (`ENOTFOUND`, `ECONNREFUSED`, `ETIMEDOUT`, TLS greška…) skriva u `cause`.
+ */
+function describeFetchError(e) {
+  if (!e) return "unknown";
+  if (e.name === "TimeoutError") return "timeout";
+  const cause = e.cause;
+  if (cause) {
+    return cause.code
+      ? `${e.message}: ${cause.code} — ${cause.message}`
+      : `${e.message}: ${cause.message}`;
+  }
+  return e.message ?? String(e);
+}
+
 // In-memory cache: icao24 → {r, t, desc} | null  (null = tried, not found)
 const icaoMetaCache = new Map();
 
 async function fetchTar1090Meta(icao24) {
+  // U push načinu `LOCAL_SDR_URL` može biti prazan — tada nema tar1090 baze.
+  // Bez ove provjere gradio bi se URL "null4b/4bcdb4.js" i slao zahtjev po
+  // svakom novom avionu. (Registracija ionako dolazi iz OpenSky indeksa.)
+  if (!TAR1090_DB_BASE) return null;
   if (icaoMetaCache.has(icao24)) return icaoMetaCache.get(icao24);
   const url = `${TAR1090_DB_BASE}${icao24.slice(0, 2)}/${icao24}.js`;
   try {
-    const headers = LOCAL_SDR_AUTH ? { Authorization: LOCAL_SDR_AUTH } : {};
+    const headers = LOCAL_SDR_AUTH
+      ? { ...SDR_CONNECTION_HEADERS, Authorization: LOCAL_SDR_AUTH }
+      : { ...SDR_CONNECTION_HEADERS };
     const res = await fetch(url, { headers, signal: AbortSignal.timeout(3_000) });
-    if (!res.ok) { icaoMetaCache.set(icao24, null); return null; }
+    if (!res.ok) {
+      discardBody(res);
+      icaoMetaCache.set(icao24, null);
+      return null;
+    }
     const d = await res.json();
     const meta = {
       r:    typeof d.r === "string" && d.r.trim()    ? d.r.trim()    : null,
@@ -161,7 +221,8 @@ function altFtToM(raw) {
 }
 
 async function startFlightLogger() {
-  if (!LOCAL_SDR_URL || !LOCAL_SDR_URL_RAW) return;
+  // Radi u oba smjera: push (Pi šalje snapshot) ili pull (LOCAL_SDR_URL).
+  if (!SDR_INGEST_ENABLED && (!LOCAL_SDR_URL || !LOCAL_SDR_URL_RAW)) return;
 
   // sql.js — pure JS/WASM SQLite, no native compilation needed
   let db;
@@ -255,20 +316,81 @@ async function startFlightLogger() {
   // icao24 → { lat, lng, logged_at }
   const lastSeen = new Map();
 
+  // Dijagnostika: uzastopni neuspjesi prema Piju. Bez ovoga se u cPanel logu
+  // nije vidjelo ništa — feed bi tiho utihnuo i UI bi samo javio "offline".
+  let sdrFailStreak = 0;
+  const SDR_FAIL_LOG_EVERY = 4; // ~1 min pri POLL_INTERVAL_MS = 15 s
+
+  function noteSdrFailure(reason) {
+    sdrFailStreak += 1;
+    if (sdrFailStreak === 1 || sdrFailStreak % SDR_FAIL_LOG_EVERY === 0) {
+      console.error(
+        `[flight-logger] SDR nedostupan (${sdrFailStreak}× zaredom, ~${Math.round(
+          (sdrFailStreak * POLL_INTERVAL_MS) / 1000
+        )}s): ${reason}`
+      );
+    }
+  }
+
+  function noteSdrSuccess() {
+    if (sdrFailStreak > 0) {
+      console.log(
+        `[flight-logger] SDR opet dostupan nakon ${sdrFailStreak} neuspjelih pokušaja`
+      );
+      sdrFailStreak = 0;
+    }
+  }
+
   async function poll() {
     let data;
-    try {
-      const fetchHeaders = LOCAL_SDR_AUTH
-        ? { Authorization: LOCAL_SDR_AUTH }
-        : {};
-      const res = await fetch(LOCAL_SDR_URL, {
-        headers: fetchHeaders,
-        signal: AbortSignal.timeout(8_000),
-      });
-      if (!res.ok) return;
-      data = await res.json();
-    } catch {
-      return;
+
+    // 1) Push smjer: Pi je poslao snapshot na `/api/localsdr/ingest`.
+    //    Nema mrežnog poziva — nema ni ovisnosti o javnoj dostupnosti Pija.
+    if (SDR_INGEST_ENABLED) {
+      const snapshot = readSdrSnapshot();
+      if (isSnapshotFresh(snapshot)) {
+        try {
+          data = JSON.parse(snapshot.body);
+          noteSdrSuccess();
+        } catch {
+          noteSdrFailure("snapshot JSON neispravan");
+          return;
+        }
+      } else if (!LOCAL_SDR_URL) {
+        const ageSec =
+          snapshot != null
+            ? Math.round((Date.now() - snapshot.receivedAt) / 1000)
+            : null;
+        noteSdrFailure(
+          ageSec == null
+            ? "Pi još nije poslao nijedan snapshot"
+            : `zadnji snapshot star ${ageSec}s — Pi ne šalje`
+        );
+        return;
+      }
+    }
+
+    // 2) Pull smjer (lokalni dev na istoj mreži, ili dok push još ne radi).
+    if (data === undefined) {
+      try {
+        const fetchHeaders = LOCAL_SDR_AUTH
+          ? { ...SDR_CONNECTION_HEADERS, Authorization: LOCAL_SDR_AUTH }
+          : { ...SDR_CONNECTION_HEADERS };
+        const res = await fetch(LOCAL_SDR_URL, {
+          headers: fetchHeaders,
+          signal: AbortSignal.timeout(8_000),
+        });
+        if (!res.ok) {
+          discardBody(res);
+          noteSdrFailure(`HTTP ${res.status}`);
+          return;
+        }
+        data = await res.json();
+        noteSdrSuccess();
+      } catch (e) {
+        noteSdrFailure(describeFetchError(e));
+        return;
+      }
     }
 
     const aircraft = data?.aircraft;
@@ -456,7 +578,11 @@ function triggerTransitScan(flights) {
     },
     body: JSON.stringify({ flights }),
     signal: AbortSignal.timeout(8_000),
-  }).catch(() => {});
+  })
+    // Odgovor nas ne zanima, ali ga MORAMO potrošiti — inače konekcija ostaje
+    // zauzeta (vidi `discardBody`). Ovo je najčešći poziv u procesu (svaki tick).
+    .then(discardBody)
+    .catch(() => {});
 }
 
 app.prepare().then(async () => {

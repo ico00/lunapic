@@ -19,7 +19,8 @@ export type PhotographerToolsUnavailableReason =
   | "noSelection"
   | "moonBelowHorizon"
   | "flightNotFound"
-  | "missingInputs";
+  | "missingInputs"
+  | "planningMode";
 
 export function formatCountdown(totalSec: number | null): string {
   if (totalSec == null || !Number.isFinite(totalSec)) {
@@ -48,6 +49,7 @@ export function usePhotographerTools() {
   const latencySkewMs = useMoonTransitStore((s) => s.openSkyLatencySkewMs);
   const cameraFocalLengthMm = useMoonTransitStore((s) => s.cameraFocalLengthMm);
   const cameraSensorType = useMoonTransitStore((s) => s.cameraSensorType);
+  const timeAnchorIsPlanned = useMoonTransitStore((s) => s.timeAnchorIsPlanned);
   const moon = useMoonStateComputed();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -74,6 +76,11 @@ export function usePhotographerTools() {
   // (tickLiveTime fires at different absolute times), so using at.getTime() would
   // give different countdowns on mobile vs desktop for the same flight.
   const result = useMemo(() => {
+    // Planning mode: countdown i feasibility rade nad ŽIVIM letovima — za
+    // budući datum su besmisleni, pa se alat gasi s objašnjenjem.
+    if (timeAnchorIsPlanned) {
+      return { pack: null, shot: null, reason: "planningMode" as const };
+    }
     if (!selectedId) {
       return { pack: null, shot: null, reason: "noSelection" as const };
     }
@@ -85,7 +92,9 @@ export function usePhotographerTools() {
       return { pack: null, shot: null, reason: "flightNotFound" as const };
     }
     const flight = extrapolateFlightForDisplay(raw, now, latencySkewMs);
-    const pack = GeometryEngine.photographerPack(observer, flight, moon, at, {});
+    const pack = GeometryEngine.photographerPack(observer, flight, moon, at, {
+      airlinerLengthMeters: flight.lengthMeters ?? undefined,
+    });
     const shot = evaluateShotFeasibility(observer, flight, {
       focalLengthMm: cameraFocalLengthMm,
       sensorType: cameraSensorType,
@@ -104,6 +113,7 @@ export function usePhotographerTools() {
     now,
     observer,
     selectedId,
+    timeAnchorIsPlanned,
   ]);
 
   return { ...result, now };

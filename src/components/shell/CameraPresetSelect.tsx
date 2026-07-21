@@ -15,6 +15,7 @@ import { CAMERA_PRESETS } from "@/lib/camera/cameraPresets";
 import { clampFloatingMenuLeft } from "@/lib/ui/clampFloatingMenuLeft";
 import {
   shellComboboxListboxPortalClass,
+  shellComboboxOptionClass,
   shellComboboxTriggerClass,
 } from "@/lib/ui/shellComboboxStyles";
 
@@ -137,11 +138,7 @@ export function CameraPresetSelect({ value, onChange }: CameraPresetSelectProps)
               role="option"
               tabIndex={-1}
               aria-selected={isSel}
-              className={
-                isSel
-                  ? "cursor-pointer select-none whitespace-nowrap rounded-md bg-sky-500/20 px-2.5 py-1.5 text-left text-[length:var(--fs-body)] text-sky-200"
-                  : "cursor-pointer select-none whitespace-nowrap rounded-md px-2.5 py-1.5 text-left text-[length:var(--fs-body)] text-[color:var(--t-primary)] outline-none hover:bg-white/[0.08] hover:text-[color:var(--t-primary)] focus:bg-white/[0.08]"
-              }
+              className={`${shellComboboxOptionClass(isSel)} whitespace-nowrap`}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => onPick(preset.id)}
             >

@@ -10,7 +10,19 @@ import {
 } from "@/lib/flight/openskyAircraftIndexShard";
 import type { AircraftListRow } from "@/lib/db/flightLogDb";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
+import { useObserverStore } from "@/stores/observer-store";
 import { useCallback, useEffect, useRef, useState } from "react";
+
+/** Mirror of the transit-history API event shape. */
+interface PastTransitEvent {
+  icao24: string;
+  callsign: string | null;
+  timeMs: number;
+  minSeparationDeg: number;
+  kind: "transit" | "near";
+  moonAltDeg: number;
+  slantKm: number;
+}
 
 const PAGE_SIZE = 50;
 
@@ -21,23 +33,40 @@ const RANGE_OPTS = [
 ] as const;
 
 /** Matches a search string against an AircraftListRow (client-side, case-insensitive). */
-function rowMatchesSearch(row: AircraftListRow, term: string): boolean {
+function rowMatchesSearch(row: AircraftListRow, term: string, typeOverride?: string): boolean {
   if (!term) return true;
   const t = term.toLowerCase();
   if (row.icao24.toLowerCase().includes(t)) return true;
   if (row.last_callsign?.toLowerCase().includes(t)) return true;
   if (row.registration?.toLowerCase().includes(t)) return true;
   if (row.aircraft_type?.toLowerCase().includes(t)) return true;
+  if (typeOverride?.toLowerCase().includes(t)) return true;
   const carrier = callsignToCarrier(row.last_callsign);
   if (carrier.toLowerCase().includes(t)) return true;
   return false;
 }
 
+/** "today 14:23", "tomorrow 09:41", or "Fri 14:23" in the viewer's locale/timezone. */
+function fmtNextPass(estimateMs: number): string {
+  const d = new Date(estimateMs);
+  const now = new Date();
+  const time = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  if (d.toDateString() === now.toDateString()) return `today ${time}`;
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  if (d.toDateString() === tomorrow.toDateString()) return `tomorrow ${time}`;
+  return `${d.toLocaleDateString(undefined, { weekday: "short" })} ${time}`;
+}
+
 export function FlightLogPanel() {
   const setFlightLogSelected = useMoonTransitStore((s) => s.setFlightLogSelected);
   const setFlightLogSelectedCallsign = useMoonTransitStore((s) => s.setFlightLogSelectedCallsign);
+  const setFlightLogDaysBack = useMoonTransitStore((s) => s.setFlightLogDaysBack);
   const flightLogIcao24 = useMoonTransitStore((s) => s.flightLogSelectedIcao24);
   const flightLogCallsign = useMoonTransitStore((s) => s.flightLogSelectedCallsign);
+  const nextPass = useMoonTransitStore((s) => s.flightLogNextPass);
+  const altitudeProfile = useMoonTransitStore((s) => s.flightLogAltitude);
+  const observer = useObserverStore((s) => s.observer);
 
   const [daysBack, setDaysBack] = useState(7);
   const [search, setSearch] = useState("");
@@ -57,6 +86,26 @@ export function FlightLogPanel() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const [scanBusy, setScanBusy] = useState(false);
+  const [scanEvents, setScanEvents] = useState<PastTransitEvent[] | null>(null);
+  const [scanError, setScanError] = useState(false);
+
+  const runPastScan = useCallback(() => {
+    setScanBusy(true);
+    setScanError(false);
+    const params = new URLSearchParams({
+      days: String(daysBack),
+      lat: String(observer.lat),
+      lng: String(observer.lng),
+      heightM: String(observer.groundHeightMeters ?? 0),
+    });
+    fetch(appPath(`/api/flight-log/transit-history?${params}`), { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((d: { events: PastTransitEvent[] }) => setScanEvents(d.events ?? []))
+      .catch(() => setScanError(true))
+      .finally(() => setScanBusy(false));
+  }, [daysBack, observer]);
+
   const handleSearchChange = useCallback((v: string) => {
     setSearch(v);
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -69,7 +118,9 @@ export function FlightLogPanel() {
   const handleRangeChange = useCallback((days: number) => {
     setDaysBack(days);
     setPage(0);
-  }, []);
+    // Keep the map layers' lookback in sync so an already-selected route refetches.
+    setFlightLogDaysBack(days);
+  }, [setFlightLogDaysBack]);
 
   // Fetch all rows for the selected time range (no server-side search so we can
   // filter by carrier name on the client).
@@ -127,16 +178,45 @@ export function FlightLogPanel() {
   // Client-side search filter + pagination
   const filteredRows = allRows === null
     ? null
-    : allRows.filter((r) => rowMatchesSearch(r, debouncedSearch));
+    : allRows.filter((r) =>
+        rowMatchesSearch(r, debouncedSearch, typeOverrides.get(r.icao24.toLowerCase()))
+      );
   const totalFiltered = filteredRows?.length ?? 0;
+
+  // Top aircraft types in the current range — distinct aircraft per type label
+  // (same label source as the table's Type column).
+  const topTypes = (() => {
+    if (!allRows) return [];
+    const counts = new Map<string, number>();
+    for (const r of allRows) {
+      const t = r.aircraft_type ?? typeOverrides.get(r.icao24.toLowerCase());
+      if (!t) continue;
+      counts.set(t, (counts.get(t) ?? 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  })();
   const totalPages = Math.ceil(totalFiltered / PAGE_SIZE);
   const pageRows = filteredRows?.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE) ?? null;
 
+  // Direct page-number entry — uncontrolled input (keyed on `page` so it resets
+  // when the page changes elsewhere); commits a clamped value on Enter/blur.
+  const commitPageInput = useCallback((raw: string) => {
+    const n = parseInt(raw, 10);
+    const clamped = Number.isFinite(n)
+      ? Math.min(Math.max(1, n), Math.max(1, totalPages))
+      : page + 1;
+    setPage(clamped - 1);
+    return clamped;
+  }, [totalPages, page]);
+
   return (
-    <div className="flex flex-col gap-3">
+    // h-full: fill the shell's scroll area exactly so the outer scroller stays
+    // still and only the table list (flex-1 below) scrolls.
+    <div className="flex h-full min-h-0 flex-col gap-3">
       {/* Selection hint */}
       {(flightLogCallsign || flightLogIcao24) && (
-        <div className="flex items-center justify-between rounded-xl border border-sky-400/25 bg-sky-500/[0.07] px-3 py-2 text-[length:var(--fs-label)]">
+        <div className="rounded-xl border border-sky-400/25 bg-sky-500/[0.07] px-3 py-2 text-[length:var(--fs-label)]">
+          <div className="flex items-center justify-between">
           <span className="text-sky-300">
             {flightLogCallsign
               ? <>Route history on map: <span className="font-mono">{flightLogCallsign}</span></>
@@ -155,6 +235,24 @@ export function FlightLogPanel() {
               <path d="M18 6 6 18M6 6l12 12" />
             </svg>
           </button>
+          </div>
+          {nextPass && nextPass.callsign === flightLogCallsign && (
+            <div className="mt-1 text-[color:var(--t-secondary)]">
+              Next expected pass:{" "}
+              <span className="font-semibold text-sky-200">{fmtNextPass(nextPass.estimateMs)}</span>
+              {" "}±{nextPass.stdMinutes} min
+              <span className="text-[color:var(--t-tertiary)]"> · {nextPass.sessionCount} flights</span>
+            </div>
+          )}
+          {altitudeProfile && altitudeProfile.callsign === flightLogCallsign && (
+            <div className="mt-0.5 text-[color:var(--t-tertiary)]">
+              Alt over area:{" "}
+              <span className="tabular-nums text-[color:var(--t-secondary)]">
+                {(altitudeProfile.minM / 1000).toFixed(1)}–{(altitudeProfile.maxM / 1000).toFixed(1)} km
+              </span>
+              {" "}(median {(altitudeProfile.medianM / 1000).toFixed(1)} km)
+            </div>
+          )}
         </div>
       )}
 
@@ -228,10 +326,35 @@ export function FlightLogPanel() {
           : `${allRows.length} aircraft`}
       </p>
 
-      {/* Table */}
-      <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
+      {/* Top aircraft types — click filters the table (toggles) */}
+      {topTypes.length > 1 && (
+        <div className="flex flex-wrap items-center gap-1">
+          {topTypes.map(([type, count]) => {
+            const active = search === type;
+            return (
+              <button
+                key={type}
+                type="button"
+                onClick={() => handleSearchChange(active ? "" : type)}
+                aria-pressed={active}
+                className={`rounded-full border px-2 py-0.5 text-[length:var(--fs-meta)] transition ${
+                  active
+                    ? "border-violet-400/40 bg-violet-500/20 text-violet-200"
+                    : "border-white/10 text-[color:var(--t-tertiary)] hover:border-white/20 hover:text-[color:var(--t-primary)]"
+                }`}
+                title={`Filter table to ${type}`}
+              >
+                {type} <span className="tabular-nums opacity-70">×{count}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Table — the only scrollable region of the panel */}
+      <div className="min-h-[10rem] flex-1 overflow-x-auto overflow-y-auto rounded-xl border border-white/[0.08]">
         <table className="w-full text-[length:var(--fs-meta)]">
-          <thead>
+          <thead className="sticky top-0 z-10 bg-[color:var(--bg-1)]">
             <tr className="border-b border-white/[0.08] mt-section-label">
               <th className="px-3 py-2 text-left w-10"></th>
               <th className="px-3 py-2 text-left">Carrier</th>
@@ -279,7 +402,21 @@ export function FlightLogPanel() {
           >
             ← Prev
           </button>
-          <span className="text-[color:var(--t-tertiary)]">{page + 1} / {totalPages}</span>
+          <span className="flex items-center gap-1 text-[color:var(--t-tertiary)]">
+            <input
+              key={page}
+              type="text"
+              inputMode="numeric"
+              aria-label="Go to page"
+              defaultValue={page + 1}
+              onChange={(e) => { e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, ""); }}
+              onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+              onBlur={(e) => { e.currentTarget.value = String(commitPageInput(e.currentTarget.value)); }}
+              onFocus={(e) => e.currentTarget.select()}
+              className="w-10 rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-center text-[color:var(--t-primary)] outline-none focus:border-violet-400/40 focus:ring-1 focus:ring-violet-400/20"
+            />
+            / {totalPages}
+          </span>
           <button
             type="button"
             onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
@@ -290,6 +427,75 @@ export function FlightLogPanel() {
           </button>
         </div>
       )}
+
+      {/* Past transits — retroactive scan of the log against the Moon's position */}
+      <div className="flex flex-col gap-2 border-t border-white/[0.08] pt-3">
+        <div className="flex items-center justify-between">
+          <span className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.14em] text-[color:var(--t-tertiary)]">
+            Past transits
+          </span>
+          <button
+            type="button"
+            onClick={runPastScan}
+            disabled={scanBusy}
+            className="rounded-full border border-white/10 px-3 py-1 text-[length:var(--fs-label)] text-[color:var(--t-secondary)] disabled:opacity-40 hover:border-white/20 hover:text-[color:var(--t-primary)] transition"
+          >
+            {scanBusy ? "Scanning…" : `Scan last ${daysBack === 1 ? "24 h" : `${daysBack} d`}`}
+          </button>
+        </div>
+
+        {scanError && (
+          <p className="text-[length:var(--fs-label)] text-rose-300">Scan failed — try again.</p>
+        )}
+
+        {scanEvents !== null && !scanError && (
+          scanEvents.length === 0 ? (
+            <p className="text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
+              No moon passes found in this period.
+            </p>
+          ) : (
+            <ul className="flex max-h-48 flex-col divide-y divide-white/[0.05] overflow-y-auto">
+              {scanEvents.map((ev) => (
+                <li key={`${ev.icao24}-${ev.timeMs}`}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (ev.callsign) {
+                        setFlightLogSelectedCallsign(ev.callsign, daysBack);
+                        setFlightLogSelected(null);
+                      } else {
+                        setFlightLogSelected(ev.icao24, daysBack);
+                        setFlightLogSelectedCallsign(null);
+                      }
+                    }}
+                    className="flex w-full items-center gap-2 py-1.5 text-left text-[length:var(--fs-label)] hover:bg-white/[0.04] transition rounded-md px-1.5"
+                    title="Show route on map"
+                  >
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[length:var(--fs-meta)] font-semibold ${
+                        ev.kind === "transit"
+                          ? "bg-emerald-500/15 text-emerald-300 border border-emerald-400/30"
+                          : "bg-sky-500/10 text-sky-300 border border-sky-400/25"
+                      }`}
+                    >
+                      {ev.kind === "transit" ? "DISC" : "NEAR"}
+                    </span>
+                    <span className="font-mono text-[color:var(--t-primary)]">
+                      {ev.callsign ?? ev.icao24.toUpperCase()}
+                    </span>
+                    <span className="ml-auto text-right text-[color:var(--t-tertiary)]">
+                      {new Date(ev.timeMs).toLocaleString(undefined, {
+                        month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+                      })}
+                      <span className="ml-2 tabular-nums">{ev.minSeparationDeg.toFixed(2)}°</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )
+        )}
+      </div>
 
     </div>
   );
@@ -349,7 +555,7 @@ function AircraftRow({
   selectedCallsign: string | null;
   selectedIcao24: string | null;
   daysBack: number;
-  onSelectCallsign: (callsign: string | null) => void;
+  onSelectCallsign: (callsign: string | null, days?: number) => void;
   onSelectIcao24: (icao24: string | null, days?: number) => void;
 }) {
   const carrier = callsignToCarrier(row.last_callsign);
@@ -361,7 +567,7 @@ function AircraftRow({
     if (row.last_callsign) {
       // Commercial flight: show full session history + mean path for this callsign
       const next = selectedCallsign === row.last_callsign ? null : row.last_callsign;
-      onSelectCallsign(next);
+      onSelectCallsign(next, daysBack);
       onSelectIcao24(null); // clear any ICAO24 trail
     } else {
       // No callsign: fall back to ICAO24 single-aircraft trail
