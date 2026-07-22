@@ -592,6 +592,7 @@ export function ViewfinderPreview({
             >
               <div className="viewfinder-plane-ghost">
                 <ViewfinderAircraftSilhouette
+                  variant="outline"
                   className="h-[var(--viewfinder-plane-height-px)] w-[var(--viewfinder-plane-width-px)]"
                 />
               </div>
@@ -751,8 +752,9 @@ export function ViewfinderPreview({
           {planeWidthPx > 0 ? `${planeWidthPx.toFixed(1)} px` : "N/A"}
           {callSign ? ` (${callSign.trim() || "N/A"})` : ""}. Heading{" "}
           {correctedHeadingDeg != null ? `${correctedHeadingDeg.toFixed(1)}°` : "N/A"} (ADS-B corrected by parallactic
-          angle {parallacticAngleDeg.toFixed(1)}°). While the plane is outside the frame, a simulated silhouette
-          on the moon shows its crossing direction and apparent size at{" "}
+          angle {parallacticAngleDeg.toFixed(1)}°). While the plane is outside the frame, an outlined ghost
+          silhouette on the moon (not the plane&rsquo;s real position — that&rsquo;s the edge arrow) previews its
+          crossing direction and apparent size at{" "}
           {hasFutureSlantRange ? "the predicted alignment range" : "current range (no alignment prediction yet)"}.
           Moon disk: NASA/GSFC SVS hourly phase (north up); falls back to a static texture if the frame cannot load.
         </p>
@@ -774,7 +776,7 @@ export function ViewfinderPreview({
           left: 50%;
           top: 50%;
           transform: translate(-50%, -50%) rotate(var(--viewfinder-plane-rotation-deg));
-          opacity: 0.6;
+          opacity: 0.85;
           filter: drop-shadow(0 0 3px rgba(250, 204, 21, 0.55));
         }
         .viewfinder-plane-ghost-layer {
