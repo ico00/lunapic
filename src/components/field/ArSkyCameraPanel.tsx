@@ -97,10 +97,11 @@ export function ArSkyCameraPanel() {
   // AR kamera uvijek prikazuje REALNI TRENUTAK — koristimo renderNowMs, ne referenceEpochMs.
   // Korisnik može imati vremenski klizač pomaknut na +20h, ali kamera vidi sadašnjost.
   // Preračunavamo svako 10 s — Mjesec se miče ~0.5°/h, čestije je nepotrebno.
+  const renderNowBucket10s = Math.floor(renderNowMs / 10_000);
   const moon = useMemo(
     () => AstroService.getMoonState(new Date(renderNowMs), observer.lat, observer.lng, observer.groundHeightMeters),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [Math.floor(renderNowMs / 10_000), observer.lat, observer.lng, observer.groundHeightMeters]
+    [renderNowBucket10s, observer.lat, observer.lng, observer.groundHeightMeters]
   );
   const [viewport, setViewport] = useState({ w: 360, h: 640 });
   const [showAllNearbyFlights, setShowAllNearbyFlights] = useState(true);
@@ -181,11 +182,15 @@ export function ArSkyCameraPanel() {
     [trackedMarkers]
   );
 
-  useEffect(() => {
+  // Adjust state during render when trackedMarkers changes (React's documented
+  // pattern) — clears a stale selection instead of a synchronous setState-in-effect.
+  const [prevTrackedMarkersForInfo, setPrevTrackedMarkersForInfo] = useState(trackedMarkers);
+  if (trackedMarkers !== prevTrackedMarkersForInfo) {
+    setPrevTrackedMarkersForInfo(trackedMarkers);
     if (infoFlightId != null && !trackedMarkers.some((m) => m.id === infoFlightId)) {
       setInfoFlightId(null);
     }
-  }, [infoFlightId, trackedMarkers]);
+  }
 
   const infoMarker = useMemo(
     () => trackedMarkers.find((marker) => marker.id === infoFlightId) ?? null,
@@ -388,6 +393,10 @@ export function ArSkyCameraPanel() {
     }
     headingSamplesRef.current = 0;
     let cleanupOrientation: (() => void) | undefined;
+    // requestOrientation may call setOrientationError internally (permission
+    // denied / sensor start failure) — genuine external-system sync, not
+    // derivable during render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     requestOrientation().then((cleanup) => {
       cleanupOrientation = cleanup;
     });
@@ -401,6 +410,9 @@ export function ArSkyCameraPanel() {
       return;
     }
     let active = true;
+    // Clear any previous error before a new getUserMedia attempt — standard
+    // "reset before fetch" idiom, matches React's own data-fetching-in-effect example.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCameraError(null);
     navigator.mediaDevices
       .getUserMedia({

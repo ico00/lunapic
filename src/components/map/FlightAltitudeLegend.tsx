@@ -51,13 +51,18 @@ export function FlightAltitudeLegend() {
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Adjust state during render when altitudeBandIndex changes (React's
+  // documented pattern) — avoids a synchronous setState inside the effect.
+  const [prevAltitudeBandIndex, setPrevAltitudeBandIndex] = useState(altitudeBandIndex);
+  if (altitudeBandIndex !== prevAltitudeBandIndex) {
+    setPrevAltitudeBandIndex(altitudeBandIndex);
+    setTooltipVisible(altitudeBandIndex > 0);
+  }
+
   useEffect(() => {
     if (hideTimer.current) clearTimeout(hideTimer.current);
     if (altitudeBandIndex > 0) {
-      setTooltipVisible(true);
       hideTimer.current = setTimeout(() => setTooltipVisible(false), 1800);
-    } else {
-      setTooltipVisible(false);
     }
     return () => { if (hideTimer.current) clearTimeout(hideTimer.current); };
   }, [altitudeBandIndex]);

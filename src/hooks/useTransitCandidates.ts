@@ -1,5 +1,6 @@
 import { AstroService } from "@/lib/domain/astro/astroService";
 import { computeTransitCandidates } from "@/lib/domain/transit/computeTransitCandidates";
+import { useWallNowMs } from "@/hooks/useWallNowMs";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useObserverStore } from "@/stores/observer-store";
 import { useMemo } from "react";
@@ -19,6 +20,7 @@ export function useTransitCandidates() {
   const focalLengthMm = useMoonTransitStore((s) => s.cameraFocalLengthMm);
   const sensorType = useMoonTransitStore((s) => s.cameraSensorType);
   const timeAnchorIsPlanned = useMoonTransitStore((s) => s.timeAnchorIsPlanned);
+  const wallNowMs = useWallNowMs();
   return useMemo(() => {
     // Planning mode: budući Mjesec + današnji živi letovi nemaju smisla zajedno.
     if (timeAnchorIsPlanned) {
@@ -30,24 +32,25 @@ export function useTransitCandidates() {
       sensorType,
       flights,
       at: new Date(referenceEpochMs),
-      wallNowMs: Date.now(),
+      wallNowMs,
       latencySkewMs: openSkyLatencySkewMs,
     });
-  }, [observer, referenceEpochMs, openSkyLatencySkewMs, flights, focalLengthMm, sensorType, timeAnchorIsPlanned]);
+  }, [observer, referenceEpochMs, openSkyLatencySkewMs, flights, focalLengthMm, sensorType, timeAnchorIsPlanned, wallNowMs]);
 }
 
 export function useMoonStateComputed() {
   const observer = useObserverStore((s) => s.observer);
   const referenceEpochMs = useMoonTransitStore((s) => s.referenceEpochMs);
+  // Fallback na tickajući wallNowMs ako store još nije sinkroniziran (inicijalna vrijednost je 0)
+  const wallNowMs = useWallNowMs();
   return useMemo(
     () =>
       AstroService.getMoonState(
-        // Fallback na Date.now() ako store još nije sinkroniziran (inicijalna vrijednost je 0)
-        new Date(referenceEpochMs > 0 ? referenceEpochMs : Date.now()),
+        new Date(referenceEpochMs > 0 ? referenceEpochMs : wallNowMs),
         observer.lat,
         observer.lng,
         observer.groundHeightMeters
       ),
-    [observer, referenceEpochMs]
+    [observer, referenceEpochMs, wallNowMs]
   );
 }
