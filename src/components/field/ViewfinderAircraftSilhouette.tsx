@@ -7,11 +7,14 @@ import type { CSSProperties } from "react";
 type ViewfinderAircraftSilhouetteProps = {
   className?: string;
   style?: CSSProperties;
+  /** "solid" (default) for the real in-frame aircraft. "outline" marks a predicted/simulated position — used for the off-frame ghost so it reads as a preview, not a real object. */
+  variant?: "solid" | "outline";
 };
 
 export function ViewfinderAircraftSilhouette({
   className,
   style,
+  variant = "solid",
 }: ViewfinderAircraftSilhouetteProps) {
   return (
     <svg
@@ -20,7 +23,12 @@ export function ViewfinderAircraftSilhouette({
       style={style}
       aria-hidden="true"
     >
-      <g fill="#0a0a0a" stroke="none">
+      <g
+        fill={variant === "outline" ? "none" : "#0a0a0a"}
+        stroke={variant === "outline" ? "#facc15" : "none"}
+        strokeWidth={variant === "outline" ? 5 : 0}
+        strokeLinejoin="round"
+      >
         <path d="M85.89,106.67h13.89v28.65h-13.89s0-28.65,0-28.65Z" />
         <path d="M46,139.95h13.89v28.65h-13.89v-28.65Z" />
         <path d="M197.51,135.25h-13.89v-28.65h13.89v28.65Z" />

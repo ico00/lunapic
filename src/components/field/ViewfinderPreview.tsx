@@ -26,6 +26,8 @@ type ViewfinderPreviewProps = {
   elevationGapDeg?: number | null;
   /** Signed azimuth difference aircraft − moon (degrees). Positive = aircraft CW / right of moon. */
   azimuthGapDeg?: number | null;
+  /** Predicted slant range at azimuth alignment (meters) — sizes the off-frame ghost silhouette. Falls back to `distanceToObserverMeters` when absent. */
+  futureSlantRangeMeters?: number | null;
   className?: string;
 };
 
@@ -44,6 +46,14 @@ function clamp(value: number, min: number, max: number): number {
 
 function normalizeHeadingDeg(value: number): number {
   return ((value % 360) + 360) % 360;
+}
+
+function angularSizeDegFromLengthAndDistance(
+  lengthMeters: number,
+  distanceMeters: number
+): number {
+  const thetaRad = 2 * Math.atan(lengthMeters / (2 * distanceMeters));
+  return (thetaRad * 180) / Math.PI;
 }
 
 function formatMeters(value: number | null): string {
@@ -128,6 +138,7 @@ export function ViewfinderPreview({
   callSign,
   elevationGapDeg,
   azimuthGapDeg,
+  futureSlantRangeMeters,
   className,
 }: ViewfinderPreviewProps) {
   /** When true: simulates Moon size on a 6000×4000 frame at current focal (small disk in crop). When false: “Zoom” / normalized Moon scale for comparison (~0.5°). */
@@ -217,15 +228,46 @@ export function ViewfinderPreview({
     ) {
       return null;
     }
-    const thetaRad =
-      2 * Math.atan(resolvedAircraftLengthM / (2 * distanceToObserverMeters));
-    return (thetaRad * 180) / Math.PI;
+    return angularSizeDegFromLengthAndDistance(
+      resolvedAircraftLengthM,
+      distanceToObserverMeters
+    );
   }, [distanceToObserverMeters, resolvedAircraftLengthM]);
 
   const effectiveAngularSizeDeg =
     angularSizeDeg != null && Number.isFinite(angularSizeDeg) && angularSizeDeg > 0
       ? angularSizeDeg
       : derivedAngularSizeDeg;
+
+  // Off-frame ghost sizes itself at the predicted range when the aircraft
+  // reaches azimuth alignment — not the current range — so a plane still far
+  // out doesn't preview undersized relative to what it'll actually look like
+  // at the moment it lines up with the moon. Falls back to current range.
+  const hasFutureSlantRange =
+    futureSlantRangeMeters != null &&
+    Number.isFinite(futureSlantRangeMeters) &&
+    futureSlantRangeMeters > 0;
+  const ghostAngularSizeDeg = useMemo(() => {
+    const distanceMeters = hasFutureSlantRange
+      ? futureSlantRangeMeters
+      : distanceToObserverMeters;
+    if (
+      distanceMeters == null ||
+      !Number.isFinite(distanceMeters) ||
+      distanceMeters <= 0
+    ) {
+      return null;
+    }
+    return angularSizeDegFromLengthAndDistance(
+      resolvedAircraftLengthM,
+      distanceMeters
+    );
+  }, [
+    distanceToObserverMeters,
+    hasFutureSlantRange,
+    futureSlantRangeMeters,
+    resolvedAircraftLengthM,
+  ]);
 
   // Vertical offset: SVG Y axis inverted — positive elevationGap (above moon) → negative Y offset.
   const planeOffsetYPx = useMemo(() => {
@@ -258,6 +300,17 @@ export function ViewfinderPreview({
     return clamp(effectiveAngularSizeDeg * pixelsPerDegree, 8, SENSOR_WIDTH_PX * 1.2);
   }, [effectiveAngularSizeDeg, pixelsPerDegree]);
 
+  const ghostWidthPx = useMemo(() => {
+    if (
+      ghostAngularSizeDeg == null ||
+      !Number.isFinite(ghostAngularSizeDeg) ||
+      ghostAngularSizeDeg <= 0
+    ) {
+      return 0;
+    }
+    return clamp(ghostAngularSizeDeg * pixelsPerDegree, 8, SENSOR_WIDTH_PX * 1.2);
+  }, [ghostAngularSizeDeg, pixelsPerDegree]);
+
   const parallacticAngleDeg = useMemo(
     () =>
       getMoonParallacticAngleDeg(
@@ -278,31 +331,68 @@ export function ViewfinderPreview({
     return normalizeHeadingDeg(aircraftHeadingDeg - parallacticAngleDeg);
   }, [aircraftHeadingDeg, parallacticAngleDeg]);
 
-  const correctedVisualRotationDeg = useMemo(() => {
+  // Fallback direction when gap data is missing: parallactic-corrected compass
+  // heading mapped like a chart (north up, east right). Note this is mirrored
+  // horizontally relative to the actual sky view — prefer the gap-space vector.
+  const headingDirection = useMemo(() => {
     if (correctedHeadingDeg == null || !Number.isFinite(correctedHeadingDeg)) {
       return null;
     }
-    // ADS-B heading is clockwise from north; native silhouette nose is up.
-    return correctedHeadingDeg;
+    const headingRad = (correctedHeadingDeg * Math.PI) / 180;
+    return { x: Math.sin(headingRad), y: -Math.cos(headingRad) };
   }, [correctedHeadingDeg]);
+
+  // Direction from the plane's current gap position toward the moon's
+  // center — the exact reverse of the edge arrow (which points from center
+  // toward the plane). This guarantees the ghost/trajectory axis always
+  // lines up with the arrow, just pointing the other way ("it's over there"
+  // vs. "it's heading this way, toward the disc").
+  //
+  // An earlier version aimed the path at the *predicted* alignment point
+  // (azimuth gap 0, elevationGapAtAlignmentDeg) instead of straight at
+  // center. That's only collinear with the arrow when
+  // azimuthGapDeg * elevationGapAtAlignmentDeg == 0 — in the general case
+  // the two axes diverge, which is exactly the "arrow and path don't match"
+  // bug reported after testing. Using the current gap alone keeps them
+  // rigidly consistent at the cost of not modeling the predicted bend.
+  const skyMotionDirection = useMemo(() => {
+    if (
+      azimuthGapDeg == null ||
+      !Number.isFinite(azimuthGapDeg) ||
+      elevationGapDeg == null ||
+      !Number.isFinite(elevationGapDeg)
+    ) {
+      return null;
+    }
+    const len = Math.hypot(azimuthGapDeg, elevationGapDeg);
+    if (len === 0) {
+      return null;
+    }
+    // Screen coords: +x right (azimuth gap grows), +y down (elevation drops).
+    return { x: -azimuthGapDeg / len, y: elevationGapDeg / len };
+  }, [azimuthGapDeg, elevationGapDeg]);
+
+  const motionDirection = skyMotionDirection ?? headingDirection;
+  // Silhouette nose (natively up) follows the on-sky motion vector.
+  const motionRotationDeg =
+    motionDirection != null
+      ? (Math.atan2(motionDirection.x, -motionDirection.y) * 180) / Math.PI
+      : 0;
 
   const trajectoryLine = useMemo(() => {
     if (showReferenceSensorScale) {
       return null;
     }
     if (
-      correctedHeadingDeg == null ||
-      !Number.isFinite(correctedHeadingDeg) ||
+      motionDirection == null ||
       distanceToObserverMeters == null ||
       !Number.isFinite(distanceToObserverMeters) ||
       distanceToObserverMeters <= 0
     ) {
       return null;
     }
-    const headingRad = (correctedHeadingDeg * Math.PI) / 180;
-    // Convert north-clockwise heading to screen vector (x right, y down).
-    const directionX = Math.sin(headingRad);
-    const directionY = -Math.cos(headingRad);
+    const directionX = motionDirection.x;
+    const directionY = motionDirection.y;
     // Use speed to estimate on-sky motion over a short horizon.
     const speedMps =
       aircraftGroundSpeedMps != null &&
@@ -331,28 +421,16 @@ export function ViewfinderPreview({
     };
   }, [
     aircraftGroundSpeedMps,
-    correctedHeadingDeg,
     distanceToObserverMeters,
     moonDiameterPx,
+    motionDirection,
     pixelsPerDegree,
     planeCenterX,
     planeCenterY,
     showReferenceSensorScale,
   ]);
 
-  const trajectoryDirection = useMemo(() => {
-    if (showReferenceSensorScale) {
-      return null;
-    }
-    if (correctedHeadingDeg == null || !Number.isFinite(correctedHeadingDeg)) {
-      return null;
-    }
-    const headingRad = (correctedHeadingDeg * Math.PI) / 180;
-    return {
-      x: Math.sin(headingRad),
-      y: -Math.cos(headingRad),
-    };
-  }, [correctedHeadingDeg, showReferenceSensorScale]);
+  const trajectoryDirection = showReferenceSensorScale ? null : motionDirection;
 
   const trajectoryDirectionArrow = useMemo(() => {
     if (!trajectoryDirection) {
@@ -369,6 +447,7 @@ export function ViewfinderPreview({
   }, [moonRadiusPx, planeCenterX, planeCenterY, trajectoryDirection]);
 
   const planeHeightPx = Math.max(6, planeWidthPx * 0.28);
+  const ghostHeightPx = Math.max(6, ghostWidthPx * 0.28);
 
   const planeTopPct = (planeCenterY / SENSOR_HEIGHT_PX) * 100;
   const planeLeftPct = (planeCenterX / SENSOR_WIDTH_PX) * 100;
@@ -376,12 +455,21 @@ export function ViewfinderPreview({
   const styleVars = {
     "--viewfinder-plane-width-px": `${planeWidthPx}px`,
     "--viewfinder-plane-height-px": `${planeHeightPx}px`,
-    "--viewfinder-plane-rotation-deg": `${correctedVisualRotationDeg ?? 0}deg`,
+    "--viewfinder-plane-rotation-deg": `${motionRotationDeg}deg`,
     "--viewfinder-plane-top-pct": `${planeTopPct}%`,
     "--viewfinder-plane-left-pct": `${planeLeftPct}%`,
   } as CSSProperties;
 
+  // Separate width/height from the real silhouette — the ghost previews the
+  // predicted alignment-range size, which can differ from the current one.
+  const ghostStyleVars = {
+    "--viewfinder-plane-width-px": `${ghostWidthPx}px`,
+    "--viewfinder-plane-height-px": `${ghostHeightPx}px`,
+    "--viewfinder-plane-rotation-deg": `${motionRotationDeg}deg`,
+  } as CSSProperties;
+
   const showPlane = planeWidthPx > 0 && planeIsInFrame;
+  const showGhost = ghostWidthPx > 0 && !planeIsInFrame;
 
   return (
     <div className={className}>
@@ -498,6 +586,20 @@ export function ViewfinderPreview({
               </defs>
             </svg>
           ) : null}
+          {showGhost ? (
+            <div
+              className="viewfinder-plane-ghost-layer pointer-events-none absolute inset-0 z-[2]"
+              style={ghostStyleVars}
+              aria-hidden="true"
+            >
+              <div className="viewfinder-plane-ghost">
+                <ViewfinderAircraftSilhouette
+                  variant="outline"
+                  className="h-[var(--viewfinder-plane-height-px)] w-[var(--viewfinder-plane-width-px)]"
+                />
+              </div>
+            </div>
+          ) : null}
           {!planeIsInFrame && planeWidthPx > 0 ? (() => {
             // Direction from viewfinder centre toward the off-screen plane.
             const dx = planeOffsetXPx;
@@ -534,12 +636,41 @@ export function ViewfinderPreview({
             const labelX = SENSOR_CENTER_X + (dx * scale * 0.6);
             const labelY = SENSOR_CENTER_Y + (dy * scale * 0.6) + 20;
 
+            // Simulated path across the moon disc along the predicted on-sky
+            // motion (gap space), so it always enters from the plane's side.
+            const ghostPath = (() => {
+              if (motionDirection == null) {
+                return null;
+              }
+              const halfLen = moonRadiusPx * 1.18;
+              return {
+                x1: SENSOR_CENTER_X - motionDirection.x * halfLen,
+                y1: SENSOR_CENTER_Y - motionDirection.y * halfLen,
+                x2: SENSOR_CENTER_X + motionDirection.x * halfLen,
+                y2: SENSOR_CENTER_Y + motionDirection.y * halfLen,
+              };
+            })();
+
             return (
               <svg
                 viewBox={`0 0 ${SENSOR_WIDTH_PX} ${SENSOR_HEIGHT_PX}`}
                 className="pointer-events-none absolute inset-0 z-[4] h-full w-full"
                 aria-hidden="true"
               >
+                {ghostPath ? (
+                  <line
+                    x1={ghostPath.x1}
+                    y1={ghostPath.y1}
+                    x2={ghostPath.x2}
+                    y2={ghostPath.y2}
+                    stroke="#facc15"
+                    strokeWidth={4}
+                    strokeDasharray="8 8"
+                    strokeLinecap="round"
+                    opacity={0.55}
+                    markerEnd="url(#viewfinder-ghost-path-arrow)"
+                  />
+                ) : null}
                 <path d={triPath} fill="#facc15" opacity={0.92} />
                 <text
                   x={labelX}
@@ -552,6 +683,19 @@ export function ViewfinderPreview({
                 >
                   {label}
                 </text>
+                <defs>
+                  <marker
+                    id="viewfinder-ghost-path-arrow"
+                    markerWidth="8"
+                    markerHeight="8"
+                    refX="6.5"
+                    refY="3.5"
+                    orient="auto"
+                    markerUnits="strokeWidth"
+                  >
+                    <path d="M0,0 L0,7 L7,3.5 z" fill="#facc15" opacity="0.6" />
+                  </marker>
+                </defs>
               </svg>
             );
           })() : null}
@@ -610,8 +754,11 @@ export function ViewfinderPreview({
           {planeWidthPx > 0 ? `${planeWidthPx.toFixed(1)} px` : "N/A"}
           {callSign ? ` (${callSign.trim() || "N/A"})` : ""}. Heading{" "}
           {correctedHeadingDeg != null ? `${correctedHeadingDeg.toFixed(1)}°` : "N/A"} (ADS-B corrected by parallactic
-          angle {parallacticAngleDeg.toFixed(1)}°). Moon disk: NASA/GSFC SVS hourly phase (north up); falls back
-          to a static texture if the frame cannot load.
+          angle {parallacticAngleDeg.toFixed(1)}°). While the plane is outside the frame, an outlined ghost
+          silhouette on the moon (not the plane&rsquo;s real position — that&rsquo;s the edge arrow) previews its
+          crossing direction and apparent size at{" "}
+          {hasFutureSlantRange ? "the predicted alignment range" : "current range (no alignment prediction yet)"}.
+          Moon disk: NASA/GSFC SVS hourly phase (north up); falls back to a static texture if the frame cannot load.
         </p>
       </details>
       <style jsx>{`
@@ -624,6 +771,17 @@ export function ViewfinderPreview({
           filter: drop-shadow(0 0 4px #facc15) drop-shadow(0 0 10px rgba(250, 204, 21, 0.55));
         }
         .viewfinder-plane-static-layer {
+          display: block;
+        }
+        .viewfinder-plane-ghost {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          transform: translate(-50%, -50%) rotate(var(--viewfinder-plane-rotation-deg));
+          opacity: 0.85;
+          filter: drop-shadow(0 0 3px rgba(250, 204, 21, 0.55));
+        }
+        .viewfinder-plane-ghost-layer {
           display: block;
         }
       `}</style>
