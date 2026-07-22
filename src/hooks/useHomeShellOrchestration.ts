@@ -168,12 +168,14 @@ export function useHomeShellOrchestration() {
   /* ---- Planning date picker (budući datum, lokalna ponoć kao sidro) ---- */
   const isPlanned = useMoonTransitStore((s) => s.timeAnchorIsPlanned);
   const setTimeAnchorPlanned = useMoonTransitStore((s) => s.setTimeAnchorPlanned);
+  // Snapshot pri mountu — samo default za date-picker kad još nije planned, ne treba live-tick.
+  const [mountNowMs] = useState(() => Date.now());
   const planningDateValue = useMemo(() => {
-    const d = new Date(isPlanned ? timeAnchorMs : Date.now());
+    const d = new Date(isPlanned ? timeAnchorMs : mountNowMs);
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const dd = String(d.getDate()).padStart(2, "0");
     return `${d.getFullYear()}-${mm}-${dd}`;
-  }, [isPlanned, timeAnchorMs]);
+  }, [isPlanned, timeAnchorMs, mountNowMs]);
   const onPlanningDate = useCallback(
     (value: string) => {
       const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
