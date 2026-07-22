@@ -6,6 +6,16 @@ export const dynamic = "force-dynamic";
 
 const NO_CACHE = { "Cache-Control": "no-store" };
 const NOW = Date.now;
+/**
+ * Logging cadence is ~15s (see server.js poller). A gap this much larger than
+ * that means the receiver actually lost the aircraft (out of range, behind
+ * terrain, landed-then-relaunched under the same icao24) rather than a single
+ * missed tick. Without this, one LineString silently bridges the last point
+ * before the gap straight to the first point after it — a straight line across
+ * the map with no relation to any real flight path. Matches the EVENT_GAP_MS
+ * precedent in transit-history/route.ts.
+ */
+const TRAIL_GAP_MS = 5 * 60_000;
 
 export async function GET(
   req: NextRequest,
@@ -44,26 +54,36 @@ export async function GET(
     );
   }
 
-  const coords = rows.map((r) => [r.lng, r.lat, r.alt_baro_m ?? 0]);
+  const segments: (typeof rows)[number][][] = [];
+  let current: (typeof rows)[number][] = [];
+  for (const row of rows) {
+    const prev = current[current.length - 1];
+    if (prev && row.logged_at - prev.logged_at > TRAIL_GAP_MS) {
+      segments.push(current);
+      current = [];
+    }
+    current.push(row);
+  }
+  if (current.length > 0) segments.push(current);
+
+  const features = segments
+    .filter((segment) => segment.length >= 2)
+    .map((segment) => ({
+      type: "Feature" as const,
+      properties: {
+        icao24,
+        count: segment.length,
+        fromMs: segment[0]!.logged_at,
+        toMs: segment[segment.length - 1]!.logged_at,
+      },
+      geometry: {
+        type: "LineString" as const,
+        coordinates: segment.map((r) => [r.lng, r.lat, r.alt_baro_m ?? 0]),
+      },
+    }));
+
   return NextResponse.json(
-    {
-      type: "FeatureCollection",
-      features: [
-        {
-          type: "Feature",
-          properties: {
-            icao24,
-            count: rows.length,
-            fromMs,
-            toMs,
-          },
-          geometry: {
-            type: "LineString",
-            coordinates: coords,
-          },
-        },
-      ],
-    },
+    { type: "FeatureCollection", features },
     { headers: NO_CACHE }
   );
 }
