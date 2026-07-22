@@ -6,7 +6,7 @@ import {
   evaluateShotFeasibility,
   type ShotFeasibility,
 } from "@/lib/domain/geometry/shotFeasibility";
-import { playShortBeep } from "@/lib/audio/fieldAudio";
+import { playCountdownAlert, playShortBeep } from "@/lib/audio/fieldAudio";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useObserverStore } from "@/stores/observer-store";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -120,12 +120,14 @@ export function usePhotographerTools() {
 }
 
 /**
- * 3 s prije točke poravnanja i točno u trenutku (kada |t| mali nakon 0).
+ * 10 s prije poravnanja (spoken countdown.wav), 3 s prije (kratki beep) i
+ * točno u trenutku poravnanja (kada |t| mali nakon 0).
  */
 export function useTransitBeep(
   timeToAlignmentSec: number | null,
   beepOn: boolean
 ) {
+  const tenSecRef = useRef(false);
   const preRef = useRef(false);
   const hitRef = useRef(false);
   const lastSel = useRef<string | null | undefined>(undefined);
@@ -136,6 +138,7 @@ export function useTransitBeep(
       return;
     }
     if (lastSel.current !== selectedId) {
+      tenSecRef.current = false;
       preRef.current = false;
       hitRef.current = false;
       lastSel.current = selectedId;
@@ -157,6 +160,11 @@ export function useTransitBeep(
     if (t > 0 && t <= 3.2 && t >= 2.6 && !preRef.current) {
       playShortBeep(660, 0.09, 0.1);
       preRef.current = true;
+      return;
+    }
+    if (t > 0 && t <= 10.2 && t >= 9.6 && !tenSecRef.current) {
+      playCountdownAlert();
+      tenSecRef.current = true;
     }
   }, [beepOn, timeToAlignmentSec]);
 }
