@@ -26,8 +26,6 @@ type ViewfinderPreviewProps = {
   elevationGapDeg?: number | null;
   /** Signed azimuth difference aircraft − moon (degrees). Positive = aircraft CW / right of moon. */
   azimuthGapDeg?: number | null;
-  /** Predicted elevation gap aircraft − moon at azimuth alignment (degrees). */
-  elevationGapAtAlignmentDeg?: number | null;
   /** Predicted slant range at azimuth alignment (meters) — sizes the off-frame ghost silhouette. Falls back to `distanceToObserverMeters` when absent. */
   futureSlantRangeMeters?: number | null;
   className?: string;
@@ -140,7 +138,6 @@ export function ViewfinderPreview({
   callSign,
   elevationGapDeg,
   azimuthGapDeg,
-  elevationGapAtAlignmentDeg,
   futureSlantRangeMeters,
   className,
 }: ViewfinderPreviewProps) {
@@ -345,30 +342,35 @@ export function ViewfinderPreview({
     return { x: Math.sin(headingRad), y: -Math.cos(headingRad) };
   }, [correctedHeadingDeg]);
 
-  // Predicted on-sky motion: from the current gap position (azimuthGapDeg,
-  // elevationGapDeg) toward the alignment point (azimuth gap 0,
-  // elevationGapAtAlignmentDeg). Same alt-az gap space the plane position is
-  // plotted in, so the path always approaches from the plane's actual side —
-  // a compass-heading projection would be mirrored horizontally in sky view.
+  // Direction from the plane's current gap position toward the moon's
+  // center — the exact reverse of the edge arrow (which points from center
+  // toward the plane). This guarantees the ghost/trajectory axis always
+  // lines up with the arrow, just pointing the other way ("it's over there"
+  // vs. "it's heading this way, toward the disc").
+  //
+  // An earlier version aimed the path at the *predicted* alignment point
+  // (azimuth gap 0, elevationGapAtAlignmentDeg) instead of straight at
+  // center. That's only collinear with the arrow when
+  // azimuthGapDeg * elevationGapAtAlignmentDeg == 0 — in the general case
+  // the two axes diverge, which is exactly the "arrow and path don't match"
+  // bug reported after testing. Using the current gap alone keeps them
+  // rigidly consistent at the cost of not modeling the predicted bend.
   const skyMotionDirection = useMemo(() => {
-    if (azimuthGapDeg == null || !Number.isFinite(azimuthGapDeg)) {
+    if (
+      azimuthGapDeg == null ||
+      !Number.isFinite(azimuthGapDeg) ||
+      elevationGapDeg == null ||
+      !Number.isFinite(elevationGapDeg)
+    ) {
       return null;
     }
-    const dAzDeg = -azimuthGapDeg;
-    const dElDeg =
-      elevationGapAtAlignmentDeg != null &&
-      Number.isFinite(elevationGapAtAlignmentDeg) &&
-      elevationGapDeg != null &&
-      Number.isFinite(elevationGapDeg)
-        ? elevationGapAtAlignmentDeg - elevationGapDeg
-        : 0;
-    const len = Math.hypot(dAzDeg, dElDeg);
+    const len = Math.hypot(azimuthGapDeg, elevationGapDeg);
     if (len === 0) {
       return null;
     }
     // Screen coords: +x right (azimuth gap grows), +y down (elevation drops).
-    return { x: dAzDeg / len, y: -dElDeg / len };
-  }, [azimuthGapDeg, elevationGapAtAlignmentDeg, elevationGapDeg]);
+    return { x: -azimuthGapDeg / len, y: elevationGapDeg / len };
+  }, [azimuthGapDeg, elevationGapDeg]);
 
   const motionDirection = skyMotionDirection ?? headingDirection;
   // Silhouette nose (natively up) follows the on-sky motion vector.
