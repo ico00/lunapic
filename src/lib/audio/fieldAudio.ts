@@ -260,6 +260,30 @@ export function playActiveTransitAlert(): void {
 }
 
 /**
+ * ~14 s spoken countdown (public/sounds/countdown.wav) — played once when the
+ * selected aircraft is 10 s from azimuth alignment. Prefers the **shared**
+ * (primed) context, which is never auto-closed; a one-shot fallback context is
+ * closed after the buffer's own duration (not the short 1 s used for beeps),
+ * since this clip is much longer than the alert sounds above.
+ */
+export function playCountdownAlert(): void {
+  const shared = sharedAudioContext != null && sharedAudioContext.state !== "closed";
+  const ctx = shared ? sharedAudioContext : getAudioContextCtor() != null ? new (getAudioContextCtor() as typeof AudioContext)() : null;
+  if (ctx == null) return;
+  void ctx.resume().catch(() => {});
+  void loadSoundBuffer(ctx, "countdown.wav").then((buf) => {
+    if (buf == null) {
+      if (!shared) void ctx.close().catch(() => {});
+      return;
+    }
+    playBuffer(ctx, buf);
+    if (!shared) {
+      globalThis.setTimeout(() => void ctx.close().catch(() => {}), Math.ceil(buf.duration * 1000) + 200);
+    }
+  });
+}
+
+/**
  * Soft sustained tone while the selected aircraft stays in the moon-overlap
  * (disc-on-disc) geometry — uses the **primed** shared context only.
  */
