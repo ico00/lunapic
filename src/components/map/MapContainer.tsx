@@ -32,6 +32,7 @@ import { fieldPerfRecord, isFieldPerfEnabled } from "@/lib/perf/fieldPerf";
 import type { IFlightProvider } from "@/types";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useObserverStore } from "@/stores/observer-store";
+import { useWallNowMs } from "@/hooks/useWallNowMs";
 import type { CorridorVolumeCustomLayer } from "@/lib/map/CorridorVolumeCustomLayer";
 import { Profiler, useEffect, useMemo, useRef, useState } from "react";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -121,18 +122,19 @@ export function MapContainer({
     ro.observe(el);
     return () => ro.disconnect();
   }, [elRef]);
+  const wallNowMs = useWallNowMs();
   const shotFeasibleFlightIds = useMemo(
     () =>
       computeShotFeasibleFlightIds(
         observer,
         moon,
         filteredFlights,
-        Date.now(),
+        wallNowMs,
         openSkyLatencySkewMs,
         cameraFocalLengthMm,
         cameraSensorType as CameraSensorType
       ),
-    [cameraFocalLengthMm, cameraSensorType, filteredFlights, moon, observer, openSkyLatencySkewMs]
+    [cameraFocalLengthMm, cameraSensorType, filteredFlights, moon, observer, openSkyLatencySkewMs, wallNowMs]
   );
   const confirmedTransitFlightIds = useMemo(
     () =>
@@ -140,11 +142,11 @@ export function MapContainer({
         observer,
         moon,
         filteredFlights,
-        new Date(referenceEpochMs > 0 ? referenceEpochMs : Date.now()),
-        Date.now(),
+        new Date(referenceEpochMs > 0 ? referenceEpochMs : wallNowMs),
+        wallNowMs,
         openSkyLatencySkewMs
       ),
-    [filteredFlights, moon, observer, openSkyLatencySkewMs, referenceEpochMs]
+    [filteredFlights, moon, observer, openSkyLatencySkewMs, referenceEpochMs, wallNowMs]
   );
 
   useTransitFieldSounds({

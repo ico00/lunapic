@@ -2,6 +2,7 @@ import {
   computeActiveTransits,
   DEFAULT_ACTIVE_TRANSIT_TOL_DEG,
 } from "@/lib/domain/transit/computeActiveTransits";
+import { useWallNowMs } from "@/hooks/useWallNowMs";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useObserverStore } from "@/stores/observer-store";
 import { useMemo } from "react";
@@ -24,6 +25,7 @@ export function useActiveTransits(
   const openSkyLatencySkewMs = useMoonTransitStore((s) => s.openSkyLatencySkewMs);
   const flights = useMoonTransitStore((s) => s.flights);
   const timeAnchorIsPlanned = useMoonTransitStore((s) => s.timeAnchorIsPlanned);
+  const wallNowMs = useWallNowMs();
   return useMemo(() => {
     // Planning mode: budući Mjesec + današnji živi letovi nemaju smisla zajedno.
     if (timeAnchorIsPlanned) {
@@ -33,9 +35,9 @@ export function useActiveTransits(
       observer,
       flights,
       at: new Date(referenceEpochMs),
-      wallNowMs: Date.now(),
+      wallNowMs,
       latencySkewMs: openSkyLatencySkewMs,
       toleranceDeg,
     });
-  }, [observer, referenceEpochMs, openSkyLatencySkewMs, flights, toleranceDeg, timeAnchorIsPlanned]);
+  }, [observer, referenceEpochMs, openSkyLatencySkewMs, flights, toleranceDeg, timeAnchorIsPlanned, wallNowMs]);
 }

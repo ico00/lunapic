@@ -17,6 +17,7 @@ import { TransitCandidatesPanel } from "@/components/shell/panels/TransitCandida
 import { StreetViewFullscreen } from "@/components/map/StreetViewFullscreen";
 import { WeatherOverlay } from "@/components/weather/WeatherOverlay";
 import { useHasMounted } from "@/hooks/useHasMounted";
+import { useWallNowMs } from "@/hooks/useWallNowMs";
 import { useHomeShellOrchestration } from "@/hooks/useHomeShellOrchestration";
 import { useIsMdUp } from "@/hooks/useMediaQuery";
 import { useCandidateAlerts } from "@/hooks/useCandidateAlerts";
@@ -484,7 +485,9 @@ function PlanningCalendarPopup(props: {
   // altitude legende i docka — previše elemenata). Desktop: popup iznad ribbona.
   const isMdUp = useIsMdUp();
   const popupRef = useRef<HTMLDivElement | null>(null);
-  const todayMs = localMidnightMs(Date.now());
+  // Snapshot pri mountu — popup se otvara svježe svaki put, ne treba live-tick.
+  const [openedAtMs] = useState(() => Date.now());
+  const todayMs = localMidnightMs(openedAtMs);
   const selectedMs = useMemo(() => {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(selectedValue);
     return m
@@ -674,11 +677,11 @@ function PlanningDateButton(props: {
   iconClass: string;
 }) {
   const [open, setOpen] = useState(false);
-  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const [btnEl, setBtnEl] = useState<HTMLButtonElement | null>(null);
   return (
     <>
       <button
-        ref={btnRef}
+        ref={setBtnEl}
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={`grid shrink-0 place-items-center rounded-full border transition active:scale-[0.95] ${props.sizeClass} ${
@@ -709,9 +712,9 @@ function PlanningDateButton(props: {
           <path d="M8 3v4M16 3v4M3 9h18" />
         </svg>
       </button>
-      {open && btnRef.current && (
+      {open && btnEl && (
         <PlanningCalendarPopup
-          anchor={btnRef.current}
+          anchor={btnEl}
           selectedValue={props.planningDateValue}
           isPlanned={props.isPlanned}
           onPick={(value) => {
@@ -1096,18 +1099,19 @@ export function HomePageClient() {
   const cameraFocalLengthMm = useMoonTransitStore((st) => st.cameraFocalLengthMm);
   const cameraSensorType = useMoonTransitStore((st) => st.cameraSensorType);
   const openSkyLatencySkewMsHPC = useMoonTransitStore((st) => st.openSkyLatencySkewMs);
+  const wallNowMsHPC = useWallNowMs();
   const feasibleFlightIds = useMemo(
     () =>
       computeShotFeasibleFlightIds(
         s.obs,
         s.moon,
         flights,
-        Date.now(),
+        wallNowMsHPC,
         openSkyLatencySkewMsHPC,
         cameraFocalLengthMm,
         cameraSensorType
       ),
-    [s.obs, s.moon, flights, openSkyLatencySkewMsHPC, cameraFocalLengthMm, cameraSensorType]
+    [s.obs, s.moon, flights, wallNowMsHPC, openSkyLatencySkewMsHPC, cameraFocalLengthMm, cameraSensorType]
   );
   const greenCount = feasibleFlightIds.size;
   const topGreenCallSign = useMemo(() => {

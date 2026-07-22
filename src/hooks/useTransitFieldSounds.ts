@@ -6,6 +6,7 @@ import type { GroundObserver } from "@/types/geo";
 import type { MoonState } from "@/types/moon";
 import type { FlightState } from "@/types/flight";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
+import { useWallNowMs } from "@/hooks/useWallNowMs";
 import { useEffect, useMemo, useRef } from "react";
 
 type UseTransitFieldSoundsArgs = {
@@ -36,6 +37,7 @@ export function useTransitFieldSounds(a: UseTransitFieldSoundsArgs): void {
   } = a;
 
   const openSkyLatencySkewMs = useMoonTransitStore((s) => s.openSkyLatencySkewMs);
+  const wallNowMs = useWallNowMs();
 
   const shotFeasibleIds = useMemo(
     () =>
@@ -43,12 +45,12 @@ export function useTransitFieldSounds(a: UseTransitFieldSoundsArgs): void {
         observer,
         moon,
         flights,
-        Date.now(),
+        wallNowMs,
         openSkyLatencySkewMs,
         cameraFocalLengthMm,
         cameraSensorType
       ),
-    [observer, moon, flights, openSkyLatencySkewMs, cameraFocalLengthMm, cameraSensorType]
+    [observer, moon, flights, wallNowMs, openSkyLatencySkewMs, cameraFocalLengthMm, cameraSensorType]
   );
 
   const selectedIsShotFeasible = useMemo(
@@ -60,11 +62,11 @@ export function useTransitFieldSounds(a: UseTransitFieldSoundsArgs): void {
     if (selectedFlightId == null) {
       return false;
     }
-    const row = screenTransitCandidates(observer, moon, flights, Date.now(), openSkyLatencySkewMs).find(
+    const row = screenTransitCandidates(observer, moon, flights, wallNowMs, openSkyLatencySkewMs).find(
       (x) => x.flight.id === selectedFlightId
     );
     return row?.isPossibleTransit ?? false;
-  }, [observer, moon, flights, openSkyLatencySkewMs, selectedFlightId]);
+  }, [observer, moon, flights, wallNowMs, openSkyLatencySkewMs, selectedFlightId]);
 
   const holdRef = useRef<MoonTransitHoldTone | null>(null);
   const prevGreenRef = useRef(false);
