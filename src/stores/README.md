@@ -20,3 +20,7 @@ Držimo **vrijeme**, **karta** (`mapView`) i **letovi** u jednom Zustand agregat
 Ako u budućnosti raste bol (paralelni PR-ovi, teški testovi), moguć je rascjep — vidi `documentation/optimization-and-refactoring.md` i `documentation/architecture.md` (sekcija o agregatu).
 
 **Pravilo:** domena i `IFlightProvider` implementacije **ne** smiju ovisiti o Zustandu; store je samo transport stanja u React.
+
+## Treći store: `useTransitComputedStore` (derived, ne vlasnik stanja)
+
+`src/stores/transit-computed-store.ts` — **ne drži ulazno korisničko stanje** poput gornja dva; to je dijeljeni **cache izračuna** (`moon`, `candidates`, `activeTransits`) da se `AstroService.getMoonState` / `computeTransitCandidates` / `computeActiveTransits` ne pozivaju zasebno u svakoj komponenti koja ih treba. Puni ga isključivo `useSharedTransitComputation` (mount jednom u `useHomeShellOrchestration`); sve ostalo (`useMoonStateComputed`, `useTransitCandidates`, `useActiveTransits`) su selektori koji samo čitaju. Detalji i povijest (2026-07-22 CPU/fan incident): `documentation/architecture.md` → "Shared transit computation (dedup)", `documentation/optimization-and-refactoring.md` §9.
