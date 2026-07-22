@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 where version bumps are made for releases (currently `0.x`).
 
+## [2026-07-22] — Shared transit computation (fix desktop CPU/fan overload)
+
+See also: [architecture.md → Shared transit computation (dedup)](architecture.md#shared-transit-computation-dedup), [optimization-and-refactoring.md §9](optimization-and-refactoring.md).
+
+### Fixed
+
+- **Duplicated moon/transit computation across 4-6 components, each on its own tick.** Reported symptom: the app pegged a desktop CPU/GPU hard enough to spin fans and force a reset — heavier than typical render software. Root cause was not a single runaway loop but the same expensive work running independently in parallel: `useMoonStateComputed` (`AstroService.getMoonState`) ran separately in `MapContainer`, `FieldOverlaysSection`, `CompassAimPanel`, and `useHomeShellOrchestration`, each with its **own** `useWallNowMs` (250 ms) rAF tick and its own `useMemo`; `useTransitCandidates` (full screening + `photographerPack` per candidate over the entire `flights` array) ran separately in `useHomeShellOrchestration` **and** `ArSkyCameraPanel`; `useActiveTransits` ran its own full pass in `useHomeShellOrchestration`. None of this was gated on whether the consuming panel was visible — `useHomeShellOrchestration` and `MapContainer` are both always mounted — so the duplicated cost ran continuously, on top of Mapbox's own WebGL re-render load from the map's 80 ms flight-extrapolation tick.
+
+### Changed
+
+- **New derived store `useTransitComputedStore`** (`src/stores/transit-computed-store.ts`) holding `{ moon, candidates, activeTransits }` — a computed cache, not owned input state.
+- **New writer hook `useSharedTransitComputation`** (`src/hooks/useSharedTransitComputation.ts`) — the single `useWallNowMs(250)` tick + `useMemo` + `useLayoutEffect` that computes all three and writes them into the store. Mounted exactly once, from `useHomeShellOrchestration`.
+- **`useMoonStateComputed`, `useTransitCandidates`, `useActiveTransits`** (`src/hooks/useTransitCandidates.ts`, `useActiveTransits.ts`) rewritten as thin `useTransitComputedStore` selectors — same names and call sites in `MapContainer` / `FieldOverlaysSection` / `CompassAimPanel` / `ArSkyCameraPanel` unchanged, so no consumer needed edits beyond the one below.
+- **`useActiveTransits()` dropped its `toleranceDeg` parameter.** The sole caller (`useHomeShellOrchestration`) always passed the default (`DEFAULT_ACTIVE_TRANSIT_TOL_DEG` = 0.5°); the unused flexibility was removed instead of threaded through the shared store. If a future caller needs a different tolerance, extend the store or compute that one instance separately rather than reintroducing per-component duplication.
+- Pipeline thresholds and tick rate (250 ms) are unchanged — this is purely a where-is-it-computed change. Verified: `tsc --noEmit`, `eslint`, full Vitest suite (141/141) all clean; manually confirmed in-browser that Moon (nowcast), Transit candidates, and the map's moon-path overlay still show correct, consistent values after the refactor.
+
+---
+
 ## [2026-07-22] — Viewfinder off-frame ghost silhouette + smjer putanje
 
 Vidi i: [architecture.md → Viewfinder preview](architecture.md)

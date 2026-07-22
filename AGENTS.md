@@ -72,9 +72,21 @@ Linearni azimutalni model divergira za letove koji su trenutno daleko od Mjeseca
 Pipeline iznad postoji u **čistim funkcijama** — jedini izvor istine pragova:
 `src/lib/domain/transit/computeTransitCandidates.ts` i `computeActiveTransits.ts`.
 Koriste ih dvije strane s **identičnim pragovima**:
-1. **Klijent** — hookovi `useTransitCandidates` / `useActiveTransits` (tanki
-   store-bound wrapperi) → in-app audio + toast dok je tab vidljiv
-   (`useCandidateAlerts`).
+1. **Klijent** — izračunato **jednom** po ticku u `useSharedTransitComputation`
+   (mount jednom u `useHomeShellOrchestration`) i upisano u dijeljeni store
+   `useTransitComputedStore`; hookovi `useTransitCandidates` / `useActiveTransits`
+   / `useMoonStateComputed` (`src/hooks/useTransitCandidates.ts`,
+   `useActiveTransits.ts`) su samo **selektori** nad tim storeom → in-app audio
+   i toast dok je tab vidljiv (`useCandidateAlerts`). Prije 2026-07-22 svaka je
+   komponenta (MapContainer, FieldOverlaysSection, CompassAimPanel,
+   useHomeShellOrchestration, ArSkyCameraPanel) imala vlastiti `useWallNowMs`
+   tick + vlastiti poziv na `computeTransitCandidates`/`computeActiveTransits`
+   nad cijelim `flights` nizom — isti posao dupliciran 4-6× na 4Hz, kontinuirano
+   dok je app otvorena (dio uzroka pretjeranog CPU/GPU opterećenja na desktopu).
+   `useActiveTransits()` više ne prima `toleranceDeg` — jedini pozivatelj je
+   uvijek slao default (`DEFAULT_ACTIVE_TRANSIT_TOL_DEG` = 0.5°); ako ikad
+   zatreba druga tolerancija, treba proširiti store ili računati tu jednu
+   instancu zasebno (ne vraćati duplikaciju na sve pozivatelje).
 2. **Server** — `server.js` flight-logger poller na svakom ticku POST-a pun
    snapshot letova internoj ruti `/api/transit/scan` (auth: `x-internal-token` =
    `INTERNAL_SCAN_TOKEN`). Ruta računa kandidate **po pretplati** (svaka push

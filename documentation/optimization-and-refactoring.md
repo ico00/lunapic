@@ -112,7 +112,28 @@ For day-to-day architecture rules, see `documentation/architecture.md`. For the 
 
 ---
 
-## 9. Line-count impact (approximate)
+## 9. Shared transit computation (dedup, 2026-07-22)
+
+**Problem reported:** the app was pegging a desktop machine's CPU/fans hard enough to require a reset — heavier than typical render/GPU-bound software. Diagnosis found no single runaway loop; instead the same expensive work ran **4-6× in parallel**, each instance on its own independent tick:
+
+- `useMoonStateComputed` (`AstroService.getMoonState`) ran separately in `MapContainer`, `FieldOverlaysSection`, `CompassAimPanel`, and `useHomeShellOrchestration` — 4 independent `useWallNowMs` (250 ms) ticks, 4 independent `useMemo` recomputations, 4 separate component re-renders, continuously.
+- `useTransitCandidates` (full screening + `photographerPack` per candidate, over the entire `flights` array) ran separately in `useHomeShellOrchestration` **and** `ArSkyCameraPanel`.
+- `useActiveTransits` (full sky-separation pass over `flights`) ran in `useHomeShellOrchestration`.
+
+None of this was gated by whether the consuming panel was actually visible — `useHomeShellOrchestration` and `MapContainer` are both always mounted (per §5 / §4), so the duplicated cost was paid at all times, on top of Mapbox's own WebGL re-render load from `useExtrapolatedFlightsForMap`'s 80 ms tick.
+
+**Fix:** consolidated to one tick, one computation, many cheap readers.
+
+- New store `src/stores/transit-computed-store.ts` (`useTransitComputedStore`) — derived cache: `{ moon, candidates, activeTransits }`.
+- New hook `src/hooks/useSharedTransitComputation.ts` — the single `useWallNowMs(250)` + `useMemo` + `useLayoutEffect` writer, mounted once from `useHomeShellOrchestration`.
+- `useMoonStateComputed`, `useTransitCandidates`, `useActiveTransits` (`src/hooks/useTransitCandidates.ts`, `useActiveTransits.ts`) rewritten as thin `useTransitComputedStore` selectors — same names, same call sites in `MapContainer` / `FieldOverlaysSection` / `CompassAimPanel` / `ArSkyCameraPanel` unchanged.
+- `useActiveTransits()` dropped its `toleranceDeg` parameter — the sole caller always passed the default (`DEFAULT_ACTIVE_TRANSIT_TOL_DEG` = 0.5°); unused flexibility was removed rather than threaded through the shared store.
+
+Pipeline thresholds and tick rate (250 ms) are unchanged — this is purely a where-is-it-computed change, not a behavior change. Full architecture note: `documentation/architecture.md` → [Shared transit computation (dedup)](architecture.md#shared-transit-computation-dedup). Domain-pipeline summary: `AGENTS.md` → "Dvije izvedbe iste detekcije".
+
+---
+
+## 10. Line-count impact (approximate)
 
 
 | Area             | Before (order of magnitude) | After                                                                              |
@@ -124,13 +145,13 @@ For day-to-day architecture rules, see `documentation/architecture.md`. For the 
 
 ---
 
-## 10. Changelog
+## 11. Changelog
 
 User-visible and structural changes are also summarized under **[Unreleased] → Changed** in `documentation/changelog.md` when a release is cut.
 
 ---
 
-## 11. Related files (quick index)
+## 12. Related files (quick index)
 
 - Hooks: `src/hooks/`
 - Map helpers: `src/lib/map/u k`

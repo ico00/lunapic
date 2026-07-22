@@ -5,6 +5,7 @@ import {
   usePhotographerTools,
   useTransitBeep,
 } from "@/hooks/usePhotographerTools";
+import { useSharedTransitComputation } from "@/hooks/useSharedTransitComputation";
 import {
   useMoonStateComputed,
   useTransitCandidates,
@@ -23,6 +24,10 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
  * Sav state, store subscriptioni i pomoćni hookovi za `HomePageClient` (jedan izvor orkestracije).
  */
 export function useHomeShellOrchestration() {
+  // Jedini tick + izračun Mjeseca/kandidata/active transits za cijelu app —
+  // vidi useSharedTransitComputation.ts. Mora biti mountan negdje jednom;
+  // ovo je "jedan izvor orkestracije" za HomePageClient pa je logično mjesto.
+  useSharedTransitComputation();
   const flightProviderId = useMoonTransitStore((s) => s.flightProvider);
   const ensureFlightSourceComboboxMode = useMoonTransitStore(
     (s) => s.ensureFlightSourceComboboxMode
@@ -104,7 +109,7 @@ export function useHomeShellOrchestration() {
   const timeSliderMode = "forward24h" as const;
   const syncTimeToNow = useMoonTransitStore((s) => s.syncTimeToNow);
   const tickLiveTime = useMoonTransitStore((s) => s.tickLiveTime);
-  const activeTransits = useActiveTransits(0.5);
+  const activeTransits = useActiveTransits();
   const isGolden = useMemo(
     () => activeTransits.some((r) => r.separationDeg < 0.1),
     [activeTransits]
