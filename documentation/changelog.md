@@ -6,6 +6,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 where version bumps are made for releases (currently `0.x`).
 
+## [2026-07-22] — Viewfinder off-frame ghost silhouette + smjer putanje
+
+Vidi i: [architecture.md → Viewfinder preview](architecture.md)
+
+### Added
+
+- **Viewfinder — off-frame ghost silhouette.** Dok je odabrani avion izvan kadra
+  vieweera, uz postojeću rubnu strelicu i kutnu separaciju sad se prikazuje i
+  simulirana silueta na disku Mjeseca: **veličina** je izvedena iz predviđene
+  udaljenosti pri azimutalnom poravnanju (`photoPack.futureSlantMeters`,
+  prosljeđen kao `futureSlantRangeMeters`), s fallbackom na trenutnu udaljenost
+  kad predviđanje još ne postoji (npr. prije nego što je poravnanje uopće
+  dosežno). Bez toga bi avion koji je stvarno daleko izgledao kao tanka nit,
+  iako će pri poravnanju biti mnogo bliže i veći. Silueta se crta kao **žuti
+  obris** (`ViewfinderAircraftSilhouette` sad ima `variant="solid" | "outline"`),
+  ne puna tamna ispuna — inače se stapala s tamnom stranom Mjeseca i djelovala
+  kao nepovezan drugi objekt (uočeno u testiranju nakon uklanjanja "SIM" oznake).
+
+### Fixed
+
+- **Viewfinder — smjer putanje i strelica pokazivali su nekonzistentne strane.**
+  Dvije uzastopne greške u istoj komponenti:
+  1. Prva verzija smjera (i za off-frame ghost i za in-frame trajectory/rotaciju
+     siluete) izvodila je smjer iz **compass headinga** projiciranog kao karta
+     (sjever gore, istok desno) — pogled prema nebu je horizontalno **zrcalo**
+     te projekcije (gledajući na jug, avion koji leti na istok ide promatraču
+     ulijevo, ne udesno), pa je putanja ulazila s pogrešne strane diska.
+  2. Popravak je prebacio smjer na alt-az gap prostor (vektor od trenutne
+     pozicije prema **predviđenoj** točki poravnanja, `elevationGapAtAlignmentDeg`),
+     što je matematički na istoj osi kao rubna strelica **samo** kad je
+     `azimuthGapDeg × elevationGapAtAlignmentDeg = 0` — u općem slučaju se osi
+     razilaze, pa su strelica (gdje je avion sada) i putanja/rotacija (kuda ide)
+     djelovale nekonzistentno (potvrđeno na stvarnom letu, ~4.5° gap).
+  Konačno rješenje: smjer se izvodi **isključivo** iz trenutnog gap vektora
+  (`azimuthGapDeg`, `elevationGapDeg`), negiranog — po konstrukciji uvijek
+  točno suprotan rubnoj strelici (strelica: centar→avion; putanja: avion→centar),
+  pa se osi garantirano poklapaju neovisno o predviđanju. `elevationGapAtAlignmentDeg`
+  prop je uklonjen iz `ViewfinderPreview` jer više nije korišten.
+
 ## [2026-07-21] — node-sqlite3-wasm migracija, route lines po prolazu, deploy rsync popravci
 
 Vidi i: [architecture.md → Storage: node-sqlite3-wasm](architecture.md) · [deployment-cpanel.md → Standardna deploy procedura + rsync pravila](deployment-cpanel.md)
