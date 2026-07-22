@@ -13,11 +13,11 @@ test.describe("smoke", () => {
     const response = await page.goto(`${E2E_BASE}/`);
     expect(response?.ok(), "HTTP OK").toBeTruthy();
 
-    await expect(
-      page.getByRole("heading", { name: "LunaPic" })
-    ).toBeVisible();
+    await expect(page.getByTestId("header-logo-refresh")).toBeVisible();
 
-    await expect(page.getByText("Flight source", { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Flight source" })
+    ).toBeVisible();
 
     // Dynamic Mapbox client chunk: may briefly show map-loading, then map-surface or map-missing-token
     const loading = page.getByTestId("map-loading");

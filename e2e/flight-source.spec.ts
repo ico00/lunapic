@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { E2E_BASE } from "./basePath";
 
 test.describe("flight source", () => {
-  test("Live feed checkboxes toggle OpenSky and ADS-B One without errors", async ({
+  test("Flight source panel toggles OpenSky and ADS-B One live feeds without errors", async ({
     page,
   }) => {
     const pageErrors: string[] = [];
@@ -18,22 +18,23 @@ test.describe("flight source", () => {
       timeout: 90_000,
     });
 
-    const provider = page.getByTestId("flight-provider-select");
-    await expect(provider).toBeVisible();
-    await expect(provider).toHaveAttribute("data-value", "opensky");
-    await expect(provider).toContainText("OpenSky + ADS-B One (merged)");
+    await page.getByRole("button", { name: "Flight source" }).click();
 
-    await provider.click();
-    await page.getByTestId("live-feed-adsbone").uncheck();
-    await expect(provider).toHaveAttribute("data-value", "opensky");
-    await expect(provider).not.toContainText("merged");
+    const openSkyFeed = page.getByTestId("live-feed-opensky");
+    const adsbOneFeed = page.getByTestId("live-feed-adsbone");
+    await expect(openSkyFeed).toBeVisible();
+    await expect(adsbOneFeed).toBeVisible();
+    await expect(openSkyFeed).toBeChecked();
+    await expect(adsbOneFeed).toBeChecked();
 
-    await page.getByTestId("live-feed-adsbone").check();
-    await expect(provider).toContainText("OpenSky + ADS-B One (merged)");
-    await expect(provider).toHaveAttribute("data-value", "opensky");
+    await adsbOneFeed.uncheck();
+    await expect(adsbOneFeed).not.toBeChecked();
 
-    await page.getByTestId("live-feed-opensky").uncheck();
-    await expect(provider).toHaveAttribute("data-value", "adsbone");
+    await adsbOneFeed.check();
+    await expect(adsbOneFeed).toBeChecked();
+
+    await openSkyFeed.uncheck();
+    await expect(openSkyFeed).not.toBeChecked();
 
     expect(pageErrors, pageErrors.join("\n")).toEqual([]);
   });
