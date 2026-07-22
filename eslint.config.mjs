@@ -5,9 +5,9 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
-  // Root Node entry: CommonJS + require() for maximum hosting compatibility (cPanel).
+  // Root Node entry + shared CJS/ESM driver files: require() for cPanel hosting compatibility.
   {
-    files: ["server.js"],
+    files: ["server.js", "*.cjs"],
     rules: {
       "@typescript-eslint/no-require-imports": "off",
     },

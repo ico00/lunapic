@@ -125,7 +125,7 @@ export function NotificationPermissionPrompt({ supported, onAllow }: Props) {
             onClick={neverAsk}
             className="rounded-xl border border-white/[0.08] px-4 py-2.5 text-[length:var(--fs-body)] text-[color:var(--t-tertiary)] sm:order-3"
           >
-            Don't ask again
+            Don&apos;t ask again
           </button>
         </div>
       </div>
