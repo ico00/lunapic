@@ -242,6 +242,68 @@ export async function getHeatmapCells(
  * day's pass and the start of the next — the starburst of rays over the
  * observer. Same 20-minute gap rule as `getCallsignSessions`.
  */
+/** Consecutive fixes sit ~3.4 km apart at cruise (p50) and 99 % are under
+ *  16 km. Anything past 25 km is the aircraft dropping out of receiver
+ *  coverage and reappearing — joining those two fixes draws a straight
+ *  chord that never happened, so cut the pass there instead. */
+const PASS_MAX_SEGMENT_KM = 25;
+const PASS_GAP_MS = 20 * 60_000;
+
+/**
+ * Splits a callsign-ordered, time-ordered row stream into passes: a new pass
+ * starts on a callsign change, a time gap over 20 min, or a >25 km coverage
+ * jump. Shared by `getRoutesByCallsign` (per-pass features) and
+ * `getAllCallsignSessions` (per-callsign session lists for schedule
+ * prediction) so the two never drift apart on what counts as "one flight".
+ */
+function groupPositionsIntoPasses(
+  rows: Array<{
+    callsign: string;
+    lat: number;
+    lng: number;
+    alt_baro_m: number | null;
+    alt_geom_m?: number | null;
+    logged_at: number;
+  }>,
+  minPoints: number
+): CallsignRoute[] {
+  const result: CallsignRoute[] = [];
+  let currentCallsign: string | null = null;
+  let current: RoutePoint[] = [];
+
+  const flush = () => {
+    if (currentCallsign !== null && current.length >= minPoints) {
+      result.push({ callsign: currentCallsign, points: current });
+    }
+    current = [];
+  };
+
+  // Rows arrive ordered by (callsign, logged_at), so a pass ends at a
+  // callsign change, a time gap over PASS_GAP_MS, or a coverage jump.
+  for (const r of rows) {
+    const prev = current[current.length - 1];
+    if (
+      r.callsign !== currentCallsign ||
+      (prev &&
+        (r.logged_at - prev.logged_at > PASS_GAP_MS ||
+          approxDistanceKm(prev.lat, prev.lng, r.lat, r.lng) >
+            PASS_MAX_SEGMENT_KM))
+    ) {
+      flush();
+      currentCallsign = r.callsign;
+    }
+    current.push({
+      lat: r.lat,
+      lng: r.lng,
+      alt_baro_m: r.alt_baro_m,
+      logged_at: r.logged_at,
+    });
+  }
+  flush();
+
+  return result;
+}
+
 export async function getRoutesByCallsign(
   fromMs: number,
   toMs: number,
@@ -269,48 +331,10 @@ export async function getRoutesByCallsign(
       logged_at: number;
     }>;
 
-    const GAP_MS = 20 * 60_000;
-    // Consecutive fixes sit ~3.4 km apart at cruise (p50) and 99 % are under
-    // 16 km. Anything past 25 km is the aircraft dropping out of receiver
-    // coverage and reappearing — joining those two fixes draws a straight
-    // chord that never happened, so cut the pass there instead.
-    const MAX_SEGMENT_KM = 25;
-    const result: CallsignRoute[] = [];
-    let currentCallsign: string | null = null;
-    let current: RoutePoint[] = [];
-
-    const flush = () => {
-      if (currentCallsign !== null && current.length >= minPoints) {
-        result.push({
-          callsign: currentCallsign,
-          points: evenSample(current, maxPointsPerRoute),
-        });
-      }
-      current = [];
-    };
-
-    // Rows arrive ordered by (callsign, logged_at), so a pass ends at a
-    // callsign change, a time gap over GAP_MS, or a coverage jump.
-    for (const r of rows) {
-      const prev = current[current.length - 1];
-      if (
-        r.callsign !== currentCallsign ||
-        (prev &&
-          (r.logged_at - prev.logged_at > GAP_MS ||
-            approxDistanceKm(prev.lat, prev.lng, r.lat, r.lng) >
-              MAX_SEGMENT_KM))
-      ) {
-        flush();
-        currentCallsign = r.callsign;
-      }
-      current.push({
-        lat: r.lat,
-        lng: r.lng,
-        alt_baro_m: r.alt_baro_m,
-        logged_at: r.logged_at,
-      });
-    }
-    flush();
+    const result = groupPositionsIntoPasses(rows, minPoints).map((pass) => ({
+      callsign: pass.callsign,
+      points: evenSample(pass.points, maxPointsPerRoute),
+    }));
 
     // Cap the payload by keeping the most recent passes — an unbounded feature
     // count is what makes the layer both unreadable and slow.
@@ -325,6 +349,54 @@ export async function getRoutesByCallsign(
     return result;
   } catch {
     return [];
+  }
+}
+
+/**
+ * All passes in the window, grouped by callsign (not truncated / recency
+ * capped) — used by the transit-calendar forecast, which needs the *full*
+ * historical session set per callsign to fit a schedule, not just the most
+ * recent N passes globally. Includes `alt_geom_m` (geometric altitude,
+ * preferred over `alt_baro_m` for closest-approach geometry — same
+ * `COALESCE` preference `getPositionsInBounds` uses for the retro scan).
+ */
+export async function getAllCallsignSessions(
+  fromMs: number,
+  toMs: number,
+  minPoints = 3
+): Promise<Map<string, RoutePoint[][]>> {
+  const db = openReadDb();
+  if (!db) return new Map();
+  try {
+    const rows = withBusyRetry(() =>
+      db.all(
+        `SELECT callsign, lat, lng,
+                COALESCE(alt_geom_m, alt_baro_m) AS alt_baro_m,
+                logged_at
+         FROM positions
+         WHERE callsign IS NOT NULL AND callsign != ''
+           AND logged_at >= ? AND logged_at <= ?
+         ORDER BY callsign ASC, logged_at ASC`,
+        [fromMs, toMs]
+      )
+    ) as unknown as Array<{
+      callsign: string;
+      lat: number;
+      lng: number;
+      alt_baro_m: number | null;
+      logged_at: number;
+    }>;
+
+    const passes = groupPositionsIntoPasses(rows, minPoints);
+    const byCallsign = new Map<string, RoutePoint[][]>();
+    for (const pass of passes) {
+      const existing = byCallsign.get(pass.callsign);
+      if (existing) existing.push(pass.points);
+      else byCallsign.set(pass.callsign, [pass.points]);
+    }
+    return byCallsign;
+  } catch {
+    return new Map();
   }
 }
 

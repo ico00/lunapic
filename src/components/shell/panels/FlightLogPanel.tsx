@@ -9,6 +9,7 @@ import {
   openSkyAircraftIndexRegistration,
 } from "@/lib/flight/openskyAircraftIndexShard";
 import type { AircraftListRow } from "@/lib/db/flightLogDb";
+import { formatFixed } from "@/lib/format/numbers";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useObserverStore } from "@/stores/observer-store";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -22,6 +23,37 @@ interface PastTransitEvent {
   kind: "transit" | "near";
   moonAltDeg: number;
   slantKm: number;
+}
+
+/** Mirror of the transit-calendar API entry shape. */
+interface UpcomingOpportunity {
+  callsign: string;
+  estimateMs: number;
+  stdMinutes: number;
+  sessionCount: number;
+  kind: "transit" | "near";
+  minSeparationDeg: number;
+  elevationGapDeg: number;
+  inFrame: boolean;
+  moonAltDeg: number;
+}
+
+/** Mirror of the transit-calendar API `closest` fallback shape — same as
+ *  UpcomingOpportunity minus `kind` (these never cleared NEAR_TOL_DEG). */
+type UpcomingClosest = Omit<UpcomingOpportunity, "kind">;
+
+const LOW_CONFIDENCE_STD_MINUTES = 15;
+const LOW_CONFIDENCE_SESSION_COUNT = 5;
+
+/** Same Δalt formatting + color thresholds as the live Photographer/Candidates
+ *  tool's ElevationGapBadge (TransitCandidatesPanel.tsx) — reused here so the
+ *  forecast speaks the same visual language as the live "in frame" check. */
+function ElevationGapLabel({ gap }: { gap: number }) {
+  const abs = Math.abs(gap);
+  const sign = gap >= 0 ? "+" : "−";
+  const label = `Δalt ${sign}${formatFixed(abs, 2)}°`;
+  const color = abs <= 0.26 ? "text-emerald-400" : abs <= 1.5 ? "text-amber-400" : "text-[color:var(--t-tertiary)]";
+  return <span className={`font-mono text-[length:var(--fs-meta)] font-medium ${color}`}>{label}</span>;
 }
 
 const PAGE_SIZE = 50;
@@ -66,6 +98,8 @@ export function FlightLogPanel() {
   const flightLogCallsign = useMoonTransitStore((s) => s.flightLogSelectedCallsign);
   const nextPass = useMoonTransitStore((s) => s.flightLogNextPass);
   const altitudeProfile = useMoonTransitStore((s) => s.flightLogAltitude);
+  const cameraFocalLengthMm = useMoonTransitStore((s) => s.cameraFocalLengthMm);
+  const cameraSensorType = useMoonTransitStore((s) => s.cameraSensorType);
   const observer = useObserverStore((s) => s.observer);
 
   const [daysBack, setDaysBack] = useState(7);
@@ -105,6 +139,45 @@ export function FlightLogPanel() {
       .catch(() => setScanError(true))
       .finally(() => setScanBusy(false));
   }, [daysBack, observer]);
+
+  const [calendarBusy, setCalendarBusy] = useState(false);
+  const [calendarEntries, setCalendarEntries] = useState<UpcomingOpportunity[] | null>(null);
+  const [calendarClosest, setCalendarClosest] = useState<UpcomingClosest[]>([]);
+  const [calendarError, setCalendarError] = useState(false);
+  /** True once the user has run the scan at least once — gates the
+   *  location-change auto-rescan below so it doesn't fire on mount. */
+  const calendarScannedRef = useRef(false);
+
+  const runCalendarScan = useCallback(() => {
+    calendarScannedRef.current = true;
+    setCalendarBusy(true);
+    setCalendarError(false);
+    const params = new URLSearchParams({
+      lat: String(observer.lat),
+      lng: String(observer.lng),
+      heightM: String(observer.groundHeightMeters ?? 0),
+      focalLengthMm: String(cameraFocalLengthMm),
+      sensorType: cameraSensorType,
+    });
+    fetch(appPath(`/api/flight-log/transit-calendar?${params}`), { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((d: { entries: UpcomingOpportunity[]; closest: UpcomingClosest[] }) => {
+        setCalendarEntries(d.entries ?? []);
+        setCalendarClosest(d.closest ?? []);
+      })
+      .catch(() => setCalendarError(true))
+      .finally(() => setCalendarBusy(false));
+  }, [observer, cameraFocalLengthMm, cameraSensorType]);
+
+  // Re-run the calendar scan automatically when the observer's location
+  // changes, but only after the user has scanned at least once — otherwise
+  // this would fire an unwanted request the moment the panel mounts.
+  useEffect(() => {
+    if (calendarScannedRef.current) {
+      runCalendarScan();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [observer.lat, observer.lng, observer.groundHeightMeters]);
 
   const handleSearchChange = useCallback((v: string) => {
     setSearch(v);
@@ -493,6 +566,116 @@ export function FlightLogPanel() {
                 </li>
               ))}
             </ul>
+          )
+        )}
+      </div>
+
+      {/* Upcoming opportunities — forward forecast from historical schedule regularity */}
+      <div className="flex flex-col gap-2 border-t border-white/[0.08] pt-3">
+        <div className="flex items-center justify-between">
+          <span className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.14em] text-[color:var(--t-tertiary)]">
+            Upcoming opportunities
+          </span>
+          <button
+            type="button"
+            onClick={runCalendarScan}
+            disabled={calendarBusy}
+            className="rounded-full border border-white/10 px-3 py-1 text-[length:var(--fs-label)] text-[color:var(--t-secondary)] disabled:opacity-40 hover:border-white/20 hover:text-[color:var(--t-primary)] transition"
+          >
+            {calendarBusy ? "Scanning…" : "Scan next 14 d"}
+          </button>
+        </div>
+
+        <p className="text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">
+          Statistical forecast from past regularity — not a live prediction. Confirm with the live pipeline on the day.
+        </p>
+
+        {calendarError && (
+          <p className="text-[length:var(--fs-label)] text-rose-300">Scan failed — try again.</p>
+        )}
+
+        {calendarEntries !== null && !calendarError && (
+          calendarEntries.length > 0 ? (
+            <ul className="flex max-h-48 flex-col divide-y divide-white/[0.05] overflow-y-auto">
+              {calendarEntries.map((ev) => {
+                const lowConfidence =
+                  ev.stdMinutes > LOW_CONFIDENCE_STD_MINUTES ||
+                  ev.sessionCount < LOW_CONFIDENCE_SESSION_COUNT;
+                return (
+                  <li key={`${ev.callsign}-${ev.estimateMs}`}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFlightLogSelectedCallsign(ev.callsign, daysBack);
+                        setFlightLogSelected(null);
+                      }}
+                      className="flex w-full items-center gap-2 py-1.5 text-left text-[length:var(--fs-label)] hover:bg-white/[0.04] transition rounded-md px-1.5"
+                      title="Show route on map"
+                    >
+                      <span
+                        className={`shrink-0 rounded-full px-2 py-0.5 text-[length:var(--fs-meta)] font-semibold ${
+                          ev.kind === "transit"
+                            ? "bg-emerald-500/15 text-emerald-300 border border-emerald-400/30"
+                            : "bg-sky-500/10 text-sky-300 border border-sky-400/25"
+                        }`}
+                      >
+                        {ev.kind === "transit" ? "DISC" : "NEAR"}
+                      </span>
+                      <span className="font-mono text-[color:var(--t-primary)]">{ev.callsign}</span>
+                      {lowConfidence && (
+                        <span className="shrink-0 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[length:var(--fs-meta)] font-semibold text-amber-300/90">
+                          LOW CONF
+                        </span>
+                      )}
+                      <span className="ml-auto text-right text-[color:var(--t-tertiary)]">
+                        {fmtNextPass(ev.estimateMs)}
+                        <span className="ml-2 tabular-nums">±{ev.stdMinutes}m</span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : calendarClosest.length > 0 ? (
+            <>
+              <p className="text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">
+                No disk transit — closest predicted passes for your current camera:
+              </p>
+              <ul className="flex max-h-48 flex-col divide-y divide-white/[0.05] overflow-y-auto">
+                {calendarClosest.map((ev) => (
+                  <li key={`${ev.callsign}-${ev.estimateMs}`}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFlightLogSelectedCallsign(ev.callsign, daysBack);
+                        setFlightLogSelected(null);
+                      }}
+                      className="flex w-full items-center gap-2 py-1.5 text-left text-[length:var(--fs-label)] hover:bg-white/[0.04] transition rounded-md px-1.5"
+                      title="Show route on map"
+                    >
+                      <span
+                        className={`shrink-0 rounded-full px-2 py-0.5 text-[length:var(--fs-meta)] font-semibold ${
+                          ev.inFrame
+                            ? "bg-violet-500/15 text-violet-300 border border-violet-400/30"
+                            : "bg-white/[0.05] text-[color:var(--t-tertiary)] border border-white/10"
+                        }`}
+                      >
+                        {ev.inFrame ? "IN FRAME" : "OUT OF FRAME"}
+                      </span>
+                      <span className="font-mono text-[color:var(--t-primary)]">{ev.callsign}</span>
+                      <span className="ml-auto flex items-center gap-2 text-right text-[color:var(--t-tertiary)]">
+                        {fmtNextPass(ev.estimateMs)}
+                        <ElevationGapLabel gap={ev.elevationGapDeg} />
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
+              No regular flights with a predicted moon pass in this period.
+            </p>
           )
         )}
       </div>
