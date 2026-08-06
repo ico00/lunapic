@@ -125,6 +125,14 @@ export function signedAzimuthGapDeg(
 }
 
 /**
+ * Gornja granica za linearnu (dead-reckoning) ekstrapolaciju poravnanja.
+ * Iznad ovoga je predviđanje nepouzdano — avioni skreću/mijenjaju
+ * brzinu/visinu, pa se pretpostavka konstantnog track-a i brzine
+ * razilazi od stvarnosti prije nego dođe do poravnanja.
+ */
+const MAX_ALIGNMENT_LOOKAHEAD_SEC = 300;
+
+/**
  * t = -gap / (d(ac)/dt − d(moon)/dt) [s] ako je t > 0.
  */
 export function timeToAzimuthAlignmentSeconds(
@@ -137,7 +145,7 @@ export function timeToAzimuthAlignmentSeconds(
     return null;
   }
   const t = -gapDeg / dGap;
-  if (!Number.isFinite(t) || t < 0 || t > 36_000) {
+  if (!Number.isFinite(t) || t < 0 || t > MAX_ALIGNMENT_LOOKAHEAD_SEC) {
     return null;
   }
   return t;
