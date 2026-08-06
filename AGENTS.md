@@ -47,7 +47,11 @@ Svaki filter se primjenjuje redom. Ako let padne na bilo kojoj provjeri, **isklj
    (letovi bez speed/track prolaze bezuvjetno)
 
 4. photographerPack.timeToAlignmentSec === null
-   → isključen (azimut se nikad neće poravnati s Mjesecom)
+   → isključen (azimut se nikad neće poravnati s Mjesecom, ILI se poravnanje
+   predviđa dalje od `MAX_ALIGNMENT_LOOKAHEAD_SEC` = 300s
+   [lineOfSightKinematics.ts: timeToAzimuthAlignmentSeconds] — iznad toga
+   dead-reckoning s konstantnim track-om/brzinom postaje nepouzdan, pa je
+   "willTransit" za takve letove lažno pozitivan)
 
 5. |elevationGapAtAlignmentDeg| > halfVerticalFOV  (kamera-specifično)
    → isključen (neće stati u kadar)
