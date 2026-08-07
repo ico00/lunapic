@@ -260,7 +260,7 @@ export function playActiveTransitAlert(): void {
 }
 
 /**
- * ~14 s spoken countdown (public/sounds/countdown.wav) — played once when the
+ * Spoken countdown (public/sounds/countdown.mp3) — played once when the
  * selected aircraft is 10 s from azimuth alignment. Prefers the **shared**
  * (primed) context, which is never auto-closed; a one-shot fallback context is
  * closed after the buffer's own duration (not the short 1 s used for beeps),
@@ -271,7 +271,7 @@ export function playCountdownAlert(): void {
   const ctx = shared ? sharedAudioContext : getAudioContextCtor() != null ? new (getAudioContextCtor() as typeof AudioContext)() : null;
   if (ctx == null) return;
   void ctx.resume().catch(() => {});
-  void loadSoundBuffer(ctx, "countdown.wav").then((buf) => {
+  void loadSoundBuffer(ctx, "countdown.mp3").then((buf) => {
     if (buf == null) {
       if (!shared) void ctx.close().catch(() => {});
       return;
