@@ -6,7 +6,7 @@ import {
   evaluateShotFeasibility,
   type ShotFeasibility,
 } from "@/lib/domain/geometry/shotFeasibility";
-import { playCountdownAlert, playShortBeep } from "@/lib/audio/fieldAudio";
+import { playCountdownNumberBeep, playShortBeep } from "@/lib/audio/fieldAudio";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useObserverStore } from "@/stores/observer-store";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -119,15 +119,21 @@ export function usePhotographerTools() {
   return { ...result, now };
 }
 
+const COUNTDOWN_NUMBERS = [5, 4, 3, 2, 1] as const;
+
 /**
- * 5 s prije poravnanja (spoken countdown.mp3, broji 5-4-3-2-1-0 pa pokriva i
- * bivši 3s-beep prozor) i točno u trenutku poravnanja (kada |t| mali nakon 0).
+ * Odbrojavanje 5-4-3-2-1 (sintetizirani beep po broju, rastuća visina) i
+ * točno u trenutku poravnanja (kada |t| mali nakon 0). Svaki broj se okida
+ * kad live `timeToAlignmentSec` prijeđe njegov prag — pošto ta procjena NIJE
+ * linearna u stvarnom vremenu (ubrzava kako se avion približava), beep-ovi
+ * time stvarno prate procjenu umjesto da glume fiksni sat; brojevi se
+ * preskoče (ne repliciraju) ako `t` padne preko više pragova u jednom ticku.
  */
 export function useTransitBeep(
   timeToAlignmentSec: number | null,
   beepOn: boolean
 ) {
-  const tenSecRef = useRef(false);
+  const playedRef = useRef<Set<number>>(new Set());
   const hitRef = useRef(false);
   const lastSel = useRef<string | null | undefined>(undefined);
   const selectedId = useMoonTransitStore((s) => s.selectedFlightId);
@@ -137,7 +143,7 @@ export function useTransitBeep(
       return;
     }
     if (lastSel.current !== selectedId) {
-      tenSecRef.current = false;
+      playedRef.current.clear();
       hitRef.current = false;
       lastSel.current = selectedId;
     }
@@ -155,9 +161,12 @@ export function useTransitBeep(
       hitRef.current = true;
       return;
     }
-    if (t > 0 && t <= 5.2 && t >= 4.6 && !tenSecRef.current) {
-      playCountdownAlert();
-      tenSecRef.current = true;
+    for (const n of COUNTDOWN_NUMBERS) {
+      if (t <= n + 0.3 && t >= n - 0.3 && !playedRef.current.has(n)) {
+        playCountdownNumberBeep(n);
+        playedRef.current.add(n);
+        break;
+      }
     }
   }, [beepOn, timeToAlignmentSec]);
 }

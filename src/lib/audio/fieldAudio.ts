@@ -259,28 +259,19 @@ export function playActiveTransitAlert(): void {
   });
 }
 
+const COUNTDOWN_BEEP_BASE_HZ = 520;
+const COUNTDOWN_BEEP_STEP_HZ = 40;
+
 /**
- * Spoken countdown (public/sounds/countdown.mp3) — played once when the
- * selected aircraft is 10 s from azimuth alignment. Prefers the **shared**
- * (primed) context, which is never auto-closed; a one-shot fallback context is
- * closed after the buffer's own duration (not the short 1 s used for beeps),
- * since this clip is much longer than the alert sounds above.
+ * Single countdown beep for second `n` (5..1) before azimuth alignment.
+ * Pitch rises as `n` falls, so the beeps read as approaching the (higher-
+ * pitched, separately triggered) alignment beep rather than as identical
+ * clicks. Triggered live off `timeToAlignmentSec` — see `useTransitBeep` —
+ * so it tracks the real remaining time instead of a fixed-duration clip.
  */
-export function playCountdownAlert(): void {
-  const shared = sharedAudioContext != null && sharedAudioContext.state !== "closed";
-  const ctx = shared ? sharedAudioContext : getAudioContextCtor() != null ? new (getAudioContextCtor() as typeof AudioContext)() : null;
-  if (ctx == null) return;
-  void ctx.resume().catch(() => {});
-  void loadSoundBuffer(ctx, "countdown.mp3").then((buf) => {
-    if (buf == null) {
-      if (!shared) void ctx.close().catch(() => {});
-      return;
-    }
-    playBuffer(ctx, buf);
-    if (!shared) {
-      globalThis.setTimeout(() => void ctx.close().catch(() => {}), Math.ceil(buf.duration * 1000) + 200);
-    }
-  });
+export function playCountdownNumberBeep(n: number): void {
+  const freq = COUNTDOWN_BEEP_BASE_HZ + (5 - n) * COUNTDOWN_BEEP_STEP_HZ;
+  playShortBeep(freq, 0.09, 0.12);
 }
 
 /**
