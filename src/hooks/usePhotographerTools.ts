@@ -120,15 +120,14 @@ export function usePhotographerTools() {
 }
 
 /**
- * 10 s prije poravnanja (spoken countdown.wav), 3 s prije (kratki beep) i
- * točno u trenutku poravnanja (kada |t| mali nakon 0).
+ * 5 s prije poravnanja (spoken countdown.mp3, broji 5-4-3-2-1-0 pa pokriva i
+ * bivši 3s-beep prozor) i točno u trenutku poravnanja (kada |t| mali nakon 0).
  */
 export function useTransitBeep(
   timeToAlignmentSec: number | null,
   beepOn: boolean
 ) {
   const tenSecRef = useRef(false);
-  const preRef = useRef(false);
   const hitRef = useRef(false);
   const lastSel = useRef<string | null | undefined>(undefined);
   const selectedId = useMoonTransitStore((s) => s.selectedFlightId);
@@ -139,7 +138,6 @@ export function useTransitBeep(
     }
     if (lastSel.current !== selectedId) {
       tenSecRef.current = false;
-      preRef.current = false;
       hitRef.current = false;
       lastSel.current = selectedId;
     }
@@ -157,12 +155,7 @@ export function useTransitBeep(
       hitRef.current = true;
       return;
     }
-    if (t > 0 && t <= 3.2 && t >= 2.6 && !preRef.current) {
-      playShortBeep(660, 0.09, 0.1);
-      preRef.current = true;
-      return;
-    }
-    if (t > 0 && t <= 10.2 && t >= 9.6 && !tenSecRef.current) {
+    if (t > 0 && t <= 5.2 && t >= 4.6 && !tenSecRef.current) {
       playCountdownAlert();
       tenSecRef.current = true;
     }
