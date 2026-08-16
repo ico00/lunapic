@@ -9,7 +9,7 @@ import {
 } from "@/types/flight-provider";
 
 function labelForProvider(id: FlightProviderId): string {
-  if (id === "adsbone") return "ADS-B One";
+  if (id === "adsbone") return "adsb.lol";
   if (id === "localsdr") return "LunaPic ADS-B";
   return "OpenSky";
 }

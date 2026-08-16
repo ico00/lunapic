@@ -27,9 +27,9 @@ const UPSTREAM_HEADERS: Record<string, string> = {
 };
 
 /**
- * Proxy na ADSBExchange v2 point feed (bez CORS-a). Pokušava **redom**
- * `api.adsb.one` pa `api.airplanes.live` jer Cloudflare često blokira prvi s
- * hosting IP-eva. Kratka predmemorija po (lat, lng, radius).
+ * Proxy na ADSBExchange v2 point feed (bez CORS-a). Prolazi redom kroz
+ * `ADSB_LIVE_POINT_BASES` (trenutno samo `api.adsb.lol`) i vraća prvi uspješan
+ * odgovor. Kratka predmemorija po (lat, lng, radius).
  */
 export async function GET(req: Request) {
   const rl = checkRateLimit(getClientIp(req), 60, 60_000, "adsbone/point");
@@ -142,8 +142,8 @@ export async function GET(req: Request) {
       error: `ADS-B live ${lastStatus}`,
       body: lastBody.slice(0, 500),
       hint: cfBlock
-        ? "All upstream mirrors rejected this server (often Cloudflare). The browser tries the same mirrors directly first."
-        : "All upstream mirrors failed for this request.",
+        ? "The upstream rejected this server (often Cloudflare on datacenter IPs)."
+        : "No upstream in ADSB_LIVE_POINT_BASES answered this request.",
     },
     { status: 502, headers: { "X-MoonTransit-AdsbOne-Cache": "none" } }
   );

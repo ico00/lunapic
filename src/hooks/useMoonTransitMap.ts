@@ -17,7 +17,7 @@ import {
 } from "react";
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-// OpenSky/ADS-B One are rate-limited — poll every 30 s.
+// OpenSky/adsb.lol are rate-limited — poll every 30 s.
 const LIVE_AUTO_REFRESH_MS = 30_000;
 // Local SDR (dump1090/readsb) updates every ~1 s on the Pi; server-side cache is 10 s.
 // Polling at 10 s gives fresh positions and keeps position jumps small.

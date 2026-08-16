@@ -9,13 +9,13 @@ function cloudflareBlockedMessage(status: number, bodySnippet: string): string {
   if (!looksCf) {
     return "";
   }
-  return " Upstream blocked this request (often Cloudflare on datacenter IPs). The app tries your browser against multiple mirrors, then the same-origin proxy.";
+  return " Upstream blocked this request (often Cloudflare on datacenter IPs).";
 }
 
 /**
  * Proxy-only by default:
  * 1) `GET /api/adsbone/point` (isti origin, bez CORS šuma u konzoli).
- * 2) Direktni browser fallback na live mirror je isključen osim uz
+ * 2) Direktni browser fallback na upstream je isključen osim uz
  *    `NEXT_PUBLIC_ADSBONE_ALLOW_DIRECT=1` (debug / posebni deploymenti).
  */
 export async function fetchAdsbOnePointJson(
@@ -86,7 +86,7 @@ async function fetchViaProxy(url: string): Promise<AdsbOnePointResponse> {
       /* non-JSON */
     }
     message += cloudflareBlockedMessage(res.status, text);
-    throw new Error(`ADS-B One: ${res.status} ${message}`);
+    throw new Error(`ADS-B live: ${res.status} ${message}`);
   }
   return JSON.parse(text) as AdsbOnePointResponse;
 }

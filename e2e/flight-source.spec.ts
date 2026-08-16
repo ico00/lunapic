@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { E2E_BASE } from "./basePath";
 
 test.describe("flight source", () => {
-  test("Flight source panel toggles OpenSky and ADS-B One live feeds without errors", async ({
+  test("Flight source panel toggles OpenSky and adsb.lol live feeds without errors", async ({
     page,
   }) => {
     const pageErrors: string[] = [];
