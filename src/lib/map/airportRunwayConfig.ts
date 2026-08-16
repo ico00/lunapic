@@ -74,8 +74,9 @@ const toLngLat = ([lat, lng]: readonly [number, number]): [number, number] => [l
  * differently from the approach/departure extensions:
  *   - "pavement"  — the real `aeroway=runway` strip (amber, matches the
  *                   "current time" marker accent elsewhere on the map)
- *   - "extension" — the two ~10 NM final-approach / initial-climb legs
- *                   past each threshold (neutral, dashed)
+ *   - "extension" — the two 3 NM final-approach / initial-climb legs past
+ *                   each threshold (neutral, dashed); length is
+ *                   `APPROACH_EXTENSION_METERS`
  */
 export function buildAirportRunwayLineFeature() {
   const pavement = LDZA_RUNWAY_04_22_LINE;
