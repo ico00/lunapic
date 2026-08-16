@@ -1,13 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { ViewfinderAircraftSilhouette } from "@/components/field/ViewfinderAircraftSilhouette";
 import { getMoonParallacticAngleDeg } from "@/lib/domain/astro/parallacticAngle";
-import { nasaMoonPhaseFrameJpgUrl } from "@/lib/domain/astro/nasaMoonPhaseFrame";
+import {
+  getMoonPhaseGeometry,
+  moonPhasePathD,
+  moonPhaseRotationDeg,
+} from "@/lib/domain/astro/moonPhaseGeometry";
 import { appPath } from "@/lib/paths/appPath";
 
 type ViewfinderPreviewProps = {
-  /** Simulated instant (`referenceEpochMs`) — drives NASA SVS hourly moon texture. */
+  /** Simulated instant (`referenceEpochMs`) — drives the rendered moon phase. */
   simulatedEpochMs: number;
   angularSizeDeg: number | null;
   distanceToObserverMeters: number | null;
@@ -39,6 +43,12 @@ const SENSOR_CENTER_Y = SENSOR_HEIGHT_PX / 2;
 const REFERENCE_SENSOR_WIDTH_PX = 6000;
 const REFERENCE_SENSOR_HEIGHT_PX = 4000;
 const MOON_TEXTURE_URL = appPath("/moon-textures/nasa-full-moon.jpg");
+/**
+ * How much of the texture survives on the night side of the terminator (spec §8.5). A fully
+ * black night side read as a hole punched in the frame rather than as a disk; this keeps the
+ * whole limb legible without letting it compete with the sunlit part or the plane outline.
+ */
+const UNLIT_DISK_VISIBILITY = 0.15;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -144,37 +154,13 @@ export function ViewfinderPreview({
   /** When true: simulates Moon size on a 6000×4000 frame at current focal (small disk in crop). When false: “Zoom” / normalized Moon scale for comparison (~0.5°). */
   const [showReferenceSensorScale, setShowReferenceSensorScale] =
     useState(false);
-  const nasaMoonUrl = useMemo(
-    () => nasaMoonPhaseFrameJpgUrl(simulatedEpochMs),
-    [simulatedEpochMs]
+  // Quantized to the minute: illumination and limb angle drift far too slowly to be worth
+  // an ephemeris call on every 4 Hz tick.
+  const phaseMinute = Math.floor(simulatedEpochMs / 60_000);
+  const moonPhase = useMemo(
+    () => getMoonPhaseGeometry(new Date(phaseMinute * 60_000)),
+    [phaseMinute]
   );
-  /** When this equals `nasaMoonUrl`, the last preload for that URL failed — use static fallback. */
-  const [nasaLoadFailedForUrl, setNasaLoadFailedForUrl] = useState<string | null>(
-    null
-  );
-  const moonTextureHref =
-    nasaLoadFailedForUrl === nasaMoonUrl ? MOON_TEXTURE_URL : nasaMoonUrl;
-
-  useEffect(() => {
-    let cancelled = false;
-    const img = new Image();
-    img.onload = () => {
-      if (!cancelled) {
-        setNasaLoadFailedForUrl(null);
-      }
-    };
-    img.onerror = () => {
-      if (!cancelled) {
-        setNasaLoadFailedForUrl(nasaMoonUrl);
-      }
-    };
-    img.src = nasaMoonUrl;
-    return () => {
-      cancelled = true;
-      img.onload = null;
-      img.onerror = null;
-    };
-  }, [nasaMoonUrl]);
 
   const hasReportedAircraftLength =
     aircraftLengthMeters != null &&
@@ -488,13 +474,14 @@ export function ViewfinderPreview({
               fill="#000000"
             />
             <image
-              href={moonTextureHref}
+              href={MOON_TEXTURE_URL}
               x={SENSOR_CENTER_X - moonRadiusPx}
               y={SENSOR_CENTER_Y - moonRadiusPx}
               width={moonDiameterPx}
               height={moonDiameterPx}
               preserveAspectRatio="xMidYMid slice"
               clipPath="url(#viewfinder-moon-clip)"
+              mask="url(#viewfinder-moon-phase-mask)"
             />
             <defs>
               <clipPath id="viewfinder-moon-clip">
@@ -504,6 +491,37 @@ export function ViewfinderPreview({
                   r={moonRadiusPx}
                 />
               </clipPath>
+              {/* Dims the night side of the full-moon texture instead of cutting it away. */}
+              <mask
+                id="viewfinder-moon-phase-mask"
+                maskUnits="userSpaceOnUse"
+                x={0}
+                y={0}
+                width={SENSOR_WIDTH_PX}
+                height={SENSOR_HEIGHT_PX}
+              >
+                <rect
+                  x={0}
+                  y={0}
+                  width={SENSOR_WIDTH_PX}
+                  height={SENSOR_HEIGHT_PX}
+                  fill="#ffffff"
+                  fillOpacity={UNLIT_DISK_VISIBILITY}
+                />
+                <path
+                  d={moonPhasePathD({
+                    cx: SENSOR_CENTER_X,
+                    cy: SENSOR_CENTER_Y,
+                    r: moonRadiusPx,
+                    illuminationFraction: moonPhase.illuminationFraction,
+                  })}
+                  transform={`rotate(${moonPhaseRotationDeg(
+                    moonPhase.brightLimbAngleDeg,
+                    parallacticAngleDeg
+                  )} ${SENSOR_CENTER_X} ${SENSOR_CENTER_Y})`}
+                  fill="#ffffff"
+                />
+              </mask>
             </defs>
           </svg>
 
@@ -758,7 +776,10 @@ export function ViewfinderPreview({
           silhouette on the moon (not the plane&rsquo;s real position — that&rsquo;s the edge arrow) previews its
           crossing direction and apparent size at{" "}
           {hasFutureSlantRange ? "the predicted alignment range" : "current range (no alignment prediction yet)"}.
-          Moon disk: NASA/GSFC SVS hourly phase (north up); falls back to a static texture if the frame cannot load.
+          Moon disk: NASA/GSFC full-moon texture, terminator rendered locally from illumination{" "}
+          ({(moonPhase.illuminationFraction * 100).toFixed(0)}%) and bright-limb angle, rotated into the camera
+          frame. The night side is dimmed rather than cut away, so the full disk stays readable — that is a
+          legibility aid, not earthshine. No libration.
         </p>
       </details>
       <style jsx>{`

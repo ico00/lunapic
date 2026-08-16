@@ -12,10 +12,11 @@ export {
   type MoonFieldVisibilityTier,
 } from "./astro/moonFieldVisibilityAdvice";
 export {
-  catalogUtcMsForNasaMoonFrame,
-  nasaMoonPhaseFrameJpgUrl,
-  nasaMoonPhaseMaxFrameForYear,
-} from "./astro/nasaMoonPhaseFrame";
+  getMoonPhaseGeometry,
+  moonPhasePathD,
+  moonPhaseRotationDeg,
+  type MoonPhaseGeometry,
+} from "./astro/moonPhaseGeometry";
 export { horizontalToPoint } from "./geometry/horizontal";
 export { angularSeparationDeg } from "./geometry/sky-separation";
 export { GeometryEngine } from "./geometry/geometryEngine";
