@@ -2,6 +2,35 @@ import { appPath } from "@/lib/paths/appPath";
 import { ADSB_LIVE_POINT_BASES } from "./adsbLiveUpstreamBases";
 import type { AdsbOnePointResponse } from "./parseAdsbOnePoint";
 
+/**
+ * Greška proxy rute s očuvanim statusima. Prije se status čitao regexom nad
+ * porukom (`/ADS-B One: 429/`), što je pucalo čim se tekst poruke promijenio —
+ * pozivatelji (backoff u `AdsbOneFlightProvider`) sada gledaju polja.
+ */
+export class AdsbLiveProxyError extends Error {
+  /** Status naše proxy rute (429, 503 kad je circuit breaker otvoren, 502/504…). */
+  readonly status: number;
+  /** Status koji je vratio upstream, ako ga je uopće bilo. */
+  readonly upstreamStatus: number | null;
+  /** Koliko čekati prije sljedećeg pokušaja, ako je ruta to rekla. */
+  readonly retryAfterMs: number | null;
+
+  constructor(
+    message: string,
+    init: {
+      status: number;
+      upstreamStatus?: number | null;
+      retryAfterMs?: number | null;
+    }
+  ) {
+    super(message);
+    this.name = "AdsbLiveProxyError";
+    this.status = init.status;
+    this.upstreamStatus = init.upstreamStatus ?? null;
+    this.retryAfterMs = init.retryAfterMs ?? null;
+  }
+}
+
 function cloudflareBlockedMessage(status: number, bodySnippet: string): string {
   const looksCf =
     status === 403 &&
@@ -67,11 +96,15 @@ async function fetchViaProxy(url: string): Promise<AdsbOnePointResponse> {
   const text = await res.text();
   if (!res.ok) {
     let message = text.slice(0, 240);
+    let upstreamStatus: number | null = null;
+    let retryAfterMs: number | null = null;
     try {
       const j = JSON.parse(text) as {
         error?: string;
         body?: string;
         hint?: string;
+        upstreamStatus?: number | null;
+        retryAfterMs?: number | null;
       };
       const parts: string[] = [];
       for (const x of [j.error, j.body, j.hint]) {
@@ -82,11 +115,23 @@ async function fetchViaProxy(url: string): Promise<AdsbOnePointResponse> {
       if (parts.length > 0) {
         message = parts.join(" — ");
       }
+      upstreamStatus =
+        typeof j.upstreamStatus === "number" ? j.upstreamStatus : null;
+      retryAfterMs =
+        typeof j.retryAfterMs === "number" ? j.retryAfterMs : null;
     } catch {
       /* non-JSON */
     }
+    if (retryAfterMs === null) {
+      const header = Number(res.headers.get("Retry-After"));
+      retryAfterMs = Number.isFinite(header) && header > 0 ? header * 1000 : null;
+    }
     message += cloudflareBlockedMessage(res.status, text);
-    throw new Error(`ADS-B live: ${res.status} ${message}`);
+    throw new AdsbLiveProxyError(`ADS-B live: ${res.status} ${message}`, {
+      status: res.status,
+      upstreamStatus,
+      retryAfterMs,
+    });
   }
   return JSON.parse(text) as AdsbOnePointResponse;
 }

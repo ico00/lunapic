@@ -1,5 +1,8 @@
 import { centerOfBounds, getStaticRouteLineFeatures } from "@/data/staticRouteUtils";
-import { fetchAdsbOnePointJson } from "@/lib/flight/adsbone/fetchAdsbOneUpstream";
+import {
+  AdsbLiveProxyError,
+  fetchAdsbOnePointJson,
+} from "@/lib/flight/adsbone/fetchAdsbOneUpstream";
 import {
   averageVelocityFromFlightsInRegion,
   flightsFromAdsbOnePointResponse,
@@ -15,6 +18,12 @@ import type { GeoBounds } from "@/types/geo";
 /** Izvor je ograničen na ~1 req/s; kratki cache drži prikaz glatkim bez burstova. */
 const CACHE_MS = 12_000;
 
+/** Pauza nakon upstream 429 kad ruta ne pošalje `Retry-After`. */
+const RATE_LIMIT_BACKOFF_MS = 5_000;
+
+/** Pauza kad je serverski circuit breaker otvorio krug (503) bez `Retry-After`. */
+const CIRCUIT_OPEN_BACKOFF_MS = 60_000;
+
 type CacheEntry = {
   readonly at: number;
   readonly data: AdsbOnePointResponse;
@@ -24,10 +33,10 @@ type CacheEntry = {
 };
 
 /**
- * ADS-B One (api.adsb.one) — besplatni REST, oblik ADSBExchange v2.
+ * Live ADS-B feed (trenutno api.adsb.lol) — besplatni REST, oblik ADSBExchange v2.
  * Dohvat po točki + radijus (nm); ista geometrija upita kao OpenSky.
  *
- * @see https://github.com/adsb-one/api
+ * @see https://github.com/adsblol/api
  */
 export class AdsbOneFlightProvider implements IFlightProvider {
   readonly id: FlightProviderId = "adsbone";
@@ -61,8 +70,9 @@ export class AdsbOneFlightProvider implements IFlightProvider {
         return flights;
       }
       if (now < this.fetchNotBeforeMs) {
+        const waitSec = Math.ceil((this.fetchNotBeforeMs - now) / 1000);
         throw new Error(
-          "ADS-B One: rate limited. Wait a few seconds or switch provider."
+          `ADS-B live: paused after upstream failure. Retrying in ~${waitSec}s.`
         );
       }
       if (
@@ -89,11 +99,19 @@ export class AdsbOneFlightProvider implements IFlightProvider {
       try {
         data = await fetchAdsbOnePointJson(c.lat, c.lng, radiusNm);
       } catch (e) {
-        if (
-          e instanceof Error &&
-          /ADS-B One: 429/.test(e.message)
-        ) {
-          this.fetchNotBeforeMs = Date.now() + 5_000;
+        // Ruta javlja i vlastiti 503 (circuit breaker) i upstream 429 — u oba
+        // slučaja nema smisla pokušavati do isteka pauze.
+        if (e instanceof AdsbLiveProxyError) {
+          const fallback =
+            e.status === 503
+              ? CIRCUIT_OPEN_BACKOFF_MS
+              : e.status === 429
+              ? RATE_LIMIT_BACKOFF_MS
+              : 0;
+          const waitMs = e.retryAfterMs ?? fallback;
+          if (waitMs > 0) {
+            this.fetchNotBeforeMs = Date.now() + waitMs;
+          }
         }
         throw e;
       }
