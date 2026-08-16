@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { rejectIfRateLimited } from "@/lib/server/rateLimiter";
 import { isSnapshotFresh, readSdrSnapshot } from "@/lib/server/sdrSnapshotStore";
+import { createUpstreamCircuitBreaker } from "@/lib/server/upstreamCircuitBreaker";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,24 @@ function describeFetchError(e: unknown): string {
 
 const NO_CACHE = { "Cache-Control": "no-store, no-cache, must-revalidate" };
 
+/**
+ * Pull smjer prema Piju je najčešći izvor tihe buke: dok je prijemnik ugašen ili
+ * se seli, svaki poll tick čeka DNS/TCP timeout i završi kao 502 u konzoli.
+ * Nakon 3 uzastopna neuspjeha stanemo na 30 s.
+ *
+ * Kraći prozor nego kod `adsbone/point` (60 s) jer je ovo prijemnik u vlastitoj
+ * mreži — kad se vrati, želimo ga vidjeti brzo, a promet je lokalan i besplatan.
+ * Push snapshot se provjerava **prije** breakera, pa Pi koji ponovno šalje
+ * podatke prolazi odmah, bez obzira na stanje kruga.
+ */
+const SDR_BREAKER_FAILURE_THRESHOLD = 3;
+const SDR_BREAKER_OPEN_MS = 30_000;
+
+const sdrBreaker = createUpstreamCircuitBreaker({
+  failureThreshold: SDR_BREAKER_FAILURE_THRESHOLD,
+  openMs: SDR_BREAKER_OPEN_MS,
+});
+
 // 10s in-memory cache protects the Pi from concurrent or rapid client requests
 const CACHE_TTL_MS = 10_000;
 let cachedBody: string | null = null;
@@ -106,6 +125,25 @@ export async function GET(req: Request) {
     });
   }
 
+  const gate = sdrBreaker.check();
+  if (!gate.allowed) {
+    return NextResponse.json(
+      {
+        error: "Local SDR receiver unreachable",
+        hint: `Pull failed ${SDR_BREAKER_FAILURE_THRESHOLD}x in a row; pausing calls for ${Math.round(SDR_BREAKER_OPEN_MS / 1000)}s.`,
+        retryAfterMs: gate.retryAfterMs,
+      },
+      {
+        status: 503,
+        headers: {
+          "Retry-After": String(Math.ceil(gate.retryAfterMs / 1000)),
+          "X-SDR-Circuit": "open",
+          ...NO_CACHE,
+        },
+      }
+    );
+  }
+
   try {
     const res = await fetch(SDR_URL, {
       cache: "no-store",
@@ -114,12 +152,17 @@ export async function GET(req: Request) {
     });
     if (!res.ok) {
       discardBody(res);
+      sdrBreaker.recordFailure();
       return NextResponse.json(
         { error: `Local SDR upstream ${res.status}` },
-        { status: res.status, headers: NO_CACHE }
+        {
+          status: res.status,
+          headers: { "X-SDR-Circuit": sdrBreaker.state(), ...NO_CACHE },
+        }
       );
     }
     const bodyText = await res.text();
+    sdrBreaker.recordSuccess();
     cachedBody = bodyText;
     cacheExpiresAt = Date.now() + CACHE_TTL_MS;
     return new NextResponse(bodyText, {
@@ -127,9 +170,13 @@ export async function GET(req: Request) {
       headers: { "Content-Type": "application/json", "X-SDR-Cache": "miss" },
     });
   } catch (e) {
+    sdrBreaker.recordFailure();
     return NextResponse.json(
       { error: describeFetchError(e) },
-      { status: 502, headers: NO_CACHE }
+      {
+        status: 502,
+        headers: { "X-SDR-Circuit": sdrBreaker.state(), ...NO_CACHE },
+      }
     );
   }
 }
