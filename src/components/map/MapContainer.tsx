@@ -6,6 +6,7 @@ import { SelectedAircraftMapPopup } from "@/components/map/SelectedAircraftMapPo
 import { useCurrentMoonAzimuthFeature } from "@/hooks/useCurrentMoonAzimuthFeature";
 import { FieldPerfOverlay } from "@/components/perf/FieldPerfOverlay";
 import { useExtrapolatedFlightsForMap } from "@/hooks/useExtrapolatedFlightsForMap";
+import { useAirportRunwayLayer } from "@/hooks/useAirportRunwayLayer";
 import { useCallsignHistoryLayer } from "@/hooks/useCallsignHistoryLayer";
 import { useFlightHistoryLayers } from "@/hooks/useFlightHistoryLayers";
 import { useSelectedFlightTrail } from "@/hooks/useSelectedFlightTrail";
@@ -218,6 +219,7 @@ export function MapContainer({
 
   useMapFlightPick(mapRef, mapReadyTick);
   useFlightHistoryLayers(mapRef, mapReadyTick);
+  useAirportRunwayLayer(mapRef, mapReadyTick);
   useSelectedFlightTrail(mapRef, mapReadyTick);
   useCallsignHistoryLayer(mapRef, mapReadyTick);
 

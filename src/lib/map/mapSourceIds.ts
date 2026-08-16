@@ -55,3 +55,12 @@ export const CALLSIGN_MEAN_LAYER_ID = "callsign-mean-layer";
 
 /** Green ring badge around aircraft with a confirmed disk transit predicted. */
 export const CONFIRMED_TRANSIT_BADGE_LAYER_ID = "confirmed-transit-badge-layer";
+
+/** LDZA (Zagreb Airport) runway 04/22 reference centerline — static visual aid, toggled from the Layers popover. */
+export const AIRPORT_RUNWAY_SOURCE = "airport-runway-geo";
+/** Approach/departure extension segments (`segment: "extension"`). */
+export const AIRPORT_RUNWAY_LAYER_ID = "airport-runway-layer";
+/** Actual pavement segment (`segment: "pavement"`), styled with the amber "time" accent. */
+export const AIRPORT_RUNWAY_PAVEMENT_LAYER_ID = "airport-runway-pavement-layer";
+export const AIRPORT_RUNWAY_LABEL_SOURCE = "airport-runway-label-geo";
+export const AIRPORT_RUNWAY_LABEL_LAYER_ID = "airport-runway-label-layer";
