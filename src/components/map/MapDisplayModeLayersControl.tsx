@@ -89,6 +89,8 @@ export function MapDisplayModeLayersControl() {
   const setHourFilter = useMoonTransitStore((s) => s.setFlightHistoryHourFilter);
   const flightHistoryRoutes = useMoonTransitStore((s) => s.flightHistoryRoutes);
   const setFlightHistoryRoutes = useMoonTransitStore((s) => s.setFlightHistoryRoutes);
+  const airportRunwayOverlay = useMoonTransitStore((s) => s.airportRunwayOverlay);
+  const setAirportRunwayOverlay = useMoonTransitStore((s) => s.setAirportRunwayOverlay);
   const hasMounted = useHasMounted();
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -294,6 +296,25 @@ export function MapDisplayModeLayersControl() {
               />
             </label>
           </div>
+        </div>
+
+        {/* Airport reference section */}
+        <div className="shrink-0 border-b border-[color:var(--glass-stroke)] px-3 py-2">
+          <div className="mb-2 font-[family-name:var(--font-jetbrains-mono)] text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-secondary)]">
+            Airport reference
+          </div>
+          <label className="flex cursor-pointer items-center justify-between gap-3">
+            <span className="text-[length:var(--fs-label)] text-[color:var(--t-primary)]">
+              LDZA runway 04/22
+            </span>
+            <input
+              type="checkbox"
+              className={shellGlassCheckboxClass}
+              checked={airportRunwayOverlay}
+              onChange={(e) => setAirportRunwayOverlay(e.target.checked)}
+              aria-label="Toggle Zagreb Airport runway reference line"
+            />
+          </label>
         </div>
 
         <div className="grid min-h-0 flex-1 grid-cols-5 gap-2 overflow-y-auto p-2">

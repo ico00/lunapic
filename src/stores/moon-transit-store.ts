@@ -157,6 +157,9 @@ type MoonTransitState = {
   setFlightHistoryHourFilter: (f: { from: number; to: number } | null) => void;
   flightHistoryRoutes: boolean;
   setFlightHistoryRoutes: (v: boolean) => void;
+  /** LDZA (Zagreb Airport) runway 04/22 reference line overlay — off by default. */
+  airportRunwayOverlay: boolean;
+  setAirportRunwayOverlay: (v: boolean) => void;
   /** ICAO24 selected from the Flight log panel — triggers trail render on the main map. */
   flightLogSelectedIcao24: string | null;
   flightLogDaysBack: number;
@@ -378,6 +381,8 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   setFlightHistoryHourFilter: (f) => set({ flightHistoryHourFilter: f }),
   flightHistoryRoutes: false,
   setFlightHistoryRoutes: (v) => set({ flightHistoryRoutes: v }),
+  airportRunwayOverlay: false,
+  setAirportRunwayOverlay: (v) => set({ airportRunwayOverlay: v }),
   flightLogSelectedIcao24: null,
   flightLogDaysBack: 7,
   setFlightLogSelected: (icao24, days) =>
