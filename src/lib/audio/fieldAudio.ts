@@ -171,49 +171,6 @@ function playAtcBeep(ctx: AudioContext, t0: number, freqHz: number, durationSec:
   osc.stop(t0 + durationSec + 0.01);
 }
 
-// ---------------------------------------------------------------------------
-// Custom sound file loader
-// Drop MP3/OGG/WAV files into public/sounds/:
-//   candidate-alert.mp3   → plays when a new transit candidate appears
-//   active-transit-alert.mp3 → plays when aircraft crosses the moon disc
-// If a file is missing or fails to load, synthesised ATC sounds are used.
-// ---------------------------------------------------------------------------
-
-const BASE_PATH = (
-  typeof process !== "undefined"
-    ? (process.env.NEXT_PUBLIC_BASE_PATH ?? "")
-    : ""
-);
-
-const soundCache = new Map<string, AudioBuffer | null>();
-
-async function loadSoundBuffer(ctx: AudioContext, filename: string): Promise<AudioBuffer | null> {
-  const cached = soundCache.get(filename);
-  if (cached !== undefined) return cached;
-
-  try {
-    const res = await fetch(`${BASE_PATH}/sounds/${filename}`);
-    if (!res.ok) { soundCache.set(filename, null); return null; }
-    const arrayBuffer = await res.arrayBuffer();
-    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-    soundCache.set(filename, audioBuffer);
-    return audioBuffer;
-  } catch {
-    soundCache.set(filename, null);
-    return null;
-  }
-}
-
-function playBuffer(ctx: AudioContext, buffer: AudioBuffer, gain = 1): void {
-  const src = ctx.createBufferSource();
-  const g = ctx.createGain();
-  src.buffer = buffer;
-  g.gain.setValueAtTime(gain, ctx.currentTime);
-  src.connect(g);
-  g.connect(ctx.destination);
-  src.start(ctx.currentTime);
-}
-
 function getActiveContext(): AudioContext | null {
   if (sharedAudioContext != null && sharedAudioContext.state !== "closed") {
     void sharedAudioContext.resume().catch(() => {});
@@ -228,35 +185,23 @@ function getActiveContext(): AudioContext | null {
   return ctx;
 }
 
-/**
- * ATC radio-style alert — squelch burst + single 1000 Hz beep (~220 ms).
- * If public/sounds/candidate-alert.mp3 exists, plays that file instead.
- */
+/** ATC radio-style alert — squelch burst + single 1000 Hz beep (~220 ms). */
 export function playTransitCandidateAlert(): void {
   const ctx = getActiveContext();
   if (ctx == null) return;
-  void loadSoundBuffer(ctx, "candidate-alert.mp3").then((buf) => {
-    if (buf) { playBuffer(ctx, buf); return; }
-    const t0 = ctx.currentTime;
-    playSquelch(ctx, t0, 0.18, 0.035);
-    playAtcBeep(ctx, t0 + 0.03, 1000, 0.19, 0.28);
-  });
+  const t0 = ctx.currentTime;
+  playSquelch(ctx, t0, 0.18, 0.035);
+  playAtcBeep(ctx, t0 + 0.03, 1000, 0.19, 0.28);
 }
 
-/**
- * ATC radio-style urgent alert — squelch burst + double beep (~120 ms each).
- * If public/sounds/active-transit-alert.mp3 exists, plays that file instead.
- */
+/** ATC radio-style urgent alert — squelch burst + double beep (~120 ms each). */
 export function playActiveTransitAlert(): void {
   const ctx = getActiveContext();
   if (ctx == null) return;
-  void loadSoundBuffer(ctx, "active-transit-alert.mp3").then((buf) => {
-    if (buf) { playBuffer(ctx, buf); return; }
-    const t0 = ctx.currentTime;
-    playSquelch(ctx, t0, 0.22, 0.03);
-    playAtcBeep(ctx, t0 + 0.025, 1200, 0.115, 0.32);
-    playAtcBeep(ctx, t0 + 0.175, 1200, 0.115, 0.32);
-  });
+  const t0 = ctx.currentTime;
+  playSquelch(ctx, t0, 0.22, 0.03);
+  playAtcBeep(ctx, t0 + 0.025, 1200, 0.115, 0.32);
+  playAtcBeep(ctx, t0 + 0.175, 1200, 0.115, 0.32);
 }
 
 const COUNTDOWN_BEEP_BASE_HZ = 520;

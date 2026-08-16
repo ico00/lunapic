@@ -47,7 +47,6 @@ LunaPic helps you **line up a live ADS-B aircraft** with the **Moon** in the sky
     - Phone locked / app in the background / tab closed → **Web Push** OS notification (banner + vibration), sent by the server. This works even when LunaPic is not open: once you subscribe, your location and camera are remembered server-side and the server checks for transits on its own. (Requires the server to be configured — see deployment docs.)
     - On first enable, the browser asks for notification permission. On iOS, Web Push only works when LunaPic is **added to the Home Screen** (iOS 16.4+), and the alert uses the **system notification sound** (iOS ignores custom sound/vibration).
     - If the permission prompt did not appear automatically on first load, tap the bell to trigger it.
-    - Custom sounds: place `candidate-alert.mp3` / `active-transit-alert.mp3` in `public/sounds/` on the server.
 
 6. **Pick a flight (optional)**
   - Click an aircraft to select it. You get a **stand corridor** (cyan ground band) and a **pale center line** showing where to be on the ground, for the **current simulated time**, using the aircraft’s **altitude** in the line-of-sight model.
