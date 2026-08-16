@@ -33,10 +33,10 @@ export const LDZA_RUNWAY_04_22_LINE: readonly [lat: number, lng: number][] = [
  * base/downwind, not yet tracking the runway heading, so a longer line would
  * overstate how far out the reference track is reliable.
  */
-const APPROACH_EXTENSION_METERS = 5_556; // 3 NM
+export const APPROACH_EXTENSION_METERS = 5_556; // 3 NM
 
 /** Great-circle initial bearing from `a` to `b`, degrees from true north. */
-function initialBearingDeg(a: readonly [number, number], b: readonly [number, number]): number {
+export function initialBearingDeg(a: readonly [number, number], b: readonly [number, number]): number {
   const [lat1, lng1] = a;
   const [lat2, lng2] = b;
   const φ1 = toRad(lat1);
@@ -48,7 +48,7 @@ function initialBearingDeg(a: readonly [number, number], b: readonly [number, nu
 }
 
 /** Straight extension tip past each threshold, along the terminal pavement segment's bearing. */
-function buildApproachExtensionTips(): {
+export function buildApproachExtensionTips(): {
   rwy22Ext: { lat: number; lng: number };
   rwy04Ext: { lat: number; lng: number };
 } {
