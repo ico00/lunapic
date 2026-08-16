@@ -28,7 +28,7 @@ import {
 function labelForProvider(id: FlightProviderId): string {
   if (id === "mock") return "Mock";
   if (id === "static") return "Routes (static)";
-  if (id === "adsbone") return "ADS-B One (free API)";
+  if (id === "adsbone") return "adsb.lol (free API)";
   if (id === "localsdr") return "LunaPic ADS-B";
   return "OpenSky (ADS-B)";
 }
@@ -42,12 +42,12 @@ function triggerLabel(
   }
   const hasSdr = liveFlightFeeds.localsdr;
   if (liveFlightFeeds.opensky && liveFlightFeeds.adsbone) {
-    return hasSdr ? "LunaPic + OpenSky + ADS-B One" : "OpenSky + ADS-B One (merged)";
+    return hasSdr ? "LunaPic + OpenSky + adsb.lol" : "OpenSky + adsb.lol (merged)";
   }
   if (liveFlightFeeds.opensky) {
     return hasSdr ? "LunaPic + OpenSky" : labelForProvider("opensky");
   }
-  return hasSdr ? "LunaPic + ADS-B One" : labelForProvider("adsbone");
+  return hasSdr ? "LunaPic + adsb.lol" : labelForProvider("adsbone");
 }
 
 type FlightProviderSelectProps = {
@@ -57,7 +57,7 @@ type FlightProviderSelectProps = {
 };
 
 /**
- * Combobox (portal): samo **OpenSky** i **ADS-B One** kao checkbox redovi
+ * Combobox (portal): samo **OpenSky** i **adsb.lol** kao checkbox redovi
  * (`static` / `mock` nisu u izborniku).
  */
 export function FlightProviderSelect({

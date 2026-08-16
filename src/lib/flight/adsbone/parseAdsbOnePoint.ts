@@ -4,7 +4,7 @@ import { greatCircleDistanceNauticalMiles } from "@/lib/domain/geo/greatCircleDi
 import type { FlightState } from "@/types/flight";
 import type { GeoBounds } from "@/types/geo";
 
-/** Odgovor `GET /v2/point/...` (ADSBExchange v2 oblik, api.adsb.one). */
+/** Odgovor `GET /v2/point/...` (ADSBExchange v2 oblik, api.adsb.lol). */
 export type AdsbOnePointResponse = {
   readonly ac?: readonly AdsbOneAircraft[] | null;
   readonly msg?: string;

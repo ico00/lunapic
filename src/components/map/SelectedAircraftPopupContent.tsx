@@ -14,7 +14,7 @@ import { useWeatherStore } from "@/stores/weather-store";
 import type { FlightState } from "@/types/flight";
 
 function providerLabel(id: string): string {
-  if (id === "adsbone") return "ADS-B One";
+  if (id === "adsbone") return "adsb.lol";
   if (id === "localsdr") return "LunaPic ADS-B";
   if (id === "opensky") return "OpenSky";
   return id;
