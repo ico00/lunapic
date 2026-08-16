@@ -6,6 +6,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 where version bumps are made for releases (currently `0.x`).
 
+## [2026-08-16] — Moon disk rendered locally (NASA SVS host became unreachable)
+
+See also: [architecture.md → Viewfinder preview](architecture.md), [ui-generator-technical-spec.md §8.5](ui-generator-technical-spec.md).
+
+### Fixed
+
+- **Viewfinder showed no moon at all.** `svs.gsfc.nasa.gov` stopped answering — DNS still resolves (`169.154.143.10`), but TCP 443 and 80 both hang locally and refuse from other networks, while `www.nasa.gov` / `science.nasa.gov` stay up. The domain has not moved; it is an outage on the SVS host. CSP was **not** involved (`img-src 'self' data: blob: https:` allows any HTTPS image).
+- **The static fallback never appeared either.** `ViewfinderPreview` swapped to `public/moon-textures/nasa-full-moon.jpg` only on `img.onerror`. That event fires promptly on a refused connection but not on a *hung* one — the browser sits on its own connect timeout for tens of seconds first, and the frame index changes hourly, so each new hour restarted the hang. The disk stayed black in the meantime.
+
+### Changed
+
+- **New `src/lib/domain/astro/moonPhaseGeometry.ts`** — the phase is now geometry, not a downloaded image:
+  - `getMoonPhaseGeometry(at)` → `illuminationFraction` (`Astronomy.Illumination`) + `brightLimbAngleDeg`, the position angle of the bright limb from celestial north through east (Meeus ch. 48). Computed **geocentrically** on purpose: topocentric parallax tilts the limb angle by up to ~1° without telling the disk anything it can show.
+  - `moonPhasePathD()` → SVG path of the sunlit region: the `+x` half of the limb circle plus a terminator half-ellipse of semi-axis `r·|1 − 2k|`. The ellipse bulges toward the lit limb while crescent, away once gibbous, and degenerates to the straight quarter-moon edge at `k = 0.5` (SVG renders a zero-radius arc as a line, so no special case).
+  - `moonPhaseRotationDeg(χ, parallactic)` → rotation into the camera frame.
+- **`ViewfinderPreview` no longer hits the network for the moon.** The `<image>` always points at the bundled full-moon texture; an SVG `<mask>` carries the phase. The `Image()` preload effect, the `nasaLoadFailedForUrl` state, and the whole fallback branch are gone — there is nothing left to fail.
+- **Removed `src/lib/domain/astro/nasaMoonPhaseFrame.ts`** and its test; the export in `src/lib/domain/index.ts` now points at `moonPhaseGeometry`. This also drops the **2023–2026 catalog-year bound** — simulated dates outside that range used to be silently snapped to the nearest catalog year, and now render their real phase.
+- **The disk is now parallactic-corrected.** The SVS stills were fixed *north up*, so the terminator sat at the wrong angle in a frame whose aircraft silhouette was already corrected (`correctedHeadingDeg` in [ViewfinderPreview.tsx](../src/components/field/ViewfinderPreview.tsx)). Both now share one frame.
+- **Night side is dimmed, not cut** — `UNLIT_DISK_VISIBILITY = 0.15`. A fully transparent night side read as a hole punched in the frame rather than as a disk. The mask uses **white with `fillOpacity`** rather than a grey hex: masks are luminance-based and implementations disagree on sRGB vs linearRGB, but white has luminance 1 in both, so the value is stable across browsers. See spec §8.5 for the upper bound (the yellow aircraft outline draws over the disk).
+
+### Known omissions vs. the SVS frames
+
+No **libration** (the disk never wobbles) and no earthshine — the 15 % night side is a legibility aid, not a physical model. Both are invisible at the size the disk is drawn.
+
+### Verification
+
+10 new unit tests in `moonPhaseGeometry.test.ts`; full suite 146/146 and `tsc --noEmit` clean. Angles checked against real dates: first quarter χ ≈ 284° (west), last quarter χ ≈ 82° (east), full moon `k` = 1.000. For a 45.8°N observer at lunar meridian transit the lit direction lands at `x = +0.98` — right, as the northern hemisphere sees it. The component itself was rendered via `renderToStaticMarkup` and inspected in the browser across a full lunation. **Not** verified through the live app UI: `PhotographerToolsPanel` only mounts the viewfinder when `photoPack.timeToAlignmentSec != null`, and no live flight had a predicted azimuth alignment at the time.
+
+---
+
 ## [2026-07-22] — Shared transit computation (fix desktop CPU/fan overload)
 
 See also: [architecture.md → Shared transit computation (dedup)](architecture.md#shared-transit-computation-dedup), [optimization-and-refactoring.md §9](optimization-and-refactoring.md).

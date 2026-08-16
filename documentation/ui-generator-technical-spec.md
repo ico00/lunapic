@@ -277,6 +277,18 @@ Fasada: `src/lib/domain/geometry/geometryEngine.ts` → `geometryEngineMoonRay.t
 - Tieri `excellent | fair | poor`; slant range vs `maxShotRangeMetersForCamera` (bazno 120 km @ 600 mm full frame, skaliranje s efektivnom žarišnom).
 - **Moon na izlazu:** promjer Mjeseca na referentnoj **6000 px** širini (`moonDiameterPxAtReferenceSensor`); za proizvoljni kadar `moonDiameterPxOnOutputFrame` + `moonFrameFillForOutputFrame` (postotak širine/površine) koriste **`cameraFrameWidthPx` / `cameraFrameHeightPx`** iz storea u `PhotographerToolsPanel`.
 
+### 8.5 Disk Mjeseca u tražilu (`ViewfinderPreview.tsx`)
+
+Disk je jedna statična tekstura punog Mjeseca (`public/moon-textures/nasa-full-moon.jpg`) maskirana lokalno izračunatim terminatorom — geometrija u `moonPhaseGeometry.ts`, bez mrežnog izvora.
+
+| Odluka | Vrijednost | Zašto |
+|---|---|---|
+| Vidljivost neosvijetljene strane | `UNLIT_DISK_VISIBILITY = 0.15` | Potpuno crna tamna strana čitala se kao **rupa u kadru**, ne kao disk. Na 15 % se vidi cijeli obris Mjeseca, a osvijetljeni dio i dalje jasno dominira. |
+| Boja maske | bijela s `fillOpacity` | Maske su luminance-based, a bijela ima luminanciju 1 u sRGB i linearRGB — `fillOpacity` daje istu vrijednost u svim preglednicima, za razliku od sivog hexa. |
+| Orijentacija | `moonPhaseRotationDeg(χ, parallactic)` | Isti okvir kamere u kojem se već korigira kurs aviona. |
+
+Silueta aviona (`#facc15` / `#fde047`) crta se **iznad** diska, pa je 15 % gornja granica — svjetlija tamna strana počinje jesti kontrast obrisa.
+
 ---
 
 ## 9. Desktop shell: tri stupca (`HomePageClient.tsx`)
@@ -507,4 +519,5 @@ Ako se visina ribbona ili gap mijenjaju u CSS-u, isti broj treba ažurirati i u 
 | Breakpoint | `src/hooks/useMediaQuery.ts` |
 | Storeovi | `src/stores/moon-transit-store.ts`, `src/stores/observer-store.ts` |
 | GeometryEngine | `src/lib/domain/geometry/geometryEngine.ts` |
+| Faza Mjeseca (tražilo) | `src/lib/domain/astro/moonPhaseGeometry.ts`, `src/components/field/ViewfinderPreview.tsx` |
 | Konvencije | `documentation/technicalconventions.md`, `documentation/architecture.md` |

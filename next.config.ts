@@ -22,7 +22,9 @@ const basePath: string = require(
  *  - Weather (direktni klijentski fetch): api.open-meteo.com
  *  - ADS-B direktni fallback (kad NEXT_PUBLIC_ADSBONE_ALLOW_DIRECT=1): api.adsb.one, api.airplanes.live
  *  - Sentry (samo produkcija): *.sentry.io
- *  - Slike (kiwi logotipi, NASA mjesečeve faze, svi tile-ovi) → `img-src https:`
+ *  - Slike (kiwi logotipi, svi tile-ovi) → `img-src https:`
+ *    Mjesečeve faze više nisu među njima — od 2026-08-16 disk se iscrtava lokalno
+ *    (`moonPhaseGeometry.ts`) iz teksture u `public/`, bez vanjskog izvora.
  *  Aircraft index, push, te svi ostali proxyji su same-origin → pokriva `'self'`.
  */
 const contentSecurityPolicy = [
