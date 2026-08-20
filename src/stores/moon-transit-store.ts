@@ -669,7 +669,22 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
         // geometriju, web popunjava metapodatke. Njihovo starenje i dalje
         // ograničava web tick (retention u `mergeFlightsWithOpenSkyRetention`, 32 s).
         const freshList = localOnly === "localsdr" ? sdrList : avionixList;
-        const combined = mergeLiveFlightListsWithSdrPriority(freshList, [
+        // localsdr > avionix prioritet mora vrijediti i unutar avionixovog
+        // vlastitog brzog ticka, ne samo na punom ticku — inače avionixov
+        // fresh podatak na 10s privremeno prepiše Pi-jevu poziciju za avion
+        // koji oboje vide, pa se sljedeći Pi/puni tick vrati natrag. Vizualno
+        // to je točno "glatko → skok nazad → skok naprijed" na ~10s ciklusu
+        // (dijagnosticirano 2026-08-20: dva prijemnika s blago različitim
+        // pozicija/track očitanjima za isti avion, extrapolateFlightForDisplay
+        // svaki put nastavlja od nove baze pa je prijelaz baze vidljiv skok).
+        const freshListForMerge =
+          localOnly === "avionix"
+            ? freshList.filter((f) => {
+                const prev = previousFlights.find((p) => p.id === f.id);
+                return prev?.providerId !== "localsdr";
+              })
+            : freshList;
+        const combined = mergeLiveFlightListsWithSdrPriority(freshListForMerge, [
           previousFlights,
         ]);
         const prevCounts = get().providerFlightCounts;
@@ -707,11 +722,16 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
         }
       });
 
-      // Lokalni izvori se spajaju međusobno prije nego pobijede web — oba
-      // (localsdr, avionix) su podjednako pouzdana vlastita hardver; noviji
-      // `timestamp` pobjeđuje za icao24 koji vide oba (isto ponašanje kao za
-      // više web listi u `mergeLiveFlightLists`).
-      const combinedLocal = mergeLiveFlightLists([sdrList, avionixList]);
+      // Lokalni izvori se spajaju međusobno prije nego pobijede web. NAMJERNO
+      // fiksni prioritet (localsdr uvijek pobjeđuje avionix za icao24 koje oba
+      // vide), ne "noviji pobjeđuje" — dva neovisna prijemnika istog aviona
+      // gotovo nikad ne javljaju identičnu poziciju/track (RF/decode razlike),
+      // pa simetrično naizmjenično biranje uzrokuje vidljivo treperenje na
+      // karti (svaki put kad extrapolateFlightForDisplay promijeni baznu
+      // točku). Avionix i dalje puni avione koje Pi ne vidi, bez izmjene.
+      const combinedLocal = mergeLiveFlightListsWithSdrPriority(sdrList, [
+        avionixList,
+      ]);
 
       // Local-only mod: oba weba isključena, lokalni izvor(i) su jedini izvor
       if (lists.length === 0 && combinedLocal.length > 0) {

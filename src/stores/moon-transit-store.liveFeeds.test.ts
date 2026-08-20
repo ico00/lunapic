@@ -171,6 +171,59 @@ describe("loadFlightsInBounds({ only: 'avionix' }) i localsdr+avionix kombinacij
     expect(s.localsdrStatus).toBe("ok");
   });
 
+  it("localsdr uvijek pobjeđuje avionix za icao24 koje oba vide (sprječava treperenje — 2026-08-20)", async () => {
+    lists.opensky = [];
+    lists.adsbone = [];
+    lists.localsdr = [{ ...flight("aaa111", 45.8, 16.0), providerId: "localsdr" }];
+    // Avionix vidi ISTI avion na blago drukčijoj poziciji (dva neovisna
+    // prijemnika gotovo nikad ne javljaju identičnu poziciju).
+    lists.avionix = [{ ...flight("aaa111", 45.81, 16.02), providerId: "avionix" }];
+
+    await useMoonTransitStore.getState().loadFlightsInBounds(BOUNDS);
+
+    const s = useMoonTransitStore.getState();
+    const f = s.flights.find((x) => x.id === "aaa111");
+    expect(f?.position).toEqual({ lat: 45.8, lng: 16.0 });
+    expect(f?.providerId).toBe("localsdr");
+  });
+
+  it("avionixov brzi tick ne prepisuje poziciju koju trenutno drži localsdr (sprječava treperenje)", async () => {
+    // Puni tick: localsdr postaje autoritativan za aaa111.
+    lists.opensky = [];
+    lists.adsbone = [];
+    lists.localsdr = [{ ...flight("aaa111", 45.8, 16.0), providerId: "localsdr" }];
+    await useMoonTransitStore.getState().loadFlightsInBounds(BOUNDS);
+    expect(
+      useMoonTransitStore.getState().flights.find((x) => x.id === "aaa111")?.position
+    ).toEqual({ lat: 45.8, lng: 16.0 });
+
+    // Avionixov brzi tick (10s): javlja SVJEŽIJU, ali drukčiju poziciju za
+    // isti avion. Ne smije prepisati Pi-jevu poziciju.
+    lists.avionix = [{ ...flight("aaa111", 45.81, 16.02), providerId: "avionix" }];
+    await useMoonTransitStore
+      .getState()
+      .loadFlightsInBounds(BOUNDS, { only: "avionix" });
+
+    const f = useMoonTransitStore.getState().flights.find((x) => x.id === "aaa111");
+    expect(f?.position).toEqual({ lat: 45.8, lng: 16.0 });
+    expect(f?.providerId).toBe("localsdr");
+  });
+
+  it("avionixov brzi tick i dalje ažurira avione koje localsdr ne vidi", async () => {
+    lists.opensky = [];
+    lists.adsbone = [];
+    lists.avionix = [{ ...flight("ddd444", 45.6, 15.8), providerId: "avionix" }];
+    await useMoonTransitStore.getState().loadFlightsInBounds(BOUNDS);
+
+    lists.avionix = [{ ...flight("ddd444", 45.65, 15.85), providerId: "avionix" }];
+    await useMoonTransitStore
+      .getState()
+      .loadFlightsInBounds(BOUNDS, { only: "avionix" });
+
+    const f = useMoonTransitStore.getState().flights.find((x) => x.id === "ddd444");
+    expect(f?.position).toEqual({ lat: 45.65, lng: 15.85 });
+  });
+
   it("brzi avionix-tick ne mijenja localsdrStatus (nije pitan taj tick)", async () => {
     lists.localsdr = [flight("aaa111", 45.8, 16.0)];
     await useMoonTransitStore.getState().loadFlightsInBounds(BOUNDS);
