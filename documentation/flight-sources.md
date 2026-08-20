@@ -11,21 +11,27 @@ invisible from the app.
 
 ---
 
-## The three sources
+## The four sources
 
 | UI label | Provider id | Upstream | Auth | Quota |
 | --- | --- | --- | --- | --- |
 | OpenSky | `opensky` | `opensky-network.org/api/states/all` | OAuth2 client credentials | 4 000 credits/day (account tier) |
 | adsb.lol | `adsbone` | `api.adsb.lol/v2/point` | none | dynamic, no published number |
 | LunaPic ADS-B | `localsdr` | own Raspberry Pi (push) | shared token | none (own hardware) |
+| Avionix Nano | `avionix` | own Avionix Nano ADS-B, NanoPi Neo (push) | shared token | none (own hardware) |
 
 The provider id **`adsbone` is historical**. It is persisted in `localStorage`
 (`flightProvider`, `liveFlightFeeds`), so renaming it would need a migration for
 no benefit. Only the user-facing label tracks the actual operator.
 
-All three are merged into one aircraft list per tick, keyed by canonical ICAO24.
-When the Pi sees an aircraft it wins geometry (`mergeLiveFlightListsWithSdrPriority`);
-web sources fill metadata gaps.
+All four are merged into one aircraft list per tick, keyed by canonical ICAO24,
+in two stages. First the two local hardware sources (`localsdr`, `avionix`) are
+merged with each other (`mergeLiveFlightLists` — same function used to reconcile
+multiple web lists; a newer `timestamp` wins for an aircraft both see). That
+combined local list then wins geometry over the web sources
+(`mergeLiveFlightListsWithSdrPriority`); web sources only fill metadata gaps
+(airline, aircraft type) for aircraft the local receivers already see, and pass
+through unchanged otherwise.
 
 ---
 
@@ -106,27 +112,60 @@ matter what the circuit state is.
 
 ---
 
+## Avionix Nano ADS-B
+
+Same push-over-pull principle as the Pi, own snapshot file
+(`data/avionix-snapshot.json`) and own ingest route (`/api/avionix/ingest`,
+`x-avionix-token`) — kept structurally separate from `localsdr`'s files rather
+than parameterizing the shared code, since the two devices' payload shapes
+differ enough (tar1090 `{aircraft:[...]}` vs this device's
+`{"<icao24>":[...]}` keyed object) that a shared abstraction would either leak
+one device's field order into the other or invent a shape neither naturally
+produces.
+
+The Avionix Nano (NanoPi Neo, "AVIONIX openAir" firmware) pushes every ~10 s
+via a systemd timer installed **on the device itself**
+(`scripts/avionix-push.sh` + `.service`/`.timer`). One important difference
+from the Pi: this device's root filesystem is `overlayroot=tmpfs` — `/`
+(including `/etc/systemd/system`) resets to the factory image on every reboot,
+and only `/data` (a separate mount) survives. The push script lives on `/data`
+(persistent); only the two small unit files are permanently installed via
+`sudo overlayroot-chroot` (the vendor-documented method for permanent changes
+on this firmware — see the header comment in `avionix-push.sh` for the exact
+install steps).
+
+`AVIONIX_URL` (pull) is a **local-dev-only fallback** — the device is an
+unauthenticated LAN endpoint with CORS `*`, no embedded credentials needed. In
+production the server cannot reach the device's private LAN address at all, so
+push is the only path that works there.
+
+---
+
 ## Poll cadence and the credit budget
 
-[`useMoonTransitMap.ts`](../src/hooks/useMoonTransitMap.ts) runs **two timers**:
+[`useMoonTransitMap.ts`](../src/hooks/useMoonTransitMap.ts) runs **three timers**:
 
 | Timer | Interval | Sources |
 | --- | --- | --- |
 | web | 30 s (`LIVE_AUTO_REFRESH_MS`) | OpenSky, adsb.lol |
 | SDR | 10 s (`LOCALSDR_AUTO_REFRESH_MS`) | localsdr only, via `loadFlightsInBounds(bounds, { only: "localsdr" })` |
+| Avionix | 10 s (`AVIONIX_AUTO_REFRESH_MS`) | avionix only, via `loadFlightsInBounds(bounds, { only: "avionix" })` |
 
-**Both stop while the tab is hidden** and restart with one immediate refresh when
-it becomes visible.
+**All three stop while the tab is hidden** and restart with one immediate
+refresh when it becomes visible.
 
 This is a budget, not a preference: at 30 s one visible tab costs ~120 credits/h,
 so 4 000 lasts ~33 h of watching. Before the split, a single interval drove every
 source and the Pi checkbox silently pulled OpenSky to 10 s — 360 credits/h, i.e.
 the whole daily allowance in about an hour.
 
-The SDR-only tick keeps the last web aircraft on the map (SDR-priority merge over
-the previous list); their ageing is still bounded by the 32 s retention applied on
-the next full tick. An empty response from the Pi must never clear web aircraft —
-there is a test for this in
+A local-only tick (either `only: "localsdr"` or `only: "avionix"`) keeps the
+last web aircraft **and** the last known state of the *other* local source on
+the map — only the freshly-fetched source is re-merged against the previous
+snapshot that tick. Web ageing is still bounded by the 32 s retention applied
+on the next full tick. An empty response from either local receiver must never
+clear web aircraft or the other local source's aircraft — there are tests for
+this in
 [`moon-transit-store.liveFeeds.test.ts`](../src/stores/moon-transit-store.liveFeeds.test.ts).
 
 ---
@@ -141,6 +180,7 @@ run several).
 | --- | --- | --- | --- |
 | `/api/adsbone/point` | 3 consecutive failures | 60 s | `503` + `Retry-After` |
 | `/api/localsdr/aircraft` (pull only) | 3 consecutive failures | 30 s | `503` + `Retry-After` |
+| `/api/avionix/aircraft` (pull only) | 3 consecutive failures | 30 s | `503` + `Retry-After` |
 
 After the pause **one probe request** decides: success closes the circuit,
 failure reopens it. Clients honour `Retry-After` for both 429 and 503.
@@ -159,7 +199,7 @@ In the **Flight source** panel ([`FlightSourcePanel.tsx`](../src/components/shel
 - healthy → aircraft count in brackets
 - `rate limited` (amber) → `webFeedStatus === "rate-limited"`, plus a note when it is OpenSky
 - `unavailable` (rose) → any other web-feed failure
-- `offline` (rose) → `localsdrStatus === "unreachable"`
+- `offline` (rose) → `localsdrStatus === "unreachable"` or `avionixStatus === "unreachable"` (independent per source)
 
 A source still serving its own short-lived client cache during backoff keeps
 showing a count and no badge — the user is looking at real data, so flagging it

@@ -46,8 +46,8 @@ describe("loadFlightsInBounds({ only: 'localsdr' })", () => {
     for (const k of Object.keys(failures)) delete failures[k as FlightProviderId];
     useMoonTransitStore.setState({
       flightProvider: "opensky",
-      liveFlightFeeds: { opensky: true, adsbone: true, localsdr: true },
-      providerFlightCounts: { opensky: 0, adsbone: 0, localsdr: 0 },
+      liveFlightFeeds: { opensky: true, adsbone: true, localsdr: true, avionix: false },
+      providerFlightCounts: { opensky: 0, adsbone: 0, localsdr: 0, avionix: 0 },
       webFeedStatus: { opensky: "idle", adsbone: "idle" },
       flights: [],
       selectedFlightId: null,
@@ -117,6 +117,78 @@ describe("loadFlightsInBounds({ only: 'localsdr' })", () => {
   });
 });
 
+describe("loadFlightsInBounds({ only: 'avionix' }) i localsdr+avionix kombinacija", () => {
+  beforeEach(() => {
+    calls.length = 0;
+    for (const k of Object.keys(lists)) delete lists[k as FlightProviderId];
+    for (const k of Object.keys(failures)) delete failures[k as FlightProviderId];
+    useMoonTransitStore.setState({
+      flightProvider: "opensky",
+      liveFlightFeeds: { opensky: true, adsbone: true, localsdr: true, avionix: true },
+      providerFlightCounts: { opensky: 0, adsbone: 0, localsdr: 0, avionix: 0 },
+      webFeedStatus: { opensky: "idle", adsbone: "idle" },
+      localsdrStatus: "idle",
+      avionixStatus: "idle",
+      flights: [],
+      selectedFlightId: null,
+    });
+  });
+
+  it("ne poziva web izvore ni localsdr — samo avionix", async () => {
+    lists.avionix = [flight("ddd444", 45.6, 15.8)];
+
+    await useMoonTransitStore
+      .getState()
+      .loadFlightsInBounds(BOUNDS, { only: "avionix" });
+
+    expect(calls).toEqual(["avionix"]);
+  });
+
+  it("puni tick spaja localsdr i avionix bez gubitka nijednog", async () => {
+    lists.opensky = [];
+    lists.adsbone = [];
+    lists.localsdr = [flight("aaa111", 45.8, 16.0)];
+    lists.avionix = [flight("ddd444", 45.6, 15.8)];
+
+    await useMoonTransitStore.getState().loadFlightsInBounds(BOUNDS);
+
+    const s = useMoonTransitStore.getState();
+    expect(s.flights.map((f) => f.id).sort()).toEqual(["aaa111", "ddd444"]);
+    expect(s.providerFlightCounts.localsdr).toBe(1);
+    expect(s.providerFlightCounts.avionix).toBe(1);
+  });
+
+  it("nedostupan avionix ne briše web ni localsdr letove, avionixStatus ide na unreachable neovisno o localsdrStatus", async () => {
+    lists.opensky = [flight("bbb222", 45.9, 16.1)];
+    lists.localsdr = [flight("aaa111", 45.8, 16.0)];
+    failures.avionix = new Error("Avionix: receiver unreachable");
+
+    await useMoonTransitStore.getState().loadFlightsInBounds(BOUNDS);
+
+    const s = useMoonTransitStore.getState();
+    expect(s.flights.map((f) => f.id).sort()).toEqual(["aaa111", "bbb222"]);
+    expect(s.avionixStatus).toBe("unreachable");
+    expect(s.localsdrStatus).toBe("ok");
+  });
+
+  it("brzi avionix-tick ne mijenja localsdrStatus (nije pitan taj tick)", async () => {
+    lists.localsdr = [flight("aaa111", 45.8, 16.0)];
+    await useMoonTransitStore.getState().loadFlightsInBounds(BOUNDS);
+    expect(useMoonTransitStore.getState().localsdrStatus).toBe("ok");
+
+    calls.length = 0;
+    failures.avionix = new Error("Avionix: receiver unreachable");
+    await useMoonTransitStore
+      .getState()
+      .loadFlightsInBounds(BOUNDS, { only: "avionix" });
+
+    const s = useMoonTransitStore.getState();
+    expect(calls).toEqual(["avionix"]);
+    expect(s.avionixStatus).toBe("unreachable");
+    expect(s.localsdrStatus).toBe("ok");
+  });
+});
+
 describe("webFeedStatus", () => {
   beforeEach(() => {
     calls.length = 0;
@@ -124,8 +196,8 @@ describe("webFeedStatus", () => {
     for (const k of Object.keys(failures)) delete failures[k as FlightProviderId];
     useMoonTransitStore.setState({
       flightProvider: "opensky",
-      liveFlightFeeds: { opensky: true, adsbone: true, localsdr: false },
-      providerFlightCounts: { opensky: 0, adsbone: 0, localsdr: 0 },
+      liveFlightFeeds: { opensky: true, adsbone: true, localsdr: false, avionix: false },
+      providerFlightCounts: { opensky: 0, adsbone: 0, localsdr: 0, avionix: 0 },
       webFeedStatus: { opensky: "idle", adsbone: "idle" },
       flights: [],
       selectedFlightId: null,
@@ -156,7 +228,7 @@ describe("webFeedStatus", () => {
 
   it("isključen izvor je idle, ne error", async () => {
     useMoonTransitStore.setState({
-      liveFlightFeeds: { opensky: false, adsbone: true, localsdr: false },
+      liveFlightFeeds: { opensky: false, adsbone: true, localsdr: false, avionix: false },
     });
     lists.adsbone = [flight("ccc333", 45.7, 15.9)];
 

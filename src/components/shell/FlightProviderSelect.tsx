@@ -30,8 +30,15 @@ function labelForProvider(id: FlightProviderId): string {
   if (id === "static") return "Routes (static)";
   if (id === "adsbone") return "adsb.lol (free API)";
   if (id === "localsdr") return "LunaPic ADS-B";
+  if (id === "avionix") return "Avionix Nano";
   return "OpenSky (ADS-B)";
 }
+
+/** Prikazni naziv za jedan lokalni izvor unutar `triggerLabel` kombinacija. */
+const LOCAL_SOURCE_SHORT_LABEL: Record<"localsdr" | "avionix", string> = {
+  localsdr: "LunaPic",
+  avionix: "Avionix",
+};
 
 function triggerLabel(
   value: FlightProviderId,
@@ -40,14 +47,19 @@ function triggerLabel(
   if (value !== "opensky" && value !== "adsbone") {
     return labelForProvider(value);
   }
-  const hasSdr = liveFlightFeeds.localsdr;
-  if (liveFlightFeeds.opensky && liveFlightFeeds.adsbone) {
-    return hasSdr ? "LunaPic + OpenSky + adsb.lol" : "OpenSky + adsb.lol (merged)";
-  }
-  if (liveFlightFeeds.opensky) {
-    return hasSdr ? "LunaPic + OpenSky" : labelForProvider("opensky");
-  }
-  return hasSdr ? "LunaPic + adsb.lol" : labelForProvider("adsbone");
+  // S dva neovisna lokalna izvora kombinatorika (do 3 web stanja × do 4
+  // lokalne kombinacije) više nije čitljiva kao literalni ternary lanac —
+  // sastavi label iz aktivnih dijelova, fiksnim prioritetnim redoslijedom.
+  const localLabels = (["avionix", "localsdr"] as const)
+    .filter((id) => liveFlightFeeds[id])
+    .map((id) => LOCAL_SOURCE_SHORT_LABEL[id]);
+  const webLabel =
+    liveFlightFeeds.opensky && liveFlightFeeds.adsbone
+      ? "OpenSky + adsb.lol (merged)"
+      : liveFlightFeeds.opensky
+        ? labelForProvider("opensky")
+        : labelForProvider("adsbone");
+  return [...localLabels, webLabel].join(" + ");
 }
 
 type FlightProviderSelectProps = {
@@ -168,16 +180,18 @@ export function FlightProviderSelect({
         }}
       >
         {FLIGHT_PROVIDER_COMBO_IDS.map((id) => {
-          const isLocalsdr = id === "localsdr";
+          const isLocalSource = id === "localsdr" || id === "avionix";
           const feedOn =
             id === "opensky"
               ? liveFlightFeeds.opensky
               : id === "adsbone"
                 ? liveFlightFeeds.adsbone
-                : liveFlightFeeds.localsdr;
+                : id === "localsdr"
+                  ? liveFlightFeeds.localsdr
+                  : liveFlightFeeds.avionix;
           return (
             <Fragment key={id}>
-              {isLocalsdr && (
+              {id === "localsdr" && (
                 <li
                   role="separator"
                   aria-hidden
@@ -200,7 +214,9 @@ export function FlightProviderSelect({
                           ? { opensky: e.target.checked }
                           : id === "adsbone"
                             ? { adsbone: e.target.checked }
-                            : { localsdr: e.target.checked }
+                            : id === "localsdr"
+                              ? { localsdr: e.target.checked }
+                              : { avionix: e.target.checked }
                       );
                     }}
                     className={shellAccentCheckboxClass}
@@ -208,7 +224,7 @@ export function FlightProviderSelect({
                   <span className="min-w-0 flex-1 select-none">
                     {labelForProvider(id)}
                   </span>
-                  {isLocalsdr && feedOn && (
+                  {isLocalSource && feedOn && (
                     <span className="ml-1 shrink-0 text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
                       ↑ priority
                     </span>

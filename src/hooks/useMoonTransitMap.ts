@@ -26,6 +26,8 @@ const LIVE_AUTO_REFRESH_MS = 30_000;
 // Runs on its own timer: before, this interval drove *every* source, so turning
 // the Pi on silently tripled OpenSky usage and burned the daily quota in ~1 h.
 const LOCALSDR_AUTO_REFRESH_MS = 10_000;
+// Avionix Nano ADS-B — isti princip kao localsdr, vlastiti timer.
+const AVIONIX_AUTO_REFRESH_MS = 10_000;
 
 function scheduleObserverGroundHeightFromTerrain(
   map: mapboxgl.Map,
@@ -111,7 +113,7 @@ export function useMoonTransitMap(
   );
 
   const flushFlightLoadForMapBounds = useCallback(
-    (m: mapboxgl.Map, opts?: { only?: "localsdr" }) => {
+    (m: mapboxgl.Map, opts?: { only?: "localsdr" | "avionix" }) => {
       fieldPerfTime("map:boundsRefresh", () => {
         const b = m.getBounds();
         if (!b) {
@@ -143,6 +145,15 @@ export function useMoonTransitMap(
       return;
     }
     flushFlightLoadForMapBounds(m, { only: "localsdr" });
+  }, [flushFlightLoadForMapBounds]);
+
+  /** Osvježi samo Avionix Nano — web izvori (i njihove kvote) se ne diraju. */
+  const refreshAvionixNow = useCallback(() => {
+    const m = mapRef.current;
+    if (!m || !m.getStyle()) {
+      return;
+    }
+    flushFlightLoadForMapBounds(m, { only: "avionix" });
   }, [flushFlightLoadForMapBounds]);
 
   const onBoundsRefresh = useCallback(() => {
@@ -204,9 +215,10 @@ export function useMoonTransitMap(
   const flightProviderId = useMoonTransitStore((s) => s.flightProvider);
   const liveFlightFeedsKey = useMoonTransitStore(
     (s) =>
-      `${s.liveFlightFeeds.opensky ? 1 : 0}${s.liveFlightFeeds.adsbone ? 1 : 0}${s.liveFlightFeeds.localsdr ? 1 : 0}`
+      `${s.liveFlightFeeds.opensky ? 1 : 0}${s.liveFlightFeeds.adsbone ? 1 : 0}${s.liveFlightFeeds.localsdr ? 1 : 0}${s.liveFlightFeeds.avionix ? 1 : 0}`
   );
   const localsdrActive = useMoonTransitStore((s) => s.liveFlightFeeds.localsdr);
+  const avionixActive = useMoonTransitStore((s) => s.liveFlightFeeds.avionix);
   useEffect(() => {
     onBoundsRefresh();
   }, [flightProviderId, liveFlightFeedsKey, onBoundsRefresh, mapReadyTick]);
@@ -224,11 +236,13 @@ export function useMoonTransitMap(
     if (!isLiveProvider || mapReadyTick <= 0) {
       return;
     }
-    // Dva odvojena timera: web izvori na 30 s (kvota), Pi na 10 s (lokalno,
-    // besplatno). Jedan zajednički interval je značio da uključen Pi diže i
-    // OpenSky na 10 s — 360 kredita na sat, tj. cijela dnevna kvota za ~1 h.
+    // Odvojeni timeri: web izvori na 30 s (kvota), lokalni prijemnici na 10 s
+    // (lokalno, besplatno). Jedan zajednički interval je značio da uključen
+    // lokalni izvor diže i OpenSky na 10 s — 360 kredita na sat, tj. cijela
+    // dnevna kvota za ~1 h.
     let webTimer: ReturnType<typeof setInterval> | null = null;
     let sdrTimer: ReturnType<typeof setInterval> | null = null;
+    let avionixTimer: ReturnType<typeof setInterval> | null = null;
 
     const stopTimers = () => {
       if (webTimer != null) {
@@ -239,6 +253,10 @@ export function useMoonTransitMap(
         clearInterval(sdrTimer);
         sdrTimer = null;
       }
+      if (avionixTimer != null) {
+        clearInterval(avionixTimer);
+        avionixTimer = null;
+      }
     };
 
     const startTimers = () => {
@@ -246,6 +264,9 @@ export function useMoonTransitMap(
       webTimer = setInterval(refreshFlightsNow, LIVE_AUTO_REFRESH_MS);
       if (localsdrActive) {
         sdrTimer = setInterval(refreshLocalSdrNow, LOCALSDR_AUTO_REFRESH_MS);
+      }
+      if (avionixActive) {
+        avionixTimer = setInterval(refreshAvionixNow, AVIONIX_AUTO_REFRESH_MS);
       }
     };
 
@@ -271,9 +292,11 @@ export function useMoonTransitMap(
   }, [
     flightProviderId,
     localsdrActive,
+    avionixActive,
     mapReadyTick,
     refreshFlightsNow,
     refreshLocalSdrNow,
+    refreshAvionixNow,
   ]);
 
   const applyPlaceObserverFromMapCenter = useCallback(() => {

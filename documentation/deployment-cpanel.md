@@ -43,7 +43,7 @@ The production host does **not** need to mirror the full git tree.
 **Required to run** (after a successful `next build` on a machine with the same `cpanelBasePath.cjs`):
 
 - `.next/` **including `.next/node_modules/`** (symlink aliases for `serverExternalPackages` — see the rsync rules below), `public/`, `node_modules/`, `package.json` (+ lockfile recommended — the server `npm install` reads it)
-- `server.js`, `next.config.ts`, `cpanelBasePath.cjs` + root runtime CJS moduli (`flightLogSchema.cjs`, `sdrSnapshot.cjs`, `sdrUrl.cjs`)
+- `server.js`, `next.config.ts`, `cpanelBasePath.cjs` + root runtime CJS moduli (`flightLogSchema.cjs`, `sdrSnapshot.cjs`, `sdrUrl.cjs`, `avionixSnapshot.cjs`)
 
 **Not required** for run-only: `src/`, `e2e/`, tests, `documentation/`, `.git/`, and most dev config — as long as `.next` is complete.
 
@@ -65,6 +65,19 @@ LOCAL_SDR_URL=https://korisnik:lozinka@<node>.<tailnet>.ts.net/tar1090/data/airc
 - API ruta automatski izvlači credentials iz URL-a i šalje ih kao `Authorization: Basic` header — Web Fetch API ne dopušta credentials direktno u URL-u.
 - Ako varijabla **nije postavljena**, API ruta vraća `{“aircraft”:[]}` i “LunaPic ADS-B” checkbox ne prikazuje avione (tiho, bez greške).
 - Vrijednost mora biti **javno dostupan** URL (ne LAN IP) jer cPanel server nije na kućnoj mreži — koristi **Tailscale Funnel** (vidi niže).
+
+### `AVIONIX_INGEST_TOKEN` / `AVIONIX_URL` (opcionalno — Avionix Nano ADS-B)
+
+Postavi samo ako imaš Avionix Nano ADS-B uređaj (NanoPi Neo, "AVIONIX openAir" firmware):
+
+```
+AVIONIX_INGEST_TOKEN=<openssl rand -hex 32>
+AVIONIX_URL=http://192.168.100.79/flight_updates   # opcionalno, local-dev-only pull fallback
+```
+
+- **Produkcija = push, ne pull.** Za razliku od `LOCAL_SDR_URL` (koji je trebao javno dostupan URL preko Tailscale Funnela), Avionix uređaj **sam** pusha svoj `/flight_updates` snapshot na `/api/avionix/ingest` svakih ~10 s (systemd timer instaliran direktno na uređaju — vidi [flight-sources.md](./flight-sources.md)). `AVIONIX_INGEST_TOKEN` je dijeljena tajna koju uređaj šalje u `x-avionix-token` headeru; bez ovog env vara ruta je isključena (403), ne tiho otvorena.
+- **`AVIONIX_URL` je isključivo local-dev fallback** — koristan kad je dev računalo na istoj mreži kao uređaj (npr. `192.168.100.79` direktno, bez ugrađenih kredencijala jer je uređaj neautenticiran LAN endpoint s CORS `*`). U produkciji ostavi prazno; server ionako ne može doseći privatni LAN uređaja.
+- Ako ni jedno ni drugo nije postavljeno, API ruta vraća prazan snapshot i "Avionix Nano" checkbox ne prikazuje avione (tiho, bez greške) — isti obrazac kao `LOCAL_SDR_URL`.
 
 ### `OPENSKY_CLIENT_ID` / `OPENSKY_CLIENT_SECRET` (OpenSky feed)
 
@@ -100,7 +113,7 @@ INTERNAL_SCAN_TOKEN=<openssl rand -hex 32>
 - **`VAPID_PRIVATE_KEY` + `VAPID_SUBJECT`** — server-only tajne; **nisu** `NEXT_PUBLIC_`, pa se NE ugrađuju u build i moraju biti runtime env. Bez njih scan/`/api/push/send` vraćaju **503** (`VAPID not configured`). `NEXT_PUBLIC_VAPID_PUBLIC_KEY` se ugrađuje u build (potreban je clientu za `pushManager.subscribe`), pa ne mora biti runtime env — ali ne škodi.
 - **`NEXT_PUBLIC_SITE_URL`** — javni URL aplikacije s basePathom. **Kritično pod Passengerom:** `server.js` poller ne može doseći app preko `127.0.0.1:PORT` (Passenger ne veže TCP port), pa `triggerTransitScan` gađa ovaj javni URL. Ako fali ili nema basePath → trigger ide krivo/padne. (Override: `SCAN_TRIGGER_URL`.) Ista varijabla služi i za SEO canonical/sitemap.
 - **`INTERNAL_SCAN_TOKEN`** — dijeljena tajna kojom poller autentificira poziv na `/api/transit/scan` (header `x-internal-token`). Generiraj `openssl rand -hex 32`. Bez nje scan vraća **403** i poller tiho odustaje. Mora biti **stvaran slučajan string** — ne placeholder poput `<openssl rand -hex 32>`.
-- **Ovisi i o `LOCAL_SDR_URL`** (gore) — poller je heartbeat koji okida scan. Bez aktivnog localsdr pollera nema pozadinskih alerta.
+- **Ovisi i o `LOCAL_SDR_URL` ili `AVIONIX_INGEST_TOKEN`/`AVIONIX_URL`** (gore) — poller je heartbeat koji okida scan i pokreće se čim JEDAN od ta dva izvora ima nešto konfigurirano. Bez ijednog aktivnog lokalnog izvora nema pozadinskih alerta.
 - **Provjera da radi:** u `~/access-logs/<domena>-ssl_log` traži `POST /<base>/api/transit/scan ... "node"` — treba se pojavljivati ~svakih 15 s sa statusom `200` (user-agent `node` = poller, ne browser).
 
 ### `touch tmp/restart.txt` vs. full restart
