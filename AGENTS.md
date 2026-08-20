@@ -101,6 +101,28 @@ Koriste ih dvije strane s **identičnim pragovima**:
 Klijent **ne** šalje push (uklonjena `document.hidden → /api/push/send` grana) —
 server je jedini vlasnik notifikacija, pa nema dvostrukih alerta.
 
+### Izvori letova — kvote i tempo (detalji: `documentation/flight-sources.md`)
+
+Tri izvora: **OpenSky** (`opensky`), **adsb.lol** (`adsbone` — id je povijesni,
+perzistiran u localStorage, više ne imenuje operatora) i **LunaPic ADS-B**
+(`localsdr`).
+
+Dvije stvari koje se lako slome i ne javljaju se same:
+
+* **OpenSky traži OAuth2** (`OPENSKY_CLIENT_ID` / `OPENSKY_CLIENT_SECRET`).
+  Basic auth je ukinut i **tiho** se tretira kao anoniman pristup → 400 kredita
+  dnevno po IP-u umjesto 4000. Krediti se troše **po zahtjevu**; preostalo stanje
+  vraća se u `X-MoonTransit-OpenSky-Credits`.
+* **Tempo je budžet, ne preferencija.** Web izvori 30 s
+  (`LIVE_AUTO_REFRESH_MS`), Pi 10 s (`LOCALSDR_AUTO_REFRESH_MS`), **oba stanu
+  dok je tab skriven** — `useMoonTransitMap.ts`. Ne spajati ih natrag u jedan
+  interval: prije je uključen Pi checkbox dizao i OpenSky na 10 s i trošio
+  dnevnu kvotu za ~sat vremena.
+
+Proxy rute `/api/adsbone/point` i `/api/localsdr/aircraft` (pull grana) imaju
+circuit breaker — 3 uzastopna neuspjeha → `503` + `Retry-After`
+(`src/lib/server/upstreamCircuitBreaker.ts`).
+
 ### Kako ADS-B podaci s Pija dolaze do servera (push, ne pull)
 
 **Produkcija — Pi šalje.** Pi svakih 15 s (systemd timer) POST-a svoj

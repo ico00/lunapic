@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 where version bumps are made for releases (currently `0.x`).
 
+## [2026-08-20] — Live flight sources: dead upstreams, OpenSky auth, visible failure
+
+See also: **[flight-sources.md](flight-sources.md)** — the new authority on sources, quotas and cadence.
+
+Two of three sources were broken at once and the third was silently degraded. None of it was visible from the app.
+
+### Fixed
+
+- **`/api/adsbone/point` returned 502 on every tick** (#25). Both upstreams behind the "ADS-B One" slot had stopped answering: `api.adsb.one` gives Cloudflare 403 on every path (its doc repo was archived 2026-04-29), `api.airplanes.live` gives 403 with a "contact us by email" body while its public guide still advertises open access. They were never two operators — adsb.one is the old hostname of the service that became Airplanes.live, so the two-entry mirror list was not redundancy. Replaced with **`api.adsb.lol`**: unrelated operator, same `/v2/point/{lat}/{lon}/{radius}` path, same `{ ac: [...] }` payload, so the parser and proxy were untouched. Provider id stays `adsbone` (persisted in `localStorage`); only labels changed.
+- **OpenSky had been running as anonymous** (#32 groundwork, config fix). OpenSky retired HTTP Basic auth and *ignores* it rather than rejecting it, so `OPENSKY_API_USER` / `OPENSKY_API_PASSWORD` bought nothing and the app lived on the anonymous **400 credits/day per IP** instead of the account's 4 000 — hence a daily 429 after an hour or two. Proof: authenticated and anonymous requests from one IP decremented a single `X-Rate-Limit-Remaining` counter (395 → 394 → 393). The route now uses **OAuth2 client credentials** (`OPENSKY_CLIENT_ID` / `OPENSKY_CLIENT_SECRET`, Keycloak token cached in module scope until 30 s before expiry, silent anonymous fallback with an explicit log line).
+- **Alert audio 404 on every session** (#29). `playTransitCandidateAlert` probed `public/sounds/candidate-alert.mp3` before falling back to synthesised ATC beeps; the file never existed. Removed the override, the loader and the empty directory.
+
+### Added
+
+- **Circuit breakers on proxy routes** (#27, #28). `src/lib/server/upstreamCircuitBreaker.ts` — 3 consecutive failures pause upstream calls (60 s for `/api/adsbone/point`, 30 s for the `/api/localsdr/aircraft` **pull** path), answering `503` + `Retry-After` without touching the network; one probe request then decides. A dead upstream was previously retried on every poll tick of every open tab, forever. The localsdr **push** branch is checked before the breaker, so a Pi that resumes pushing is served immediately.
+- **Upstream status propagation** (#28). `/api/adsbone/point` no longer flattens everything to 502: 400/403/404/429/451 pass through, timeouts return 504, and `X-MoonTransit-Upstream-Status` carries the raw code. Clients get a typed `AdsbLiveProxyError` (status / upstreamStatus / retryAfterMs) instead of regex-matching error text.
+- **Per-source status badges** (#31). `webFeedStatus` in the store drives an amber `rate limited` or rose `unavailable` badge in the Flight source panel, plus a note when OpenSky is out of credits. Previously a throttled feed and a feed reporting zero aircraft looked identical.
+- **Remaining OpenSky credits on every response** (#32). `X-MoonTransit-OpenSky-Credits` (from upstream `X-Rate-Limit-Remaining`), including on failures and on cache hits, with a server-log warning below 200.
+
+### Changed
+
+- **Poll cadence split per source, and paused while hidden** (#30). Web sources stay on 30 s; the Pi has its own 10 s timer via `loadFlightsInBounds(bounds, { only: "localsdr" })`. Before, one interval drove everything and enabling the Pi checkbox silently pulled OpenSky to 10 s — 360 credits/h, the entire daily allowance in about an hour. Neither timer runs while the tab is hidden (a forgotten background tab used to poll all night). The SDR-only tick keeps the last web aircraft on the map, and an empty response from the Pi no longer clears them.
+
 ## [2026-08-16] — Moon disk rendered locally (NASA SVS host became unreachable)
 
 See also: [architecture.md → Viewfinder preview](architecture.md), [ui-generator-technical-spec.md §8.5](ui-generator-technical-spec.md).
