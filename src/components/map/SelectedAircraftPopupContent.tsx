@@ -16,6 +16,7 @@ import type { FlightState } from "@/types/flight";
 function providerLabel(id: string): string {
   if (id === "adsbone") return "adsb.lol";
   if (id === "localsdr") return "LunaPic ADS-B";
+  if (id === "avionix") return "Avionix Nano";
   if (id === "opensky") return "OpenSky";
   return id;
 }

@@ -1,0 +1,12 @@
+[Unit]
+Description=Avionix Nano — pošalji ADS-B snapshot svakih 10 s
+
+[Timer]
+# Prvi pokušaj 15 s nakon boota (da se openAir firmware stigne podići).
+OnBootSec=15s
+OnUnitActiveSec=10s
+AccuracySec=1s
+Unit=avionix-push.service
+
+[Install]
+WantedBy=timers.target

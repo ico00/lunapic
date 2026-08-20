@@ -1,0 +1,16 @@
+[Unit]
+Description=Avionix Nano — pošalji ADS-B snapshot serveru
+# Bez mreže nema smisla pokušavati; timer će svejedno ponoviti za 10 s.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/data/avionix-push/avionix-push.env
+# Skripta ostaje na /data (trajan mount) — uređaj ima overlayroot=tmpfs, pa se
+# `/` resetira na svaki reboot. Samo ove dvije .service/.timer datoteke se
+# instaliraju preko overlayroot-chroot (vidi header avionix-push.sh).
+ExecStart=/bin/bash /data/avionix-push/avionix-push.sh
+# Neuspjeh ostaje vidljiv kao `failed` u `systemctl status` — bez maskiranja.
+# Timer svejedno okida dalje; rate limit isključen da ga niz grešaka ne blokira.
+StartLimitIntervalSec=0

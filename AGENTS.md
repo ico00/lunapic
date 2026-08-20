@@ -103,9 +103,10 @@ server je jedini vlasnik notifikacija, pa nema dvostrukih alerta.
 
 ### Izvori letova — kvote i tempo (detalji: `documentation/flight-sources.md`)
 
-Tri izvora: **OpenSky** (`opensky`), **adsb.lol** (`adsbone` — id je povijesni,
-perzistiran u localStorage, više ne imenuje operatora) i **LunaPic ADS-B**
-(`localsdr`).
+Četiri izvora: **OpenSky** (`opensky`), **adsb.lol** (`adsbone` — id je
+povijesni, perzistiran u localStorage, više ne imenuje operatora), **LunaPic
+ADS-B** (`localsdr`, Raspberry Pi) i **Avionix Nano ADS-B** (`avionix`, NanoPi
+Neo — isti push princip kao Pi, vidi nižu sekciju za specifičnost uređaja).
 
 Dvije stvari koje se lako slome i ne javljaju se same:
 
@@ -114,14 +115,15 @@ Dvije stvari koje se lako slome i ne javljaju se same:
   dnevno po IP-u umjesto 4000. Krediti se troše **po zahtjevu**; preostalo stanje
   vraća se u `X-MoonTransit-OpenSky-Credits`.
 * **Tempo je budžet, ne preferencija.** Web izvori 30 s
-  (`LIVE_AUTO_REFRESH_MS`), Pi 10 s (`LOCALSDR_AUTO_REFRESH_MS`), **oba stanu
-  dok je tab skriven** — `useMoonTransitMap.ts`. Ne spajati ih natrag u jedan
-  interval: prije je uključen Pi checkbox dizao i OpenSky na 10 s i trošio
-  dnevnu kvotu za ~sat vremena.
+  (`LIVE_AUTO_REFRESH_MS`), Pi 10 s (`LOCALSDR_AUTO_REFRESH_MS`), Avionix
+  10 s (`AVIONIX_AUTO_REFRESH_MS`), **sva tri stanu dok je tab skriven** —
+  `useMoonTransitMap.ts`. Ne spajati ih natrag u jedan interval: prije je
+  uključen Pi checkbox dizao i OpenSky na 10 s i trošio dnevnu kvotu za ~sat
+  vremena.
 
-Proxy rute `/api/adsbone/point` i `/api/localsdr/aircraft` (pull grana) imaju
-circuit breaker — 3 uzastopna neuspjeha → `503` + `Retry-After`
-(`src/lib/server/upstreamCircuitBreaker.ts`).
+Proxy rute `/api/adsbone/point`, `/api/localsdr/aircraft` i
+`/api/avionix/aircraft` (pull grane) imaju circuit breaker — 3 uzastopna
+neuspjeha → `503` + `Retry-After` (`src/lib/server/upstreamCircuitBreaker.ts`).
 
 ### Kako ADS-B podaci s Pija dolaze do servera (push, ne pull)
 
@@ -149,6 +151,39 @@ postavljen — koristi se u lokalnom devu na istoj mreži (`lunapic.local`).
 
 Instalacija na Piju: `scripts/pi-sdr-push.sh` + `lunapic-sdr-push.{service,timer}`
 (upute u zaglavlju skripte).
+
+### Avionix Nano ADS-B — isti push princip, drugačija instalacija
+
+Isti obrazac kao Pi (push → `/api/avionix/ingest`, auth `x-avionix-token` =
+`AVIONIX_INGEST_TOKEN`, `data/avionix-snapshot.json`, zaseban
+`avionixSnapshot.cjs`) — namjerno zaseban od `sdrSnapshot.cjs`/localsdr
+infrastrukture, ne parametrizacija istog koda, jer je oblik payloada
+strukturno drugačiji (`{"<icao24>":[...]}` umjesto tar1090-ovog
+`{"aircraft":[...]}`).
+
+**Specifičnost uređaja (NanoPi Neo, "AVIONIX openAir" firmware):** `/` je
+`overlayroot=tmpfs:recurse=0` — cijeli root (uključujući
+`/etc/systemd/system`, crontab) resetira se na **svaki reboot** natrag na
+tvornički image. Samo `/data` (zaseban ext4 mount) je trajan. Zato instalacija
+push skripte NIJE plain `sudo install` kao na Piju — skripta ide na `/data`
+(trajno), a systemd `.service`/`.timer` datoteke se trajno postave preko
+`sudo overlayroot-chroot` (vendor-dokumentirana metoda u `/etc/fstab`
+headeru). Upute korak-po-korak: header komentar u `scripts/avionix-push.sh`.
+Instalacija je 2026-08-20 potvrđena preko reboota — timer je preživio reset i
+automatski se pokrenuo.
+
+**Stari CA bundle na uređaju:** `ca-certificates` je iz 2016. (Ubuntu 16.04,
+EOL — `apt-get update` na repoima za 16.04 više ne radi pouzdano, a i da radi,
+promjena bi se izgubila na sljedećem reboot-u zbog overlayroot-a). POST prema
+produkciji (HTTPS) zato puca s "server certificate verification failed" bez
+svježeg CA bundlea. Riješeno stavljanjem `cacert.pem` (preuzet **na drugom
+računalu s ispravnim TLS-om**, ne na samom uređaju) na `/data/avionix-push/` —
+skripta ga automatski koristi ako postoji (`CACERT_FILE` u
+`avionix-push.sh`). Isto vrijedi za bilo koji budući stariji ADS-B uređaj s
+istim firmware obrascem.
+
+Detalji o samom uređaju (device API, GPS pozicija, Beast port): vidi
+`documentation/flight-sources.md`.
 
 ## Aktivan transit (`useActiveTransits`)
 

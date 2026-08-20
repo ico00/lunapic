@@ -2,6 +2,7 @@ import type { IFlightProvider } from "@/types";
 import type { FlightProviderId } from "@/types/flight-provider";
 import { FLIGHT_PROVIDER_IDS } from "@/types/flight-provider";
 import { AdsbOneFlightProvider } from "./providers/adsbOneFlightProvider";
+import { AvionixFlightProvider } from "./providers/avionixFlightProvider";
 import { LocalSdrFlightProvider } from "./providers/localSdrFlightProvider";
 import { MockFlightProvider } from "./providers/mockFlightProvider";
 import { OpenSkyFlightProvider } from "./providers/openSkyFlightProvider";
@@ -15,6 +16,7 @@ const factories = {
   opensky: (): IFlightProvider => new OpenSkyFlightProvider(),
   adsbone: (): IFlightProvider => new AdsbOneFlightProvider(),
   localsdr: (): IFlightProvider => new LocalSdrFlightProvider(),
+  avionix: (): IFlightProvider => new AvionixFlightProvider(),
 } as const;
 
 /**

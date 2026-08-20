@@ -49,6 +49,8 @@ export type LiveFlightFeeds = {
   readonly adsbone: boolean;
   /** Lokalni SDR prijemnik (dump1090/readsb). Zahtijeva LOCAL_SDR_URL u .env.local. */
   readonly localsdr: boolean;
+  /** Avionix Nano ADS-B. Zahtijeva AVIONIX_URL u .env.local (dev) ili push u produkciji. */
+  readonly avionix: boolean;
 };
 import { defaultMapViewState } from "@/types/map";
 import { create } from "zustand";
@@ -95,13 +97,15 @@ type MoonTransitState = {
   /** Vrijedi kad je `flightProvider` `opensky` ili `adsbone`; inače se ignorira pri učitavanju. */
   liveFlightFeeds: LiveFlightFeeds;
   flights: readonly FlightState[];
-  providerFlightCounts: { opensky: number; adsbone: number; localsdr: number };
+  providerFlightCounts: { opensky: number; adsbone: number; localsdr: number; avionix: number };
   /**
    * Reachability of the local SDR upstream (Pi via `/api/localsdr/aircraft`).
    * `idle` = feed off; `ok` = last fetch succeeded; `unreachable` = last fetch
    * failed (Pi/Funnel down). Lets the UI warn instead of showing a silent empty list.
    */
   localsdrStatus: "idle" | "ok" | "unreachable";
+  /** Isto kao `localsdrStatus`, za Avionix Nano prijemnik (`/api/avionix/aircraft`). */
+  avionixStatus: "idle" | "ok" | "unreachable";
   /**
    * Stanje web izvora nakon zadnjeg punog ticka. `rate-limited` je odvojeno od
    * `error` jer je to najčešći kvar (OpenSky troši kredite po zahtjevu) i traži
@@ -222,7 +226,7 @@ type MoonTransitState = {
    */
   loadFlightsInBounds: (
     bounds: GeoBounds,
-    opts?: { readonly only?: "localsdr" }
+    opts?: { readonly only?: "localsdr" | "avionix" }
   ) => Promise<void>;
   resetError: () => void;
 };
@@ -261,10 +265,11 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   timeAnchorIsPlanned: false,
   mapView: defaultMapViewState,
   flightProvider: "opensky",
-  liveFlightFeeds: { opensky: true, adsbone: true, localsdr: true },
+  liveFlightFeeds: { opensky: true, adsbone: true, localsdr: true, avionix: true },
   flights: [],
-  providerFlightCounts: { opensky: 0, adsbone: 0, localsdr: 0 },
+  providerFlightCounts: { opensky: 0, adsbone: 0, localsdr: 0, avionix: 0 },
   localsdrStatus: "idle",
+  avionixStatus: "idle",
   webFeedStatus: { opensky: "idle", adsbone: "idle" },
   isLoading: false,
   error: null,
@@ -469,14 +474,16 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
         opensky: patch.opensky ?? s.liveFlightFeeds.opensky,
         adsbone: patch.adsbone ?? s.liveFlightFeeds.adsbone,
         localsdr: patch.localsdr ?? s.liveFlightFeeds.localsdr,
+        avionix: patch.avionix ?? s.liveFlightFeeds.avionix,
       };
-      if (!next.opensky && !next.adsbone && !next.localsdr) {
+      if (!next.opensky && !next.adsbone && !next.localsdr && !next.avionix) {
         return {};
       }
       const unchanged =
         next.opensky === s.liveFlightFeeds.opensky &&
         next.adsbone === s.liveFlightFeeds.adsbone &&
-        next.localsdr === s.liveFlightFeeds.localsdr;
+        next.localsdr === s.liveFlightFeeds.localsdr &&
+        next.avionix === s.liveFlightFeeds.avionix;
       if (unchanged) {
         return {};
       }
@@ -503,7 +510,12 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
       clearOpenSkyFlightRetention();
       return {
         flightProvider: "opensky",
-        liveFlightFeeds: { opensky: true, adsbone: true, localsdr: s.liveFlightFeeds.localsdr },
+        liveFlightFeeds: {
+          opensky: true,
+          adsbone: true,
+          localsdr: s.liveFlightFeeds.localsdr,
+          avionix: s.liveFlightFeeds.avionix,
+        },
         selectedFlightId: null,
       };
     }),
@@ -578,6 +590,7 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
         set({
           flights: merged,
           localsdrStatus: "idle",
+          avionixStatus: "idle",
           isLoading: false,
           ...(keepSel ? {} : { selectedFlightId: null }),
         });
@@ -585,54 +598,87 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
       }
 
       const feeds = get().liveFlightFeeds;
-      /** Brzi tick: samo SDR, web izvori se preskaču (ne troše kvotu). */
-      const sdrOnly = opts?.only === "localsdr" && feeds.localsdr;
+      /**
+       * Brzi tick: samo jedan lokalni izvor (localsdr ILI avionix), web izvori
+       * se preskaču (ne troše kvotu). Drugi lokalni izvor nije osvježen taj
+       * tick — njegovo zadnje stanje već živi u `previousFlights`.
+       */
+      const localOnly = opts?.only;
+      const localOnlyActive = localOnly != null && feeds[localOnly];
       const ids: ("opensky" | "adsbone")[] = [];
-      if (!sdrOnly) {
+      if (!localOnlyActive) {
         if (feeds.opensky) ids.push("opensky");
         if (feeds.adsbone) ids.push("adsbone");
-        // fallback samo ako localsdr nije uključen — SDR-only mod je valjan
-        if (ids.length === 0 && !feeds.localsdr) ids.push("opensky");
+        // fallback samo ako nijedan lokalni izvor nije uključen — local-only mod je valjan
+        if (ids.length === 0 && !feeds.localsdr && !feeds.avionix) ids.push("opensky");
       }
 
-      // Track SDR reachability separately from the (silently caught) result so
-      // the UI can tell "Pi has 0 aircraft" apart from "Pi/Funnel unreachable".
+      // Track reachability separately from the (silently caught) result so
+      // the UI can tell "receiver has 0 aircraft" apart from "receiver unreachable".
       let sdrReachable = true;
-      const sdrPromise: Promise<readonly FlightState[]> = feeds.localsdr
-        ? getFlightProvider("localsdr").getFlightsInBounds(query).catch((e) => {
-            sdrReachable = false;
-            console.warn("[MoonTransit] localsdr upstream unreachable:", e instanceof Error ? e.message : e);
-            return [];
-          })
-        : Promise.resolve([]);
+      const sdrPromise: Promise<readonly FlightState[]> =
+        feeds.localsdr && (!localOnly || localOnly === "localsdr")
+          ? getFlightProvider("localsdr").getFlightsInBounds(query).catch((e) => {
+              sdrReachable = false;
+              console.warn("[MoonTransit] localsdr upstream unreachable:", e instanceof Error ? e.message : e);
+              return [];
+            })
+          : Promise.resolve([]);
 
-      const [settled, sdrList] = await Promise.all([
+      let avionixReachable = true;
+      const avionixPromise: Promise<readonly FlightState[]> =
+        feeds.avionix && (!localOnly || localOnly === "avionix")
+          ? getFlightProvider("avionix").getFlightsInBounds(query).catch((e) => {
+              avionixReachable = false;
+              console.warn("[MoonTransit] avionix upstream unreachable:", e instanceof Error ? e.message : e);
+              return [];
+            })
+          : Promise.resolve([]);
+
+      const [settled, sdrList, avionixList] = await Promise.all([
         Promise.allSettled(
           ids.map((id) => getFlightProvider(id).getFlightsInBounds(query))
         ),
         sdrPromise,
+        avionixPromise,
       ]);
 
+      // Status se preračunava samo za izvor koji je stvarno pitan ovaj tick —
+      // kad je `localOnly` postavljen na drugi izvor, taj izvor zadržava
+      // zadnje poznato stanje (store ga ovaj tick jednostavno ne zna).
+      const sdrRanThisTick = feeds.localsdr && (!localOnly || localOnly === "localsdr");
       const localsdrStatus: "idle" | "ok" | "unreachable" = !feeds.localsdr
         ? "idle"
-        : sdrReachable
-        ? "ok"
-        : "unreachable";
+        : !sdrRanThisTick
+          ? get().localsdrStatus
+          : sdrReachable
+            ? "ok"
+            : "unreachable";
+      const avionixRanThisTick = feeds.avionix && (!localOnly || localOnly === "avionix");
+      const avionixStatus: "idle" | "ok" | "unreachable" = !feeds.avionix
+        ? "idle"
+        : !avionixRanThisTick
+          ? get().avionixStatus
+          : avionixReachable
+            ? "ok"
+            : "unreachable";
 
-      if (sdrOnly) {
+      if (localOnlyActive) {
         // Brzi tick: web izvori nisu ni pitani. Zadnji poznati web letovi žive
-        // dalje kao `previousFlights` — SDR ima prioritet za geometriju, web
-        // popunjava metapodatke. Njihovo starenje i dalje ograničava web tick
-        // (retention u `mergeFlightsWithOpenSkyRetention`, 32 s).
-        const combined = mergeLiveFlightListsWithSdrPriority(sdrList, [
+        // dalje kao `previousFlights` — lokalni izvor ima prioritet za
+        // geometriju, web popunjava metapodatke. Njihovo starenje i dalje
+        // ograničava web tick (retention u `mergeFlightsWithOpenSkyRetention`, 32 s).
+        const freshList = localOnly === "localsdr" ? sdrList : avionixList;
+        const combined = mergeLiveFlightListsWithSdrPriority(freshList, [
           previousFlights,
         ]);
         const prevCounts = get().providerFlightCounts;
         const sel = get().selectedFlightId;
         set({
           flights: combined,
-          providerFlightCounts: { ...prevCounts, localsdr: sdrList.length },
+          providerFlightCounts: { ...prevCounts, [localOnly]: freshList.length },
           localsdrStatus,
+          avionixStatus,
           isLoading: false,
           ...(sel != null && combined.some((f) => f.id === sel)
             ? {}
@@ -661,12 +707,20 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
         }
       });
 
-      // SDR-only mod: oba weba isključena, localsdr je jedini izvor
-      if (lists.length === 0 && sdrList.length > 0) {
+      // Lokalni izvori se spajaju međusobno prije nego pobijede web — oba
+      // (localsdr, avionix) su podjednako pouzdana vlastita hardver; noviji
+      // `timestamp` pobjeđuje za icao24 koji vide oba (isto ponašanje kao za
+      // više web listi u `mergeLiveFlightLists`).
+      const combinedLocal = mergeLiveFlightLists([sdrList, avionixList]);
+
+      // Local-only mod: oba weba isključena, lokalni izvor(i) su jedini izvor
+      if (lists.length === 0 && combinedLocal.length > 0) {
         const merged = mergeFlightsWithOpenSkyRetention(
-          sdrList,
+          combinedLocal,
           previousFlights,
           {
+            // Retention gate izuzima sve providerId osim opensky/adsbone —
+            // "localsdr" ovdje samo označava "lokalni, bez retencije".
             providerId: "localsdr",
             mapBounds: bounds,
             nowMs: Date.now(),
@@ -676,8 +730,14 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
         const sel = get().selectedFlightId;
         set({
           flights: merged,
-          providerFlightCounts: { opensky: 0, adsbone: 0, localsdr: sdrList.length },
+          providerFlightCounts: {
+            opensky: 0,
+            adsbone: 0,
+            localsdr: sdrList.length,
+            avionix: avionixList.length,
+          },
           localsdrStatus,
+          avionixStatus,
           webFeedStatus,
           isLoading: false,
           ...(sel != null && merged.some((f) => f.id === sel)
@@ -687,13 +747,13 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
         return;
       }
 
-      // SDR-only mod ali sdrList prazan (Pi nema aviona ili API nije dostupan)
-      if (lists.length === 0 && feeds.localsdr) {
-        const sel = get().selectedFlightId;
+      // Local-only mod ali lokalni popisi prazni (prijemnik nema aviona ili API nije dostupan)
+      if (lists.length === 0 && (feeds.localsdr || feeds.avionix)) {
         set({
           flights: [],
-          providerFlightCounts: { opensky: 0, adsbone: 0, localsdr: 0 },
+          providerFlightCounts: { opensky: 0, adsbone: 0, localsdr: 0, avionix: 0 },
           localsdrStatus,
+          avionixStatus,
           webFeedStatus,
           isLoading: false,
           selectedFlightId: null,
@@ -711,8 +771,8 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
       const webMerged =
         lists.length === 1 ? lists[0] : mergeLiveFlightLists(lists);
       const combined =
-        sdrList.length > 0
-          ? mergeLiveFlightListsWithSdrPriority(sdrList, lists)
+        combinedLocal.length > 0
+          ? mergeLiveFlightListsWithSdrPriority(combinedLocal, lists)
           : webMerged;
       const retentionId: FlightProviderId = ids.includes("opensky")
         ? "opensky"
@@ -732,8 +792,13 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
         sel != null && merged.some((f) => f.id === sel);
       set({
         flights: merged,
-        providerFlightCounts: { ...rawCounts, localsdr: sdrList.length },
+        providerFlightCounts: {
+          ...rawCounts,
+          localsdr: sdrList.length,
+          avionix: avionixList.length,
+        },
         localsdrStatus,
+        avionixStatus,
         webFeedStatus,
         isLoading: false,
         ...(keepSel ? {} : { selectedFlightId: null }),

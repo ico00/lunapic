@@ -92,6 +92,17 @@ const { readSdrSnapshot, isSnapshotFresh } = requireFromRoot(
 /** Push smjer je konfiguriran kad postoji ingest token (Pi tada šalje). */
 const SDR_INGEST_ENABLED = Boolean(process.env.SDR_INGEST_TOKEN?.trim());
 
+// Isti push/pull princip kao localsdr, za Avionix Nano uređaj — vidi
+// `avionixSnapshot.cjs`.
+const AVIONIX_URL_RAW = process.env.AVIONIX_URL?.trim();
+const { url: AVIONIX_URL, authHeader: AVIONIX_AUTH } = AVIONIX_URL_RAW
+  ? parseSdrUrl(AVIONIX_URL_RAW)
+  : { url: null, authHeader: null };
+const { readAvionixSnapshot, isAvionixSnapshotFresh } = requireFromRoot(
+  path.resolve(process.cwd(), "avionixSnapshot.cjs")
+);
+const AVIONIX_INGEST_ENABLED = Boolean(process.env.AVIONIX_INGEST_TOKEN?.trim());
+
 // tar1090 serves per-aircraft metadata at /db/[2-char-prefix]/[hex].js —
 // the same source its web UI uses for registration/type lookups.
 const TAR1090_DB_BASE = LOCAL_SDR_URL
@@ -221,8 +232,14 @@ function altFtToM(raw) {
 }
 
 async function startFlightLogger() {
-  // Radi u oba smjera: push (Pi šalje snapshot) ili pull (LOCAL_SDR_URL).
-  if (!SDR_INGEST_ENABLED && (!LOCAL_SDR_URL || !LOCAL_SDR_URL_RAW)) return;
+  // Radi u oba smjera po izvoru: push (uređaj šalje snapshot) ili pull
+  // (LOCAL_SDR_URL / AVIONIX_URL). Pokreće se čim JEDAN izvor ima bilo koji
+  // od ta dva konfiguriran — inače avionix-only deployment (localsdr nikad
+  // konfiguriran) tiho izgubi cijeli poller, uključujući triggerTransitScan
+  // (pozadinski push alerti rade i bez otvorenog taba).
+  const localsdrConfigured = SDR_INGEST_ENABLED || (LOCAL_SDR_URL && LOCAL_SDR_URL_RAW);
+  const avionixConfigured = AVIONIX_INGEST_ENABLED || (AVIONIX_URL && AVIONIX_URL_RAW);
+  if (!localsdrConfigured && !avionixConfigured) return;
 
   // node-sqlite3-wasm — pravi file-based SQLite preko WASM VFS-a. Piše izravno
   // u datoteku (nema sql.js obrasca "cijela baza u RAM-u + export svakih 30 s"),
@@ -331,65 +348,134 @@ async function startFlightLogger() {
     }
   }
 
-  async function poll() {
+  let avionixFailStreak = 0;
+  function noteAvionixFailure(reason) {
+    avionixFailStreak += 1;
+    if (avionixFailStreak === 1 || avionixFailStreak % SDR_FAIL_LOG_EVERY === 0) {
+      console.error(
+        `[flight-logger] Avionix nedostupan (${avionixFailStreak}× zaredom, ~${Math.round(
+          (avionixFailStreak * POLL_INTERVAL_MS) / 1000
+        )}s): ${reason}`
+      );
+    }
+  }
+  function noteAvionixSuccess() {
+    if (avionixFailStreak > 0) {
+      console.log(
+        `[flight-logger] Avionix opet dostupan nakon ${avionixFailStreak} neuspjelih pokušaja`
+      );
+      avionixFailStreak = 0;
+    }
+  }
+
+  /**
+   * Push-pa-pull akvizicija snapshot JSON-a, dijeljena između localsdr i
+   * avionix konfiguracije — obje slijede isti obrazac (snapshot prvo, mrežni
+   * fetch tek ako snapshota nema/je zastario). Vraća `undefined` kad ništa
+   * nije dostupno; pozivatelj se odlučuje treba li zbog toga preskočiti samo
+   * taj izvor ili cijeli tick.
+   */
+  async function acquireSnapshotJson({
+    ingestEnabled,
+    readSnapshot,
+    isSnapshotFresh: isFresh,
+    pullUrl,
+    pullAuthHeader,
+    sourceLabel,
+    noteFailure,
+    noteSuccess,
+  }) {
     let data;
 
-    // 1) Push smjer: Pi je poslao snapshot na `/api/localsdr/ingest`.
-    //    Nema mrežnog poziva — nema ni ovisnosti o javnoj dostupnosti Pija.
-    if (SDR_INGEST_ENABLED) {
-      const snapshot = readSdrSnapshot();
-      if (isSnapshotFresh(snapshot)) {
+    // 1) Push smjer: uređaj je poslao snapshot na svoju ingest rutu.
+    //    Nema mrežnog poziva — nema ni ovisnosti o javnoj dostupnosti uređaja.
+    if (ingestEnabled) {
+      const snapshot = readSnapshot();
+      if (isFresh(snapshot)) {
         try {
           data = JSON.parse(snapshot.body);
-          noteSdrSuccess();
+          noteSuccess();
         } catch {
-          noteSdrFailure("snapshot JSON neispravan");
-          return;
+          noteFailure("snapshot JSON neispravan");
+          return undefined;
         }
-      } else if (!LOCAL_SDR_URL) {
+      } else if (!pullUrl) {
         const ageSec =
           snapshot != null
             ? Math.round((Date.now() - snapshot.receivedAt) / 1000)
             : null;
-        noteSdrFailure(
+        noteFailure(
           ageSec == null
-            ? "Pi još nije poslao nijedan snapshot"
-            : `zadnji snapshot star ${ageSec}s — Pi ne šalje`
+            ? `${sourceLabel} još nije poslao nijedan snapshot`
+            : `zadnji snapshot star ${ageSec}s — ${sourceLabel} ne šalje`
         );
-        return;
+        return undefined;
       }
     }
 
     // 2) Pull smjer (lokalni dev na istoj mreži, ili dok push još ne radi).
     if (data === undefined) {
+      if (!pullUrl) return undefined;
       try {
-        const fetchHeaders = LOCAL_SDR_AUTH
-          ? { ...SDR_CONNECTION_HEADERS, Authorization: LOCAL_SDR_AUTH }
+        const fetchHeaders = pullAuthHeader
+          ? { ...SDR_CONNECTION_HEADERS, Authorization: pullAuthHeader }
           : { ...SDR_CONNECTION_HEADERS };
-        const res = await fetch(LOCAL_SDR_URL, {
+        const res = await fetch(pullUrl, {
           headers: fetchHeaders,
           signal: AbortSignal.timeout(8_000),
         });
         if (!res.ok) {
           discardBody(res);
-          noteSdrFailure(`HTTP ${res.status}`);
-          return;
+          noteFailure(`HTTP ${res.status}`);
+          return undefined;
         }
         data = await res.json();
-        noteSdrSuccess();
+        noteSuccess();
       } catch (e) {
-        noteSdrFailure(describeFetchError(e));
-        return;
+        noteFailure(describeFetchError(e));
+        return undefined;
       }
     }
 
-    const aircraft = data?.aircraft;
-    if (!Array.isArray(aircraft) || aircraft.length === 0) return;
+    return data;
+  }
 
-    const nowMs =
-      typeof data.now === "number" && isFinite(data.now)
-        ? data.now * 1000
-        : Date.now();
+  async function poll() {
+    const [sdrData, avionixData] = await Promise.all([
+      localsdrConfigured
+        ? acquireSnapshotJson({
+            ingestEnabled: SDR_INGEST_ENABLED,
+            readSnapshot: readSdrSnapshot,
+            isSnapshotFresh,
+            pullUrl: LOCAL_SDR_URL,
+            pullAuthHeader: LOCAL_SDR_AUTH,
+            sourceLabel: "Pi",
+            noteFailure: noteSdrFailure,
+            noteSuccess: noteSdrSuccess,
+          })
+        : Promise.resolve(undefined),
+      avionixConfigured
+        ? acquireSnapshotJson({
+            ingestEnabled: AVIONIX_INGEST_ENABLED,
+            readSnapshot: readAvionixSnapshot,
+            isSnapshotFresh: isAvionixSnapshotFresh,
+            pullUrl: AVIONIX_URL,
+            pullAuthHeader: AVIONIX_AUTH,
+            sourceLabel: "Avionix",
+            noteFailure: noteAvionixFailure,
+            noteSuccess: noteAvionixSuccess,
+          })
+        : Promise.resolve(undefined),
+    ]);
+
+    const sdrAircraft = sdrData?.aircraft;
+    const hasSdrRows = Array.isArray(sdrAircraft) && sdrAircraft.length > 0;
+    const avionixEntries =
+      avionixData && typeof avionixData === "object"
+        ? Object.entries(avionixData).filter(([, v]) => Array.isArray(v))
+        : [];
+    const hasAvionixRows = avionixEntries.length > 0;
+    if (!hasSdrRows && !hasAvionixRows) return;
 
     const posRows = [];
     const metaRows = [];
@@ -397,7 +483,12 @@ async function startFlightLogger() {
     // MIN_MOVE filteru koji se tiče samo DB upisa. Koristi ga server-side transit scan.
     const liveFlights = [];
 
-    for (const row of aircraft) {
+    const nowMs =
+      hasSdrRows && typeof sdrData.now === "number" && isFinite(sdrData.now)
+        ? sdrData.now * 1000
+        : Date.now();
+
+    for (const row of hasSdrRows ? sdrAircraft : []) {
       const hexRaw = row.hex;
       if (typeof hexRaw !== "string" || !hexRaw) continue;
       const icao24 = hexRaw.toLowerCase().trim();
@@ -458,6 +549,74 @@ async function startFlightLogger() {
       if (registration || aircraft_type || description) {
         // 6 values: icao24, registration, aircraft_type, description, first_seen, last_seen
         metaRows.push([icao24, registration, aircraft_type, description, logged_at, logged_at]);
+      }
+    }
+
+    // Avionix Nano openAir `/flight_updates` oblik je strukturno drugačiji od
+    // tar1090 ({"<icao24>":[...]} umjesto {"aircraft":[...]}), pa je ovo
+    // zaseban loop — polje po polju isti mapping kao klijentski
+    // `parseAvionixAircraft.ts`. Dopisuje u iste posRows/metaRows/liveFlights/
+    // lastSeen strukture kao localsdr loop iznad.
+    if (hasAvionixRows) {
+      const parsedTs =
+        typeof avionixData.timestamp === "string"
+          ? Date.parse(avionixData.timestamp)
+          : NaN;
+      const avionixNowMs = isFinite(parsedTs) ? parsedTs : Date.now();
+
+      for (const [icaoHexRaw, entry] of avionixEntries) {
+        const icao24 = String(icaoHexRaw).toLowerCase().trim();
+        if (!icao24) continue;
+
+        const lat = entry[4];
+        const lng = entry[5];
+        if (typeof lat !== "number" || typeof lng !== "number") continue;
+        if (!isFinite(lat) || !isFinite(lng)) continue;
+
+        const callsign =
+          typeof entry[0] === "string" && entry[0].trim() ? entry[0].trim() : null;
+        const aircraft_type =
+          typeof entry[1] === "string" && entry[1].trim() ? entry[1].trim() : null;
+        const registration =
+          typeof entry[2] === "string" && entry[2].trim() ? entry[2].trim() : null;
+        const squawk =
+          typeof entry[3] === "string" && entry[3].trim() ? entry[3].trim() : null;
+        const altFt = typeof entry[6] === "number" && isFinite(entry[6]) ? entry[6] : null;
+        const alt_baro_m = altFt != null ? altFt * FT_TO_M : null;
+        const speedKt = typeof entry[7] === "number" && isFinite(entry[7]) ? entry[7] : null;
+        const speed_mps = speedKt != null ? speedKt * KNOTS_TO_MPS : null;
+        const heading = typeof entry[8] === "number" && isFinite(entry[8]) ? entry[8] : null;
+        const track_deg = heading != null ? ((heading % 360) + 360) % 360 : null;
+        const vert_rate_fpm =
+          typeof entry[9] === "number" && isFinite(entry[9]) ? entry[9] : null;
+        const logged_at = avionixNowMs;
+
+        liveFlights.push({
+          id: icao24,
+          icao24,
+          callSign: callsign,
+          position: { lat, lng },
+          baroAltitudeMeters: alt_baro_m,
+          geoAltitudeMeters: null,
+          groundSpeedMps: speed_mps,
+          trackDeg: track_deg,
+          timestamp: logged_at,
+          providerId: "avionix",
+        });
+
+        const prev = lastSeen.get(icao24);
+        if (prev) {
+          const moved = haversineM(prev.lat, prev.lng, lat, lng);
+          if (moved < MIN_MOVE_M && logged_at - prev.logged_at < MAX_GAP_MS) continue;
+        }
+        lastSeen.set(icao24, { lat, lng, logged_at });
+
+        posRows.push([icao24, callsign, lat, lng, alt_baro_m, null,
+          speed_mps, track_deg, vert_rate_fpm, squawk, null, registration, aircraft_type, logged_at]);
+
+        if (registration || aircraft_type) {
+          metaRows.push([icao24, registration, aircraft_type, null, logged_at, logged_at]);
+        }
       }
     }
 
@@ -526,7 +685,15 @@ async function startFlightLogger() {
     // Server-side transit scan: pošalji pun snapshot internoj ruti koja računa
     // kandidate/aktivne tranzite po pretplati i šalje Web Push — radi i kad nema
     // nijednog otvorenog taba (ugašen ekran / app u pozadini).
-    triggerTransitScan(liveFlights);
+    // Dedupe po icao24 (noviji timestamp pobjeđuje) — ako isti avion vidi i
+    // localsdr i avionix u istom ticku, scan ruta treba jedan zapis po avionu,
+    // ne dva (izbjegava dupli push alert).
+    const liveFlightsByIcao = new Map();
+    for (const f of liveFlights) {
+      const cur = liveFlightsByIcao.get(f.icao24);
+      if (!cur || f.timestamp >= cur.timestamp) liveFlightsByIcao.set(f.icao24, f);
+    }
+    triggerTransitScan([...liveFlightsByIcao.values()]);
   }
 
   poll().catch(() => {});
