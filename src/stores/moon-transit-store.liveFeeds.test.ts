@@ -5,12 +5,15 @@ import type { FlightProviderId } from "@/types/flight-provider";
 
 const calls: FlightProviderId[] = [];
 const lists: Partial<Record<FlightProviderId, readonly FlightState[]>> = {};
+const failures: Partial<Record<FlightProviderId, Error>> = {};
 
 vi.mock("@/lib/flight/flightProviderRegistry", () => ({
   getFlightProvider: (id: FlightProviderId) => ({
     id,
     getFlightsInBounds: async () => {
       calls.push(id);
+      const fail = failures[id];
+      if (fail) throw fail;
       return lists[id] ?? [];
     },
     getRouteLineFeatures: () => [],
@@ -40,10 +43,12 @@ describe("loadFlightsInBounds({ only: 'localsdr' })", () => {
   beforeEach(() => {
     calls.length = 0;
     for (const k of Object.keys(lists)) delete lists[k as FlightProviderId];
+    for (const k of Object.keys(failures)) delete failures[k as FlightProviderId];
     useMoonTransitStore.setState({
       flightProvider: "opensky",
       liveFlightFeeds: { opensky: true, adsbone: true, localsdr: true },
       providerFlightCounts: { opensky: 0, adsbone: 0, localsdr: 0 },
+      webFeedStatus: { opensky: "idle", adsbone: "idle" },
       flights: [],
       selectedFlightId: null,
     });
@@ -109,5 +114,70 @@ describe("loadFlightsInBounds({ only: 'localsdr' })", () => {
     await useMoonTransitStore.getState().loadFlightsInBounds(BOUNDS);
 
     expect(calls.sort()).toEqual(["adsbone", "localsdr", "opensky"]);
+  });
+});
+
+describe("webFeedStatus", () => {
+  beforeEach(() => {
+    calls.length = 0;
+    for (const k of Object.keys(lists)) delete lists[k as FlightProviderId];
+    for (const k of Object.keys(failures)) delete failures[k as FlightProviderId];
+    useMoonTransitStore.setState({
+      flightProvider: "opensky",
+      liveFlightFeeds: { opensky: true, adsbone: true, localsdr: false },
+      providerFlightCounts: { opensky: 0, adsbone: 0, localsdr: 0 },
+      webFeedStatus: { opensky: "idle", adsbone: "idle" },
+      flights: [],
+      selectedFlightId: null,
+    });
+  });
+
+  it("429 iz OpenSkya klasificira se kao rate-limited, ne kao pad izvora", async () => {
+    failures.opensky = new Error(
+      "OpenSky: 429 — rate limit. Using cached data is unavailable; wait ~1 min."
+    );
+    lists.adsbone = [flight("ccc333", 45.7, 15.9)];
+
+    await useMoonTransitStore.getState().loadFlightsInBounds(BOUNDS);
+
+    const s = useMoonTransitStore.getState();
+    expect(s.webFeedStatus.opensky).toBe("rate-limited");
+    expect(s.webFeedStatus.adsbone).toBe("ok");
+  });
+
+  it("ostale greške su error", async () => {
+    failures.opensky = new Error("OpenSky: 502 upstream error");
+    lists.adsbone = [flight("ccc333", 45.7, 15.9)];
+
+    await useMoonTransitStore.getState().loadFlightsInBounds(BOUNDS);
+
+    expect(useMoonTransitStore.getState().webFeedStatus.opensky).toBe("error");
+  });
+
+  it("isključen izvor je idle, ne error", async () => {
+    useMoonTransitStore.setState({
+      liveFlightFeeds: { opensky: false, adsbone: true, localsdr: false },
+    });
+    lists.adsbone = [flight("ccc333", 45.7, 15.9)];
+
+    await useMoonTransitStore.getState().loadFlightsInBounds(BOUNDS);
+
+    const s = useMoonTransitStore.getState();
+    expect(s.webFeedStatus.opensky).toBe("idle");
+    expect(s.webFeedStatus.adsbone).toBe("ok");
+  });
+
+  it("oporavak izvora vraća status na ok", async () => {
+    failures.opensky = new Error("OpenSky: 429 rate limit");
+    await useMoonTransitStore.getState().loadFlightsInBounds(BOUNDS);
+    expect(useMoonTransitStore.getState().webFeedStatus.opensky).toBe(
+      "rate-limited"
+    );
+
+    delete failures.opensky;
+    lists.opensky = [flight("bbb222", 45.9, 16.1)];
+    await useMoonTransitStore.getState().loadFlightsInBounds(BOUNDS);
+
+    expect(useMoonTransitStore.getState().webFeedStatus.opensky).toBe("ok");
   });
 });
