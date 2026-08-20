@@ -18,9 +18,13 @@ import {
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 // OpenSky/adsb.lol are rate-limited — poll every 30 s.
+// OpenSky charges credits per request (400/day anonymous, 4000 registered), so
+// this cadence is a hard budget line, not a preference.
 const LIVE_AUTO_REFRESH_MS = 30_000;
 // Local SDR (dump1090/readsb) updates every ~1 s on the Pi; server-side cache is 10 s.
 // Polling at 10 s gives fresh positions and keeps position jumps small.
+// Runs on its own timer: before, this interval drove *every* source, so turning
+// the Pi on silently tripled OpenSky usage and burned the daily quota in ~1 h.
 const LOCALSDR_AUTO_REFRESH_MS = 10_000;
 
 function scheduleObserverGroundHeightFromTerrain(
@@ -106,18 +110,19 @@ export function useMoonTransitMap(
     null
   );
 
-  const flushFlightLoadForMapBounds = useCallback((m: mapboxgl.Map) => {
-    fieldPerfTime("map:boundsRefresh", () => {
-      const b = m.getBounds();
-      if (!b) {
-        return;
-      }
-      const bounds = geoBoundsFromMapbox(b);
-      void loadFlights.current(bounds);
-
-
-    });
-  }, []);
+  const flushFlightLoadForMapBounds = useCallback(
+    (m: mapboxgl.Map, opts?: { only?: "localsdr" }) => {
+      fieldPerfTime("map:boundsRefresh", () => {
+        const b = m.getBounds();
+        if (!b) {
+          return;
+        }
+        const bounds = geoBoundsFromMapbox(b);
+        void loadFlights.current(bounds, opts);
+      });
+    },
+    []
+  );
 
   const refreshFlightsNow = useCallback(() => {
     if (boundsRefreshDebounceRef.current != null) {
@@ -129,6 +134,15 @@ export function useMoonTransitMap(
       return;
     }
     flushFlightLoadForMapBounds(m);
+  }, [flushFlightLoadForMapBounds]);
+
+  /** Osvježi samo lokalni SDR — web izvori (i njihove kvote) se ne diraju. */
+  const refreshLocalSdrNow = useCallback(() => {
+    const m = mapRef.current;
+    if (!m || !m.getStyle()) {
+      return;
+    }
+    flushFlightLoadForMapBounds(m, { only: "localsdr" });
   }, [flushFlightLoadForMapBounds]);
 
   const onBoundsRefresh = useCallback(() => {
@@ -210,21 +224,57 @@ export function useMoonTransitMap(
     if (!isLiveProvider || mapReadyTick <= 0) {
       return;
     }
-    // Use faster interval when local SDR is active — Pi data refreshes every ~1 s,
-    // server cache is 10 s, so 10 s polling keeps position jumps minimal.
-    const intervalMs = localsdrActive ? LOCALSDR_AUTO_REFRESH_MS : LIVE_AUTO_REFRESH_MS;
-    const id = setInterval(() => {
-      refreshFlightsNow();
-    }, intervalMs);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") refreshFlightsNow();
+    // Dva odvojena timera: web izvori na 30 s (kvota), Pi na 10 s (lokalno,
+    // besplatno). Jedan zajednički interval je značio da uključen Pi diže i
+    // OpenSky na 10 s — 360 kredita na sat, tj. cijela dnevna kvota za ~1 h.
+    let webTimer: ReturnType<typeof setInterval> | null = null;
+    let sdrTimer: ReturnType<typeof setInterval> | null = null;
+
+    const stopTimers = () => {
+      if (webTimer != null) {
+        clearInterval(webTimer);
+        webTimer = null;
+      }
+      if (sdrTimer != null) {
+        clearInterval(sdrTimer);
+        sdrTimer = null;
+      }
     };
-    document.addEventListener("visibilitychange", onVisible);
+
+    const startTimers = () => {
+      stopTimers();
+      webTimer = setInterval(refreshFlightsNow, LIVE_AUTO_REFRESH_MS);
+      if (localsdrActive) {
+        sdrTimer = setInterval(refreshLocalSdrNow, LOCALSDR_AUTO_REFRESH_MS);
+      }
+    };
+
+    // Skriven tab ne troši kvotu: prije se interval nikad nije zaustavljao, pa
+    // je zaboravljen otvoren tab sam pojeo dnevni budžet preko noći.
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshFlightsNow();
+        startTimers();
+      } else {
+        stopTimers();
+      }
+    };
+
+    if (document.visibilityState === "visible") {
+      startTimers();
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
-      clearInterval(id);
-      document.removeEventListener("visibilitychange", onVisible);
+      stopTimers();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [flightProviderId, localsdrActive, mapReadyTick, refreshFlightsNow]);
+  }, [
+    flightProviderId,
+    localsdrActive,
+    mapReadyTick,
+    refreshFlightsNow,
+    refreshLocalSdrNow,
+  ]);
 
   const applyPlaceObserverFromMapCenter = useCallback(() => {
     const m = mapRef.current;

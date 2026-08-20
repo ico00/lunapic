@@ -5,6 +5,14 @@ import { createTtlBodyCache } from "@/lib/server/ttlBodyCache";
 
 const OPENSKY_BASE = "https://opensky-network.org/api/states/all";
 /**
+ * OpenSky je ugasio Basic Auth (username/password) za REST API; jedini put do
+ * autenticiranih (višeg) rate limita je OAuth2 client-credentials preko ovog
+ * Keycloak token endpointa. Token se cache-ira u modulu do isteka (uz 30s
+ * marže) — u toplom serverless instanceu to štedi poziv na svaki request.
+ */
+const OPENSKY_TOKEN_URL =
+  "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token";
+/**
  * Cjelokupni proračun (TTFB + `text()`). Na **Vercel Hobby** cijela funkcija ima
  * ~**10 s** strop — env je ograničen na **MAX** ispod. **`preferredRegion` + `vercel.json`
  * `regions: [fra1]`** drže izvršavanje u EU. **`OPENSKY_STATES_EXTENDED=0`** smanjuje odgovor.
@@ -32,6 +40,54 @@ const PROXY_CACHE_TTL_MS = 12_000;
 const PROXY_CACHE_MAX_KEYS = 40;
 
 const bboxCache = createTtlBodyCache(PROXY_CACHE_TTL_MS, PROXY_CACHE_MAX_KEYS);
+
+let cachedOpenSkyToken: { value: string; expiresAt: number } | null = null;
+
+async function getOpenSkyBearerToken(
+  clientId: string,
+  clientSecret: string
+): Promise<string | null> {
+  const now = Date.now();
+  if (cachedOpenSkyToken && cachedOpenSkyToken.expiresAt > now) {
+    return cachedOpenSkyToken.value;
+  }
+  try {
+    const res = await fetch(OPENSKY_TOKEN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "client_credentials",
+        client_id: clientId,
+        client_secret: clientSecret,
+      }),
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      console.error("[MoonTransit OpenSky] OAuth2 token request failed", {
+        status: res.status,
+        bodySnippet: (await res.text()).slice(0, 240),
+      });
+      return null;
+    }
+    const data = (await res.json()) as {
+      access_token?: string;
+      expires_in?: number;
+    };
+    if (!data.access_token) {
+      console.error("[MoonTransit OpenSky] OAuth2 token response missing access_token");
+      return null;
+    }
+    const ttlMs = (data.expires_in ?? 1800) * 1000;
+    cachedOpenSkyToken = {
+      value: data.access_token,
+      expiresAt: now + Math.max(ttlMs - 30_000, 5_000),
+    };
+    return cachedOpenSkyToken.value;
+  } catch (err) {
+    console.error("[MoonTransit OpenSky] OAuth2 token request error", { err });
+    return null;
+  }
+}
 
 function bboxCacheKey(
   lamin: string,
@@ -171,9 +227,9 @@ export async function GET(req: Request) {
     );
   }
 
-  const apiUser = process.env.OPENSKY_API_USER?.trim();
-  const apiPass = process.env.OPENSKY_API_PASSWORD?.trim();
-  const withCred = Boolean(apiUser && apiPass);
+  const clientId = process.env.OPENSKY_CLIENT_ID?.trim();
+  const clientSecret = process.env.OPENSKY_CLIENT_SECRET?.trim();
+  const withCred = Boolean(clientId && clientSecret);
 
   const useExtended =
     process.env.OPENSKY_STATES_EXTENDED?.trim() !== "0";
@@ -189,8 +245,15 @@ export async function GET(req: Request) {
 
   const url = `${OPENSKY_BASE}?lamin=${encodeURIComponent(lamin)}&lomin=${encodeURIComponent(lomin)}&lamax=${encodeURIComponent(lamax)}&lomax=${encodeURIComponent(lomax)}${useExtended ? "&extended=1" : ""}`;
   const headers: Record<string, string> = { Accept: "application/json" };
-  if (apiUser && apiPass) {
-    headers.Authorization = `Basic ${Buffer.from(`${apiUser}:${apiPass}`, "utf8").toString("base64")}`;
+  if (clientId && clientSecret) {
+    const token = await getOpenSkyBearerToken(clientId, clientSecret);
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    } else {
+      console.error(
+        "[MoonTransit OpenSky] proceeding as anonymous — OAuth2 token fetch failed despite OPENSKY_CLIENT_ID/SECRET being set"
+      );
+    }
   }
 
   try {
@@ -204,12 +267,12 @@ export async function GET(req: Request) {
       const missingCred = !withCred;
       if (likelyAuth && missingCred) {
         console.error(
-          "[MoonTransit OpenSky] upstream auth error without API credentials — set OPENSKY_API_USER and OPENSKY_API_PASSWORD",
+          "[MoonTransit OpenSky] upstream auth error without OAuth2 credentials — set OPENSKY_CLIENT_ID and OPENSKY_CLIENT_SECRET",
           { status: r.status, bodySnippet: bodyText.slice(0, 240) }
         );
       } else if (likelyAuth && withCred) {
         console.error(
-          "[MoonTransit OpenSky] upstream rejected credentials (401/403)",
+          "[MoonTransit OpenSky] upstream rejected OAuth2 token (401/403) — check OPENSKY_CLIENT_ID/OPENSKY_CLIENT_SECRET are valid",
           { status: r.status, bodySnippet: bodyText.slice(0, 240) }
         );
       } else if (r.status >= 500) {
@@ -237,8 +300,8 @@ export async function GET(req: Request) {
           hint:
             r.status === 429
               ? withCred
-                ? "OpenSky rate limit. Wait 1–2 min; avoid multiple dev tabs; proxy caches 30s per map area. Confirm API password (not only web login if OpenSky requires an API token)."
-                : "OpenSky anonymous rate limit. Set OPENSKY_API_USER and OPENSKY_API_PASSWORD in .env.local (free account), restart dev server."
+                ? "OpenSky rate limit. Wait 1–2 min; avoid multiple dev tabs; proxy caches 30s per map area. Confirm OPENSKY_CLIENT_ID/OPENSKY_CLIENT_SECRET are a valid OAuth2 API client (opensky-network.org account → API Client), not just the web login."
+                : "OpenSky anonymous rate limit. Set OPENSKY_CLIENT_ID and OPENSKY_CLIENT_SECRET in .env.local (free account → API Client on opensky-network.org), restart dev server."
               : undefined,
         },
         {
