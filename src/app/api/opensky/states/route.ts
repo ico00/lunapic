@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 
 import { checkRateLimit, getClientIp } from "@/lib/server/rateLimiter";
 import { createTtlBodyCache } from "@/lib/server/ttlBodyCache";
+import {
+  createOpenSkyCreditsTracker,
+  OPENSKY_LOW_CREDITS_WARN_BELOW,
+} from "@/lib/server/openSkyCredits";
 
 const OPENSKY_BASE = "https://opensky-network.org/api/states/all";
 /**
@@ -40,6 +44,9 @@ const PROXY_CACHE_TTL_MS = 12_000;
 const PROXY_CACHE_MAX_KEYS = 40;
 
 const bboxCache = createTtlBodyCache(PROXY_CACHE_TTL_MS, PROXY_CACHE_MAX_KEYS);
+
+/** Zadnje stanje kredita s upstreama — prosljeđuje se i na cache hitovima. */
+const credits = createOpenSkyCreditsTracker();
 
 let cachedOpenSkyToken: { value: string; expiresAt: number } | null = null;
 
@@ -113,6 +120,12 @@ function jsonHeaders(
   };
   if (source) {
     h["X-MoonTransit-OpenSky-Source"] = source;
+  }
+  // Vrijednost je iz zadnjeg **stvarnog** upstream odgovora; na cache hitu je
+  // zato malo starija od odgovora, ali i dalje točnija od nikakve informacije.
+  const remaining = credits.lastKnown();
+  if (remaining != null) {
+    h["X-MoonTransit-OpenSky-Credits"] = String(remaining);
   }
   return h;
 }
@@ -262,6 +275,13 @@ export async function GET(req: Request) {
       headers,
       UPSTREAM_FETCH_TIMEOUT_MS
     );
+    const remaining = credits.record(r.headers.get("X-Rate-Limit-Remaining"));
+    if (remaining != null && credits.isLow()) {
+      console.warn(
+        `[MoonTransit OpenSky] low credits: ${remaining} left (warn below ${OPENSKY_LOW_CREDITS_WARN_BELOW}); feed goes 429 when it hits 0`
+      );
+    }
+
     if (!r.ok) {
       const likelyAuth = r.status === 401 || r.status === 403;
       const missingCred = !withCred;
@@ -306,7 +326,7 @@ export async function GET(req: Request) {
         },
         {
           status,
-          headers: { "X-MoonTransit-OpenSky-Auth": withCred ? "yes" : "no" },
+          headers: jsonHeaders(withCred, "none"),
         }
       );
     }
