@@ -190,7 +190,16 @@ type MoonTransitState = {
     aircraftType: string,
     dimensions?: AircraftDimensions | null
   ) => void;
-  loadFlightsInBounds: (bounds: GeoBounds) => Promise<void>;
+  /**
+   * `opts.only === "localsdr"` osvježava **samo** lokalni SDR i zadržava
+   * zadnje poznate web letove (OpenSky/adsb.lol) preko retention mehanizma.
+   * Koristi ga brzi 10 s tick, da lokalni prijemnik može ići gušće a da svaki
+   * njegov tick ne troši OpenSky kredite.
+   */
+  loadFlightsInBounds: (
+    bounds: GeoBounds,
+    opts?: { readonly only?: "localsdr" }
+  ) => Promise<void>;
   resetError: () => void;
 };
 
@@ -517,7 +526,7 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
     }));
   },
   resetError: () => set({ error: null }),
-  loadFlightsInBounds: async (bounds) => {
+  loadFlightsInBounds: async (bounds, opts) => {
     set({ isLoading: true, error: null });
     try {
       const fp = get().flightProvider;
@@ -551,11 +560,15 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
       }
 
       const feeds = get().liveFlightFeeds;
+      /** Brzi tick: samo SDR, web izvori se preskaču (ne troše kvotu). */
+      const sdrOnly = opts?.only === "localsdr" && feeds.localsdr;
       const ids: ("opensky" | "adsbone")[] = [];
-      if (feeds.opensky) ids.push("opensky");
-      if (feeds.adsbone) ids.push("adsbone");
-      // fallback samo ako localsdr nije uključen — SDR-only mod je valjan
-      if (ids.length === 0 && !feeds.localsdr) ids.push("opensky");
+      if (!sdrOnly) {
+        if (feeds.opensky) ids.push("opensky");
+        if (feeds.adsbone) ids.push("adsbone");
+        // fallback samo ako localsdr nije uključen — SDR-only mod je valjan
+        if (ids.length === 0 && !feeds.localsdr) ids.push("opensky");
+      }
 
       // Track SDR reachability separately from the (silently caught) result so
       // the UI can tell "Pi has 0 aircraft" apart from "Pi/Funnel unreachable".
@@ -580,6 +593,28 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
         : sdrReachable
         ? "ok"
         : "unreachable";
+
+      if (sdrOnly) {
+        // Brzi tick: web izvori nisu ni pitani. Zadnji poznati web letovi žive
+        // dalje kao `previousFlights` — SDR ima prioritet za geometriju, web
+        // popunjava metapodatke. Njihovo starenje i dalje ograničava web tick
+        // (retention u `mergeFlightsWithOpenSkyRetention`, 32 s).
+        const combined = mergeLiveFlightListsWithSdrPriority(sdrList, [
+          previousFlights,
+        ]);
+        const prevCounts = get().providerFlightCounts;
+        const sel = get().selectedFlightId;
+        set({
+          flights: combined,
+          providerFlightCounts: { ...prevCounts, localsdr: sdrList.length },
+          localsdrStatus,
+          isLoading: false,
+          ...(sel != null && combined.some((f) => f.id === sel)
+            ? {}
+            : { selectedFlightId: null }),
+        });
+        return;
+      }
 
       const lists: (readonly FlightState[])[] = [];
       const errors: string[] = [];
