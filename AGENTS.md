@@ -169,6 +169,19 @@ push skripte NIJE plain `sudo install` kao na Piju — skripta ide na `/data`
 (trajno), a systemd `.service`/`.timer` datoteke se trajno postave preko
 `sudo overlayroot-chroot` (vendor-dokumentirana metoda u `/etc/fstab`
 headeru). Upute korak-po-korak: header komentar u `scripts/avionix-push.sh`.
+Instalacija je 2026-08-20 potvrđena preko reboota — timer je preživio reset i
+automatski se pokrenuo.
+
+**Stari CA bundle na uređaju:** `ca-certificates` je iz 2016. (Ubuntu 16.04,
+EOL — `apt-get update` na repoima za 16.04 više ne radi pouzdano, a i da radi,
+promjena bi se izgubila na sljedećem reboot-u zbog overlayroot-a). POST prema
+produkciji (HTTPS) zato puca s "server certificate verification failed" bez
+svježeg CA bundlea. Riješeno stavljanjem `cacert.pem` (preuzet **na drugom
+računalu s ispravnim TLS-om**, ne na samom uređaju) na `/data/avionix-push/` —
+skripta ga automatski koristi ako postoji (`CACERT_FILE` u
+`avionix-push.sh`). Isto vrijedi za bilo koji budući stariji ADS-B uređaj s
+istim firmware obrascem.
+
 Detalji o samom uređaju (device API, GPS pozicija, Beast port): vidi
 `documentation/flight-sources.md`.
 

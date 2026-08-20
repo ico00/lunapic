@@ -39,6 +39,16 @@
 # ExecStart u avionix-push.service gleda DIREKTNO na
 # /data/avionix-push/avionix-push.sh — sama skripta se ne kopira u chroot,
 # samo dvije male .service/.timer datoteke.
+#
+# STARI CA BUNDLE: uređaj ima Ubuntu 16.04 (`ca-certificates` iz 2016.) — TLS
+# prema modernim hostovima puca s "server certificate verification failed" jer
+# root/intermediate CA-ovi od tada nisu rotirani u sustavu, a `apt-get`
+# repoi za 16.04 (EOL) ionako više ne rade pouzdano. Umjesto diranja sustavskih
+# paketa (što bi se, k tome, izgubilo na sljedećem reboot-u zbog overlayroot-a),
+# stavi svjež CA bundle na `/data` (trajno) i skripta ga koristi ako postoji:
+#   curl -sS https://curl.se/ca/cacert.pem -o /data/avionix-push/cacert.pem
+#   (preuzmi na računalu koje ima ispravan TLS, pa scp na uređaj — ne
+#   preuzimati direktno na uređaju, isti problem koji rješavamo)
 set -euo pipefail
 
 : "${INGEST_URL:?INGEST_URL nije postavljen}"
@@ -47,7 +57,15 @@ set -euo pipefail
 # Skripta radi NA uređaju — loopback poziv, nema LAN hopa ni autentikacije.
 SOURCE_URL="${SOURCE_URL:-http://127.0.0.1/flight_updates}"
 
-if ! payload=$(curl -sS -m 10 --fail-with-body "$SOURCE_URL" 2>&1); then
+# Vidi "STARI CA BUNDLE" napomenu gore. Prazan niz ako datoteke nema — curl
+# tad koristi sustavski bundle kao inače.
+CACERT_FILE="${CACERT_FILE:-$(dirname "$0")/cacert.pem}"
+CACERT_OPTS=()
+if [ -f "$CACERT_FILE" ]; then
+  CACERT_OPTS=(--cacert "$CACERT_FILE")
+fi
+
+if ! payload=$(curl -sS -m 10 "$SOURCE_URL" 2>&1); then
   echo "čitanje $SOURCE_URL nije uspjelo: $payload" >&2
   exit 1
 fi
@@ -61,6 +79,7 @@ fi
 
 http_code=$(printf '%s' "$payload" | curl -sS -m 20 -o /tmp/avionix-ingest-resp \
   -w '%{http_code}' \
+  "${CACERT_OPTS[@]}" \
   -X POST "$INGEST_URL" \
   -H "Content-Type: application/json" \
   -H "x-avionix-token: ${AVIONIX_INGEST_TOKEN}" \
