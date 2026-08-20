@@ -547,8 +547,9 @@ async function startFlightLogger() {
         speed_mps, track_deg, vert_rate_fpm, squawk, rssi, registration, aircraft_type, logged_at]);
 
       if (registration || aircraft_type || description) {
-        // 6 values: icao24, registration, aircraft_type, description, first_seen, last_seen
-        metaRows.push([icao24, registration, aircraft_type, description, logged_at, logged_at]);
+        // 9 values: icao24, registration, aircraft_type, description, first_seen,
+        // last_seen, origin, destination, source. tar1090/localsdr ne daje rutu.
+        metaRows.push([icao24, registration, aircraft_type, description, logged_at, logged_at, null, null, "localsdr"]);
       }
     }
 
@@ -589,6 +590,12 @@ async function startFlightLogger() {
         const track_deg = heading != null ? ((heading % 360) + 360) % 360 : null;
         const vert_rate_fpm =
           typeof entry[9] === "number" && isFinite(entry[9]) ? entry[9] : null;
+        // Dispečerski izvedena ruta, ne autoritativan podatak — vidi napomenu
+        // u parseAvionixAircraft.ts. Ipak korisna za prikaz u flight-logu.
+        const origin =
+          typeof entry[10] === "string" && entry[10].trim() ? entry[10].trim() : null;
+        const destination =
+          typeof entry[11] === "string" && entry[11].trim() ? entry[11].trim() : null;
         const logged_at = avionixNowMs;
 
         liveFlights.push({
@@ -614,8 +621,8 @@ async function startFlightLogger() {
         posRows.push([icao24, callsign, lat, lng, alt_baro_m, null,
           speed_mps, track_deg, vert_rate_fpm, squawk, null, registration, aircraft_type, logged_at]);
 
-        if (registration || aircraft_type) {
-          metaRows.push([icao24, registration, aircraft_type, null, logged_at, logged_at]);
+        if (registration || aircraft_type || origin || destination) {
+          metaRows.push([icao24, registration, aircraft_type, null, logged_at, logged_at, origin, destination, "avionix"]);
         }
       }
     }
@@ -643,7 +650,7 @@ async function startFlightLogger() {
             metaRows[idx][2] = metaRows[idx][2] ?? meta.t;
             metaRows[idx][3] = metaRows[idx][3] ?? meta.desc;
           } else {
-            metaRows.push([r[0], meta.r, meta.t, meta.desc, r[13], r[13]]);
+            metaRows.push([r[0], meta.r, meta.t, meta.desc, r[13], r[13], null, null, "localsdr"]);
           }
         }
       }
@@ -663,12 +670,15 @@ async function startFlightLogger() {
         for (const r of metaRows) {
           try {
             db.run(
-              `INSERT INTO aircraft (icao24,registration,aircraft_type,description,first_seen,last_seen)
-               VALUES (?,?,?,?,?,?)
+              `INSERT INTO aircraft (icao24,registration,aircraft_type,description,first_seen,last_seen,origin,destination,source)
+               VALUES (?,?,?,?,?,?,?,?,?)
                ON CONFLICT(icao24) DO UPDATE SET
                  registration  = COALESCE(excluded.registration,  registration),
                  aircraft_type = COALESCE(excluded.aircraft_type, aircraft_type),
                  description   = COALESCE(excluded.description,   description),
+                 origin        = COALESCE(excluded.origin,        origin),
+                 destination   = COALESCE(excluded.destination,   destination),
+                 source        = COALESCE(excluded.source,        source),
                  last_seen     = excluded.last_seen`, r
             );
           } catch (e) {

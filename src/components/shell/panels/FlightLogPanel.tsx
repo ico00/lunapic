@@ -434,16 +434,19 @@ export function FlightLogPanel() {
               <th className="px-3 py-2 text-left">Callsign</th>
               <th className="px-3 py-2 text-left">Reg</th>
               <th className="px-3 py-2 text-left">Type</th>
+              <th className="px-3 py-2 text-left">Origin</th>
+              <th className="px-3 py-2 text-left">Dest</th>
+              <th className="px-3 py-2 text-left">Source</th>
             </tr>
           </thead>
           <tbody>
             {pageRows === null ? (
               <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-[color:var(--t-tertiary)]">Loading…</td>
+                <td colSpan={8} className="px-3 py-6 text-center text-[color:var(--t-tertiary)]">Loading…</td>
               </tr>
             ) : pageRows.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-[color:var(--t-tertiary)]">No data</td>
+                <td colSpan={8} className="px-3 py-6 text-center text-[color:var(--t-tertiary)]">No data</td>
               </tr>
             ) : (
               pageRows.map((row) => (
@@ -784,6 +787,22 @@ function AircraftRow({
       <td className="px-3 py-1.5 text-[color:var(--t-tertiary)]">
         {(row.aircraft_type ?? typeOverride) ?? <span className="text-[color:var(--t-disabled)]">—</span>}
       </td>
+      <td className="px-3 py-1.5 max-w-[100px] truncate text-[color:var(--t-tertiary)]" title={row.origin ?? undefined}>
+        {row.origin ?? <span className="text-[color:var(--t-disabled)]">—</span>}
+      </td>
+      <td className="px-3 py-1.5 max-w-[100px] truncate text-[color:var(--t-tertiary)]" title={row.destination ?? undefined}>
+        {row.destination ?? <span className="text-[color:var(--t-disabled)]">—</span>}
+      </td>
+      <td className="px-3 py-1.5 text-[color:var(--t-tertiary)]">
+        {sourceLabel(row.source) ?? <span className="text-[color:var(--t-disabled)]">—</span>}
+      </td>
     </tr>
   );
+}
+
+/** Prikazni naziv za `aircraft.source` — koji je lokalni prijemnik zadnji upisao ovaj zapis. */
+function sourceLabel(source: string | null): string | null {
+  if (source === "localsdr") return "LunaPic ADS-B";
+  if (source === "avionix") return "Avionix Nano";
+  return source;
 }

@@ -57,6 +57,13 @@ function fmtNumber(n: number): string {
   return n.toLocaleString();
 }
 
+/** Prikazni naziv za `aircraft.source` — koji je lokalni prijemnik zadnji upisao ovaj zapis. */
+function sourceLabel(source: string | null): string {
+  if (source === "localsdr") return "LunaPic ADS-B";
+  if (source === "avionix") return "Avionix Nano";
+  return source ?? "";
+}
+
 // ---------------------------------------------------------------------------
 // FlightLogMap component
 // ---------------------------------------------------------------------------
@@ -542,7 +549,7 @@ export default function FlightLogPage() {
 
               {/* Table header */}
               <div
-                className="grid grid-cols-[2fr_2fr_1.5fr_1fr_1.5fr] gap-2 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.15em]"
+                className="grid grid-cols-[2fr_2fr_1.5fr_1fr_1.5fr_1.5fr] gap-2 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.15em]"
                 style={{ color: "var(--t-tertiary)", borderBottom: "1px solid var(--glass-stroke)" }}
               >
                 <span>ICAO / Reg</span>
@@ -550,6 +557,7 @@ export default function FlightLogPage() {
                 <span className="text-right">Pozicije</span>
                 <span className="hidden sm:block text-right">Prva</span>
                 <span className="text-right">Zadnja</span>
+                <span className="hidden md:block">Route</span>
               </div>
 
               {/* Rows */}
@@ -573,7 +581,7 @@ export default function FlightLogPage() {
                       key={row.icao24}
                       type="button"
                       onClick={() => toggleSelect(row)}
-                      className="grid w-full grid-cols-[2fr_2fr_1.5fr_1fr_1.5fr] gap-2 px-4 py-2.5 text-left text-sm transition-colors hover:bg-white/[0.04]"
+                      className="grid w-full grid-cols-[2fr_2fr_1.5fr_1fr_1.5fr_1.5fr] gap-2 px-4 py-2.5 text-left text-sm transition-colors hover:bg-white/[0.04]"
                       style={isSelected
                         ? { background: `${color}12`, borderLeft: `2px solid ${color}` }
                         : { borderLeft: "2px solid transparent" }}
@@ -592,6 +600,9 @@ export default function FlightLogPage() {
                         </div>
                         <div className="text-[11px]" style={{ color: "var(--t-tertiary)" }}>
                           {row.registration || "—"}
+                          {row.source && (
+                            <span className="ml-1 opacity-70">· {sourceLabel(row.source)}</span>
+                          )}
                         </div>
                       </div>
 
@@ -618,6 +629,11 @@ export default function FlightLogPage() {
                       {/* Last seen */}
                       <div className="text-right text-[11px]" style={{ color: "var(--t-tertiary)" }}>
                         {fmtDate(row.last_seen)}
+                      </div>
+
+                      {/* Route (Avionix Nano only — dispečerski izvedeno, ne autoritativno) */}
+                      <div className="hidden md:block truncate text-[11px]" style={{ color: "var(--t-tertiary)" }} title={row.origin || row.destination ? `${row.origin ?? "?"} → ${row.destination ?? "?"}` : undefined}>
+                        {row.origin || row.destination ? `${row.origin ?? "?"} → ${row.destination ?? "?"}` : "—"}
                       </div>
                     </button>
                   );

@@ -10,8 +10,9 @@
  *
  * Ako mijenjaš shemu, mijenjaš je SAMO ovdje.
  *
- * @param {{ run: (sql: string) => void }} db  SQLite Database instanca
- *   (node-sqlite3-wasm; svaki driver s `run(sql)` metodom radi)
+ * @param {{ run: (sql: string) => void, all: (sql: string) => any[] }} db
+ *   SQLite Database instanca (node-sqlite3-wasm; svaki driver s `run`/`all`
+ *   metodama radi)
  */
 function migrate(db) {
   db.run(`
@@ -43,9 +44,28 @@ function migrate(db) {
       aircraft_type TEXT,
       description   TEXT,
       first_seen    INTEGER NOT NULL,
-      last_seen     INTEGER NOT NULL
+      last_seen     INTEGER NOT NULL,
+      origin        TEXT,
+      destination   TEXT,
+      source        TEXT
     )
   `);
+
+  // Dodano 2026-08-20 (origin/destination/source iz Avionix Nano) — postojeća
+  // produkcijska baza (233 MB+) već ima `aircraft` tablicu bez ovih stupaca,
+  // pa CREATE TABLE IF NOT EXISTS iznad ne pomaže. ALTER TABLE ADD COLUMN je
+  // čisto aditivan (nova nullable kolona, bez prepisivanja postojećih redaka)
+  // — sigurno na velikoj bazi. Guard preko PRAGMA table_info sprječava grešku
+  // "duplicate column name" ako migrate() ikad postane pozivan više puta u
+  // istom procesu ili nad već ažuriranom bazom.
+  const aircraftCols = new Set(
+    db.all(`PRAGMA table_info(aircraft)`).map((r) => r.name)
+  );
+  for (const col of ["origin", "destination", "source"]) {
+    if (!aircraftCols.has(col)) {
+      db.run(`ALTER TABLE aircraft ADD COLUMN ${col} TEXT`);
+    }
+  }
 }
 
 module.exports = { migrate };

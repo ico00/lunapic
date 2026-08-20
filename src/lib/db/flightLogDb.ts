@@ -50,6 +50,11 @@ export interface AircraftRow {
   description: string | null;
   first_seen: number;
   last_seen: number;
+  /** Dispečerski izvedena ruta (Avionix Nano only) — nije autoritativan podatak. */
+  origin: string | null;
+  destination: string | null;
+  /** Koji je izvor zadnji upisao ovaj zapis: "localsdr" | "avionix". */
+  source: string | null;
 }
 
 export interface HeatmapCell {
@@ -444,6 +449,9 @@ export interface AircraftListRow {
   first_seen: number;
   last_seen: number;
   last_callsign: string | null;
+  origin: string | null;
+  destination: string | null;
+  source: string | null;
 }
 
 export async function getAircraftList(
@@ -484,7 +492,10 @@ export async function getAircraftList(
          COUNT(*)                                           AS position_count,
          MIN(p.logged_at)                                  AS first_seen,
          MAX(p.logged_at)                                  AS last_seen,
-         MAX(CASE WHEN p.callsign != '' THEN p.callsign END) AS last_callsign
+         MAX(CASE WHEN p.callsign != '' THEN p.callsign END) AS last_callsign,
+         a.origin,
+         a.destination,
+         a.source
        FROM positions p
        LEFT JOIN aircraft a ON a.icao24 = p.icao24
        WHERE p.logged_at >= ? AND p.logged_at <= ?${searchClause}
