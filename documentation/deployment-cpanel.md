@@ -66,6 +66,18 @@ LOCAL_SDR_URL=https://korisnik:lozinka@<node>.<tailnet>.ts.net/tar1090/data/airc
 - Ako varijabla **nije postavljena**, API ruta vraća `{“aircraft”:[]}` i “LunaPic ADS-B” checkbox ne prikazuje avione (tiho, bez greške).
 - Vrijednost mora biti **javno dostupan** URL (ne LAN IP) jer cPanel server nije na kućnoj mreži — koristi **Tailscale Funnel** (vidi niže).
 
+### `OPENSKY_CLIENT_ID` / `OPENSKY_CLIENT_SECRET` (OpenSky feed)
+
+```
+OPENSKY_CLIENT_ID=<client id s opensky-network.org → Account → API Client>
+OPENSKY_CLIENT_SECRET=<secret, prikazuje se samo pri kreiranju>
+```
+
+- **Stare `OPENSKY_API_USER` / `OPENSKY_API_PASSWORD` više ne rade i treba ih obrisati.** OpenSky je ukinuo Basic auth i tiho ga ignorira — zahtjev se posluži kao **anoniman** (400 kredita/dan po IP-u umjesto 4000), pa feed puca na 429 nakon sat-dva. Nema greške koja bi to javila.
+- Secret se pokazuje **jednom**. Ako ga nemaš spremljenog, na API Client kartici klikni **Reset Credential** — stari secret ionako ništa ne koristi.
+- Provjera nakon restarta: `curl -sI ".../api/opensky/states?lamin=45.3&lomin=15.3&lamax=46.3&lomax=16.3"` → očekuj `x-moontransit-opensky-auth: yes` **i** `x-moontransit-opensky-credits` blizu 4000. Sam `auth: yes` nije dokaz — ruta tiho pada na anonimni pristup ako dohvat tokena ne uspije (log: `proceeding as anonymous`).
+- Detalji o kvotama i cijeni po zahtjevu: **[flight-sources.md](./flight-sources.md)**.
+
 ### `ADMIN_SECRET` (opcionalno — debug endpoint)
 
 ```
@@ -92,6 +104,15 @@ INTERNAL_SCAN_TOKEN=<openssl rand -hex 32>
 - **Provjera da radi:** u `~/access-logs/<domena>-ssl_log` traži `POST /<base>/api/transit/scan ... "node"` — treba se pojavljivati ~svakih 15 s sa statusom `200` (user-agent `node` = poller, ne browser).
 
 ### `touch tmp/restart.txt` vs. full restart
+
+> **Gdje varijable zapravo žive (provjereno 2026-08-20):** cPanel App Manager ih upisuje kao `SetEnv` direktive u **`~/public_html/<app>/.htaccess`**, ne u `.env`. Na serveru `.env` sadrži samo Mapbox token i SSH varijable, a `.env.local` uopće ne postoji — deploy ih ionako isključuje iz rsynca. Kad provjeravaš je li varijabla stvarno u procesu, čitaj env **procesa**, ne datoteku:
+>
+> ```bash
+> pid=$(pgrep -u "$USER" -f "Passenger NodeApp" | head -1)
+> tr '\0' '\n' < /proc/$pid/environ | cut -d= -f1 | sort
+> ```
+>
+> Ovim se 2026-08-20 pokazalo da varijable **jesu** u procesu i da problem nije bio u restartu nego u kodu koji je tražio druga imena (vidi [flight-sources.md](./flight-sources.md)).
 
 **`touch tmp/restart.txt`** (što deploy skripta radi) restarta Passenger proces. Ako sumnjaš da `process.env` ne vidi novu env varijablu, najsigurnije je napraviti **Stop → Start** direktno iz App Manager UI-a.
 

@@ -9,6 +9,7 @@
 | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
 | **[deployment-cpanel.md](./deployment-cpanel.md)**                         | **Self-host / cPanel:** `cpanelBasePath.cjs`, `server.js`, `NEXT_PUBLIC_BASE_PATH`, deploy set vs dev tree, `appPath` |
 | **[user-guide.md](./user-guide.md)**                                     | **End-user** walkthrough: workflow, **Filter** card, **Layers** (3D Model vs ATC Style), map legend, calculations in plain language |
+| **[flight-sources.md](./flight-sources.md)**                             | **Live flight feeds:** OpenSky OAuth2 + credits, adsb.lol, Raspberry Pi push, poll cadence, circuit breakers, failure playbook |
 | **[architecture.md](./architecture.md)**                                 | System design, data flow, Zustand, providers, map, extension points; **QA** (tests, CI, field perf)        |
 | **[performance.md](./performance.md)**                                   | In-browser field perf: labels, `NEXT_PUBLIC_FIELD_PERF` / `localStorage`, DevTools                         |
 | **[technicalconventions.md](./technicalconventions.md)**                 | TypeScript, Next, Mapbox, feature checklist, testing, E2E, **Security / `npm audit` / `overrides`**        |
