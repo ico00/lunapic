@@ -2,7 +2,11 @@
 
 import { Fragment } from "react";
 import { shellAccentCheckboxClass } from "@/lib/ui/shellComboboxStyles";
-import { type LiveFlightFeeds, useMoonTransitStore } from "@/stores/moon-transit-store";
+import {
+  type LiveFlightFeeds,
+  type WebFeedStatus,
+  useMoonTransitStore,
+} from "@/stores/moon-transit-store";
 import {
   FLIGHT_PROVIDER_COMBO_IDS,
   type FlightProviderId,
@@ -41,14 +45,34 @@ function countFor(id: FlightProviderId, counts: ProviderCounts): number {
   return counts.localsdr;
 }
 
+/** Badge tekst za web izvor, ili `null` kad je sve u redu (tada ide broj letova). */
+function webBadge(
+  status: WebFeedStatus
+): { readonly label: string; readonly tone: "amber" | "rose" } | null {
+  if (status === "rate-limited") return { label: "rate limited", tone: "amber" };
+  if (status === "error") return { label: "unavailable", tone: "rose" };
+  return null;
+}
+
+const badgeToneClass = {
+  amber:
+    "border-amber-400/40 bg-amber-500/15 text-amber-300",
+  rose: "border-rose-400/40 bg-rose-500/15 text-rose-300",
+} as const;
+
+const badgeDotClass = { amber: "bg-amber-400", rose: "bg-rose-400" } as const;
+
 export function FlightSourcePanel({
   liveFlightFeeds,
   onLiveFlightFeedsChange,
   providerFlightCounts,
 }: FlightSourcePanelProps) {
   const localsdrStatus = useMoonTransitStore((s) => s.localsdrStatus);
+  const webFeedStatus = useMoonTransitStore((s) => s.webFeedStatus);
   const sdrUnreachable =
     liveFlightFeeds.localsdr && localsdrStatus === "unreachable";
+  const openSkyRateLimited =
+    liveFlightFeeds.opensky && webFeedStatus.opensky === "rate-limited";
   return (
     <div className="flex flex-col gap-0.5">
       {FLIGHT_PROVIDER_COMBO_IDS.map((id) => {
@@ -56,6 +80,8 @@ export function FlightSourcePanel({
         const feedOn = feedFor(id, liveFlightFeeds);
         const count = countFor(id, providerFlightCounts);
         const rowUnreachable = isLocalsdr && feedOn && sdrUnreachable;
+        const badge =
+          !isLocalsdr && feedOn ? webBadge(webFeedStatus[id]) : null;
         return (
           <Fragment key={id}>
             {isLocalsdr && (
@@ -78,7 +104,18 @@ export function FlightSourcePanel({
                 className={shellAccentCheckboxClass}
               />
               <span className="min-w-0 flex-1">{labelForProvider(id)}</span>
-              {rowUnreachable ? (
+              {badge ? (
+                <span
+                  className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[length:var(--fs-label)] font-semibold ${badgeToneClass[badge.tone]}`}
+                  data-testid={`web-feed-status-${id}`}
+                >
+                  <span
+                    className={`inline-block size-1.5 rounded-full ${badgeDotClass[badge.tone]}`}
+                    aria-hidden
+                  />
+                  {badge.label}
+                </span>
+              ) : rowUnreachable ? (
                 <span
                   className="inline-flex shrink-0 items-center gap-1 rounded-full border border-rose-400/40 bg-rose-500/15 px-2 py-0.5 text-[length:var(--fs-label)] font-semibold text-rose-300"
                   data-testid="localsdr-offline"
@@ -104,6 +141,18 @@ export function FlightSourcePanel({
           </Fragment>
         );
       })}
+
+      {openSkyRateLimited && (
+        <div className="mt-1.5 flex items-start gap-2 rounded-md border border-amber-400/25 bg-amber-500/[0.07] px-2.5 py-2 text-[length:var(--fs-label)] text-amber-200">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden>
+            <path d="M12 8v5M12 16h.01M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z" />
+          </svg>
+          <span>
+            OpenSky dnevna kvota je potrošena — izvor se vraća sam kad se krediti
+            obnove. Ostali uključeni izvori i dalje rade.
+          </span>
+        </div>
+      )}
 
       {sdrUnreachable && (
         <div className="mt-1.5 flex items-start gap-2 rounded-md border border-rose-400/25 bg-rose-500/[0.07] px-2.5 py-2 text-[length:var(--fs-label)] text-rose-200">

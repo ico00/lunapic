@@ -17,7 +17,25 @@ import {
   mergeFlightsWithOpenSkyRetention,
 } from "@/lib/flight/mergeFlightsWithOpenSkyRetention";
 import type { AircraftDimensions } from "@/lib/flight/aircraftTypeDimensions";
+import { AdsbLiveProxyError } from "@/lib/flight/adsbone/fetchAdsbOneUpstream";
 import { getFlightProvider } from "@/lib/flight/flightProviderRegistry";
+
+/** Stanje jednog web izvora letova (OpenSky / adsb.lol) nakon zadnjeg ticka. */
+export type WebFeedStatus = "idle" | "ok" | "rate-limited" | "error";
+
+/**
+ * Kvota je najčešći kvar web izvora, a poruke stižu iz dva sloja: tipizirane
+ * `AdsbLiveProxyError` (nosi status) i običnog `Error` iz OpenSky providera.
+ */
+function webFeedStatusFromError(reason: unknown): WebFeedStatus {
+  if (reason instanceof AdsbLiveProxyError) {
+    return reason.status === 429 || reason.upstreamStatus === 429
+      ? "rate-limited"
+      : "error";
+  }
+  const msg = reason instanceof Error ? reason.message : String(reason);
+  return /\b429\b|rate limit/i.test(msg) ? "rate-limited" : "error";
+}
 import type { FlightAltitudeLegendUnit } from "@/lib/map/flightAltitudeColor";
 import { useObserverStore } from "@/stores/observer-store";
 import type { GeoBounds, MapViewState } from "@/types";
@@ -84,6 +102,12 @@ type MoonTransitState = {
    * failed (Pi/Funnel down). Lets the UI warn instead of showing a silent empty list.
    */
   localsdrStatus: "idle" | "ok" | "unreachable";
+  /**
+   * Stanje web izvora nakon zadnjeg punog ticka. `rate-limited` je odvojeno od
+   * `error` jer je to najčešći kvar (OpenSky troši kredite po zahtjevu) i traži
+   * drukčiju poruku korisniku: pričekaj, ne "izvor je pao".
+   */
+  webFeedStatus: { opensky: WebFeedStatus; adsbone: WebFeedStatus };
   isLoading: boolean;
   error: string | null;
   /** Zrakoplov za odbrojavanje udarca / alata. */
@@ -241,6 +265,7 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   flights: [],
   providerFlightCounts: { opensky: 0, adsbone: 0, localsdr: 0 },
   localsdrStatus: "idle",
+  webFeedStatus: { opensky: "idle", adsbone: "idle" },
   isLoading: false,
   error: null,
   selectedFlightId: null,
@@ -619,14 +644,20 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
       const lists: (readonly FlightState[])[] = [];
       const errors: string[] = [];
       const rawCounts: { opensky: number; adsbone: number } = { opensky: 0, adsbone: 0 };
+      const webFeedStatus: { opensky: WebFeedStatus; adsbone: WebFeedStatus } = {
+        opensky: feeds.opensky ? "error" : "idle",
+        adsbone: feeds.adsbone ? "error" : "idle",
+      };
       settled.forEach((r, i) => {
         if (r.status === "fulfilled") {
           lists.push(r.value);
           rawCounts[ids[i]] = r.value.length;
+          webFeedStatus[ids[i]] = "ok";
         } else {
           const msg =
             r.reason instanceof Error ? r.reason.message : String(r.reason);
           errors.push(`${ids[i]}: ${msg}`);
+          webFeedStatus[ids[i]] = webFeedStatusFromError(r.reason);
         }
       });
 
@@ -647,6 +678,7 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
           flights: merged,
           providerFlightCounts: { opensky: 0, adsbone: 0, localsdr: sdrList.length },
           localsdrStatus,
+          webFeedStatus,
           isLoading: false,
           ...(sel != null && merged.some((f) => f.id === sel)
             ? {}
@@ -662,6 +694,7 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
           flights: [],
           providerFlightCounts: { opensky: 0, adsbone: 0, localsdr: 0 },
           localsdrStatus,
+          webFeedStatus,
           isLoading: false,
           selectedFlightId: null,
         });
@@ -701,6 +734,7 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
         flights: merged,
         providerFlightCounts: { ...rawCounts, localsdr: sdrList.length },
         localsdrStatus,
+        webFeedStatus,
         isLoading: false,
         ...(keepSel ? {} : { selectedFlightId: null }),
       });
