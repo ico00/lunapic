@@ -1,5 +1,5 @@
-import type { MoonState } from "@/types";
-import { getMoonState } from "./moon";
+import type { MoonPosition } from "@/types";
+import { getMoonPosition } from "./moon";
 
 /**
  * Position-bucketed ephemeris cache for solvers that evaluate the Moon many
@@ -16,13 +16,19 @@ import { getMoonState } from "./moon";
  * This is deliberately separate from `AstroService`'s cache, which buckets the
  * other way round (10 s of time, 110 m of position, 60 entries) because it
  * serves a UI redrawing one observer over and over.
+ *
+ * Caches `MoonPosition`, not `MoonState`: every consumer here is a geometry
+ * solver reading altitude/azimuth/apparent radius, and phase costs ~67 % of a
+ * full ephemeris evaluation. Time cannot be bucketed, so the hit rate is
+ * inherently poor (measured 23 % over a `photo-spots` scan — each sample sits
+ * at its own instant); what actually pays off is making each miss cheaper.
  */
 export type MoonStateAt = (
   atMs: number,
   lat: number,
   lng: number,
   elevM: number
-) => MoonState;
+) => MoonPosition;
 
 const DEFAULT_DEGREE_BUCKET = 0.02;
 const DEFAULT_MAX_ENTRIES = 4096;
@@ -33,7 +39,7 @@ export function createMoonStateCache(options?: {
 }): MoonStateAt {
   const degreeBucket = options?.degreeBucket ?? DEFAULT_DEGREE_BUCKET;
   const maxEntries = options?.maxEntries ?? DEFAULT_MAX_ENTRIES;
-  const cache = new Map<string, MoonState>();
+  const cache = new Map<string, MoonPosition>();
 
   return (atMs, lat, lng, elevM) => {
     const latKey = Math.round(lat / degreeBucket);
@@ -43,7 +49,7 @@ export function createMoonStateCache(options?: {
     if (hit) {
       return hit;
     }
-    const value = getMoonState(new Date(atMs), lat, lng, elevM);
+    const value = getMoonPosition(new Date(atMs), lat, lng, elevM);
     if (cache.size >= maxEntries) {
       cache.delete(cache.keys().next().value!);
     }

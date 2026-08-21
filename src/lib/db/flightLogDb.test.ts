@@ -22,6 +22,15 @@ const migrate = require_(path.join(process.cwd(), "flightLogSchema.cjs")).migrat
 
 let tmpDir: string;
 
+/** The read the forecast routes live on — see `getAllCallsignSessions`. */
+const SESSIONS_SQL = `SELECT callsign, lat, lng,
+        COALESCE(alt_geom_m, alt_baro_m) AS alt_baro_m,
+        logged_at
+ FROM positions
+ WHERE callsign IS NOT NULL AND callsign != ''
+   AND logged_at >= ? AND logged_at <= ?
+ ORDER BY callsign ASC, logged_at ASC`;
+
 /** Write `count` positions starting at explicit id `startId`, as the poller would. */
 function appendPositions(file: string, startId: number, count: number): void {
   const db = new Database(file);
@@ -89,5 +98,86 @@ describe("dbVersionKey", () => {
     fs.renameSync(replacement, dbFile());
 
     expect(dbVersionKey()).not.toBe(before);
+  });
+});
+
+/**
+ * The forecast routes read a whole 30-day window (1.6 M+ rows in production),
+ * and that read is I/O-bound, not CPU-bound — 81 % of a cold `photo-spots`
+ * request was the fetch. What makes it cheap is that
+ * `idx_pos_callsign_time_cover` carries every column the query selects, so
+ * SQLite never touches the table heap and never sorts. Measured on a
+ * production-shaped 2.5 M row log, losing that plan costs 434 MB of reads
+ * instead of 148 MB. These tests pin the plan itself, because a regression
+ * here is invisible in output and only shows up as a slow endpoint.
+ */
+describe("positions indexes", () => {
+  function migratedDb() {
+    appendPositions(dbFile(), 1, 3);
+    return new Database(dbFile(), { readOnly: true });
+  }
+
+  it("covers the session read entirely, with no sort", () => {
+    const db = migratedDb();
+    try {
+      // `INDEXED BY` pins what the index *can* do rather than what the planner
+      // costs it at. On a three-row table SQLite rightly prefers the narrow
+      // `idx_pos_logged_at`; at production scale (verified on a 2.5 M row
+      // log, with and without ANALYZE stats) it picks this one unaided. What
+      // must not regress is the index definition itself.
+      const plan = db
+        .all(
+          `EXPLAIN QUERY PLAN ${SESSIONS_SQL.replace(
+            "FROM positions",
+            "FROM positions INDEXED BY idx_pos_callsign_time_cover"
+          )}`,
+          [0, Date.now()]
+        )
+        .map((r) => String(r.detail))
+        .join(" | ");
+      // "COVERING" is the whole point: drop any selected column from the
+      // index and SQLite goes back to a heap lookup per row (434 MB of reads
+      // instead of 148 MB on a production-shaped log).
+      expect(plan).toContain("COVERING INDEX idx_pos_callsign_time_cover");
+      // A temp b-tree here means the column order stopped satisfying
+      // ORDER BY callsign, logged_at — the sort alone was ~970 ms.
+      expect(plan).not.toContain("TEMP B-TREE");
+    } finally {
+      db.close();
+    }
+  });
+
+  it("retires the narrow callsign index the covering one subsumes", () => {
+    const db = migratedDb();
+    try {
+      const names = db
+        .all(`PRAGMA index_list(positions)`)
+        .map((r) => String(r.name));
+      expect(names).toContain("idx_pos_callsign_time_cover");
+      // Redundant: `callsign` leads the covering index, so it answers every
+      // `callsign = ?` / `callsign > ?` lookup the narrow one did.
+      expect(names).not.toContain("idx_pos_callsign");
+    } finally {
+      db.close();
+    }
+  });
+
+  it("still seeks a single callsign's window by both columns", () => {
+    const db = migratedDb();
+    try {
+      const plan = db
+        .all(
+          `EXPLAIN QUERY PLAN
+           SELECT lat, lng, alt_baro_m, logged_at FROM positions
+           WHERE callsign = ? AND logged_at >= ? AND logged_at <= ?
+           ORDER BY logged_at ASC`,
+          ["TEST1", 0, Date.now()]
+        )
+        .map((r) => String(r.detail))
+        .join(" | ");
+      expect(plan).toContain("callsign=? AND logged_at>? AND logged_at<?");
+    } finally {
+      db.close();
+    }
   });
 });

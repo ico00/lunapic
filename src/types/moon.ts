@@ -3,11 +3,23 @@ import type { AngularRadius, HorizontalDirection } from "./geometry";
 /**
  * Apparent state of the Moon for a ground observer and instant in time.
  */
-export interface MoonState extends HorizontalDirection {
+/**
+ * Where the Moon is, without what it looks like.
+ *
+ * Split out from `MoonState` because the phase/illumination half is the
+ * expensive half: computing it costs `MoonPhase()` plus two more `Equator()`
+ * calls, ~67 % of a full `getMoonState`. Geometry solvers
+ * (`solveMoonShadowSpot`, `liveShadowTrack`) evaluate the Moon tens of
+ * thousands of times per request and read none of it.
+ */
+export interface MoonPosition extends HorizontalDirection {
   /** Geocentric distance, kilometers (optional; from ephemeris). */
   readonly distanceKm: number;
   /** Apparent semi-diameter, degrees. */
   readonly apparentRadius: AngularRadius;
+}
+
+export interface MoonState extends MoonPosition {
   /** Lunar cycle position from Suncalc (`illumination.phase`): 0 = new, 0.5 = full, 1 = new. */
   readonly phaseFraction: number;
   /** Lit fraction of the lunar disk (`illumination.fraction`): 0 = new, 1 = full. */
