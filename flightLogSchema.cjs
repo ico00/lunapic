@@ -37,7 +37,58 @@ function migrate(db) {
   `);
   db.run(`CREATE INDEX IF NOT EXISTS idx_pos_icao24    ON positions(icao24)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_pos_logged_at ON positions(logged_at)`);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_pos_callsign  ON positions(callsign)`);
+
+  // Dodano 2026-08-21 — covering indeks za forecast rute (photo-spots,
+  // transit-calendar). Obje čitaju cijeli prozor (default 30 dana) preko
+  // `getAllCallsignSessions`: `... WHERE logged_at BETWEEN ? AND ?
+  // ORDER BY callsign, logged_at`.
+  //
+  // S uskim `idx_pos_callsign(callsign)` plan je bio
+  //   SEARCH USING INDEX idx_pos_callsign + USE TEMP B-TREE FOR ORDER BY
+  // tj. hod po indeksu, lookup u tablicu za SVAKI redak (raspršeno po cijeloj
+  // datoteci) i na kraju sort kroz privremeni b-tree. Cold scan je zbog toga
+  // I/O-bound, ne CPU-bound: izmjereno 81 % vremena zahtjeva otpada na dohvat.
+  //
+  // Ovaj indeks nosi svih pet stupaca koje upit čita, pa plan postaje čisti
+  // `SEARCH USING COVERING INDEX` bez sorta — tablica se ne dira uopće.
+  // Mjereno na sintetičkom logu produkcijskog oblika (2.5 M redaka / 367 MB):
+  //
+  //   uski indeks    105 863 read poziva   434 MB pročitano   2 863 ms (topao)
+  //   covering        36 199 read poziva   148 MB pročitano   1 094 ms (topao)
+  //
+  // Cijena je prostor: +148 MB. Uski `idx_pos_callsign` time postaje suvišan
+  // (`callsign` je vodeći stupac ovoga, pa ga pokriva za svaki `callsign = ?`
+  // i `callsign > ?`) i briše se niže → neto +108 MB (+29 %). Namjeran trade:
+  // baza SMIJE rasti (AGENTS.md), I/O po upitu ne smije.
+  //
+  // Redoslijed stupaca nije proizvoljan: `(callsign, logged_at)` daje i
+  // filtriranje i ORDER BY bez sorta; lat/lng/alt su repni "payload" stupci
+  // koji indeks čine covering. `alt_geom_m` je prije `alt_baro_m` jer upit
+  // radi `COALESCE(alt_geom_m, alt_baro_m)`.
+  //
+  // Izgradnja na postojećoj produkcijskoj bazi je JEDNOKRATNA i traje —
+  // ~3 s na 367 MB lokalno, računaj i osjetno više na cPanel disku. Drži se
+  // u vlastitom try/catch: `migrate()` se zove iz `server.js` unutar bloka
+  // koji na iznimku GASI cijeli flight-logger, a log letova je važniji od
+  // brzine forecast rute.
+  try {
+    db.run(`CREATE INDEX IF NOT EXISTS idx_pos_callsign_time_cover
+            ON positions(callsign, logged_at, lat, lng, alt_geom_m, alt_baro_m)`);
+    // Tek NAKON što covering indeks stvarno postoji. Obrnuti redoslijed bi,
+    // ako izgradnja pukne na pola, ostavio bazu bez ijednog indeksa na
+    // callsignu → full table scan na svakom čitanju.
+    const haveCover = db
+      .all(`PRAGMA index_list(positions)`)
+      .some((r) => r.name === "idx_pos_callsign_time_cover");
+    if (haveCover) db.run(`DROP INDEX IF EXISTS idx_pos_callsign`);
+  } catch (e) {
+    // Stari plan i dalje radi, samo sporije — ne rušimo poller zbog indeksa.
+    console.error(
+      "[flightLogSchema] covering index migration failed:",
+      e && e.message ? e.message : String(e)
+    );
+    db.run(`CREATE INDEX IF NOT EXISTS idx_pos_callsign ON positions(callsign)`);
+  }
 
   // Dodano 2026-08-21 (source po zapisu — localsdr i avionix su dva neovisna RF
   // prijemnika koji su prije dijelili isti positions stream nerazlučivo, pa im

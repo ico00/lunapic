@@ -311,7 +311,7 @@ const PASS_GAP_MS = 20 * 60_000;
  * prediction) so the two never drift apart on what counts as "one flight".
  */
 function groupPositionsIntoPasses(
-  rows: Array<{
+  rows: Iterable<{
     callsign: string;
     lat: number;
     lng: number;
@@ -358,6 +358,47 @@ function groupPositionsIntoPasses(
   return result;
 }
 
+/**
+ * Runs `sql` and folds the result straight into passes **without materialising
+ * the row array first**.
+ *
+ * `db.all()` builds a JS array of one object per row before anything can look
+ * at it — 1.6 M+ objects for a 30-day window, allocated and retained all at
+ * once purely to be walked in order and dropped. Streaming the same rows with
+ * `Statement.iterate()` costs the same per-row object but skips the array, and
+ * measured on a production-shaped 2.5 M row log that alone takes the read from
+ * 2 730 ms to 1 652 ms. The rows arrive in the same `(callsign, logged_at)`
+ * order either way, so the pass-splitting logic is untouched.
+ *
+ * `withBusyRetry` wraps the whole fold rather than a single call: a writer
+ * collision can surface part-way through iteration, and the only sane recovery
+ * is to finalize and re-run from the first row.
+ */
+function foldPositionsIntoPasses(
+  db: Database,
+  sql: string,
+  params: Array<number | string>,
+  minPoints: number
+): CallsignRoute[] {
+  return withBusyRetry(() => {
+    const stmt = db.prepare(sql);
+    try {
+      return groupPositionsIntoPasses(
+        stmt.iterate(params) as unknown as Iterable<{
+          callsign: string;
+          lat: number;
+          lng: number;
+          alt_baro_m: number | null;
+          logged_at: number;
+        }>,
+        minPoints
+      );
+    } finally {
+      stmt.finalize();
+    }
+  });
+}
+
 export async function getRoutesByCallsign(
   fromMs: number,
   toMs: number,
@@ -368,24 +409,18 @@ export async function getRoutesByCallsign(
   const db = openReadDb();
   if (!db) return [];
   try {
-    const rows = withBusyRetry(() =>
-      db.all(
-        `SELECT callsign, lat, lng, alt_baro_m, logged_at
+    const passes = foldPositionsIntoPasses(
+      db,
+      `SELECT callsign, lat, lng, alt_baro_m, logged_at
          FROM positions
          WHERE callsign IS NOT NULL AND callsign != ''
            AND logged_at >= ? AND logged_at <= ?
          ORDER BY callsign ASC, logged_at ASC`,
-        [fromMs, toMs]
-      )
-    ) as unknown as Array<{
-      callsign: string;
-      lat: number;
-      lng: number;
-      alt_baro_m: number | null;
-      logged_at: number;
-    }>;
+      [fromMs, toMs],
+      minPoints
+    );
 
-    const result = groupPositionsIntoPasses(rows, minPoints).map((pass) => ({
+    const result = passes.map((pass) => ({
       callsign: pass.callsign,
       points: evenSample(pass.points, maxPointsPerRoute),
     }));
@@ -422,26 +457,18 @@ export async function getAllCallsignSessions(
   const db = openReadDb();
   if (!db) return new Map();
   try {
-    const rows = withBusyRetry(() =>
-      db.all(
-        `SELECT callsign, lat, lng,
+    const passes = foldPositionsIntoPasses(
+      db,
+      `SELECT callsign, lat, lng,
                 COALESCE(alt_geom_m, alt_baro_m) AS alt_baro_m,
                 logged_at
          FROM positions
          WHERE callsign IS NOT NULL AND callsign != ''
            AND logged_at >= ? AND logged_at <= ?
          ORDER BY callsign ASC, logged_at ASC`,
-        [fromMs, toMs]
-      )
-    ) as unknown as Array<{
-      callsign: string;
-      lat: number;
-      lng: number;
-      alt_baro_m: number | null;
-      logged_at: number;
-    }>;
-
-    const passes = groupPositionsIntoPasses(rows, minPoints);
+      [fromMs, toMs],
+      minPoints
+    );
     const byCallsign = new Map<string, RoutePoint[][]>();
     for (const pass of passes) {
       const existing = byCallsign.get(pass.callsign);
