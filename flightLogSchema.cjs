@@ -66,8 +66,17 @@ function migrate(db) {
   // koji indeks čine covering. `alt_geom_m` je prije `alt_baro_m` jer upit
   // radi `COALESCE(alt_geom_m, alt_baro_m)`.
   //
+  // ⚠ POSTOJANJE INDEKSA NIJE DOVOLJNO. Bez `ANALYZE` planer ga zna
+  // ignorirati: na produkciji je 2026-08-21 indeks bio izgrađen, a upit je i
+  // dalje išao `idx_pos_logged_at` + TEMP B-TREE, jer bez statistike SQLite
+  // pretpostavi da je `logged_at BETWEEN` vrlo selektivan (timestampovi su
+  // gotovo jedinstveni — ANALYZE zapiše `idx_pos_logged_at -> 1597107 1`),
+  // iako taj raspon vraća 79 % tablice. `ANALYZE` se namjerno NE zove ovdje
+  // jer bi produžio start; radi ga `scripts/build-flight-log-index.mjs`, koji
+  // ionako treba pokrenuti prije deploya (vidi niže).
+  //
   // Izgradnja na postojećoj produkcijskoj bazi je JEDNOKRATNA i traje —
-  // ~3 s na 367 MB lokalno, računaj i osjetno više na cPanel disku. Drži se
+  // ~2 s na 367 MB lokalno, 7.1 s na produkcijskih 243 MB. Drži se
   // u vlastitom try/catch: `migrate()` se zove iz `server.js` unutar bloka
   // koji na iznimku GASI cijeli flight-logger, a log letova je važniji od
   // brzine forecast rute.
