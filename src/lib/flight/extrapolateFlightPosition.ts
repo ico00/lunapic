@@ -5,6 +5,13 @@ const EXTRAPOLATE_DT_CAP_SEC = 900; // OpenSky free API može biti 5–15 min st
 const MAX_LEAD_SEC = 40;
 
 /**
+ * Pretpostavljena brzina kad je izvor ne javlja. Exportana da `flightDisplayPositionFilter`
+ * dead-reckona po ISTOJ brzini kojom se ovdje računa meta — inače filter i meta
+ * trče različitim tempom i marker trajno zaostaje/juri.
+ */
+export const EXTRAPOLATION_FALLBACK_SPEED_MPS = 200;
+
+/**
  * Pomak OpenSky / ručni: ‚gurni‛ zrakoplov naprijed u vremenu (pozicija duž traga).
  */
 export function extrapolateFlightForDisplay(
@@ -12,7 +19,7 @@ export function extrapolateFlightForDisplay(
   wallNowMs: number,
   latencySkewMs: number
 ): FlightState {
-  const v = f.groundSpeedMps ?? 200;
+  const v = f.groundSpeedMps ?? EXTRAPOLATION_FALLBACK_SPEED_MPS;
   const tr = f.trackDeg;
   const rawDt = (wallNowMs + latencySkewMs - f.timestamp) / 1000;
   const dt = Math.max(0, Math.min(EXTRAPOLATE_DT_CAP_SEC, rawDt));
