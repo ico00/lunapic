@@ -185,6 +185,31 @@ istim firmware obrascem.
 Detalji o samom uređaju (device API, GPS pozicija, Beast port): vidi
 `documentation/flight-sources.md`.
 
+### Origin/destination — samo Avionix, i samo za prikaz
+
+**Zašto Avionix ima origin/destination a Pi (`localsdr`) nema:** to je razlika
+u firmwareu, ne u prijamu signala. ADS-B protokol **nema** polje za
+origin/destination — avion to nikad ne emitira preko RF-a. Avionix Nano
+("AVIONIX openAir" firmware) ima ugrađen **dispatcher** koji sam pogađa rutu
+(vjerojatno lookup callsigna protiv interne/vanjske baze rasporeda letova) i
+šalje rezultat kao indekse 10/11 u `/flight_updates` (`parseAvionixAircraft.ts`
+field-order komentar). Pi vrti `dump1090`/`readsb` (tar1090 JSON,
+`{"aircraft":[...]}`) — čisti ADS-B dekoder bez ikakve dispatch/route logike;
+format nema to polje pa ga `localsdr` parser ni ne može pročitati.
+
+**Ne smije se koristiti za logiku.** Dispečerski pogodak nije autoritativan —
+puca na neredovnim/charter/cargo/pozicijskim letovima (nema uparenog voznog
+reda), divertiranim letovima (baza pokazuje plan, ne stvarnost), vojnim/GA
+letovima (nema ih u komercijalnoj bazi) i zastarjeloj bazi na uređaju. Zato je
+**namjerno izolirano na prikaz**: `FlightState` (tip koji pogoni geometriju
+tranzita, screening, alertove) **nema** polje za origin/destination — vidi
+komentar u `parseAvionixAircraft.ts` ("intentionally not mapped"). Jedino mjesto
+gdje se ti podaci uopće koriste je flight-log SQLite (`flightLogSchema.cjs`,
+upisano iz `server.js`) i njegov UI (`FlightLogPanel.tsx`,
+`app/flight-log/page.tsx`) — čisto informativna kolona za povijesni pregled.
+Ne dodavati ih u `FlightState` niti u bilo koji filter/alert bez da se prvo
+ažurira ovaj odjeljak.
+
 ## Aktivan transit (`useActiveTransits`)
 
 Let je u "active transit" kad mu je **puna 2D kutna separacija** od Mjeseca ≤ 0.5° (kombinacija azimuta + elevacije, ne samo azimut). Koristi `angularSeparationDeg` iz `sky-separation.ts`.
