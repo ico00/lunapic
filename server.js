@@ -482,6 +482,15 @@ async function startFlightLogger() {
     // Pun snapshot SVIH validnih aviona ovog ticka (FlightState oblik), neovisno o
     // MIN_MOVE filteru koji se tiče samo DB upisa. Koristi ga server-side transit scan.
     const liveFlights = [];
+    // Sticky priority (mirroring commit 7d19f6b na klijentu): dva neovisna RF
+    // prijemnika gotovo nikad ne javljaju identičnu poziciju za isti avion, pa
+    // je pisanje OBA očitanja u positions za icao24 koji oba vide u istom ticku
+    // stvaralo cik-cak u trailu (bez obzira na MIN_MOVE_M jer je svaki source
+    // "kretanje" mjerio protiv istog dijeljenog lastSeen unosa). localsdr loop
+    // ide prvi i puni ovaj Set; avionix loop niže u potpunosti preskače icao24
+    // koje localsdr vidi ovaj tick — localsdr je autoritativan dok god ga vidi,
+    // avionix i dalje puni avione koje localsdr ne vidi, bez izmjene.
+    const localsdrIcaosThisTick = new Set();
 
     const nowMs =
       hasSdrRows && typeof sdrData.now === "number" && isFinite(sdrData.now)
@@ -497,6 +506,7 @@ async function startFlightLogger() {
       const lng = row.lon;
       if (typeof lat !== "number" || typeof lng !== "number") continue;
       if (!isFinite(lat) || !isFinite(lng)) continue;
+      localsdrIcaosThisTick.add(icao24);
 
       const ageSec =
         typeof row.seen_pos === "number" && isFinite(row.seen_pos)
@@ -544,7 +554,7 @@ async function startFlightLogger() {
       lastSeen.set(icao24, { lat, lng, logged_at });
 
       posRows.push([icao24, callsign, lat, lng, alt_baro_m, alt_geom_m,
-        speed_mps, track_deg, vert_rate_fpm, squawk, rssi, registration, aircraft_type, logged_at]);
+        speed_mps, track_deg, vert_rate_fpm, squawk, rssi, registration, aircraft_type, logged_at, "localsdr"]);
 
       if (registration || aircraft_type || description) {
         // 9 values: icao24, registration, aircraft_type, description, first_seen,
@@ -573,6 +583,9 @@ async function startFlightLogger() {
         const lng = entry[5];
         if (typeof lat !== "number" || typeof lng !== "number") continue;
         if (!isFinite(lat) || !isFinite(lng)) continue;
+        // localsdr ima sticky prioritet za avione koje oba vide ovaj tick — vidi
+        // napomenu uz `localsdrIcaosThisTick` deklaraciju iznad.
+        if (localsdrIcaosThisTick.has(icao24)) continue;
 
         const callsign =
           typeof entry[0] === "string" && entry[0].trim() ? entry[0].trim() : null;
@@ -619,7 +632,7 @@ async function startFlightLogger() {
         lastSeen.set(icao24, { lat, lng, logged_at });
 
         posRows.push([icao24, callsign, lat, lng, alt_baro_m, null,
-          speed_mps, track_deg, vert_rate_fpm, squawk, null, registration, aircraft_type, logged_at]);
+          speed_mps, track_deg, vert_rate_fpm, squawk, null, registration, aircraft_type, logged_at, "avionix"]);
 
         if (registration || aircraft_type || origin || destination) {
           metaRows.push([icao24, registration, aircraft_type, null, logged_at, logged_at, origin, destination, "avionix"]);
@@ -663,8 +676,8 @@ async function startFlightLogger() {
         db.exec("BEGIN");
         for (const r of posRows) {
           db.run(
-            `INSERT INTO positions (icao24,callsign,lat,lng,alt_baro_m,alt_geom_m,speed_mps,track_deg,vert_rate_fpm,squawk,rssi,registration,aircraft_type,logged_at)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, r
+            `INSERT INTO positions (icao24,callsign,lat,lng,alt_baro_m,alt_geom_m,speed_mps,track_deg,vert_rate_fpm,squawk,rssi,registration,aircraft_type,logged_at,source)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, r
           );
         }
         for (const r of metaRows) {
