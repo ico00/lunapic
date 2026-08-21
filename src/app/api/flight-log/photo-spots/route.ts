@@ -111,9 +111,12 @@ export async function GET(req: NextRequest) {
   const forecastDays = Math.min(Math.max(parseFloat(sp.get("forecastDays") ?? "14"), 1), 30);
   /** How far the photographer is willing to travel. */
   const maxSpotKm = Math.min(Math.max(parseFloat(sp.get("maxSpotKm") ?? "25"), 0.5), 100);
+  // A floor only — nothing filters coverage from above. An aircraft wider than
+  // the Moon is a wanted result (low approach traffic clears 150 % routinely),
+  // so the upper clamp exists to bound the *query*, not the answers.
   const minCoveragePercent = Math.min(
-    Math.max(parseFloat(sp.get("minCoveragePercent") ?? "10"), 1),
-    60
+    Math.max(parseFloat(sp.get("minCoveragePercent") ?? "25"), 1),
+    200
   );
   /**
    * Historical scatter above which a "spot" stops being a spot. The transit
