@@ -287,7 +287,17 @@ kojeg postoje trake `standCorridorQuads`.
    rasipanje same rute; kad je puno veće od `crossTrackToleranceM`, prognoza
    imenuje kvart, ne parkirno mjesto. Filteri: `MIN_AIRCRAFT_AGL_M = 300`
    (slijetanja i taxi ruše ravnu-podlogu pretpostavku), `MIN_SOLVED_SAMPLES = 5`,
-   `maxSpreadKm` (default 2.5).
+   `maxSpreadKm` (default 2.5). `minCoveragePercent` je **samo donja granica** —
+   avion širi od diska Mjeseca (prilazni promet redovito prelazi 150 %) je
+   željeni rezultat, ne outlier; ništa ne filtrira pokrivenost odozgo.
+
+   ⚠️ `meanTrackAroundApproach` **fiksira populaciju sesija** (one koje pokrivaju
+   sidro) i prozor skraćuje na prvoj rupi. Prosjek „onih sesija koje baš tamo
+   imaju podatke” daje diskontinuiranu krivulju: kad jedna sesija ispadne a
+   druga uđe, prosjek skoči za razmak između njih — a sjena je udaljena
+   `h / tan(moonAlt)`, pa pri Mjesecu na 7° 1 km pomaka prosjeka postane 8 km
+   skoka u odgovoru. Viđeno u produkciji 2026-08-21 (skok od 13 km u jednom
+   15 s uzorku + šiljak od 7 km tamo-natrag).
 2. **Live (A)** — `liveShadowTrack.ts` + `useSelectedFlightShadowTrack`. Za
    **odabrani** avion crta centralnu liniju idućih 300 s (isti horizont kao
    `MAX_ALIGNMENT_LOOKAHEAD_SEC` — dalje dead-reckoning laže). Točka putuje

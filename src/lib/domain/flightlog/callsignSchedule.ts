@@ -144,13 +144,27 @@ function interpolateSessionAt(
 
 /**
  * Mean track in **time-relative** coordinates: for each offset from the
- * anchor, the average position across sessions that were airborne and in
- * coverage at that offset.
+ * anchor, the average position across sessions.
  *
  * Time alignment (rather than the path-length resampling `callsign-analysis`
  * uses for its mean route) is what makes the result usable for geometry: the
  * Moon moves 0.25° per minute, so a predicted position is only meaningful
  * paired with the instant it belongs to.
+ *
+ * ## Why the session population is fixed, and the window truncates
+ *
+ * Averaging whichever sessions happen to have data at each offset produces a
+ * **discontinuous** curve: when one session drops out of coverage and another
+ * joins, the mean steps sideways by however far apart those two tracks are.
+ * Downstream that is catastrophic rather than merely untidy — the shadow spot
+ * sits `height / tan(moonAltitude)` from the aircraft, so with the Moon at 7°
+ * a 1 km step in the mean becomes an 8 km jump in the answer, drawn as if it
+ * were a real trajectory. Observed in production on 2026-08-21: a 13 km step
+ * across one 15 s sample, and a 7 km out-and-back spike.
+ *
+ * So the population is chosen once — the sessions covering the anchor — and
+ * the window extends outward from the anchor only while **every** one of them
+ * still has data. The path gets shorter; it stops lying.
  */
 export function meanTrackAroundApproach(
   sessions: readonly AnchoredSession[],
@@ -158,19 +172,34 @@ export function meanTrackAroundApproach(
   minSessions: number,
   maxGapMs = 90_000
 ): MeanTrackSample[] {
-  const out: MeanTrackSample[] = [];
-  for (const offsetSec of offsetsSec) {
-    const samples: { lat: number; lng: number; altitudeMeters: number }[] = [];
-    for (const session of sessions) {
-      const s = interpolateSessionAt(
-        session.points,
-        session.anchorMs + offsetSec * 1000,
-        maxGapMs
-      );
-      if (s) samples.push(s);
+  if (offsetsSec.length === 0) {
+    return [];
+  }
+  const sorted = [...offsetsSec].sort((a, b) => a - b);
+  let anchorIndex = 0;
+  for (let i = 1; i < sorted.length; i += 1) {
+    if (Math.abs(sorted[i]!) < Math.abs(sorted[anchorIndex]!)) {
+      anchorIndex = i;
     }
-    if (samples.length < minSessions) continue;
+  }
 
+  const sampleAt = (session: AnchoredSession, offsetSec: number) =>
+    interpolateSessionAt(session.points, session.anchorMs + offsetSec * 1000, maxGapMs);
+
+  // The population: sessions that cover the anchor instant. Everything else is
+  // excluded outright rather than allowed to drift in and out later.
+  const population = sessions.filter((s) => sampleAt(s, sorted[anchorIndex]!) != null);
+  if (population.length < minSessions) {
+    return [];
+  }
+
+  const meanOf = (offsetSec: number): MeanTrackSample | null => {
+    const samples: { lat: number; lng: number; altitudeMeters: number }[] = [];
+    for (const session of population) {
+      const s = sampleAt(session, offsetSec);
+      if (!s) return null; // one gap ends the window — no membership changes
+      samples.push(s);
+    }
     const lat = samples.reduce((s, p) => s + p.lat, 0) / samples.length;
     const lng = samples.reduce((s, p) => s + p.lng, 0) / samples.length;
     const altitudeMeters =
@@ -184,14 +213,33 @@ export function meanTrackAroundApproach(
         return s + dx * dx + dy * dy;
       }, 0) / samples.length;
 
-    out.push({
+    return {
       offsetSec,
       lat,
       lng,
       altitudeMeters,
       sessionCount: samples.length,
       spreadMeters: Math.sqrt(variance),
-    });
+    };
+  };
+
+  const anchorSample = meanOf(sorted[anchorIndex]!);
+  if (!anchorSample) {
+    return [];
   }
-  return out;
+
+  const before: MeanTrackSample[] = [];
+  for (let i = anchorIndex - 1; i >= 0; i -= 1) {
+    const sample = meanOf(sorted[i]!);
+    if (!sample) break;
+    before.unshift(sample);
+  }
+  const after: MeanTrackSample[] = [];
+  for (let i = anchorIndex + 1; i < sorted.length; i += 1) {
+    const sample = meanOf(sorted[i]!);
+    if (!sample) break;
+    after.push(sample);
+  }
+
+  return [...before, anchorSample, ...after];
 }

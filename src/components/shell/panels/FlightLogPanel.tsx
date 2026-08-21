@@ -43,11 +43,18 @@ interface UpcomingOpportunity {
  *  UpcomingOpportunity minus `kind` (these never cleared NEAR_TOL_DEG). */
 type UpcomingClosest = Omit<UpcomingOpportunity, "kind">;
 
-/** Coverage slider bounds. 50 % is reachable only below ~9 km of altitude for a
- *  40 m airliner, so the top of the range is a real target, not a comfortable one. */
-const MIN_COVERAGE_SLIDER_MIN = 5;
-const MIN_COVERAGE_SLIDER_MAX = 50;
-const DEFAULT_MIN_COVERAGE_PERCENT = 10;
+/**
+ * Coverage slider bounds — a **floor**, never a ceiling.
+ *
+ * The band of interest starts at 25 %: below that the aircraft is a quarter of
+ * the Moon's width, which in practice means cruise traffic 40 km away. There
+ * is deliberately no upper filter — an aircraft wider than the disk (low
+ * approach traffic routinely clears 150 %) is a wanted result, not an outlier,
+ * so the slider's top only lets you ask for *those* and nothing smaller.
+ */
+const MIN_COVERAGE_SLIDER_MIN = 25;
+const MIN_COVERAGE_SLIDER_MAX = 150;
+const DEFAULT_MIN_COVERAGE_PERCENT = 25;
 const DEFAULT_MAX_SPOT_KM = 25;
 const SPOT_DISTANCE_OPTS = [5, 15, 25, 50] as const;
 
@@ -854,10 +861,14 @@ function PhotoSpotRow({
   selected: boolean;
   onSelect: (spot: PhotoSpotOpportunity | null) => void;
 }) {
+  // Bigger is better here, so the palette runs the same way: emerald once the
+  // silhouette covers half the disk (including the >100 % cases where it covers
+  // all of it), amber for the thin end of the band, neutral below it — only
+  // reachable via the `closest` near-miss list, which ignores the threshold.
   const coverageTone =
-    spot.coveragePercent >= 25
+    spot.coveragePercent >= 50
       ? "border-emerald-400/30 bg-emerald-500/15 text-emerald-300"
-      : spot.coveragePercent >= 10
+      : spot.coveragePercent >= 25
         ? "border-amber-400/25 bg-amber-500/10 text-amber-300"
         : "border-white/10 bg-white/[0.05] text-[color:var(--t-tertiary)]";
 
