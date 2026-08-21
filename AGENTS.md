@@ -234,6 +234,68 @@ Avion bez zapisa u indeksu (novi/vojni/čarter) ostaje na defaultu 40 m —
 konzervativno veći disk. **Server-side scan** (`/api/transit/scan`) ne radi
 index lookup pa uvijek koristi 40 m default.
 
+## Obrnuti problem — „gdje stati” (`moonShadowSpot.ts`)
+
+Cijeli pipeline iznad **fiksira promatrača** i pita hoće li avion proći preko
+Mjeseca. `solveMoonShadowSpot` rješava suprotan smjer: za dani avion (pozicija,
+visina, trenutak) traži **točku na tlu** s koje avion pada na disk Mjeseca —
+„sjenu” aviona duž mjesečeve zrake.
+
+**Ne koristiti `groundDistance = h / tan(moonAlt)`.** Ta zatvorena formula
+pretpostavlja ravnu Zemlju; na 30 km tlocrtne udaljenosti sfera padne ~70 m
+ispod tangentne ravnine, što nagne liniju gledanja za `g / 2R` ≈ **0.135°** —
+preko četvrtine promjera Mjeseca, dakle promašaj. Formula služi samo kao
+početna procjena, pa se Newtonovim koracima dotjera nad istom ECEF geometrijom
+koju koristi ostatak aplikacije, uz **ponovni izračun Mjeseca u kandidatnoj
+točki** svakog koraka (topocentrična paralaksa pomiče Mjesec ~0.0075° na svakih
+50 km pomaka promatrača).
+
+### Pokrivenost je ograničena visinom — 50 % često ne postoji
+
+Na samoj tranzitnoj točki slant je `h / sin(moonAlt)`, pa je
+
+```
+coverage% = 11459 · wingspan[m] · sin(moonAlt) / h[m]
+```
+
+| Avion | Visina | Max coverage (Mjesec u zenitu) | Za 50 % treba |
+|---|---|---|---|
+| 40 m raspon (default) | 11 km | **41.7 %** | nemoguće |
+| A380 (79.8 m) | 11 km | 83 % | Mjesec ≥ 37° |
+| A320 na prilazu | 900 m | >400 % | trivijalno |
+
+Zato `/api/flight-log/photo-spots` **uvijek** vraća `bestCoveragePercent` —
+prazna lista na pragu od 50 % je činjenica o nebu, ne bug. `maxCoveragePercentForAltitude()`
+je ista računica kao pomoćna funkcija.
+
+### Tolerancija je elipsa, ne krug
+
+Da avion ostane na disku, promatrač smije odstupiti:
+- **poprečno** na azimut Mjeseca: `moonApparentRadius[rad] · slant` (na 30 km ≈ **±130 m**, na 10 km ≈ ±44 m)
+- **uzduž** azimuta: isto `/ sin(moonAlt)` — uvijek labavije
+
+Zato je upotrebljiva površina elipsa izdužena prema Mjesecu. Isti razlog zbog
+kojeg postoje trake `standCorridorQuads`.
+
+### Dva potrošača istog solvera
+
+1. **Planer (B)** — `/api/flight-log/photo-spots`. Obrnuti blizanac
+   `transit-calendar`: dijele `callsignSchedule.ts` (circular-mean raspored +
+   closest approach), ali umjesto provjere separacije s balkona računa se
+   točka na tlu za **srednju putanju u vremenski poravnatim koordinatama**
+   (`meanTrackAroundApproach`). Izlaz nosi i `trackSpreadM` — povijesno
+   rasipanje same rute; kad je puno veće od `crossTrackToleranceM`, prognoza
+   imenuje kvart, ne parkirno mjesto. Filteri: `MIN_AIRCRAFT_AGL_M = 300`
+   (slijetanja i taxi ruše ravnu-podlogu pretpostavku), `MIN_SOLVED_SAMPLES = 5`,
+   `maxSpreadKm` (default 2.5).
+2. **Live (A)** — `liveShadowTrack.ts` + `useSelectedFlightShadowTrack`. Za
+   **odabrani** avion crta centralnu liniju idućih 300 s (isti horizont kao
+   `MAX_ALIGNMENT_LOOKAHEAD_SEC` — dalje dead-reckoning laže). Točka putuje
+   brzinom aviona (~15 km/min), pa ovo nije mjesto na koje se stigne odvesti
+   nego odgovor na „jesam li na liniji i na koju stranu”. Računa se na
+   **bucketu od 5 s**, ne na 4 Hz field ticku — vidi CPU incident u sekciji o
+   `useSharedTransitComputation`.
+
 ## Shot feasibility — zelena ikona na mapi
 
 Dvije neovisne provjere:

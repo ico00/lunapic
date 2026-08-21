@@ -41,6 +41,7 @@ import { useObserverStore } from "@/stores/observer-store";
 import type { GeoBounds, MapViewState } from "@/types";
 import type { FlightState } from "@/types/flight";
 import type { MapDisplayMode } from "@/types/map-display";
+import type { PhotoSpotOpportunity } from "@/types/photoSpot";
 import type { FlightProviderId } from "@/types/flight-provider";
 
 /** Koji live REST izvori su uključeni (ICAO24 se spaja u jedan zapis po zrakoplovu). */
@@ -188,6 +189,12 @@ type MoonTransitState = {
   /** LDZA (Zagreb Airport) runway 04/22 reference line overlay — off by default. */
   airportRunwayOverlay: boolean;
   setAirportRunwayOverlay: (v: boolean) => void;
+  /**
+   * Live "stand here" centerline for the selected aircraft — off by default,
+   * since it only means anything once a specific flight is selected.
+   */
+  transitCenterlineOverlay: boolean;
+  setTransitCenterlineOverlay: (v: boolean) => void;
   /** ICAO24 selected from the Flight log panel — triggers trail render on the main map. */
   flightLogSelectedIcao24: string | null;
   flightLogDaysBack: number;
@@ -203,6 +210,13 @@ type MoonTransitState = {
   /** Altitude profile for the selected callsign (from callsign-analysis API). */
   flightLogAltitude: FlightLogAltitude | null;
   setFlightLogAltitude: (a: FlightLogAltitude | null) => void;
+  /**
+   * "Stand here" opportunity picked in the Flight log panel — drives the spot
+   * marker, its tolerance ellipse and the shadow path on the main map. The
+   * panel owns the fetch; the map layer only renders what is selected.
+   */
+  photoSpotSelected: PhotoSpotOpportunity | null;
+  setPhotoSpotSelected: (spot: PhotoSpotOpportunity | null) => void;
   setFlightProvider: (id: FlightProviderId) => void;
   setLiveFlightFeeds: (patch: Partial<LiveFlightFeeds>) => void;
   /** Ako je još `static` (stari build), prebaci na live dual — static nije u comboboxu. */
@@ -422,6 +436,8 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   setFlightHistoryRoutes: (v) => set({ flightHistoryRoutes: v }),
   airportRunwayOverlay: false,
   setAirportRunwayOverlay: (v) => set({ airportRunwayOverlay: v }),
+  transitCenterlineOverlay: false,
+  setTransitCenterlineOverlay: (v) => set({ transitCenterlineOverlay: v }),
   flightLogSelectedIcao24: null,
   flightLogDaysBack: 7,
   setFlightLogSelected: (icao24, days) =>
@@ -443,6 +459,8 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   setFlightLogNextPass: (p) => set({ flightLogNextPass: p }),
   flightLogAltitude: null,
   setFlightLogAltitude: (a) => set({ flightLogAltitude: a }),
+  photoSpotSelected: null,
+  setPhotoSpotSelected: (spot) => set({ photoSpotSelected: spot }),
   setFlightProvider: (id) =>
     set((s) => {
       let liveFlightFeeds = s.liveFlightFeeds;

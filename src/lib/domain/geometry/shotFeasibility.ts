@@ -73,7 +73,8 @@ export type ShotFeasibility = {
   readonly moonFrameAreaPercent: number;
 };
 
-const DEFAULT_WINGSPAN_M = 40;
+/** Conservative stand-in when the type index has no entry (new/military/charter). */
+export const DEFAULT_WINGSPAN_M = 40;
 const BASELINE_RANGE_M = 120_000;
 const BASELINE_FOCAL_MM = 600;
 const MOON_REFERENCE_DIAMETER_DEG = 0.5;

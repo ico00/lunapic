@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dbVersionKey, getAllCallsignSessions, type RoutePoint } from "@/lib/db/flightLogDb";
+import {
+  closestApproachInSession,
+  predictNextApproach,
+  type ClosestApproach,
+} from "@/lib/domain/flightlog/callsignSchedule";
 import { getMoonState } from "@/lib/domain/astro/moon";
 import { CRITICAL_BELOW_DEG } from "@/lib/domain/astro/moonFieldVisibilityAdvice";
 import { horizontalToPoint } from "@/lib/domain/geometry/horizontal";
@@ -7,6 +12,7 @@ import { angularSeparationDeg } from "@/lib/domain/geometry/sky-separation";
 import {
   aircraftAngularSizeDeg,
   CAMERA_SENSOR_CROP,
+  DEFAULT_WINGSPAN_M,
   horizontalFovDeg,
   verticalFovDeg,
   type CameraSensorType,
@@ -37,18 +43,9 @@ const JSON_HEADERS = { ...NO_CACHE, "Content-Type": "application/json" };
 
 const MAX_SLANT_M = 100_000;
 const NEAR_TOL_DEG = 0.5;
-const DEFAULT_WINGSPAN_M = 40;
 const DAY_MS = 86_400_000;
 /** Below this, a callsign's historical passes are too sparse to trust a schedule. */
 const MIN_QUALIFYING_SESSIONS = 3;
-
-interface ClosestApproach {
-  timeMs: number;
-  lat: number;
-  lng: number;
-  altM: number;
-  slantM: number;
-}
 
 /** Every candidate that clears the moon-visibility floor, before the
  *  NEAR_TOL_DEG split into `entries` vs. `closest` fallback. */
@@ -92,61 +89,6 @@ export interface TransitCalendarEntry {
  *  `entries` is empty, so the panel always has *something* to show instead
  *  of a flat "nothing found". */
 export type TransitCalendarClosest = Omit<TransitCalendarEntry, "kind">;
-
-/** Closest point (by ECEF slant distance) a session's track passes to the observer, or null if it never comes within MAX_SLANT_M. */
-function closestApproachInSession(
-  points: RoutePoint[],
-  pObs: { x: number; y: number; z: number }
-): ClosestApproach | null {
-  let best: ClosestApproach | null = null;
-  for (const p of points) {
-    if (p.alt_baro_m == null) continue;
-    const pAc = geodeticToEcef(p.lat, p.lng, p.alt_baro_m);
-    const slantM = Math.hypot(pAc.x - pObs.x, pAc.y - pObs.y, pAc.z - pObs.z);
-    if (!best || slantM < best.slantM) {
-      best = { timeMs: p.logged_at, lat: p.lat, lng: p.lng, altM: p.alt_baro_m, slantM };
-    }
-  }
-  if (!best || best.slantM > MAX_SLANT_M) return null;
-  return best;
-}
-
-/**
- * Circular-mean time-of-day prediction, same statistics as
- * `callsign-analysis`'s `computeNextPass` but anchored on each session's
- * closest-approach timestamp — the moment that actually matters for a
- * transit — rather than the session's overall mid-time.
- */
-function predictNextApproach(
-  approaches: ClosestApproach[],
-  nowMs: number
-): { estimateMs: number; stdMinutes: number; weekdays: number[] } | null {
-  let sx = 0, sy = 0;
-  for (const a of approaches) {
-    const angle = ((a.timeMs % DAY_MS) / DAY_MS) * 2 * Math.PI;
-    sx += Math.cos(angle);
-    sy += Math.sin(angle);
-  }
-  const n = approaches.length;
-  const R = Math.sqrt(sx * sx + sy * sy) / n;
-  if (R < 0.5) return null; // scattered across the day — not a regular schedule
-
-  const meanAngle = Math.atan2(sy, sx);
-  const meanDayMs = (((meanAngle / (2 * Math.PI)) * DAY_MS) + DAY_MS) % DAY_MS;
-  const stdMinutes = Math.sqrt(-2 * Math.log(R)) * (1440 / (2 * Math.PI));
-
-  const weekdays = [...new Set(approaches.map((a) => new Date(a.timeMs).getUTCDay()))].sort();
-  const useWeekdays = n >= 4 && weekdays.length < 7;
-
-  const todayStart = Math.floor(nowMs / DAY_MS) * DAY_MS;
-  for (let d = 0; d < 32; d++) {
-    const candidate = todayStart + d * DAY_MS + meanDayMs;
-    if (candidate <= nowMs) continue;
-    if (useWeekdays && !weekdays.includes(new Date(candidate).getUTCDay())) continue;
-    return { estimateMs: candidate, stdMinutes: Math.round(stdMinutes), weekdays };
-  }
-  return null;
-}
 
 const bodyCache = createTtlBodyCache(15 * 60_000, 8);
 
@@ -198,7 +140,7 @@ export async function GET(req: NextRequest) {
   for (const [callsign, sessions] of sessionsByCallsign) {
     const approaches: ClosestApproach[] = [];
     for (const session of sessions) {
-      const ca = closestApproachInSession(session, pObs);
+      const ca = closestApproachInSession(session, pObs, MAX_SLANT_M);
       if (ca) approaches.push(ca);
     }
     if (approaches.length < MIN_QUALIFYING_SESSIONS) continue;
