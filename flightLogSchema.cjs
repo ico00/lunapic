@@ -31,12 +31,27 @@ function migrate(db) {
       rssi          REAL,
       registration  TEXT,
       aircraft_type TEXT,
-      logged_at     INTEGER NOT NULL
+      logged_at     INTEGER NOT NULL,
+      source        TEXT
     )
   `);
   db.run(`CREATE INDEX IF NOT EXISTS idx_pos_icao24    ON positions(icao24)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_pos_logged_at ON positions(logged_at)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_pos_callsign  ON positions(callsign)`);
+
+  // Dodano 2026-08-21 (source po zapisu — localsdr i avionix su dva neovisna RF
+  // prijemnika koji su prije dijelili isti positions stream nerazlučivo, pa im
+  // je RF/multipath šum jedan drugom kvario trag kad su oba vidjela isti avion
+  // u istom ticku — vidi napomenu o cik-cak trailu u AGENTS.md). Postojeća
+  // produkcijska baza (233 MB+) već ima `positions` bez ove kolone, pa CREATE
+  // TABLE IF NOT EXISTS iznad ne pomaže — isti ALTER TABLE + guard obrazac kao
+  // za `aircraft` tablicu niže.
+  const positionsCols = new Set(
+    db.all(`PRAGMA table_info(positions)`).map((r) => r.name)
+  );
+  if (!positionsCols.has("source")) {
+    db.run(`ALTER TABLE positions ADD COLUMN source TEXT`);
+  }
   db.run(`
     CREATE TABLE IF NOT EXISTS aircraft (
       icao24        TEXT PRIMARY KEY,

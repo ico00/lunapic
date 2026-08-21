@@ -41,6 +41,8 @@ export interface PositionRow {
   registration: string | null;
   aircraft_type: string | null;
   logged_at: number;
+  /** Koji je receiver upisao ovaj red: "localsdr" | "avionix" | null (stariji redci prije 2026-08-21). */
+  source: string | null;
 }
 
 export interface AircraftRow {
