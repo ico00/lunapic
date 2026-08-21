@@ -1,4 +1,12 @@
-import { destinationByAzimuthMeters, toDeg, toRad } from "@/lib/domain/geometry/wgs84";
+import { destinationByAzimuthMeters, initialBearingDeg } from "@/lib/domain/geometry/wgs84";
+
+/**
+ * Re-export: implementacija je preseljena u `wgs84.ts` (uz
+ * `destinationByAzimuthMeters`, njen inverz) da je i drugi moduli mogu
+ * koristiti bez importa iz ovog config modula. Postojeći importi i testovi
+ * odavde ostaju netaknuti.
+ */
+export { initialBearingDeg };
 
 /**
  * LDZA (Zagreb Airport) runway reference line — pure visual aid for
@@ -34,18 +42,6 @@ export const LDZA_RUNWAY_04_22_LINE: readonly [lat: number, lng: number][] = [
  * overstate how far out the reference track is reliable.
  */
 export const APPROACH_EXTENSION_METERS = 5_556; // 3 NM
-
-/** Great-circle initial bearing from `a` to `b`, degrees from true north. */
-export function initialBearingDeg(a: readonly [number, number], b: readonly [number, number]): number {
-  const [lat1, lng1] = a;
-  const [lat2, lng2] = b;
-  const φ1 = toRad(lat1);
-  const φ2 = toRad(lat2);
-  const Δλ = toRad(lng2 - lng1);
-  const y = Math.sin(Δλ) * Math.cos(φ2);
-  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
-  return (toDeg(Math.atan2(y, x)) + 360) % 360;
-}
 
 /** Straight extension tip past each threshold, along the terminal pavement segment's bearing. */
 export function buildApproachExtensionTips(): {
