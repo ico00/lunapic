@@ -306,6 +306,83 @@ kojeg postoje trake `standCorridorQuads`.
    **bucketu od 5 s**, ne na 4 Hz field ticku — vidi CPU incident u sekciji o
    `useSharedTransitComputation`.
 
+### Cijena forecast ruta — cache, indeks, ANALYZE (2026-08-21)
+
+`photo-spots` i `transit-calendar` su **skupe po pozivu** i keširane. Sve tri
+stvari niže su naučene u produkciji; svaka je jednom već bila tiho slomljena.
+
+**1. Cache ključ ne smije pratiti datoteku.** `dbVersionKey()`
+(`flightLogDb.ts`) vraća `${ino}:${floor(MAX(id) / 5000)}`, a NE `mtime:size`.
+Poller prepisuje bazu svakih ~15 s, pa je ključ na `mtime` jedinstven po
+zahtjevu i TTL cache je mrtav kod — točno to se i događalo do 2026-08-21
+(izmjereno: dva uzastopna identična zahtjeva, 12.1 s i 12.3 s). Tri dijela,
+tri različita razloga: `ino` je **egzaktan** (vraćena/zamijenjena baza ne smije
+posluživati stare rezultate), bucket po `MAX(id)` hvata *koliko* je povijesti
+stiglo (bulk import preskoči više bucketa odjednom i invalidira odmah), a TTL
+pozivatelja (5–15 min) je strop zastarjelosti i jedini koji u normalnom radu
+uopće okine.
+
+**2. Čitanje je I/O-bound, ne CPU-bound.** `getAllCallsignSessions` čita cijeli
+prozor (default 30 dana ≈ 1.3 M redaka). Nosi ga
+`idx_pos_callsign_time_cover(callsign, logged_at, lat, lng, alt_geom_m,
+alt_baro_m)` — **covering**, pa se tablica ne dira i nema sorta. Bez njega:
+105 863 read poziva / 434 MB po zahtjevu; s njim: 36 199 / 148 MB (mjereno na
+sintetičkom logu od 2.5 M redaka). Uski `idx_pos_callsign` je time suvišan
+(`callsign` mu je vodeći stupac) i namjerno je obrisan. Redci se čitaju
+`Statement.iterate()`, ne `db.all()` — `all()` materijalizira 1.6 M+ objekata
+u niz da bi ih se jednom prošlo.
+
+**3. ⚠️ Indeks bez `ANALYZE` planer IGNORIRA.** Najvažnija stavka ovdje.
+Indeks je na produkciji bio uredno izgrađen, a upit je i dalje išao
+`idx_pos_logged_at` + TEMP B-TREE. Uzrok je u statistici koju `ANALYZE` zapiše:
+`idx_pos_logged_at -> 1597107 1`, dakle **jedan redak po jedinstvenom
+`logged_at`** — timestampovi su gotovo jedinstveni, pa bez statistike SQLite
+pretpostavi da je `logged_at BETWEEN` vrlo selektivan, iako taj raspon vraća
+79 % tablice (30-dnevni prozor nad 60 dana povijesti). Lokalno se to NE vidi
+ako testna baza ima točno onoliko povijesti koliko i prozor.
+
+**Indeks se gradi `scripts/build-flight-log-index.mjs`, nikad pri startu.**
+`migrate()` ga stvara s `IF NOT EXISTS`, ali `migrate()` se zove iz `server.js`
+**prije** `server.listen()`, a driver je sinkron — prva izgradnja nad
+produkcijskom bazom (7.1 s na 243 MB) znači da app toliko dugo **ne sluša na
+portu**. Skripta radi isto dok app normalno radi (cijena: poller preskoči koji
+tick), uvijek pokrene i `ANALYZE`, i ima `--dry-run`. Nakon nje je
+`migrate()` no-op od ~1 ms.
+
+### Ne zvati `getMoonState` iz geometrije
+
+`getMoonState` radi **pet** astronomy-engine poziva: `Equator` + `Horizon` za
+poziciju, pa `MoonPhase` i još dva `Equator` (jedan za Sunce) samo za
+`phaseFraction`/`illuminationFraction`. Faza je **67 %** cijene (mjereno na
+20 000 izračuna: 126 ms pozicija, 260 ms faza).
+
+Solveri (`solveMoonShadowSpot`, `liveShadowTrack`) čitaju samo altitudu,
+azimut i prividni radijus, a Mjesec evaluiraju desetke tisuća puta po
+zahtjevu — zato koriste **`getMoonPosition`** i tip `MoonPosition`.
+`createMoonStateCache` također vraća `MoonPosition`. `getMoonState` je za
+prikaz (faza, osvijetljenost).
+
+Cache Mjeseca ima ~23 % pogodaka i to je **strukturno**: vrijeme se ne smije
+bucketirati (Mjesec se giba ~0.25°/min), a svaki uzorak je na svom trenutku.
+Optimizira se cijena promašaja, ne hit rate.
+
+### Gdje ide vrijeme u `photo-spots` (profil, ne pretpostavka)
+
+Prije bilo kakve optimizacije — izmjeri. Dva puta je intuicija ovdje bila
+kriva:
+
+* Newton petlja u `solveMoonShadowSpot` vrti se **0.69 iteracija po pozivu**
+  (33 795 poziva, 23 405 iteracija) — većina izađe prije petlje, na pragu
+  Mjesečeve visine. Optimizacija početne procjene tu **nema što skratiti**.
+* Sintetička testna baza vjerna po broju redaka i veličini i dalje može lagati:
+  premala dubina povijesti sakrila je `ANALYZE` problem, a brži lokalni CPU
+  dao je projekciju 2.9 s za nešto što je na produkciji bilo 7.9 s. DB dio je
+  I/O-bound (disk usporediv), solver je čisti CPU (dijeljeni vCPU višestruko
+  sporiji).
+
+Stanje nakon svega (produkcija, cold, svjež cache ključ): `photo-spots` ~4.0 s,
+`transit-calendar` ~2.5 s, keširano 0.10–0.14 s.
+
 ## Shot feasibility — zelena ikona na mapi
 
 Dvije neovisne provjere:
