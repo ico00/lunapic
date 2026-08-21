@@ -127,18 +127,65 @@ function openReadDb(): Database | null {
 }
 
 /**
- * Opaque version of the on-disk database ("none" while the file doesn't
- * exist). API routes use it to memoize expensive responses. The writer now
- * commits directly every poll tick (~15 s), so this changes often; the TTL
- * body caches still collapse request bursts within a tick, which is the case
- * that matters.
+ * One bucket of "meaningfully new history". See `dbVersionKey`.
+ *
+ * Production ingests ~60 k positions/day (~2.5 k/h), so 5 000 rows is roughly
+ * two hours of full-sky coverage — order a hundred complete passes, enough to
+ * move a schedule forecast. Anything smaller is under 0.3 % of the ~1.6 M rows
+ * a 30-day window already holds and cannot change the answer.
+ */
+export const VERSION_BUCKET_ROWS = 5_000;
+
+/**
+ * Coarse version of the on-disk database ("none" while the file doesn't
+ * exist), used by the API routes' TTL body caches as part of their cache key.
+ *
+ * A version key has to change when the answer would change and — just as
+ * importantly — *not* change otherwise. This used to be `${mtimeMs}:${size}`,
+ * which fails the second half completely: `server.js` commits every poll tick
+ * (~15 s), so in production no two requests ever shared a key and the caches
+ * were dead code. Measured 2026-08-21 on production, twice in a row with
+ * identical params: `photo-spots` 12.8 s, `transit-calendar` 4.5 s.
+ *
+ * Three parts now cover the three distinct ways the data can change:
+ *  - `ino` — the file was *replaced* (backup restore, manual copy). Exact, and
+ *    stays exact: results computed against a different database must never be
+ *    reused, and this is the same signal `openReadDb` reopens on.
+ *  - `MAX(id) / VERSION_BUCKET_ROWS` — how much history has landed, in coarse
+ *    buckets. The writer only appends and `positions.id` is AUTOINCREMENT, so
+ *    this is a monotone row counter, and `MAX(id)` is a rightmost descent of
+ *    the primary-key btree — O(log n) no matter how large the file grows
+ *    (233 MB+ and growing by design, see AGENTS.md).
+ *  - the caller's own TTL — the ceiling on staleness.
+ *
+ * In steady state the TTL is what fires: at the current rate a bucket takes
+ * ~2 h to roll, far longer than any TTL here (5–15 min), so ordinary ingest no
+ * longer busts anything. The row bucket earns its place in the abnormal case
+ * the exact key was there for — a bulk import or a catch-up backfill jumps
+ * several buckets at once and invalidates on the very next request, rather
+ * than waiting out the TTL.
  */
 export function dbVersionKey(): string {
+  let ino: bigint | number;
   try {
-    const st = fs.statSync(dbPath());
-    return `${st.mtimeMs}:${st.size}`;
+    ino = fs.statSync(dbPath()).ino;
   } catch {
     return "none";
+  }
+
+  const db = openReadDb();
+  if (!db) return `${ino}:unknown`;
+  try {
+    const maxId =
+      (withBusyRetry(() => db.get("SELECT MAX(id) AS n FROM positions")) as {
+        n: number | null;
+      } | null)?.n ?? 0;
+    return `${ino}:${Math.floor(maxId / VERSION_BUCKET_ROWS)}`;
+  } catch {
+    // BUSY past the retries, or the table mid-migration. Degrade to a plain
+    // TTL cache (stable key) rather than to a per-request key — the latter is
+    // the bug this function exists to not have.
+    return `${ino}:unknown`;
   }
 }
 
