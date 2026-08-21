@@ -1,6 +1,6 @@
-import { getMoonState } from "@/lib/domain/astro/moon";
+import { getMoonPosition } from "@/lib/domain/astro/moon";
 import { CRITICAL_BELOW_DEG } from "@/lib/domain/astro/moonFieldVisibilityAdvice";
-import type { MoonState } from "@/types";
+import type { MoonPosition } from "@/types";
 import {
   DEFAULT_WINGSPAN_M,
   aircraftAngularSizeDeg,
@@ -85,7 +85,7 @@ export type SolveMoonShadowSpotArgs = {
    * 5-minute live lookahead) can share one cache instead of paying for a
    * fresh astronomy-engine solve on every Newton step.
    */
-  readonly moonAt?: (atMs: number, lat: number, lng: number, elevM: number) => MoonState;
+  readonly moonAt?: (atMs: number, lat: number, lng: number, elevM: number) => MoonPosition;
 };
 
 /** Signed difference a − b folded into (−180, 180]. */
@@ -137,7 +137,7 @@ export function solveMoonShadowSpot(args: SolveMoonShadowSpotArgs): MoonShadowSp
     atMs,
     groundHeightMeters = 0,
     wingspanMeters = DEFAULT_WINGSPAN_M,
-    moonAt = (t, lat, lng, elevM) => getMoonState(new Date(t), lat, lng, elevM),
+    moonAt = (t, lat, lng, elevM) => getMoonPosition(new Date(t), lat, lng, elevM),
   } = args;
 
   const heightAboveGround = aircraftAltitudeMeters - groundHeightMeters;

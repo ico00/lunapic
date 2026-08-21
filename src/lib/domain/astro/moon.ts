@@ -1,5 +1,5 @@
 import * as Astronomy from "astronomy-engine";
-import type { MoonState } from "@/types";
+import type { MoonPosition, MoonState } from "@/types";
 
 const MOON_MEAN_RADIUS_KM = 1737.4;
 
@@ -8,12 +8,26 @@ const MOON_MEAN_RADIUS_KM = 1737.4;
  * Uses astronomy-engine (USNO-grade, <1 arcminute accuracy) instead of the
  * simplified SunCalc lunar theory that was off by up to ~0.5°.
  */
-export function getMoonState(
+/**
+ * Position only — no phase, no illumination.
+ *
+ * This is the half that geometry needs and the cheap half by a wide margin:
+ * the two calls below cost ~33 % of a full `getMoonState`, the phase half the
+ * other ~67 % (`MoonPhase` plus two more `Equator` calls, one of them for the
+ * Sun). `solveMoonShadowSpot` evaluates the Moon once per Newton step over
+ * tens of thousands of candidate points per request and reads only altitude,
+ * azimuth and apparent radius, so paying for phase there was pure waste —
+ * measured at 846 ms, a third of a cold `photo-spots` request.
+ *
+ * Same inputs and same arithmetic as `getMoonState`; the fields it returns are
+ * bit-identical.
+ */
+export function getMoonPosition(
   at: Date,
   observerLat: number,
   observerLng: number,
   observerElevM = 0
-): MoonState {
+): MoonPosition {
   const observer = new Astronomy.Observer(observerLat, observerLng, observerElevM);
 
   // Equatorial coordinates with aberration + light-time correction, geocentric→topocentric
@@ -24,6 +38,23 @@ export function getMoonState(
 
   const distKm = eq.dist * 149597870.7; // AU → km
   const apparentRadiusDeg = (Math.atan(MOON_MEAN_RADIUS_KM / distKm) * 180) / Math.PI;
+
+  return {
+    altitudeDeg: hor.altitude,
+    azimuthDeg: hor.azimuth,
+    distanceKm: distKm,
+    apparentRadius: { degrees: apparentRadiusDeg },
+  };
+}
+
+export function getMoonState(
+  at: Date,
+  observerLat: number,
+  observerLng: number,
+  observerElevM = 0
+): MoonState {
+  const position = getMoonPosition(at, observerLat, observerLng, observerElevM);
+  const observer = new Astronomy.Observer(observerLat, observerLng, observerElevM);
 
   const ill = Astronomy.MoonPhase(at);
   // MoonPhase returns ecliptic longitude difference [0,360); map to [0,1) phase fraction
@@ -41,12 +72,5 @@ export function getMoonState(
     );
   const illuminationFraction = (1 - Math.cos(elongRad)) / 2;
 
-  return {
-    altitudeDeg: hor.altitude,
-    azimuthDeg: hor.azimuth,
-    distanceKm: distKm,
-    apparentRadius: { degrees: apparentRadiusDeg },
-    phaseFraction,
-    illuminationFraction,
-  };
+  return { ...position, phaseFraction, illuminationFraction };
 }
