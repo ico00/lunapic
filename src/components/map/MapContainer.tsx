@@ -8,6 +8,8 @@ import { FieldPerfOverlay } from "@/components/perf/FieldPerfOverlay";
 import { useExtrapolatedFlightsForMap } from "@/hooks/useExtrapolatedFlightsForMap";
 import { useAirportRunwayLayer } from "@/hooks/useAirportRunwayLayer";
 import { useCallsignHistoryLayer } from "@/hooks/useCallsignHistoryLayer";
+import { usePhotoSpotLayer } from "@/hooks/usePhotoSpotLayer";
+import { useSelectedFlightShadowTrack } from "@/hooks/useSelectedFlightShadowTrack";
 import { useFlightHistoryLayers } from "@/hooks/useFlightHistoryLayers";
 import { useSelectedFlightTrail } from "@/hooks/useSelectedFlightTrail";
 import { useMapFlightPick } from "@/hooks/useMapFlightPick";
@@ -61,6 +63,7 @@ export function MapContainer({
   const moon = useMoonStateComputed();
   const referenceEpochMs = useMoonTransitStore((s) => s.referenceEpochMs);
   const selectedFlightId = useMoonTransitStore((s) => s.selectedFlightId);
+  const transitCenterlineOverlay = useMoonTransitStore((s) => s.transitCenterlineOverlay);
   const setSelectedFlightId = useMoonTransitStore((s) => s.setSelectedFlightId);
   const cameraFocalLengthMm = useMoonTransitStore((s) => s.cameraFocalLengthMm);
   const cameraSensorType = useMoonTransitStore((s) => s.cameraSensorType);
@@ -222,6 +225,14 @@ export function MapContainer({
   useAirportRunwayLayer(mapRef, mapReadyTick);
   useSelectedFlightTrail(mapRef, mapReadyTick);
   useCallsignHistoryLayer(mapRef, mapReadyTick);
+  usePhotoSpotLayer(mapRef, mapReadyTick);
+  useSelectedFlightShadowTrack(mapRef, mapReadyTick, {
+    observer,
+    selectedFlightId,
+    flights: filteredFlights,
+    nowMs: wallNowMs,
+    enabled: transitCenterlineOverlay,
+  });
 
   const moonBelowHorizon = !isMoonVisibleFromMoonState(moon);
   useMapMoonHorizonDeemphasis(mapRef, mapReadyTick, moonBelowHorizon);

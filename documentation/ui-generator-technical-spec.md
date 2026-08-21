@@ -384,6 +384,8 @@ Sve promjene vizuala na letovima / Mjesecu treba raditi kroz postojeće **source
 | `SELECTED_STAND_SOURCE` / `SELECTED_STAND_SPINE_SOURCE` | Traka / spine za odabrani avion |
 | `SELECTED_FLIGHT_TRAJECTORY_*` | Kratka predikcija putanje + label |
 | `MAPBOX_TERRAIN_DEM_SOURCE` | DEM za elevaciju promatrača |
+| `PHOTO_SPOT_SOURCE` / `PHOTO_SPOT_PATH_SOURCE` | „Gdje stati” prognoza iz Flight log panela: točka + elipsa tolerancije + krug rasipanja, i putanja sjene |
+| `LIVE_SHADOW_SOURCE` / `LIVE_SHADOW_PATH_SOURCE` | Live centralna linija odabranog aviona + minutne oznake |
 
 **MapContainer** također: `data-testid="map-surface"`; bez tokena `data-testid="map-missing-token"`. Popup klasa: `.moon-transit-aircraft-popup` (desktop `z-index: 20`; mobile `max-width: 767px` → **80**, iznad bottom tabova).
 
@@ -391,6 +393,8 @@ Sve promjene vizuala na letovima / Mjesecu treba raditi kroz postojeće **source
 
 - **`shotFeasibleFlightIds`:** podskup letova koji prolaze screening + max domet kamere — koristi se za vizualno istaknuti „izvedive” markere.
 - **`isGolden`:** prosljeđuje se u `useMoonTransitMap` za nisan / okvir markera.
+- **„Gdje stati” slojevi:** **emerald** = cilj (točka i elipsa tolerancije — mjesto na koje treba stati), **amber** = sve vremensko (putanja sjene, minutne oznake `+1m`, `+2m`…), **sky** = nesigurnost (krug povijesnog rasipanja rute, `fill 0.10` / rub `0.35`). Tri mjerila namjerno se crtaju zajedno: elipsa je desetci metara, rasipanje stotine metara do kilometara — kontrast između njih **jest** poruka.
+- **Bedž pokrivenosti** (`PhotoSpotRow`): ≥ 25 % emerald, 10–25 % amber, < 10 % neutralno (`bg-white/[0.05]`, tercijarni tekst). Prag na klizaču je 5–50 %; 50 % je dostižno samo ispod ~9 km visine aviona.
 
 ---
 

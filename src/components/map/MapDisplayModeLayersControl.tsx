@@ -91,6 +91,8 @@ export function MapDisplayModeLayersControl() {
   const setFlightHistoryRoutes = useMoonTransitStore((s) => s.setFlightHistoryRoutes);
   const airportRunwayOverlay = useMoonTransitStore((s) => s.airportRunwayOverlay);
   const setAirportRunwayOverlay = useMoonTransitStore((s) => s.setAirportRunwayOverlay);
+  const transitCenterlineOverlay = useMoonTransitStore((s) => s.transitCenterlineOverlay);
+  const setTransitCenterlineOverlay = useMoonTransitStore((s) => s.setTransitCenterlineOverlay);
   const hasMounted = useHasMounted();
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -313,6 +315,25 @@ export function MapDisplayModeLayersControl() {
               checked={airportRunwayOverlay}
               onChange={(e) => setAirportRunwayOverlay(e.target.checked)}
               aria-label="Toggle Zagreb Airport runway reference line"
+            />
+          </label>
+        </div>
+
+        {/* Where the photographer must stand for the selected aircraft */}
+        <div className="shrink-0 border-b border-[color:var(--glass-stroke)] px-3 py-2">
+          <div className="mb-2 font-[family-name:var(--font-jetbrains-mono)] text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-secondary)]">
+            Transit centerline
+          </div>
+          <label className="flex cursor-pointer items-center justify-between gap-3">
+            <span className="text-[length:var(--fs-label)] text-[color:var(--t-primary)]">
+              Stand-here line (selected aircraft)
+            </span>
+            <input
+              type="checkbox"
+              className={shellGlassCheckboxClass}
+              checked={transitCenterlineOverlay}
+              onChange={(e) => setTransitCenterlineOverlay(e.target.checked)}
+              aria-label="Toggle the stand-here centerline for the selected aircraft"
             />
           </label>
         </div>

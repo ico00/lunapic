@@ -64,3 +64,29 @@ export const AIRPORT_RUNWAY_LAYER_ID = "airport-runway-layer";
 export const AIRPORT_RUNWAY_PAVEMENT_LAYER_ID = "airport-runway-pavement-layer";
 export const AIRPORT_RUNWAY_LABEL_SOURCE = "airport-runway-label-geo";
 export const AIRPORT_RUNWAY_LABEL_LAYER_ID = "airport-runway-label-layer";
+
+/**
+ * "Stand here" photo-spot forecast picked in the Flight log panel: the spot
+ * itself with its tolerance ellipse and historical-spread circle, plus the
+ * ground track the spot sweeps during the pass.
+ */
+export const PHOTO_SPOT_SOURCE = "photo-spot-geo";
+/** Historical track scatter (widest, faintest — how much of a lottery this is). */
+export const PHOTO_SPOT_SPREAD_LAYER_ID = "photo-spot-spread-layer";
+/** Where you must actually stand (tens of metres, elongated toward the Moon). */
+export const PHOTO_SPOT_TOLERANCE_LAYER_ID = "photo-spot-tolerance-layer";
+export const PHOTO_SPOT_POINT_LAYER_ID = "photo-spot-point-layer";
+export const PHOTO_SPOT_LABEL_LAYER_ID = "photo-spot-label-layer";
+export const PHOTO_SPOT_PATH_SOURCE = "photo-spot-path-geo";
+export const PHOTO_SPOT_PATH_LAYER_ID = "photo-spot-path-layer";
+
+/**
+ * Live "stand here" centerline for the selected aircraft — the ground track its
+ * Moon shadow sweeps over the next few minutes, with the current spot on it.
+ */
+export const LIVE_SHADOW_SOURCE = "live-shadow-geo";
+export const LIVE_SHADOW_TOLERANCE_LAYER_ID = "live-shadow-tolerance-layer";
+export const LIVE_SHADOW_POINT_LAYER_ID = "live-shadow-point-layer";
+export const LIVE_SHADOW_PATH_SOURCE = "live-shadow-path-geo";
+export const LIVE_SHADOW_PATH_LAYER_ID = "live-shadow-path-layer";
+export const LIVE_SHADOW_TICK_LAYER_ID = "live-shadow-tick-layer";
