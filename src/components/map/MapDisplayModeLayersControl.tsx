@@ -220,125 +220,133 @@ export function MapDisplayModeLayersControl() {
         <div className="shrink-0 border-b border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)] px-3 py-2 font-[family-name:var(--font-jetbrains-mono)] text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-secondary)]">
           Aircraft display
         </div>
-        {/* Flight history section */}
-        <div className="shrink-0 border-b border-[color:var(--glass-stroke)] px-3 py-2">
-          <div className="mb-2 font-[family-name:var(--font-jetbrains-mono)] text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-secondary)]">
-            Flight history
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="flex cursor-pointer items-center justify-between gap-3">
-              <span className="text-[length:var(--fs-label)] text-[color:var(--t-primary)]">
-                Density heatmap{" "}
-                <span className="text-[color:var(--t-tertiary)]">
-                  ({FLIGHT_HISTORY_DAYS} days)
+
+        {/*
+          The toggles scroll; the mode tiles never shrink. Before this the tile
+          grid was the only `flex-1 min-h-0` child, so every section added above
+          it stole height until the tiles' `aspect-[4/3]` previews collapsed to
+          zero and the row rendered as bare labels — reported 2026-08-23, once
+          the centerline toggle pushed the popover past its 18rem cap.
+        */}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          {/* Flight history section */}
+          <div className="shrink-0 border-b border-[color:var(--glass-stroke)] px-3 py-2">
+            <div className="mb-2 font-[family-name:var(--font-jetbrains-mono)] text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-secondary)]">
+              Flight history
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="flex cursor-pointer items-center justify-between gap-3">
+                <span className="text-[length:var(--fs-label)] text-[color:var(--t-primary)]">
+                  Density heatmap{" "}
+                  <span className="text-[color:var(--t-tertiary)]">
+                    ({FLIGHT_HISTORY_DAYS} days)
+                  </span>
                 </span>
-              </span>
-              <input
-                type="checkbox"
-                className={shellGlassCheckboxClass}
-                checked={flightHistoryHeatmap}
-                onChange={(e) => setFlightHistoryHeatmap(e.target.checked)}
-                aria-label="Toggle flight history density heatmap"
-              />
-            </label>
-            {flightHistoryHeatmap && (
-              <div className="flex items-center justify-between gap-2 pl-3">
-                <span className="text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
-                  Hours
-                </span>
-                <div className="flex items-center gap-1">
-                  <select
-                    value={hourFilter ? String(hourFilter.from) : "all"}
-                    onChange={(e) => {
-                      if (e.target.value === "all") { setHourFilter(null); return; }
-                      const from = parseInt(e.target.value, 10);
-                      setHourFilter({ from, to: hourFilter?.to ?? (from + 6) % 24 });
-                    }}
-                    aria-label="Heatmap hour window start"
-                    className="rounded-[var(--r-sm)] border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)] px-1.5 py-0.5 text-[length:var(--fs-label)] text-[color:var(--t-primary)] outline-none focus-visible:ring-1 focus-visible:ring-sky-400/40"
-                  >
-                    <option value="all">All</option>
-                    {Array.from({ length: 24 }, (_, h) => (
-                      <option key={h} value={h}>{String(h).padStart(2, "0")}h</option>
-                    ))}
-                  </select>
-                  {hourFilter && (
-                    <>
-                      <span className="text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">–</span>
-                      <select
-                        value={String(hourFilter.to)}
-                        onChange={(e) =>
-                          setHourFilter({ from: hourFilter.from, to: parseInt(e.target.value, 10) })
-                        }
-                        aria-label="Heatmap hour window end"
-                        className="rounded-[var(--r-sm)] border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)] px-1.5 py-0.5 text-[length:var(--fs-label)] text-[color:var(--t-primary)] outline-none focus-visible:ring-1 focus-visible:ring-sky-400/40"
-                      >
-                        {Array.from({ length: 24 }, (_, h) => (
-                          <option key={h} value={h}>{String(h).padStart(2, "0")}h</option>
-                        ))}
-                      </select>
-                    </>
-                  )}
+                <input
+                  type="checkbox"
+                  className={shellGlassCheckboxClass}
+                  checked={flightHistoryHeatmap}
+                  onChange={(e) => setFlightHistoryHeatmap(e.target.checked)}
+                  aria-label="Toggle flight history density heatmap"
+                />
+              </label>
+              {flightHistoryHeatmap && (
+                <div className="flex items-center justify-between gap-2 pl-3">
+                  <span className="text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
+                    Hours
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <select
+                      value={hourFilter ? String(hourFilter.from) : "all"}
+                      onChange={(e) => {
+                        if (e.target.value === "all") { setHourFilter(null); return; }
+                        const from = parseInt(e.target.value, 10);
+                        setHourFilter({ from, to: hourFilter?.to ?? (from + 6) % 24 });
+                      }}
+                      aria-label="Heatmap hour window start"
+                      className="rounded-[var(--r-sm)] border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)] px-1.5 py-0.5 text-[length:var(--fs-label)] text-[color:var(--t-primary)] outline-none focus-visible:ring-1 focus-visible:ring-sky-400/40"
+                    >
+                      <option value="all">All</option>
+                      {Array.from({ length: 24 }, (_, h) => (
+                        <option key={h} value={h}>{String(h).padStart(2, "0")}h</option>
+                      ))}
+                    </select>
+                    {hourFilter && (
+                      <>
+                        <span className="text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">–</span>
+                        <select
+                          value={String(hourFilter.to)}
+                          onChange={(e) =>
+                            setHourFilter({ from: hourFilter.from, to: parseInt(e.target.value, 10) })
+                          }
+                          aria-label="Heatmap hour window end"
+                          className="rounded-[var(--r-sm)] border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)] px-1.5 py-0.5 text-[length:var(--fs-label)] text-[color:var(--t-primary)] outline-none focus-visible:ring-1 focus-visible:ring-sky-400/40"
+                        >
+                          {Array.from({ length: 24 }, (_, h) => (
+                            <option key={h} value={h}>{String(h).padStart(2, "0")}h</option>
+                          ))}
+                        </select>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
-            <label className="flex cursor-pointer items-center justify-between gap-3">
-              <span className="text-[length:var(--fs-label)] text-[color:var(--t-primary)]">
-                Route lines{" "}
-                <span className="text-[color:var(--t-tertiary)]">
-                  ({FLIGHT_HISTORY_DAYS} days)
+              )}
+              <label className="flex cursor-pointer items-center justify-between gap-3">
+                <span className="text-[length:var(--fs-label)] text-[color:var(--t-primary)]">
+                  Route lines{" "}
+                  <span className="text-[color:var(--t-tertiary)]">
+                    ({FLIGHT_HISTORY_DAYS} days)
+                  </span>
                 </span>
-              </span>
-              <input
-                type="checkbox"
-                className={shellGlassCheckboxClass}
-                checked={flightHistoryRoutes}
-                onChange={(e) => setFlightHistoryRoutes(e.target.checked)}
-                aria-label="Toggle flight history route lines"
-              />
-            </label>
+                <input
+                  type="checkbox"
+                  className={shellGlassCheckboxClass}
+                  checked={flightHistoryRoutes}
+                  onChange={(e) => setFlightHistoryRoutes(e.target.checked)}
+                  aria-label="Toggle flight history route lines"
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Static reference overlays — two per row, so another toggle here costs
+              no height at all (see the scroll note above). */}
+          <div className="shrink-0 border-b border-[color:var(--glass-stroke)] px-3 py-2">
+            <div className="mb-2 font-[family-name:var(--font-jetbrains-mono)] text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-secondary)]">
+              Reference
+            </div>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+              <label className="flex cursor-pointer items-center justify-between gap-2">
+                <span className="min-w-0 truncate text-[length:var(--fs-label)] text-[color:var(--t-primary)]">
+                  LDZA runway{" "}
+                  <span className="text-[color:var(--t-tertiary)]">04/22</span>
+                </span>
+                <input
+                  type="checkbox"
+                  className={shellGlassCheckboxClass}
+                  checked={airportRunwayOverlay}
+                  onChange={(e) => setAirportRunwayOverlay(e.target.checked)}
+                  aria-label="Toggle Zagreb Airport runway reference line"
+                />
+              </label>
+              <label className="flex cursor-pointer items-center justify-between gap-2">
+                <span className="min-w-0 truncate text-[length:var(--fs-label)] text-[color:var(--t-primary)]">
+                  Stand-here line{" "}
+                  <span className="text-[color:var(--t-tertiary)]">(selected)</span>
+                </span>
+                <input
+                  type="checkbox"
+                  className={shellGlassCheckboxClass}
+                  checked={transitCenterlineOverlay}
+                  onChange={(e) => setTransitCenterlineOverlay(e.target.checked)}
+                  aria-label="Toggle the stand-here centerline for the selected aircraft"
+                />
+              </label>
+            </div>
           </div>
         </div>
 
-        {/* Airport reference section */}
-        <div className="shrink-0 border-b border-[color:var(--glass-stroke)] px-3 py-2">
-          <div className="mb-2 font-[family-name:var(--font-jetbrains-mono)] text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-secondary)]">
-            Airport reference
-          </div>
-          <label className="flex cursor-pointer items-center justify-between gap-3">
-            <span className="text-[length:var(--fs-label)] text-[color:var(--t-primary)]">
-              LDZA runway 04/22
-            </span>
-            <input
-              type="checkbox"
-              className={shellGlassCheckboxClass}
-              checked={airportRunwayOverlay}
-              onChange={(e) => setAirportRunwayOverlay(e.target.checked)}
-              aria-label="Toggle Zagreb Airport runway reference line"
-            />
-          </label>
-        </div>
-
-        {/* Where the photographer must stand for the selected aircraft */}
-        <div className="shrink-0 border-b border-[color:var(--glass-stroke)] px-3 py-2">
-          <div className="mb-2 font-[family-name:var(--font-jetbrains-mono)] text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-secondary)]">
-            Transit centerline
-          </div>
-          <label className="flex cursor-pointer items-center justify-between gap-3">
-            <span className="text-[length:var(--fs-label)] text-[color:var(--t-primary)]">
-              Stand-here line (selected aircraft)
-            </span>
-            <input
-              type="checkbox"
-              className={shellGlassCheckboxClass}
-              checked={transitCenterlineOverlay}
-              onChange={(e) => setTransitCenterlineOverlay(e.target.checked)}
-              aria-label="Toggle the stand-here centerline for the selected aircraft"
-            />
-          </label>
-        </div>
-
-        <div className="grid min-h-0 flex-1 grid-cols-5 gap-2 overflow-y-auto p-2">
+        <div className="grid shrink-0 grid-cols-5 gap-2 p-2">
           {OPTIONS.map((opt) => {
             const active = mapDisplayMode === opt.id;
             return (
