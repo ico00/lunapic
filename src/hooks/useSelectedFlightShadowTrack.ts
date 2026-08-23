@@ -53,9 +53,15 @@ function ensureLayers(map: mapboxgl.Map) {
       source: LIVE_SHADOW_PATH_SOURCE,
       filter: ["==", ["get", "kind"], "path"],
       paint: {
-        "line-color": "rgba(251,191,36,0.8)", // amber-400 — this line is a clock
+        // Emerald, like the spot it is the trace of. It used to be amber, which
+        // put it in the same colour *and* dash family as the selected flight's
+        // own `+90s` trajectory prediction (`#fde68a`, fine dashes) — two amber
+        // dashed lines about two different objects, indistinguishable at a
+        // glance. Amber now means only "the aircraft's own motion" on this map.
+        // Long dashes are the second cue, so the two never rely on colour alone.
+        "line-color": "rgba(52,211,153,0.75)",
         "line-width": 2,
-        "line-dasharray": [2, 2],
+        "line-dasharray": [5, 3],
       },
       layout: { "line-cap": "round", "line-join": "round" },
     });
@@ -77,7 +83,7 @@ function ensureLayers(map: mapboxgl.Map) {
         "text-ignore-placement": true,
       },
       paint: {
-        "text-color": "#fcd34d", // amber-300
+        "text-color": "#a7f3d0", // emerald-200 — reads as part of the line
         "text-halo-color": "#0f172a",
         "text-halo-width": 1.1,
       },
