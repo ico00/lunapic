@@ -44,9 +44,12 @@ function ensureLayers(map: mapboxgl.Map) {
       type: "line",
       source: PHOTO_SPOT_PATH_SOURCE,
       paint: {
-        "line-color": "rgba(251,191,36,0.75)", // amber-400 — time accent
+        // Matches the live centerline: emerald for the whole "stand here"
+        // family (spot, tolerance ellipse, and the track the spot sweeps), so
+        // amber is left to mean the aircraft's own predicted motion.
+        "line-color": "rgba(52,211,153,0.75)",
         "line-width": 2,
-        "line-dasharray": [3, 2],
+        "line-dasharray": [5, 3],
       },
       layout: { "line-cap": "round", "line-join": "round" },
     });
