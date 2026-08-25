@@ -39,6 +39,9 @@ function reasonText(
   if (reason === "flightNotFound") {
     return "Selected aircraft is no longer in the current flight snapshot.";
   }
+  if (reason === "staleFix") {
+    return "Last ADS-B fix for this aircraft is too old — its position on the map is frozen, so no countdown is shown.";
+  }
   if (reason === "missingInputs") {
     return "This aircraft is missing speed/track/altitude for the calculation.";
   }

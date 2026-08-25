@@ -5,11 +5,15 @@ import {
   unionBBoxOfAllStaticRoutes,
 } from "@/data/staticRouteUtils";
 import { geoBoundsAroundPointKm } from "@/lib/domain/geo/boundsAroundPointKm";
+import {
+  FLIGHT_OBSERVER_RADIUS_KM,
+  flightFilterBounds,
+} from "@/lib/flight/flightFilterBounds";
 import type { FlightQuery } from "@/types/flight";
 import type { GeoBounds } from "@/types/geo";
 
 const ROUTES_MARGIN_DEG = 0.25;
-const OBSERVER_RADIUS_KM = 100;
+const OBSERVER_RADIUS_KM = FLIGHT_OBSERVER_RADIUS_KM;
 
 /**
  * Ista geometrija upita kao {@link OpenSkyFlightProvider}: presjek koridora
@@ -32,15 +36,6 @@ export function openSkyStyleRegionAndFilterBounds(
   );
   const primary = intersectBounds(routesHull, aroundObserver);
   const region: GeoBounds = primary ?? aroundObserver;
-  const filterBounds = unionGeoBounds(q.bounds, aroundObserver);
-  return { region, filterBounds };
-}
-
-function unionGeoBounds(a: GeoBounds, b: GeoBounds): GeoBounds {
-  return {
-    south: Math.min(a.south, b.south),
-    north: Math.max(a.north, b.north),
-    west: Math.min(a.west, b.west),
-    east: Math.max(a.east, b.east),
-  };
+  // Ista unija koju sada koriste i lokalni prijemnici — jedna definicija.
+  return { region, filterBounds: flightFilterBounds(q) };
 }

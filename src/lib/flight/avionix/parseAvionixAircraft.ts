@@ -102,12 +102,60 @@ export function avionixEntryToFlightState(
   };
 }
 
+/**
+ * Najveće odstupanje uređajevog sata od našeg koje još prihvaćamo. Uređaj nema
+ * RTC i cijeli root mu se resetira na reboot (vidi AGENTS.md), pa mu sat u
+ * načelu može odlutati; s krivim timestampom bi `extrapolateFlightForDisplay`
+ * gurao markere u budućnost (ili ih uopće ne bi micao), što je gore nego pasti
+ * na naš sat.
+ */
+const MAX_DEVICE_CLOCK_SKEW_MS = 5 * 60_000;
+
+/**
+ * `timestamp` iz uređaja je **epoch ms kao string** (npr. `"1787679514274"`),
+ * a ne ISO — `Date.parse` na tome vraća `NaN`. Dok se to tiho gutalo i padalo
+ * na `Date.now()`, svaki avionix fix je bio označen kao „upravo sad” iako je u
+ * produkciji star do ~20 s (push timer 10 s + client poll 10 s + provider
+ * cache 3 s): ekstrapolacija nije imala što kompenzirati, pa je marker
+ * sistematski kasnio, a pri prebacivanju izvora skakao (izmjereno 2026-08-25:
+ * p90 1.2 km, max 4.2 km razlike prema localsdr poziciji istog aviona).
+ *
+ * Prihvaća i sekunde i milisekunde, i dalje podržava ISO oblik.
+ */
+export function parseAvionixTimestampMs(
+  raw: unknown,
+  nowMs: number = Date.now()
+): number | null {
+  let ms: number | null = null;
+  if (typeof raw === "number" && isFinite(raw)) {
+    ms = raw;
+  } else if (typeof raw === "string" && raw.trim()) {
+    const t = raw.trim();
+    if (/^\d+(\.\d+)?$/.test(t)) {
+      ms = Number(t);
+    } else {
+      const parsed = Date.parse(t);
+      ms = isFinite(parsed) ? parsed : null;
+    }
+  }
+  if (ms == null || !isFinite(ms) || ms <= 0) {
+    return null;
+  }
+  // < 10^11 ≈ prije 1973. u ms → očito sekunde.
+  if (ms < 1e11) {
+    ms *= 1000;
+  }
+  if (Math.abs(ms - nowMs) > MAX_DEVICE_CLOCK_SKEW_MS) {
+    return null;
+  }
+  return ms;
+}
+
 export function flightsFromAvionixResponse(
   data: AvionixResponse,
   bounds?: GeoBounds
 ): readonly FlightState[] {
-  const parsedTs = typeof data.timestamp === "string" ? Date.parse(data.timestamp) : NaN;
-  const nowMs = isFinite(parsedTs) ? parsedTs : Date.now();
+  const nowMs = parseAvionixTimestampMs(data.timestamp) ?? Date.now();
 
   const out: FlightState[] = [];
   for (const [key, value] of Object.entries(data)) {

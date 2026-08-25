@@ -187,6 +187,40 @@ async function fetchTar1090Meta(icao24) {
 const POLL_INTERVAL_MS = 15_000;
 const FT_TO_M = 0.3048;
 const KNOTS_TO_MPS = 0.514444;
+/**
+ * Isti prag kao klijentski `LOCAL_FEED_TAKEOVER_AFTER_MS`
+ * (`src/lib/flight/mergeLiveFlightLists.ts`): iznad ove starosti localsdr fix
+ * prestaje biti autoritet i Avionix smije upisati svoj.
+ */
+const LOCAL_FEED_TAKEOVER_AFTER_MS = 15_000;
+/** Uređajev sat smije odstupati najviše ovoliko da mu vjerujemo. */
+const AVIONIX_MAX_CLOCK_SKEW_MS = 5 * 60_000;
+
+/**
+ * Avionix `timestamp` je **epoch ms kao string** (`"1787679514274"`), ne ISO —
+ * `Date.parse` na tome vraća NaN. Ista logika kao `parseAvionixTimestampMs` u
+ * `src/lib/flight/avionix/parseAvionixAircraft.ts` (ondje su i mjerenja);
+ * duplirano jer je i mapping polja u ovom polleru namjerno zaseban od
+ * klijentskog parsera.
+ */
+function parseAvionixTimestampMs(raw, nowMs = Date.now()) {
+  let ms = null;
+  if (typeof raw === "number" && isFinite(raw)) {
+    ms = raw;
+  } else if (typeof raw === "string" && raw.trim()) {
+    const t = raw.trim();
+    if (/^\d+(\.\d+)?$/.test(t)) {
+      ms = Number(t);
+    } else {
+      const parsed = Date.parse(t);
+      ms = isFinite(parsed) ? parsed : null;
+    }
+  }
+  if (ms == null || !isFinite(ms) || ms <= 0) return null;
+  if (ms < 1e11) ms *= 1000;
+  if (Math.abs(ms - nowMs) > AVIONIX_MAX_CLOCK_SKEW_MS) return null;
+  return ms;
+}
 const MIN_MOVE_M = 120;
 const MAX_GAP_MS = 90_000;
 
@@ -490,7 +524,13 @@ async function startFlightLogger() {
     // ide prvi i puni ovaj Set; avionix loop niže u potpunosti preskače icao24
     // koje localsdr vidi ovaj tick — localsdr je autoritativan dok god ga vidi,
     // avionix i dalje puni avione koje localsdr ne vidi, bez izmjene.
-    const localsdrIcaosThisTick = new Set();
+    // Vrijednost je `logged_at` localsdr fixa (ne samo prisutnost): tar1090
+    // drži avion u odgovoru i nakon što mu prestane stizati signal, pa
+    // bezuvjetno preskakanje avionix retka znači da se u log (i u server-side
+    // transit scan koji šalje push alerte) upisuje pozicija stara i preko 40 s
+    // dok za isti avion postoji svjež fix. Prag je isti kao klijentski
+    // `LOCAL_FEED_TAKEOVER_AFTER_MS` u `mergeLiveFlightLists.ts`.
+    const localsdrFixAtByIcao = new Map();
 
     const nowMs =
       hasSdrRows && typeof sdrData.now === "number" && isFinite(sdrData.now)
@@ -506,7 +546,6 @@ async function startFlightLogger() {
       const lng = row.lon;
       if (typeof lat !== "number" || typeof lng !== "number") continue;
       if (!isFinite(lat) || !isFinite(lng)) continue;
-      localsdrIcaosThisTick.add(icao24);
 
       const ageSec =
         typeof row.seen_pos === "number" && isFinite(row.seen_pos)
@@ -515,6 +554,7 @@ async function startFlightLogger() {
             ? row.seen
             : 0;
       const logged_at = Math.max(0, nowMs - ageSec * 1000);
+      localsdrFixAtByIcao.set(icao24, logged_at);
 
       const callRaw = row.flight;
       const callsign = typeof callRaw === "string" ? callRaw.trim() || null : null;
@@ -569,11 +609,7 @@ async function startFlightLogger() {
     // `parseAvionixAircraft.ts`. Dopisuje u iste posRows/metaRows/liveFlights/
     // lastSeen strukture kao localsdr loop iznad.
     if (hasAvionixRows) {
-      const parsedTs =
-        typeof avionixData.timestamp === "string"
-          ? Date.parse(avionixData.timestamp)
-          : NaN;
-      const avionixNowMs = isFinite(parsedTs) ? parsedTs : Date.now();
+      const avionixNowMs = parseAvionixTimestampMs(avionixData.timestamp) ?? Date.now();
 
       for (const [icaoHexRaw, entry] of avionixEntries) {
         const icao24 = String(icaoHexRaw).toLowerCase().trim();
@@ -583,9 +619,15 @@ async function startFlightLogger() {
         const lng = entry[5];
         if (typeof lat !== "number" || typeof lng !== "number") continue;
         if (!isFinite(lat) || !isFinite(lng)) continue;
-        // localsdr ima sticky prioritet za avione koje oba vide ovaj tick — vidi
-        // napomenu uz `localsdrIcaosThisTick` deklaraciju iznad.
-        if (localsdrIcaosThisTick.has(icao24)) continue;
+        // localsdr ima prioritet za avione koje oba vide ovaj tick, ali samo dok
+        // mu je fix svjež — vidi napomenu uz `localsdrFixAtByIcao` iznad.
+        const localsdrFixAt = localsdrFixAtByIcao.get(icao24);
+        if (
+          localsdrFixAt != null &&
+          avionixNowMs - localsdrFixAt <= LOCAL_FEED_TAKEOVER_AFTER_MS
+        ) {
+          continue;
+        }
 
         const callsign =
           typeof entry[0] === "string" && entry[0].trim() ? entry[0].trim() : null;

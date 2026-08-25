@@ -1,6 +1,7 @@
 import type { GroundObserver, MoonState, TransitCandidate } from "@/types";
 import type { FlightState } from "@/types/flight";
 import { extrapolateFlightForDisplay } from "@/lib/flight/extrapolateFlightPosition";
+import { isFlightFixStale } from "@/lib/flight/flightFixFreshness";
 import { horizontalToPoint } from "../geometry/horizontal";
 import { angularSeparationDeg } from "../geometry/sky-separation";
 import { destinationByAzimuthMeters, geodeticToEcef } from "../geometry/wgs84";
@@ -77,6 +78,12 @@ export function screenTransitCandidates(
   const moonR = moon.apparentRadius.degrees;
   const out: TransitCandidate[] = [];
   for (const rawFlight of flights) {
+    // Fix stariji od praga: marker već stoji (ekstrapolacija je na kapici), pa
+    // bi svaki countdown/willTransit iz te pozicije bio izmišljen — vidi
+    // `flightFixFreshness`.
+    if (isFlightFixStale(rawFlight, wallNowMs, latencySkewMs)) {
+      continue;
+    }
     const flight = extrapolateFlightForDisplay(rawFlight, wallNowMs, latencySkewMs);
     const h = targetEllipsoidHeightMeters(flight);
     if (h == null) {

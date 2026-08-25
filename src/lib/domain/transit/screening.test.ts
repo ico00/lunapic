@@ -79,6 +79,22 @@ describe("screenTransitCandidates", () => {
     expect(out[0]!.isPossibleTransit).toBe(true);
   });
 
+  it("izbacuje avion čiji je fix stariji od granice ekstrapolacije (zamrznut marker)", () => {
+    const h = 10_000;
+    const m: MoonState = {
+      altitudeDeg: 50,
+      azimuthDeg: 100,
+      distanceKm: 380_000,
+      apparentRadius: { degrees: 0.2 },
+      phaseFraction: 0.2,
+      illuminationFraction: 0.4,
+    };
+    const f = flight("stale", 45.85, 16.2, h);
+    const wallNow = 120_000; // fix je s t=0, dakle 120 s star
+    expect(screenTransitCandidates(observer, m, [f], 30_000, 0)).toHaveLength(1);
+    expect(screenTransitCandidates(observer, m, [f], wallNow, 0)).toHaveLength(0);
+  });
+
   it("sorts by angular separation (closer first)", () => {
     const h = 10_000;
     const f1Lat = 45.85;

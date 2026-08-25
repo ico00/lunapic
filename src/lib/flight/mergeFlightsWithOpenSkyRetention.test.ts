@@ -5,7 +5,7 @@ import {
 import type { FlightState } from "@/types/flight";
 import { describe, expect, it, beforeEach } from "vitest";
 
-const mapBounds = { south: 45, north: 47, west: 15, east: 17 };
+const filterBounds = { south: 45, north: 47, west: 15, east: 17 };
 
 const flight = (
   id: string,
@@ -38,7 +38,7 @@ describe("mergeFlightsWithOpenSkyRetention", () => {
     const prev: FlightState[] = [];
     const first = mergeFlightsWithOpenSkyRetention([flight("abc")], prev, {
       providerId: "opensky",
-      mapBounds,
+      filterBounds,
       nowMs: t0,
       openSkyLatencySkewMs: 0,
     });
@@ -46,7 +46,7 @@ describe("mergeFlightsWithOpenSkyRetention", () => {
 
     const second = mergeFlightsWithOpenSkyRetention([], first, {
       providerId: "opensky",
-      mapBounds,
+      filterBounds,
       nowMs: t0 + 10_000,
       openSkyLatencySkewMs: 0,
     });
@@ -57,13 +57,13 @@ describe("mergeFlightsWithOpenSkyRetention", () => {
     const t0 = 2_000_000;
     const first = mergeFlightsWithOpenSkyRetention([flight("abc")], [], {
       providerId: "opensky",
-      mapBounds,
+      filterBounds,
       nowMs: t0,
       openSkyLatencySkewMs: 0,
     });
     const second = mergeFlightsWithOpenSkyRetention([], first, {
       providerId: "opensky",
-      mapBounds,
+      filterBounds,
       nowMs: t0 + 35_000,
       openSkyLatencySkewMs: 0,
     });
@@ -74,13 +74,13 @@ describe("mergeFlightsWithOpenSkyRetention", () => {
     const t0 = 3_000_000;
     const first = mergeFlightsWithOpenSkyRetention([flight("abc")], [], {
       providerId: "static",
-      mapBounds,
+      filterBounds,
       nowMs: t0,
       openSkyLatencySkewMs: 0,
     });
     const second = mergeFlightsWithOpenSkyRetention([], first, {
       providerId: "static",
-      mapBounds,
+      filterBounds,
       nowMs: t0 + 5_000,
       openSkyLatencySkewMs: 0,
     });

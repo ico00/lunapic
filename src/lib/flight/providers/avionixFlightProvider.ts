@@ -2,6 +2,7 @@ import {
   flightsFromAvionixResponse,
   type AvionixResponse,
 } from "@/lib/flight/avionix/parseAvionixAircraft";
+import { flightFilterBounds } from "@/lib/flight/flightFilterBounds";
 import { appPath } from "@/lib/paths/appPath";
 import type { IFlightProvider } from "@/types/flight-provider";
 import type { FlightQuery, FlightState } from "@/types/flight";
@@ -91,11 +92,11 @@ export class AvionixFlightProvider implements IFlightProvider {
           );
         }
         return this.cache
-          ? this.stabilizeTimestamps(flightsFromAvionixResponse(this.cache.data, q.bounds))
+          ? this.stabilizeTimestamps(flightsFromAvionixResponse(this.cache.data, flightFilterBounds(q)))
           : [];
       }
       if (this.cache && now - this.cache.at < CACHE_MS) {
-        return this.stabilizeTimestamps(flightsFromAvionixResponse(this.cache.data, q.bounds));
+        return this.stabilizeTimestamps(flightsFromAvionixResponse(this.cache.data, flightFilterBounds(q)));
       }
       const res = await fetch(appPath("/api/avionix/aircraft"), {
         cache: "no-store",
@@ -120,7 +121,7 @@ export class AvionixFlightProvider implements IFlightProvider {
       this.fetchNotBeforeMs = 0;
       this.pausedUnreachable = false;
       this.cache = { at: Date.now(), data };
-      return this.stabilizeTimestamps(flightsFromAvionixResponse(data, q.bounds));
+      return this.stabilizeTimestamps(flightsFromAvionixResponse(data, flightFilterBounds(q)));
     };
 
     const next = this.loadChain.then(tail, tail);

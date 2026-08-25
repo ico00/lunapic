@@ -171,7 +171,7 @@ describe("loadFlightsInBounds({ only: 'avionix' }) i localsdr+avionix kombinacij
     expect(s.localsdrStatus).toBe("ok");
   });
 
-  it("localsdr uvijek pobjeđuje avionix za icao24 koje oba vide (sprječava treperenje — 2026-08-20)", async () => {
+  it("localsdr pobjeđuje avionix za icao24 koje oba vide dok mu je fix svjež (sprječava treperenje — 2026-08-20)", async () => {
     lists.opensky = [];
     lists.adsbone = [];
     lists.localsdr = [{ ...flight("aaa111", 45.8, 16.0), providerId: "localsdr" }];
@@ -187,7 +187,7 @@ describe("loadFlightsInBounds({ only: 'avionix' }) i localsdr+avionix kombinacij
     expect(f?.providerId).toBe("localsdr");
   });
 
-  it("avionixov brzi tick ne prepisuje poziciju koju trenutno drži localsdr (sprječava treperenje)", async () => {
+  it("avionixov brzi tick ne prepisuje SVJEŽU poziciju koju drži localsdr (sprječava treperenje)", async () => {
     // Puni tick: localsdr postaje autoritativan za aaa111.
     lists.opensky = [];
     lists.adsbone = [];
@@ -222,6 +222,47 @@ describe("loadFlightsInBounds({ only: 'avionix' }) i localsdr+avionix kombinacij
 
     const f = useMoonTransitStore.getState().flights.find((x) => x.id === "ddd444");
     expect(f?.position).toEqual({ lat: 45.65, lng: 15.85 });
+  });
+
+  it("avionix preuzima avion čiji je Pi fix zastario (2026-08-25: 7 % tar1090 redaka je 40 s+ staro)", async () => {
+    lists.opensky = [];
+    lists.adsbone = [];
+    const stalePi: FlightState = {
+      ...flight("aaa111", 45.8, 16.0),
+      providerId: "localsdr",
+      timestamp: Date.now() - 45_000,
+    };
+    lists.localsdr = [stalePi];
+    lists.avionix = [{ ...flight("aaa111", 45.95, 16.2), providerId: "avionix" }];
+
+    await useMoonTransitStore.getState().loadFlightsInBounds(BOUNDS);
+
+    const f = useMoonTransitStore.getState().flights.find((x) => x.id === "aaa111");
+    expect(f?.providerId).toBe("avionix");
+    expect(f?.position).toEqual({ lat: 45.95, lng: 16.2 });
+  });
+
+  it("brzi avionix tick preuzima avion koji je Pi izgubio — bez čekanja punog ticka", async () => {
+    lists.opensky = [];
+    lists.adsbone = [];
+    lists.localsdr = [
+      {
+        ...flight("aaa111", 45.8, 16.0),
+        providerId: "localsdr",
+        timestamp: Date.now() - 45_000,
+      },
+    ];
+    lists.avionix = [];
+    await useMoonTransitStore.getState().loadFlightsInBounds(BOUNDS);
+
+    lists.avionix = [{ ...flight("aaa111", 45.95, 16.2), providerId: "avionix" }];
+    await useMoonTransitStore
+      .getState()
+      .loadFlightsInBounds(BOUNDS, { only: "avionix" });
+
+    const f = useMoonTransitStore.getState().flights.find((x) => x.id === "aaa111");
+    expect(f?.providerId).toBe("avionix");
+    expect(f?.position).toEqual({ lat: 45.95, lng: 16.2 });
   });
 
   it("brzi avionix-tick ne mijenja localsdrStatus (nije pitan taj tick)", async () => {
@@ -304,5 +345,71 @@ describe("webFeedStatus", () => {
     await useMoonTransitStore.getState().loadFlightsInBounds(BOUNDS);
 
     expect(useMoonTransitStore.getState().webFeedStatus.opensky).toBe("ok");
+  });
+});
+
+describe("selekcija praćenog leta", () => {
+  beforeEach(() => {
+    calls.length = 0;
+    for (const k of Object.keys(lists)) delete lists[k as FlightProviderId];
+    for (const k of Object.keys(failures)) delete failures[k as FlightProviderId];
+    // Local-only mod: kad oba prijemnika načas vrate prazno, store stvarno
+    // ostane bez letova (web retencija ih ovdje ne drži) — to je situacija u
+    // kojoj se praćeni let gubio usred odbrojavanja.
+    useMoonTransitStore.setState({
+      flightProvider: "opensky",
+      liveFlightFeeds: { opensky: false, adsbone: false, localsdr: true, avionix: true },
+      flights: [],
+      selectedFlightId: null,
+      selectedFlightMissingSinceMs: null,
+    });
+  });
+
+  async function selectTrackedFlight() {
+    lists.localsdr = [{ ...flight("aaa111", 45.8, 16.0), providerId: "localsdr" }];
+    await useMoonTransitStore.getState().loadFlightsInBounds(BOUNDS);
+    useMoonTransitStore.getState().setSelectedFlightId("aaa111");
+  }
+
+  it("preživi tick u kojem oba prijemnika vrate prazno", async () => {
+    await selectTrackedFlight();
+
+    lists.localsdr = [];
+    await useMoonTransitStore.getState().loadFlightsInBounds(BOUNDS);
+
+    const s = useMoonTransitStore.getState();
+    expect(s.flights).toEqual([]);
+    expect(s.selectedFlightId).toBe("aaa111");
+    expect(s.selectedFlightMissingSinceMs).not.toBeNull();
+  });
+
+  it("otpušta se kad let nedostaje dulje od grace prozora", async () => {
+    await selectTrackedFlight();
+
+    lists.localsdr = [];
+    await useMoonTransitStore.getState().loadFlightsInBounds(BOUNDS);
+    useMoonTransitStore.setState({
+      selectedFlightMissingSinceMs: Date.now() - 25_000,
+    });
+    await useMoonTransitStore.getState().loadFlightsInBounds(BOUNDS);
+
+    expect(useMoonTransitStore.getState().selectedFlightId).toBeNull();
+  });
+
+  it("povratak leta poništi odbrojavanje grace prozora", async () => {
+    await selectTrackedFlight();
+
+    lists.localsdr = [];
+    await useMoonTransitStore.getState().loadFlightsInBounds(BOUNDS);
+    expect(
+      useMoonTransitStore.getState().selectedFlightMissingSinceMs
+    ).not.toBeNull();
+
+    lists.localsdr = [{ ...flight("aaa111", 45.85, 16.05), providerId: "localsdr" }];
+    await useMoonTransitStore.getState().loadFlightsInBounds(BOUNDS);
+
+    const s = useMoonTransitStore.getState();
+    expect(s.selectedFlightId).toBe("aaa111");
+    expect(s.selectedFlightMissingSinceMs).toBeNull();
   });
 });
