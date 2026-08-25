@@ -125,6 +125,78 @@ Proxy rute `/api/adsbone/point`, `/api/localsdr/aircraft` i
 `/api/avionix/aircraft` (pull grane) imaju circuit breaker — 3 uzastopna
 neuspjeha → `503` + `Retry-After` (`src/lib/server/upstreamCircuitBreaker.ts`).
 
+### Kad isti avion vide oba lokalna prijemnika (kontinuitet, 2026-08-25)
+
+Za `icao24` koji vide i Pi i Avionix geometriju vodi **svježiji i potpuniji**
+snimak, ne fiksno Pi — `pickFreshestLocalSnapshot` / `mergeLocalFeeds` u
+`mergeLiveFlightLists.ts`. Redoslijed pravila: (1) tko ima track+brzinu,
+(2) tko je unutar `LOCAL_FEED_TAKEOVER_AFTER_MS` = **15 s**, (3) tiebreak
+`localsdr > avionix` dok su oba svježa. Isto pravilo vrijedi na punom ticku i na
+brzom ticku pojedinog izvora (`mergeLocalFeedTickIntoPrevious`) — inače se izvor
+prebacuje između tickova i marker skače. Isti prag i u `server.js` polleru
+(`LOCAL_FEED_TAKEOVER_AFTER_MS`), pa se poklapaju log, push alerti i karta.
+
+**Zašto ne bezuvjetni fiksni prioritet** (kako je bilo od #36 do 2026-08-25):
+tar1090 drži avion u `aircraft.json` i nakon što mu prestane stizati signal, uz
+sve veći `seen_pos`. Mjereno na živom feedu (431 redaka / 2 min): **12.3 %**
+redaka starije od 25 s, **7 %** starije od 40 s — a 40 s je `MAX_LEAD_SEC` u
+`extrapolateFlightPosition`, iznad kojeg se marker doslovno zamrzne. Fiksni
+prioritet je značio da Avionix ne smije preuzeti takav avion iako za njega ima
+svjež fix; marker je stajao, odbrojavanje se računalo prema poziciji
+kilometrima iza stvarne, a na sljedećem punom ticku je skočio.
+
+Tiebreak (3) mora ostati fiksan: dva neovisna prijemnika gotovo nikad ne
+dekodiraju identičnu poziciju (p50 razlika ~100 m), pa bi "noviji pobjeđuje"
+značilo naizmjenično biranje svaki tick i vidljivo treperenje.
+
+Kad pobjednik nema track/brzinu/visinu, posuđuju se od gubitnika
+(`withBorrowedKinematics`, i iz web izvora u `mergeLiveFlightListsWithSdrPriority`).
+Position-only ADS-B redak inače sruši `timeToAlignmentSec` na `null` → let
+ispadne iz kandidata i izgubi odbrojavanje iako je na karti.
+
+### Avionix `timestamp` je epoch ms kao string, ne ISO
+
+Uređaj šalje `{"timestamp":"1787679514274", ...}`. `Date.parse` na tome vraća
+**NaN**, pa je do 2026-08-25 svaki avionix fix tiho dobivao `Date.now()` —
+`extrapolateFlightForDisplay` nije imao što kompenzirati, a fix je u produkciji
+star do ~20 s (push 10 s + client poll 10 s + provider cache 3 s). Izmjereno:
+p90 **1.2 km**, max **4.2 km** razlike prema localsdr poziciji istog aviona u
+istom trenutku — točno veličina skoka pri prebacivanju izvora.
+
+`parseAvionixTimestampMs` (klijent: `parseAvionixAircraft.ts`, server: isti
+helper u `server.js`) prihvaća ms/sekunde/ISO i **odbija sat koji odstupa više
+od 5 min** (NanoPi nema RTC, root mu se resetira na reboot) — tada se pada na
+`Date.now()`. Uređajev `update_age` (~270 ms) potvrđuje da mu je interna tablica
+sub-sekundno svježa; jedini problem je bio parsiranje.
+
+**Ali `timestamp` je vrijeme ODGOVORA, ne vrijeme fixa.** Uređaj nema
+per-aircraft polje starosti (tar1090 ima `seen_pos`). Izmjereno usporedbom s
+Pi-jevom putanjom: za avione koje **oba** prijemnika vide, avionix redak je
+svjež — p50 **1 s**, p90 **4 s**, max 24 s. Za avione na rubu dosega koje Pi ne
+vidi, isti redak zna stajati **desecima sekundi** i onda skočiti (snimljeno:
+EXS37E zamrznut 26 s pa skok 20 km) — uređaj drži zadnju dekodiranu poziciju bez
+oznake da je stara. Zato:
+
+* Prag preuzimanja se oslanja na tu razliku: Avionix preuzima **samo** avion koji
+  oboje vide, gdje je izmjereno svjež.
+* `stabilizeTimestamps` u `avionixFlightProvider` je jedina obrana za rubne
+  avione — pamti kad se pozicija STVARNO promijenila, pa zamrznut redak nakon
+  ~45 s padne u `isFlightFixStale` i prestane generirati kandidate/alerte.
+
+### Prag „fix je prestar da bi se iz njega računalo”
+
+`STALE_FIX_AFTER_SEC` = `MAX_LEAD_SEC + 5` = **45 s**
+(`src/lib/flight/flightFixFreshness.ts`). Iznad toga `extrapolateFlightForDisplay`
+ionako više ne pomiče marker (kapica leada), pa je pozicija fikcija:
+`screenTransitCandidates`, `computeActiveTransits` i `usePhotographerTools`
+takav let preskaču (`reason: "staleFix"`), a **na karti ostaje** — bolje ga
+vidjeti nego da nestane. Vrijedi i za server-side `/api/transit/scan`, pa push
+alert ne može doći iz zamrznute pozicije.
+
+Mjereno na živom feedu: pri starosti fixa preko 15 s medijan greške prikazane
+pozicije je **8.4 km**, rep ide do **27 km** — to je bio izvor „odbrojavanje
+teče, a aviona tamo nema”.
+
 ### Kako ADS-B podaci s Pija dolaze do servera (push, ne pull)
 
 **Produkcija — Pi šalje.** Pi svakih 15 s (systemd timer) POST-a svoj
@@ -400,10 +472,24 @@ Rating u `PhotographerToolsPanel`:
 
 - **Vizualni prsten**: 80 km (iscrtava `useMapObserverRadiusSync`) — "vrijedi promatrati"
 - **API query radius**: 100 km (OpenSky bbox, `openSkyStyleQueryRegion.ts`)
+- **Filter zadržavanja**: `viewport ∪ disk 100 km` (`flightFilterBounds.ts`) —
+  **svi** izvori, uključujući lokalne prijemnike i retenciju
+  (`mergeFlightsWithOpenSkyRetention`)
 - **Screening filter**: 100 km (trenutna slant udaljenost aviona)
 - **Transit-at-alignment filter**: 100 km (buduća slant udaljenost pri predviđenom poravnanju)
 
-Sve četiri vrijednosti su namjerno različite. Ne miješati ih.
+Sve vrijednosti su namjerno različite. Ne miješati ih.
+
+Filter zadržavanja **ne smije** biti goli viewport. Do 2026-08-25 su web izvori
+filtrirali po uniji, a `localsdr`/`avionix` su dobivali samo `q.bounds`:
+zumiranje karte (ono što se radi dok se cilja) izbacilo bi avione iz vlastitih
+prijemnika, pa bi let pao na 30-sekundni web tempo ili nestao s karte i iz
+kandidata. Kandidati, alerti i odbrojavanje ne smiju ovisiti o zumu.
+
+Iz istog razloga `selectedFlightId` ima grace prozor od 20 s
+(`SELECTION_GRACE_MS`, `moon-transit-store.ts`): jedan tick bez leta je čest i
+prolazan, a trenutno otpuštanje selekcije usred odbrojavanja ugasi cijeli panel
+s alatima (`usePhotographerTools` → `flightNotFound`).
 
 ### Zašto baš 80 km za vizualni prsten (floor vidljivosti)
 

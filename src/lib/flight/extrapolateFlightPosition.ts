@@ -2,7 +2,12 @@ import { destinationByAzimuthMeters } from "@/lib/domain/geometry/wgs84";
 import type { FlightState } from "@/types/flight";
 
 const EXTRAPOLATE_DT_CAP_SEC = 900; // OpenSky free API može biti 5–15 min stara
-const MAX_LEAD_SEC = 40;
+/**
+ * Najviše koliko sekundi unaprijed smijemo gurnuti avion od zadnjeg fixa.
+ * Exportano jer `flightFixFreshness` iz njega izvodi prag „fix je prestar da
+ * bi se iz njega išta računalo” — iznad ovoga marker ionako stoji.
+ */
+export const MAX_LEAD_SEC = 40;
 
 /**
  * Pretpostavljena brzina kad je izvor ne javlja. Exportana da `flightDisplayPositionFilter`

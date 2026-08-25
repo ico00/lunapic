@@ -151,7 +151,10 @@ export function FlightSourcePanel({
                     </span>
                   )}
                   {isLocalSource && feedOn && (
-                    <span className="shrink-0 text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
+                    <span
+                      className="shrink-0 text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]"
+                      title="Local receivers outrank the web feeds. Between the two of them, the fresher fix wins; while both are fresh, LunaPic ADS-B leads."
+                    >
                       ↑ priority
                     </span>
                   )}

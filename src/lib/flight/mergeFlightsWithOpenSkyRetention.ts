@@ -45,7 +45,13 @@ export function mergeFlightsWithOpenSkyRetention(
   previousFlights: readonly FlightState[],
   context: {
     readonly providerId: FlightProviderId;
-    readonly mapBounds: GeoBounds;
+    /**
+     * Granice unutar kojih zadržani let još smije živjeti: **viewport ∪ disk oko
+     * promatrača** (`flightFilterBounds`), ne goli viewport. Inače bi zumiranje
+     * karte otpustilo let koji izvori i dalje isporučuju — a kandidati i
+     * odbrojavanje ne smiju ovisiti o zumu.
+     */
+    readonly filterBounds: GeoBounds;
     readonly nowMs: number;
     readonly openSkyLatencySkewMs: number;
   }
@@ -63,7 +69,7 @@ export function mergeFlightsWithOpenSkyRetention(
     return mergedMeta;
   }
 
-  const relaxed = expandBounds(context.mapBounds, 0.1, 0.1);
+  const relaxed = expandBounds(context.filterBounds, 0.1, 0.1);
   const inFresh = new Set(mergedMeta.map((f) => f.id));
   const retained: FlightState[] = [];
 

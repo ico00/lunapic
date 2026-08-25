@@ -10,7 +10,10 @@ import type { CameraSensorType } from "@/lib/domain/geometry/shotFeasibility";
 import {
   mergeLiveFlightLists,
   mergeLiveFlightListsWithSdrPriority,
+  mergeLocalFeeds,
+  mergeLocalFeedTickIntoPrevious,
 } from "@/lib/flight/mergeLiveFlightLists";
+import { flightFilterBounds } from "@/lib/flight/flightFilterBounds";
 import { greatCircleDistanceMeters } from "@/lib/domain/geo/greatCircleDistance";
 import {
   clearOpenSkyFlightRetention,
@@ -19,6 +22,47 @@ import {
 import type { AircraftDimensions } from "@/lib/flight/aircraftTypeDimensions";
 import { AdsbLiveProxyError } from "@/lib/flight/adsbone/fetchAdsbOneUpstream";
 import { getFlightProvider } from "@/lib/flight/flightProviderRegistry";
+
+/**
+ * Koliko dugo odabrani let smije nedostajati u rezultatu prije nego se
+ * selekcija otpusti.
+ *
+ * Zašto uopće grace: jedan tick bez leta (izašao iz viewporta, prijemnik ga
+ * načas izgubio, oba lokalna izvora prazna) je čest i prolazan, a brisanje
+ * `selectedFlightId` odmah znači da usred odbrojavanja nestane cijeli panel s
+ * alatima (`usePhotographerTools` → `flightNotFound`) i da se let mora ručno
+ * ponovno odabrati. 20 s je unutar prozora u kojem ga
+ * `mergeFlightsWithOpenSkyRetention` ionako još drži (32 s), pa se selekcija ne
+ * proteže preko leta koji je stvarno otišao.
+ */
+const SELECTION_GRACE_MS = 20_000;
+
+/**
+ * Patch za `selectedFlightId` nakon jednog merge-a. Vraća prazan objekt dok je
+ * let prisutan, pamti trenutak nestanka, i briše selekciju tek kad nedostaje
+ * dulje od {@link SELECTION_GRACE_MS}.
+ */
+function selectionPatch(
+  selectedFlightId: string | null,
+  merged: readonly FlightState[],
+  missingSinceMs: number | null,
+  nowMs: number
+): Partial<{
+  selectedFlightId: string | null;
+  selectedFlightMissingSinceMs: number | null;
+}> {
+  if (selectedFlightId == null) {
+    return missingSinceMs == null ? {} : { selectedFlightMissingSinceMs: null };
+  }
+  if (merged.some((f) => f.id === selectedFlightId)) {
+    return missingSinceMs == null ? {} : { selectedFlightMissingSinceMs: null };
+  }
+  const since = missingSinceMs ?? nowMs;
+  if (nowMs - since > SELECTION_GRACE_MS) {
+    return { selectedFlightId: null, selectedFlightMissingSinceMs: null };
+  }
+  return { selectedFlightMissingSinceMs: since };
+}
 
 /** Stanje jednog web izvora letova (OpenSky / adsb.lol) nakon zadnjeg ticka. */
 export type WebFeedStatus = "idle" | "ok" | "rate-limited" | "error";
@@ -117,6 +161,12 @@ type MoonTransitState = {
   error: string | null;
   /** Zrakoplov za odbrojavanje udarca / alata. */
   selectedFlightId: string | null;
+  /**
+   * Kad je odabrani let prvi put nedostajao u rezultatu merge-a (`null` dok je
+   * prisutan). Selekcija se briše tek nakon {@link SELECTION_GRACE_MS} — vidi
+   * `selectionPatch`.
+   */
+  selectedFlightMissingSinceMs: number | null;
   setSelectedFlightId: (id: string | null) => void;
   /**
    * Ručni pomak „sada” za let (OpenSky latencija): pomak je zbraja s wall clock
@@ -288,6 +338,7 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   isLoading: false,
   error: null,
   selectedFlightId: null,
+  selectedFlightMissingSinceMs: null,
   openSkyLatencySkewMs: 0,
   cameraFocalLengthMm: 600,
   cameraSensorType: "fullFrame",
@@ -597,20 +648,22 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
           previousFlights,
           {
             providerId: fp,
-            mapBounds: bounds,
+            filterBounds: flightFilterBounds(query),
             nowMs: Date.now(),
             openSkyLatencySkewMs: get().openSkyLatencySkewMs,
           }
         );
-        const sel = get().selectedFlightId;
-        const keepSel =
-          sel != null && merged.some((f) => f.id === sel);
         set({
           flights: merged,
           localsdrStatus: "idle",
           avionixStatus: "idle",
           isLoading: false,
-          ...(keepSel ? {} : { selectedFlightId: null }),
+          ...selectionPatch(
+            get().selectedFlightId,
+            merged,
+            get().selectedFlightMissingSinceMs,
+            Date.now()
+          ),
         });
         return;
       }
@@ -687,35 +740,32 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
         // geometriju, web popunjava metapodatke. Njihovo starenje i dalje
         // ograničava web tick (retention u `mergeFlightsWithOpenSkyRetention`, 32 s).
         const freshList = localOnly === "localsdr" ? sdrList : avionixList;
-        // localsdr > avionix prioritet mora vrijediti i unutar avionixovog
-        // vlastitog brzog ticka, ne samo na punom ticku — inače avionixov
-        // fresh podatak na 10s privremeno prepiše Pi-jevu poziciju za avion
-        // koji oboje vide, pa se sljedeći Pi/puni tick vrati natrag. Vizualno
-        // to je točno "glatko → skok nazad → skok naprijed" na ~10s ciklusu
-        // (dijagnosticirano 2026-08-20: dva prijemnika s blago različitim
-        // pozicija/track očitanjima za isti avion, extrapolateFlightForDisplay
-        // svaki put nastavlja od nove baze pa je prijelaz baze vidljiv skok).
-        const freshListForMerge =
-          localOnly === "avionix"
-            ? freshList.filter((f) => {
-                const prev = previousFlights.find((p) => p.id === f.id);
-                return prev?.providerId !== "localsdr";
-              })
-            : freshList;
-        const combined = mergeLiveFlightListsWithSdrPriority(freshListForMerge, [
+        // Odluka „koji prijemnik vodi ovaj avion” mora biti ista kao na punom
+        // ticku, inače se izvor prebacuje tamo-natrag između tickova i marker
+        // skače (dijagnosticirano 2026-08-20). Prije se to rješavalo tako da se
+        // iz avionix liste izbaci sve što je zadnje javio localsdr — ali onda
+        // Avionix nije smio preuzeti ni avion koji je Pi u međuvremenu izgubio,
+        // pa je marker stajao do idućeg punog ticka (do 30 s) i tek onda skočio.
+        // `mergeLocalFeedTickIntoPrevious` primjenjuje isto pravilo svježine.
+        const tickNowMs = Date.now();
+        const combined = mergeLocalFeedTickIntoPrevious(
+          freshList,
           previousFlights,
-        ]);
+          tickNowMs
+        );
         const prevCounts = get().providerFlightCounts;
-        const sel = get().selectedFlightId;
         set({
           flights: combined,
           providerFlightCounts: { ...prevCounts, [localOnly]: freshList.length },
           localsdrStatus,
           avionixStatus,
           isLoading: false,
-          ...(sel != null && combined.some((f) => f.id === sel)
-            ? {}
-            : { selectedFlightId: null }),
+          ...selectionPatch(
+            get().selectedFlightId,
+            combined,
+            get().selectedFlightMissingSinceMs,
+            tickNowMs
+          ),
         });
         return;
       }
@@ -740,16 +790,14 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
         }
       });
 
-      // Lokalni izvori se spajaju međusobno prije nego pobijede web. NAMJERNO
-      // fiksni prioritet (localsdr uvijek pobjeđuje avionix za icao24 koje oba
-      // vide), ne "noviji pobjeđuje" — dva neovisna prijemnika istog aviona
-      // gotovo nikad ne javljaju identičnu poziciju/track (RF/decode razlike),
-      // pa simetrično naizmjenično biranje uzrokuje vidljivo treperenje na
-      // karti (svaki put kad extrapolateFlightForDisplay promijeni baznu
-      // točku). Avionix i dalje puni avione koje Pi ne vidi, bez izmjene.
-      const combinedLocal = mergeLiveFlightListsWithSdrPriority(sdrList, [
-        avionixList,
-      ]);
+      // Lokalni izvori se spajaju međusobno prije nego pobijede web. Za avion
+      // koji vide oba geometriju vodi svježiji/potpuniji snimak, uz fiksni
+      // tiebreak u korist localsdr dok su oba svježa — vidi
+      // `pickFreshestLocalSnapshot`. (Bezuvjetni fiksni prioritet je značio da
+      // Pi-jev redak star 40+ s zamrzne marker iako Avionix za isti avion ima
+      // svjež fix; mjereno 2026-08-25: 7 % tar1090 redaka je preko 40 s staro.)
+      const fullTickNowMs = Date.now();
+      const combinedLocal = mergeLocalFeeds(sdrList, avionixList, fullTickNowMs);
 
       // Local-only mod: oba weba isključena, lokalni izvor(i) su jedini izvor
       if (lists.length === 0 && combinedLocal.length > 0) {
@@ -760,12 +808,11 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
             // Retention gate izuzima sve providerId osim opensky/adsbone —
             // "localsdr" ovdje samo označava "lokalni, bez retencije".
             providerId: "localsdr",
-            mapBounds: bounds,
-            nowMs: Date.now(),
+            filterBounds: flightFilterBounds(query),
+            nowMs: fullTickNowMs,
             openSkyLatencySkewMs: get().openSkyLatencySkewMs,
           }
         );
-        const sel = get().selectedFlightId;
         set({
           flights: merged,
           providerFlightCounts: {
@@ -778,9 +825,12 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
           avionixStatus,
           webFeedStatus,
           isLoading: false,
-          ...(sel != null && merged.some((f) => f.id === sel)
-            ? {}
-            : { selectedFlightId: null }),
+          ...selectionPatch(
+            get().selectedFlightId,
+            merged,
+            get().selectedFlightMissingSinceMs,
+            fullTickNowMs
+          ),
         });
         return;
       }
@@ -794,7 +844,14 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
           avionixStatus,
           webFeedStatus,
           isLoading: false,
-          selectedFlightId: null,
+          // Prolazno prazan snapshot (jedan neuspio push/poll) ne smije odmah
+          // otpustiti praćeni let — grace ga vraća čim se izvor javi.
+          ...selectionPatch(
+            get().selectedFlightId,
+            [],
+            get().selectedFlightMissingSinceMs,
+            fullTickNowMs
+          ),
         });
         return;
       }
@@ -810,7 +867,7 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
         lists.length === 1 ? lists[0] : mergeLiveFlightLists(lists);
       const combined =
         combinedLocal.length > 0
-          ? mergeLiveFlightListsWithSdrPriority(combinedLocal, lists)
+          ? mergeLiveFlightListsWithSdrPriority(combinedLocal, lists, fullTickNowMs)
           : webMerged;
       const retentionId: FlightProviderId = ids.includes("opensky")
         ? "opensky"
@@ -820,14 +877,11 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
         previousFlights,
         {
           providerId: retentionId,
-          mapBounds: bounds,
-          nowMs: Date.now(),
+          filterBounds: flightFilterBounds(query),
+          nowMs: fullTickNowMs,
           openSkyLatencySkewMs: get().openSkyLatencySkewMs,
         }
       );
-      const sel = get().selectedFlightId;
-      const keepSel =
-        sel != null && merged.some((f) => f.id === sel);
       set({
         flights: merged,
         providerFlightCounts: {
@@ -839,7 +893,12 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
         avionixStatus,
         webFeedStatus,
         isLoading: false,
-        ...(keepSel ? {} : { selectedFlightId: null }),
+        ...selectionPatch(
+          get().selectedFlightId,
+          merged,
+          get().selectedFlightMissingSinceMs,
+          fullTickNowMs
+        ),
       });
     } catch (e) {
       set({

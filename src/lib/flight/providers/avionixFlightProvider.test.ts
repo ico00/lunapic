@@ -17,6 +17,10 @@ describe("AvionixFlightProvider — stabilizeTimestamps", () => {
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     vi.useFakeTimers();
+    // Uređajev timestamp se prihvaća samo ako je blizu našeg sata
+    // (`MAX_DEVICE_CLOCK_SKEW_MS`) — bez ovoga bi fixture iz prošlosti pao na
+    // `Date.now()` i test bi mjerio fallback umjesto stvarnog ponašanja.
+    vi.setSystemTime(new Date("2026-08-21T12:00:00.000Z"));
   });
 
   afterEach(() => {
