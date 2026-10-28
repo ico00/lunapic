@@ -275,8 +275,11 @@ type MoonTransitState = {
    */
   runwayPlanLines: readonly RunwayShadowLine[];
   runwayPlanFocusMs: number | null;
+  /** true: crtaj sva vremena (neodabrana prigušena); false: samo odabrano vrijeme. */
+  runwayPlanShowAll: boolean;
   setRunwayPlanLines: (lines: readonly RunwayShadowLine[]) => void;
   setRunwayPlanFocusMs: (ms: number | null) => void;
+  setRunwayPlanShowAll: (v: boolean) => void;
   setFlightProvider: (id: FlightProviderId) => void;
   setLiveFlightFeeds: (patch: Partial<LiveFlightFeeds>) => void;
   /** Ako je još `static` (stari build), prebaci na live dual — static nije u comboboxu. */
@@ -526,6 +529,8 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   runwayPlanFocusMs: null,
   setRunwayPlanLines: (lines) => set({ runwayPlanLines: lines }),
   setRunwayPlanFocusMs: (ms) => set({ runwayPlanFocusMs: ms }),
+  runwayPlanShowAll: false,
+  setRunwayPlanShowAll: (v) => set({ runwayPlanShowAll: v }),
   setFlightProvider: (id) =>
     set((s) => {
       let liveFlightFeeds = s.liveFlightFeeds;

@@ -135,7 +135,11 @@ export function useRunwayPlanLayer(
 ): void {
   const lines = useMoonTransitStore((s) => s.runwayPlanLines);
   const focusMs = useMoonTransitStore((s) => s.runwayPlanFocusMs);
-  const pack = useMemo(() => buildRunwayShadowPlanFeatures(lines, focusMs), [lines, focusMs]);
+  const showAll = useMoonTransitStore((s) => s.runwayPlanShowAll);
+  const pack = useMemo(
+    () => buildRunwayShadowPlanFeatures(lines, focusMs, !showAll),
+    [lines, focusMs, showAll]
+  );
 
   useEffect(() => {
     if (mapReadyTick === 0) return;

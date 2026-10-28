@@ -460,6 +460,10 @@ Regresijski test u `runwayShadowPlan.test.ts` uspoređuje točke s ručnim KML-o
 za 28.10.2026 07:20 (unutar 60 m). Stanje: `runwayPlanLines` /
 `runwayPlanFocusMs` u storeu, panel ih objavljuje i briše pri zatvaranju;
 sloj `useRunwayPlanLayer`.
+Panel nudi i pregled „Days with the Moon up” (`runwayPlanDays.ts`): po danu prozori
+u kojima je Mjesec ≥ `CAUTION_BELOW_DEG` (12°, sada exportan) i osvijetljenost; ne zna
+stazu u upotrebi (vjetar), pa ne ocjenjuje 04 nasuprot 22. Zadani prikaz karte je
+jedno vrijeme (`runwayPlanShowAll=false`) — sva vremena odjednom čine nečitljivu traku.
 
 ### Ne zvati `getMoonState` iz geometrije
 
