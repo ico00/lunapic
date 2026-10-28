@@ -18,9 +18,15 @@ export function formatPlanTime(ms: number): string {
   return new Date(ms).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 }
 
+/**
+ * `onlyFocused`: with a focused instant, draw just that instant's lines instead
+ * of dimming the rest. Ten near-parallel lines at 10 min spacing read as one
+ * wide band, which is the default view's biggest problem.
+ */
 export function buildRunwayShadowPlanFeatures(
   lines: readonly RunwayShadowLine[],
-  focusMs: number | null
+  focusMs: number | null,
+  onlyFocused = false
 ): FeatureCollection {
   if (lines.length === 0) {
     return EMPTY;
@@ -28,6 +34,9 @@ export function buildRunwayShadowPlanFeatures(
 
   const features: Feature[] = [];
   for (const line of lines) {
+    if (onlyFocused && focusMs !== null && focusMs !== line.atMs) {
+      continue;
+    }
     const active = focusMs === null || focusMs === line.atMs;
     const label = formatPlanTime(line.atMs);
     const base = { flow: line.flow, timeMs: line.atMs, active };

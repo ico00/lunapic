@@ -2,6 +2,12 @@
 
 import { ShellSelect, type ShellSelectOption } from "@/components/shell/ShellSelect";
 import {
+  computeBestPlanningDays,
+  suggestedPlanRange,
+  type PlanningDay,
+  type PlanningWindow,
+} from "@/lib/domain/geometry/runwayPlanDays";
+import {
   computeRunwayShadowPlan,
   moonAltitudeAtAirportDeg,
   type RunwayFlow,
@@ -68,6 +74,51 @@ function localInstantMs(key: string, hhmm: string): number {
   return new Date(y!, mo! - 1, d!, h!, m!, 0, 0).getTime();
 }
 
+const hhmm = (ms: number) => {
+  const d = new Date(ms);
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+};
+
+const GUIDE_STORAGE_KEY = "lunapic.planning.guideHidden";
+const BEST_DAYS_COLLAPSED_COUNT = 7;
+
+function readGuideHidden(): boolean {
+  try {
+    return globalThis.localStorage?.getItem(GUIDE_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeGuideHidden(hidden: boolean) {
+  try {
+    globalThis.localStorage?.setItem(GUIDE_STORAGE_KEY, hidden ? "1" : "0");
+  } catch {
+    /* privatni prozor / blokirano — uputa se samo vrati pri sljedećem otvaranju */
+  }
+}
+
+/**
+ * Prvi prozor u kojem je Mjesec dovoljno visoko, računajući od sada: panel se
+ * otvara na nečemu što ima linije, a ne na praznom danu.
+ */
+function firstUsefulWindow(
+  days: readonly PlanningDay[],
+  nowMs: number
+): { date: string; from: string; to: string } | null {
+  for (const day of days) {
+    for (const w of day.windows) {
+      if (w.endMs <= nowMs) continue;
+      const slotMs = SLOT_MINUTES * 60_000;
+      const start = Math.max(w.startMs, Math.ceil(nowMs / slotMs) * slotMs);
+      if (start > w.endMs) continue;
+      const range = suggestedPlanRange({ ...w, startMs: start });
+      return { date: day.dateKey, from: hhmm(range.startMs), to: hhmm(range.endMs) };
+    }
+  }
+  return null;
+}
+
 /** Next slot boundary after `nowMs`, clamped to the last slot of its day. */
 function defaultWindow(nowMs: number): { date: string; from: string; to: string } {
   const now = new Date(nowMs);
@@ -124,11 +175,16 @@ export function PlanningPanel() {
   const setRunwayPlanLines = useMoonTransitStore((s) => s.setRunwayPlanLines);
   const focusMs = useMoonTransitStore((s) => s.runwayPlanFocusMs);
   const setFocusMs = useMoonTransitStore((s) => s.setRunwayPlanFocusMs);
+  const showAllTimes = useMoonTransitStore((s) => s.runwayPlanShowAll);
+  const setShowAllTimes = useMoonTransitStore((s) => s.setRunwayPlanShowAll);
 
   const [initial] = useState(() => {
     const now = Date.now();
-    return { now, dates: buildDateOptions(now), window: defaultWindow(now) };
+    const days = computeBestPlanningDays(now, DAYS_AHEAD);
+    return { now, dates: buildDateOptions(now), days, window: firstUsefulWindow(days, now) ?? defaultWindow(now) };
   });
+  const [guideHidden, setGuideHidden] = useState(readGuideHidden);
+  const [allDays, setAllDays] = useState(false);
   const [date, setDate] = useState(initial.window.date);
   const [from, setFrom] = useState(initial.window.from);
   const [to, setTo] = useState(initial.window.to);
@@ -171,13 +227,24 @@ export function PlanningPanel() {
     () => () => {
       setRunwayPlanLines([]);
       setFocusMs(null);
+      setShowAllTimes(false);
     },
-    [setRunwayPlanLines, setFocusMs]
+    [setRunwayPlanLines, setFocusMs, setShowAllTimes]
   );
-  // A focused instant that the new inputs no longer produce would dim everything.
+  // Default view draws ONE time (the first); "show all" keeps whatever is focused.
+  // A focused instant that the new inputs no longer produce would draw/dim nothing.
   useEffect(() => {
-    if (focusMs !== null && !rows.some((r) => r.atMs === focusMs)) setFocusMs(null);
-  }, [rows, focusMs, setFocusMs]);
+    const valid = focusMs !== null && rows.some((r) => r.atMs === focusMs);
+    if (valid) return;
+    setFocusMs(showAllTimes || rows.length === 0 ? null : rows[0]!.atMs);
+  }, [rows, focusMs, showAllTimes, setFocusMs]);
+
+  const applyWindow = (day: PlanningDay, w: PlanningWindow) => {
+    const range = suggestedPlanRange(w);
+    setDate(day.dateKey);
+    setFrom(hhmm(range.startMs));
+    setTo(hhmm(range.endMs));
+  };
 
   const moonAtStartDeg = useMemo(() => moonAltitudeAtAirportDeg(startMs), [startMs]);
   const moonLow = moonAtStartDeg < CRITICAL_BELOW_DEG;
@@ -185,10 +252,106 @@ export function PlanningPanel() {
   return (
     <div className="space-y-4" data-testid="planning-panel">
       <div className="space-y-1.5">
-        <FieldLabel>Zagreb LDZA — runway 04/22</FieldLabel>
+        <div className="flex items-center justify-between gap-2">
+          <FieldLabel>Zagreb LDZA — runway 04/22</FieldLabel>
+          <button
+            type="button"
+            onClick={() => {
+              setGuideHidden((h) => {
+                writeGuideHidden(!h);
+                return !h;
+              });
+            }}
+            aria-expanded={!guideHidden}
+            className="rounded-full border border-white/10 px-2.5 py-0.5 text-[length:var(--fs-label)] text-[color:var(--t-secondary)] transition hover:border-white/20 hover:text-[color:var(--t-primary)]"
+          >
+            {guideHidden ? "How to use" : "Hide"}
+          </button>
+        </div>
         <p className="text-[length:var(--fs-meta)] text-[color:var(--t-secondary)]">
           Where to stand so an A320 on final or climb-out crosses the Moon at the chosen time.
         </p>
+        {guideHidden ? null : (
+          <ol className="list-decimal space-y-1 rounded-xl border border-sky-400/25 bg-sky-500/[0.07] py-2 pl-7 pr-3 text-[length:var(--fs-meta)] text-[color:var(--t-secondary)]">
+            <li>
+              <span className="text-[color:var(--t-primary)]">Pick a day</span> below — the Moon must be up.
+              Tap a window to load it.
+            </li>
+            <li>
+              <span className="text-[color:var(--t-primary)]">Tap a time</span> in the list. The map shows
+              one green line for it.
+            </li>
+            <li>
+              <span className="text-[color:var(--t-primary)]">Stand on that line</span> at that time. Your
+              spot along it decides how far from the runway the aircraft is when it crosses the Moon
+              (dots: 4–12 km, label: aircraft size in Moon widths).
+            </li>
+            <li>
+              Which runway is in use depends on the wind — check live traffic that day.
+            </li>
+          </ol>
+        )}
+      </div>
+
+      <div className="space-y-1">
+        <FieldLabel>Days with the Moon up</FieldLabel>
+        <ul className="divide-y divide-white/[0.06]" data-testid="planning-days">
+          {initial.days
+            .filter((d) => allDays || d.windows.length > 0)
+            .slice(0, allDays ? undefined : BEST_DAYS_COLLAPSED_COUNT)
+            .map((d) => {
+              const lit = d.illuminationFraction;
+              const label = new Date(d.dayStartMs).toLocaleDateString("en-GB", {
+                weekday: "short",
+                day: "2-digit",
+                month: "short",
+              });
+              return (
+                <li
+                  key={d.dateKey}
+                  className={`flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md px-2 py-1.5 text-[length:var(--fs-label)] ${
+                    d.dateKey === date ? "bg-sky-500/15" : ""
+                  }`}
+                >
+                  <span className="w-[5.5rem] shrink-0 font-mono text-[color:var(--t-primary)]">{label}</span>
+                  {lit === null ? (
+                    <span className="text-[color:var(--t-tertiary)]">Moon too low</span>
+                  ) : (
+                    <>
+                      <span
+                        className={`shrink-0 rounded-full px-2 py-0.5 text-[length:var(--fs-meta)] font-semibold ${
+                          lit >= 0.85
+                            ? "bg-emerald-500/25 text-emerald-300"
+                            : lit >= 0.5
+                              ? "bg-amber-500/20 text-amber-300"
+                              : "bg-white/[0.05] text-[color:var(--t-tertiary)]"
+                        }`}
+                      >
+                        {formatFixed(lit * 100, 0)}% lit
+                      </span>
+                      {d.windows.map((w) => (
+                        <button
+                          key={w.startMs}
+                          type="button"
+                          onClick={() => applyWindow(d, w)}
+                          className="rounded-md border border-white/10 px-2 py-0.5 font-mono text-[length:var(--fs-meta)] text-[color:var(--t-secondary)] transition hover:border-sky-500/35 hover:text-[color:var(--t-primary)]"
+                        >
+                          {hhmm(w.startMs)}–{hhmm(w.endMs)}
+                        </button>
+                      ))}
+                    </>
+                  )}
+                </li>
+              );
+            })}
+        </ul>
+        <button
+          type="button"
+          onClick={() => setAllDays((v) => !v)}
+          className="rounded-full border border-white/10 px-3 py-1 text-[length:var(--fs-label)] text-[color:var(--t-secondary)] transition hover:border-white/20 hover:text-[color:var(--t-primary)]"
+        >
+          {allDays ? "Show fewer days" : `Show all ${DAYS_AHEAD} days`}
+        </button>
       </div>
 
       <div className="space-y-2">
@@ -302,6 +465,17 @@ export function PlanningPanel() {
         <FieldLabel>
           {rows.length > 0 ? `${rows.length} ${rows.length === 1 ? "time" : "times"}` : "Times"}
         </FieldLabel>
+        {rows.length > 1 ? (
+          <label className="flex cursor-pointer items-center gap-2 px-2 py-1 text-[length:var(--fs-meta)] text-[color:var(--t-secondary)]">
+            <input
+              type="checkbox"
+              className={shellAccentCheckboxClass}
+              checked={showAllTimes}
+              onChange={(e) => setShowAllTimes(e.target.checked)}
+            />
+            <span>Show all times on the map</span>
+          </label>
+        ) : null}
         {rows.length === 0 ? (
           <p className="text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">
             {flows.length === 0
@@ -317,7 +491,7 @@ export function PlanningPanel() {
                   <button
                     type="button"
                     aria-pressed={selected}
-                    onClick={() => setFocusMs(selected ? null : r.atMs)}
+                    onClick={() => setFocusMs(selected && showAllTimes ? null : r.atMs)}
                     className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[length:var(--fs-label)] transition ${
                       selected ? "bg-sky-500/15 ring-1 ring-sky-400/70" : "hover:bg-white/[0.04]"
                     }`}

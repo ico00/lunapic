@@ -33,6 +33,17 @@ describe("buildRunwayShadowPlanFeatures", () => {
     expect(fc.features.every((f) => f.properties?.active === true)).toBe(true);
   });
 
+  it("draws only the focused instant when asked to", () => {
+    const fc = buildRunwayShadowPlanFeatures(lines, T0, true);
+    expect(fc.features.length).toBeGreaterThan(0);
+    expect(fc.features.every((f) => f.properties?.timeMs === T0)).toBe(true);
+  });
+
+  it("onlyFocused without a focus still draws everything", () => {
+    const all = buildRunwayShadowPlanFeatures(lines, null, false);
+    expect(buildRunwayShadowPlanFeatures(lines, null, true).features).toHaveLength(all.features.length);
+  });
+
   it("dims everything except the focused instant", () => {
     const fc = buildRunwayShadowPlanFeatures(lines, T0);
     for (const f of fc.features) {
