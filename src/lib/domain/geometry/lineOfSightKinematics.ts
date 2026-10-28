@@ -130,7 +130,7 @@ export function signedAzimuthGapDeg(
  * brzinu/visinu, pa se pretpostavka konstantnog track-a i brzine
  * razilazi od stvarnosti prije nego dođe do poravnanja.
  */
-const MAX_ALIGNMENT_LOOKAHEAD_SEC = 300;
+export const MAX_ALIGNMENT_LOOKAHEAD_SEC = 300;
 
 /**
  * t = -gap / (d(ac)/dt − d(moon)/dt) [s] ako je t > 0.

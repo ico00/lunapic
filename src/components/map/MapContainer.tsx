@@ -60,6 +60,9 @@ export function MapContainer({
   flightFilterCriteria,
 }: MapContainerProps) {
   const flights = useExtrapolatedFlightsForMap();
+  // Geometry consumes raw fixes: screening extrapolates them itself, at the field tick.
+  // Display positions must not trigger screening on every animation frame.
+  const rawFlights = useMoonTransitStore((s) => s.flights);
   const observer = useObserverStore((s) => s.observer);
   const moon = useMoonStateComputed();
   const referenceEpochMs = useMoonTransitStore((s) => s.referenceEpochMs);
@@ -133,25 +136,25 @@ export function MapContainer({
       computeShotFeasibleFlightIds(
         observer,
         moon,
-        filteredFlights,
+        rawFlights,
         wallNowMs,
         openSkyLatencySkewMs,
         cameraFocalLengthMm,
         cameraSensorType as CameraSensorType
       ),
-    [cameraFocalLengthMm, cameraSensorType, filteredFlights, moon, observer, openSkyLatencySkewMs, wallNowMs]
+    [cameraFocalLengthMm, cameraSensorType, rawFlights, moon, observer, openSkyLatencySkewMs, wallNowMs]
   );
   const confirmedTransitFlightIds = useMemo(
     () =>
       computeConfirmedTransitFlightIds(
         observer,
         moon,
-        filteredFlights,
+        rawFlights,
         new Date(referenceEpochMs > 0 ? referenceEpochMs : wallNowMs),
         wallNowMs,
         openSkyLatencySkewMs
       ),
-    [filteredFlights, moon, observer, openSkyLatencySkewMs, referenceEpochMs, wallNowMs]
+    [rawFlights, moon, observer, openSkyLatencySkewMs, referenceEpochMs, wallNowMs]
   );
 
   useTransitFieldSounds({
@@ -159,7 +162,7 @@ export function MapContainer({
     selectedFlightId,
     observer,
     moon,
-    flights,
+    flights: rawFlights,
     cameraFocalLengthMm,
     cameraSensorType: cameraSensorType as CameraSensorType,
   });
@@ -227,10 +230,10 @@ export function MapContainer({
   useSelectedFlightTrail(mapRef, mapReadyTick);
   useCallsignHistoryLayer(mapRef, mapReadyTick);
   usePhotoSpotLayer(mapRef, mapReadyTick);
+  useRunwayPlanLayer(mapRef, mapReadyTick);
   useSelectedFlightShadowTrack(mapRef, mapReadyTick, {
     observer,
     selectedFlightId,
-  useRunwayPlanLayer(mapRef, mapReadyTick);
     flights: filteredFlights,
     nowMs: wallNowMs,
     enabled: transitCenterlineOverlay,

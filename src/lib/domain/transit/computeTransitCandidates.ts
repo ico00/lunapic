@@ -13,7 +13,7 @@ import type { TransitCandidate } from "@/types/transit";
 /**
  * Practical photography limit: only flights within this slant range
  * (at the predicted alignment position) are classified as willTransit.
- * Matches the 100 km radius shown on the map.
+ * Matches the 100 km screening limit (the visual map ring is 80 km).
  */
 export const MAX_TRANSIT_SLANT_METERS = 100_000;
 
@@ -61,12 +61,13 @@ export function computeTransitCandidates({
   const halfFovDeg = verticalFovDeg(focalLengthMm, sensorType) / 2;
   const screened = screenTransitCandidates(observer, moon, flights, wallNowMs, latencySkewMs);
   const enriched: TransitCandidate[] = [];
+  const rawById = new Map(flights.map((f) => [f.id, f]));
   for (const c of screened) {
     const pack = GeometryEngine.photographerPack(observer, c.flight, moon, at, {
       airlinerLengthMeters: c.flight.lengthMeters ?? undefined,
     });
     // Nema predviđenog azimutalnog alignmenta → avion nema šanse biti u kadru s Mjesecom.
-    if (pack !== null && pack.timeToAlignmentSec === null) {
+    if (pack === null || pack.timeToAlignmentSec === null) {
       continue;
     }
     const gap = pack?.elevationGapAtAlignmentDeg ?? null;
@@ -80,10 +81,18 @@ export function computeTransitCandidates({
     if (pack?.futureSlantMeters != null && pack.futureSlantMeters > MAX_TRANSIT_SLANT_METERS) {
       continue;
     }
+    const raw = rawById.get(c.flight.id)!;
     enriched.push({
       ...c,
       elevationGapDeg: gap,
-      willTransit: pack?.willActuallyTransit ?? false,
+      willTransit: pack.willActuallyTransit,
+      prediction: {
+        alignmentAtMs: wallNowMs + pack.timeToAlignmentSec * 1000,
+        fixTimestampMs: raw.timestamp,
+        lat: raw.position.lat,
+        lng: raw.position.lng,
+        providerId: raw.providerId ?? "unknown",
+      },
     });
   }
   return enriched;

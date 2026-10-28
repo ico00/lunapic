@@ -41,16 +41,16 @@ export function useTransitFieldSounds(a: UseTransitFieldSoundsArgs): void {
 
   const shotFeasibleIds = useMemo(
     () =>
-      computeShotFeasibleFlightIds(
+      !enabled || selectedFlightId == null ? new Set<string>() : computeShotFeasibleFlightIds(
         observer,
         moon,
-        flights,
+        flights.filter((f) => f.id === selectedFlightId),
         wallNowMs,
         openSkyLatencySkewMs,
         cameraFocalLengthMm,
         cameraSensorType
       ),
-    [observer, moon, flights, wallNowMs, openSkyLatencySkewMs, cameraFocalLengthMm, cameraSensorType]
+    [enabled, selectedFlightId, observer, moon, flights, wallNowMs, openSkyLatencySkewMs, cameraFocalLengthMm, cameraSensorType]
   );
 
   const selectedIsShotFeasible = useMemo(
@@ -59,14 +59,14 @@ export function useTransitFieldSounds(a: UseTransitFieldSoundsArgs): void {
   );
 
   const selectedDiscOverlap = useMemo(() => {
-    if (selectedFlightId == null) {
+    if (!enabled || selectedFlightId == null) {
       return false;
     }
-    const row = screenTransitCandidates(observer, moon, flights, wallNowMs, openSkyLatencySkewMs).find(
+    const row = screenTransitCandidates(observer, moon, flights.filter((f) => f.id === selectedFlightId), wallNowMs, openSkyLatencySkewMs).find(
       (x) => x.flight.id === selectedFlightId
     );
     return row?.isPossibleTransit ?? false;
-  }, [observer, moon, flights, wallNowMs, openSkyLatencySkewMs, selectedFlightId]);
+  }, [enabled, observer, moon, flights, wallNowMs, openSkyLatencySkewMs, selectedFlightId]);
 
   const holdRef = useRef<MoonTransitHoldTone | null>(null);
   const prevGreenRef = useRef(false);

@@ -28,6 +28,10 @@ const baseArgs = {
 };
 
 describe("computeTransitCandidates", () => {
+  it.each([null, NaN, 0])("excludes candidates with unavailable speed (%s)", (speed) => {
+    expect(computeTransitCandidates({ ...baseArgs, at: MOON_UP,
+      flights: [{...flight, groundSpeedMps:speed}] })).toEqual([]);
+  });
   it("returns empty when there are no flights", () => {
     expect(
       computeTransitCandidates({ ...baseArgs, flights: [], at: MOON_UP })

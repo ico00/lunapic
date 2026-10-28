@@ -28,12 +28,10 @@ import type { IFlightProvider } from "@/types";
 import type { FlightState } from "@/types/flight";
 import type mapboxgl from "mapbox-gl";
 import type { Feature } from "geojson";
+import { FLIGHT_ANIMATION_INTERVAL_MS } from "@/lib/map/flightAnimationTiming";
 import { fieldPerfTime } from "@/lib/perf/fieldPerf";
 import { useEffect, useRef, type RefObject } from "react";
 
-// Minimum time between full GeoJSON rebuilds for the flights layer.
-// 80 ms matches the rAF tick in useExtrapolatedFlightsForMap; keeps Safari smooth.
-const FLIGHTS_GEOJSON_MIN_INTERVAL_MS = 80;
 const MPS_TO_KNOTS = 1.9438444924406048;
 /** Staleness fade: full opacity until 15s old, then fades to fully-stale (1.0) at 45s. */
 const STALE_FADE_START_MS = 15_000;
@@ -84,6 +82,7 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
     flightProvider,
   } = a;
 
+  const mapDisplayMode = useMoonTransitStore((s) => s.mapDisplayMode);
   const atmosphericLevels = useWeatherStore((s) => s.atmosphericLevels);
   const atmosphericLevelsRef = useRef(atmosphericLevels);
   const altitudeBandIndex = useMoonTransitStore((s) => s.altitudeBandIndex);
@@ -318,6 +317,8 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
             },
           })),
         });
+        // These sources only render in ATC mode. Refresh on entry via the effect dependency.
+        if (mapDisplayMode !== "atc") return;
         const leaderSrc = m.getSource(FLIGHTS_ATC_LEADER_SOURCE) as
           | mapboxgl.GeoJSONSource
           | undefined;
@@ -372,7 +373,7 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
     const dt = now - lastFlightGeoJsonFlushRef.current;
     if (
       lastFlightGeoJsonFlushRef.current === 0 ||
-      dt >= FLIGHTS_GEOJSON_MIN_INTERVAL_MS
+      dt >= FLIGHT_ANIMATION_INTERVAL_MS
     ) {
       lastFlightGeoJsonFlushRef.current = now;
       flush();
@@ -381,7 +382,7 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
         timeoutId = null;
         lastFlightGeoJsonFlushRef.current = Date.now();
         flush();
-      }, FLIGHTS_GEOJSON_MIN_INTERVAL_MS - dt);
+      }, FLIGHT_ANIMATION_INTERVAL_MS - dt);
     }
 
     return () => {
@@ -389,7 +390,7 @@ export function useMapGeoJsonSync(a: UseMapGeoJsonSyncArgs): void {
         clearTimeout(timeoutId);
       }
     };
-  }, [flights, mapRef, mapReadyTick, selectedFlightId, shotFeasibleFlightIds, confirmedTransitFlightIds]);
+  }, [flights, mapRef, mapReadyTick, selectedFlightId, shotFeasibleFlightIds, confirmedTransitFlightIds, mapDisplayMode]);
 
 }
 
