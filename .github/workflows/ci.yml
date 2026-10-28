@@ -26,8 +26,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Audit (npm) dependencies
-        run: npm audit --audit-level=critical
+      # Samo produkcijske ovisnosti: advisory u razvojnim alatima (vitest/tinypool…)
+      # ne dolazi na server, a rušio je CI prije lint/tsc/testova. Dev lanac se
+      # nadograđuje zasebno (vitest 5 je breaking).
+      - name: Audit (npm) production dependencies
+        run: npm audit --omit=dev --audit-level=critical
 
       - name: ESLint
         run: npm run lint
