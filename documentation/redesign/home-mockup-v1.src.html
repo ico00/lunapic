@@ -1,0 +1,734 @@
+<title>LunaPic Naslovnica</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout concept: full-bleed map, labelled tool rail on the left, one "Next transit" board that
+   draws the transit as a line (stations, interchange), time ribbon at the bottom drawn as a line too.
+   Dark by design: used at night in the field. Flat enamel, no blur, no glow, no gradients. */
+:root {
+  --ground: #0b1530;
+  --ground-deep: #070e22;
+  --land: #0f1c3d;
+  --panel: #111e40;
+  --panel-2: #182950;
+  --hair: #2c3f6e;
+  --hair-soft: #1f315e;
+  --ink: #eef3fa;
+  --ink-2: #b8c4dc;
+  --ink-3: #8a9abd;
+  --moon: #ffb224;
+  --observer: #5b95ff;
+  --observer-text: #8db4ff;
+  --disc: #ff5d4a;
+  --disc-text: #ff8d7e;
+  --live: #34d17f;
+  --font: "Overpass", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --fs-display: 28px;
+  --fs-h1: 22px;
+  --fs-h2: 17px;
+  --fs-body: 15px;
+  --fs-meta: 13px;
+  --fs-label: 12px;
+  --r-panel: 10px;
+  --r-ctl: 6px;
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--fs-body);
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+svg { display: block; }
+.ic { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: var(--r-ctl); }
+
+.app { position: relative; height: 100%; min-height: 560px; overflow: hidden; }
+.map { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* ---------- top bar ---------- */
+.bar {
+  position: absolute; z-index: 20; inset: 0 0 auto 0; height: 56px;
+  display: flex; align-items: center; gap: 16px;
+  padding: 0 16px; background: var(--ground); border-bottom: 1px solid var(--hair);
+}
+.brand { display: flex; align-items: center; gap: 10px; width: 168px; font-weight: 800; font-size: 18px; letter-spacing: -0.01em; background: none; border: 0; padding: 0; }
+.brand svg { width: 24px; height: 26px; fill: var(--ink); }
+.search {
+  flex: 0 1 460px; display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 12px;
+  background: var(--panel); border: 1px solid var(--hair); border-radius: var(--r-ctl); color: var(--ink-3);
+  font-size: var(--fs-body); text-align: left; transition: border-color 150ms var(--ease);
+}
+.search:hover { border-color: var(--ink-3); }
+.search > span:nth-of-type(1) { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.search .sm { display: none; }
+.kbd { font-size: var(--fs-label); border: 1px solid var(--hair); border-radius: 4px; padding: 2px 8px; color: var(--ink-3); }
+.chips { margin-left: auto; display: flex; gap: 8px; }
+.chip {
+  display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px;
+  border: 1px solid var(--hair); border-radius: var(--r-ctl); background: var(--panel);
+  font-size: var(--fs-meta); font-weight: 600; color: var(--ink-2); white-space: nowrap;
+}
+.chip b { color: var(--ink); font-weight: 700; }
+.chip.warn { border-color: color-mix(in srgb, var(--moon) 55%, var(--hair)); }
+.chip.warn .ic { color: var(--moon); }
+.chip .ic { width: 18px; height: 18px; }
+.chip.live .ic { color: var(--live); }
+
+/* ---------- rail ---------- */
+.rail {
+  position: absolute; z-index: 15; left: 0; top: 56px; bottom: 0; width: 200px;
+  background: var(--ground); border-right: 1px solid var(--hair);
+  padding: 12px 8px 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px;
+}
+.grp-title { display: flex; align-items: center; gap: 8px; padding: 0 8px 6px; font-size: var(--fs-label); font-weight: 700; color: var(--ink-3); letter-spacing: 0.04em; }
+.grp-title i { width: 10px; height: 10px; border-radius: 50%; border: 2.5px solid var(--c); }
+.rail ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.nav {
+  position: relative; display: flex; align-items: center; gap: 10px; width: 100%; height: 38px; padding: 0 8px;
+  background: none; border: 0; border-radius: var(--r-ctl); color: var(--ink-2); font-size: var(--fs-body); font-weight: 500; text-align: left;
+  transition: background-color 150ms var(--ease), color 150ms var(--ease), transform 120ms var(--ease);
+}
+@media (hover: hover) and (pointer: fine) { .nav:hover { background: var(--panel); color: var(--ink); } }
+.nav:active { transform: scale(0.97); }
+.nav[aria-current="true"] { background: var(--ink); color: var(--ground); font-weight: 700; }
+.nav .n { margin-left: auto; min-width: 24px; height: 22px; padding: 0 8px; display: grid; place-items: center; border-radius: 10px; background: var(--disc); color: #1a0703; font-size: var(--fs-label); font-weight: 800; }
+.nav .n.c { background: var(--observer); color: #06143a; }
+
+/* ---------- next transit board ---------- */
+.board {
+  position: absolute; z-index: 12; left: 216px; top: 72px; width: 408px; max-height: calc(100% - 72px - 112px);
+  display: flex; flex-direction: column;
+  background: var(--panel); border: 1px solid var(--hair); border-radius: var(--r-panel);
+  overflow: hidden;
+}
+.board-top { display: flex; align-items: center; gap: 10px; padding: 14px 16px 0; }
+.tag {
+  white-space: nowrap; display: inline-flex; align-items: center; gap: 8px; height: 26px; padding: 0 10px; border-radius: 13px;
+  font-size: var(--fs-label); font-weight: 800; letter-spacing: 0.02em; color: #1a0703; background: var(--disc);
+}
+.tag.frame { background: var(--observer); color: #06143a; }
+.board-top .src { margin-left: auto; font-size: var(--fs-meta); color: var(--ink-3); display: flex; align-items: center; gap: 6px; }
+.board-top .src i { width: 8px; height: 8px; border-radius: 50%; background: var(--live); }
+.headline { padding: 10px 16px 0; margin: 0; font-size: var(--fs-display); font-weight: 800; line-height: 1.1; letter-spacing: -0.015em; text-wrap: balance; }
+.headline .t { color: var(--disc-text); }
+.sub { padding: 6px 16px 0; margin: 0; color: var(--ink-2); font-size: var(--fs-body); }
+.sub b { color: var(--ink); font-weight: 700; }
+
+.diagram { padding: 10px 8px 2px; }
+.diagram svg { width: 100%; height: auto; overflow: visible; }
+.st-name { font: 600 12px var(--font); fill: var(--ink-2); }
+.st-time { font: 700 13px var(--font); fill: var(--ink); font-variant-numeric: tabular-nums; }
+.st-main { font: 800 14px var(--font); fill: var(--ink); }
+
+.block { padding: 10px 16px; border-top: 1px solid var(--hair-soft); }
+.block-h { white-space: nowrap; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 8px; font-size: var(--fs-meta); font-weight: 700; color: var(--ink-2); }
+.block-h .v { color: var(--ink); font-weight: 800; font-size: var(--fs-body); }
+.block-h .v.ok { color: var(--live); }
+.pos { position: relative; }
+.pos svg { width: 100%; height: auto; overflow: visible; }
+.pos-note { margin: 4px 0 0; font-size: var(--fs-meta); color: var(--ink-3); }
+.pos-note b { color: var(--ink-2); font-weight: 600; }
+
+.facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; padding: 0; }
+.fact { padding: 8px 16px; border-left: 1px solid var(--hair-soft); }
+.fact:first-child { border-left: 0; }
+.fact dt { font-size: var(--fs-label); color: var(--ink-3); font-weight: 600; margin: 0; }
+.fact dd { margin: 2px 0 0; font-size: var(--fs-h2); font-weight: 800; color: var(--ink); }
+.fact dd small { font-size: var(--fs-meta); font-weight: 600; color: var(--ink-2); margin-left: 2px; }
+.fact dd.ok { color: var(--live); }
+
+.actions { display: flex; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--hair-soft); }
+.btn {
+  white-space: nowrap; height: 42px; padding: 0 16px; border-radius: var(--r-ctl); border: 1px solid var(--hair); background: var(--panel-2);
+  font-size: var(--fs-body); font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  transition: background-color 150ms var(--ease), border-color 150ms var(--ease), transform 120ms var(--ease);
+}
+.btn.primary { flex: 1; background: var(--ink); color: var(--ground); border-color: var(--ink); }
+.btn .ic { width: 18px; height: 18px; }
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover { border-color: var(--ink-3); }
+  .btn.primary:hover { background: #fff; }
+}
+.btn:active { transform: scale(0.97); }
+
+.cands { overflow-y: auto; min-height: 0; border-top: 1px solid var(--hair-soft); }
+.cands-h { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px 4px; font-size: var(--fs-meta); font-weight: 700; color: var(--ink-2); }
+.cands-h span:last-child { font-weight: 500; color: var(--ink-3); }
+.row {
+  display: grid; grid-template-columns: 10px 1fr auto auto; align-items: center; gap: 12px; width: 100%; min-height: 42px; padding: 4px 16px;
+  background: none; border: 0; text-align: left; transition: background-color 150ms var(--ease);
+}
+@media (hover: hover) and (pointer: fine) { .row:hover { background: var(--panel-2); } }
+.row[aria-pressed="true"] { background: var(--panel-2); }
+.row .dot { width: 10px; height: 10px; border-radius: 50%; border: 2.5px solid var(--c); background: var(--ground); }
+.row[aria-pressed="true"] .dot { background: var(--c); }
+.row .cs { font-weight: 800; font-size: var(--fs-body); }
+.row .cs small { display: block; font-size: var(--fs-label); font-weight: 500; color: var(--ink-3); }
+.row .eta { font-weight: 800; font-size: var(--fs-body); text-align: right; }
+.row .eta small { display: block; font-size: var(--fs-label); font-weight: 500; color: var(--ink-3); }
+.row .rg { width: 54px; text-align: right; font-size: var(--fs-meta); font-weight: 600; color: var(--ink-2); }
+
+
+.board[hidden] { display: none; }
+.board.wide { width: 520px; }
+.board-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px 0; }
+.board-title h2 { margin: 0; font-size: var(--fs-h1); font-weight: 800; letter-spacing: -0.01em; }
+.board-title span { font-size: var(--fs-meta); color: var(--ink-3); }
+.lede { margin: 6px 16px 0; font-size: var(--fs-body); color: var(--ink-2); }
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 16px 8px; }
+.seg.lg button { height: 32px; padding: 0 12px; font-size: var(--fs-meta); }
+.tbl-h { display: grid; grid-template-columns: 10px 1.4fr 1fr 0.8fr 0.7fr; gap: 12px; padding: 8px 16px; font-size: var(--fs-label); font-weight: 700; color: var(--ink-3); border-top: 1px solid var(--hair-soft); }
+.tbl-h span:nth-child(n+3) { text-align: right; }
+.row.t5 { grid-template-columns: 10px 1.4fr 1fr 0.8fr 0.7fr; }
+.row.t5 .cl { text-align: right; font-size: var(--fs-meta); font-weight: 700; }
+.row.t5 .cl.disc-c { color: var(--disc-text); }
+.row.t5 .cl.frame-c { color: var(--observer-text); }
+.note-r { margin: 0; padding: 10px 16px 14px; font-size: var(--fs-meta); color: var(--ink-3); border-top: 1px solid var(--hair-soft); }
+.form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px 16px 4px; }
+.fld { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.fld.full { grid-column: 1 / -1; }
+.fld label { font-size: var(--fs-meta); font-weight: 600; color: var(--ink-2); }
+.inp { height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 12px; background: var(--ground); border: 1px solid var(--hair); border-radius: var(--r-ctl); font-size: var(--fs-body); font-weight: 600; color: var(--ink); text-align: left; transition: border-color 150ms var(--ease); }
+.inp.ro { color: var(--ink-3); background: transparent; }
+.inp .ic { width: 16px; height: 16px; color: var(--ink-3); }
+@media (hover: hover) and (pointer: fine) { button.inp:hover { border-color: var(--observer); } }
+.eff { margin: 10px 16px 0; font-size: var(--fs-meta); color: var(--ink-2); }
+.eff b { color: var(--ink); }
+.vf { display: grid; grid-template-columns: 1fr 150px; gap: 12px; padding: 12px 16px 14px; border-top: 1px solid var(--hair-soft); margin-top: 12px; align-items: end; }
+.vf-frame { position: relative; aspect-ratio: 3 / 2; background: var(--ground-deep); border: 1px solid var(--hair); border-radius: var(--r-ctl); overflow: hidden; }
+.vf-frame .m { position: absolute; left: 36%; top: 23%; width: 15.8%; aspect-ratio: 1; }
+.vf-cap { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 12px; font-size: var(--fs-meta); color: var(--ink-2); }
+.vf-cap b { color: var(--ink); }
+.vf-detail { display: flex; flex-direction: column; gap: 6px; align-items: center; font-size: var(--fs-label); color: var(--ink-3); font-weight: 600; text-align: center; }
+.vf-detail svg { width: 100%; height: auto; }
+.stub { padding: 28px 16px 30px; color: var(--ink-2); font-size: var(--fs-body); }
+.stub b { display: block; margin-bottom: 4px; color: var(--ink); font-size: var(--fs-h2); }
+@media (max-width: 760px) { .board.wide { width: auto; } .tbl-h { display: none; } }
+
+/* ---------- moon & conditions ---------- */
+.moonstrip {
+  position: absolute; z-index: 12; right: 16px; top: 72px; width: 312px;
+  background: var(--panel); border: 1px solid var(--hair); border-radius: var(--r-panel); padding: 14px 16px;
+}
+.moon-head { display: flex; gap: 14px; align-items: center; }
+.moonimg { background: var(--ground-deep) url("data:image/jpeg;base64,__MOON_B64__") center / cover; border-radius: 50%; position: relative; overflow: hidden; }
+.moonimg::after { content: ""; position: absolute; inset: 0; background: var(--ground-deep); opacity: 0.88; clip-path: ellipse(31% 50% at 8% 50%); }
+.disc { width: 60px; height: 60px; flex: none; }
+.moon-head h2 { margin: 0; font-size: var(--fs-h2); font-weight: 800; }
+.moon-head p { margin: 2px 0 0; font-size: var(--fs-meta); color: var(--ink-2); }
+.tier { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; height: 22px; padding: 0 8px; border-radius: 11px; border: 1.5px solid var(--live); color: var(--live); font-size: var(--fs-label); font-weight: 800; }
+.mgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; margin: 12px 0 0; }
+.mgrid div { padding: 7px 0; border-top: 1px solid var(--hair-soft); }
+.mgrid dt { font-size: var(--fs-label); color: var(--ink-3); font-weight: 600; margin: 0; }
+.mgrid dd { margin: 0; font-size: var(--fs-body); font-weight: 800; }
+.alert { margin: 8px 0 0; display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: var(--r-ctl); background: color-mix(in srgb, var(--moon) 12%, var(--panel)); border: 1px solid color-mix(in srgb, var(--moon) 45%, var(--panel)); font-size: var(--fs-meta); color: var(--ink); }
+.alert .ic { color: var(--moon); width: 18px; height: 18px; margin-top: 1px; }
+.alert b { font-weight: 800; }
+
+/* ---------- time ribbon ---------- */
+.ribbon {
+  position: absolute; z-index: 12; left: 232px; right: 348px; bottom: 24px; height: 76px;
+  display: flex; align-items: stretch; gap: 0;
+  background: var(--panel); border: 1px solid var(--hair); border-radius: var(--r-panel); overflow: hidden;
+}
+.rb-now { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 0 16px; border-right: 1px solid var(--hair-soft); min-width: 132px; }
+.rb-now .t { font-size: var(--fs-h1); font-weight: 800; line-height: 1; }
+.rb-now .d { font-size: var(--fs-label); color: var(--ink-3); font-weight: 600; }
+.rb-line { flex: 1; min-width: 0; padding: 0 22px; }
+.trk { position: relative; height: 100%; }
+.trk .seg { position: absolute; top: 28px; height: 7px; border-radius: 4px; background: var(--moon); }
+.trk .seg.s2 { border-radius: 0; background: repeating-linear-gradient(90deg, var(--moon) 0 3px, transparent 3px 8px); }
+.trk .seg.s3 { border-radius: 0; background: #33466f; }
+.trk .stn { position: absolute; top: 24px; width: 15px; height: 15px; margin-left: -7.5px; border-radius: 50%; background: var(--ground); border: 3.5px solid var(--ink); }
+.trk .lb { position: absolute; top: 46px; transform: translateX(-50%); font-size: var(--fs-label); font-weight: 600; color: var(--ink-3); white-space: nowrap; }
+.trk .lb.now { transform: translateX(-7px); color: var(--ink-2); font-weight: 700; }
+.trk .lb small { font-size: inherit; }
+.trk .note { position: absolute; top: 8px; transform: translateX(-50%); font-size: var(--fs-label); color: var(--ink-3); white-space: nowrap; }
+@media (max-width: 1280px) { .trk .lb small, .trk .note, .trk .lb.pk { display: none; } }
+.rb-act { display: flex; align-items: center; gap: 8px; padding: 0 12px; border-left: 1px solid var(--hair-soft); }
+.iconbtn { width: 42px; height: 42px; display: grid; place-items: center; border-radius: var(--r-ctl); border: 1px solid var(--hair); background: var(--panel-2); transition: border-color 150ms var(--ease), transform 120ms var(--ease); }
+.iconbtn:active { transform: scale(0.95); }
+@media (hover: hover) and (pointer: fine) { .iconbtn:hover { border-color: var(--ink-3); } }
+.iconbtn.live { border-color: var(--live); color: var(--live); }
+.iconbtn .ic { width: 20px; height: 20px; }
+
+/* ---------- legend ---------- */
+.legend {
+  position: absolute; z-index: 12; right: 16px; bottom: 24px; width: 316px; height: 76px;
+  background: var(--panel); border: 1px solid var(--hair); border-radius: var(--r-panel); padding: 10px 14px;
+}
+.lg-h { display: flex; align-items: center; justify-content: space-between; font-size: var(--fs-meta); font-weight: 700; color: var(--ink-2); }
+.seg { display: inline-flex; border: 1px solid var(--hair); border-radius: var(--r-ctl); overflow: hidden; }
+.seg button { height: 24px; padding: 0 10px; border: 0; background: none; font-size: var(--fs-label); font-weight: 700; color: var(--ink-3); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--ground); }
+.ramp { margin-top: 8px; height: 10px; border-radius: 5px; background: linear-gradient(90deg, #ff5d4a, #ffb224 28%, #e8e04a 42%, #34d17f 58%, #5b95ff 78%, #a98bff); }
+.ticks { display: flex; justify-content: space-between; margin-top: 3px; font-size: var(--fs-label); color: var(--ink-3); font-weight: 600; }
+
+/* ---------- map text ---------- */
+.m-city { font: 600 13px var(--font); fill: var(--ink-3); }
+.m-city.big { font-size: 15px; fill: var(--ink-2); font-weight: 700; }
+.m-sea { font: 600 13px var(--font); fill: #5d75ad; letter-spacing: 0.22em; }
+.m-lbl { font: 700 12px var(--font); fill: var(--ink); }
+.m-lbl.dim { fill: var(--ink-2); font-weight: 600; }
+.m-lbl.moon { fill: var(--moon); }
+
+/* ---------- compact desktops ---------- */
+@media (max-width: 1280px) {
+  .chip.hide-m { display: none; }
+  .moonstrip { width: 280px; }
+  .legend { width: 280px; }
+  .ribbon { right: 312px; }
+}
+
+/* ---------- phone: field mode ---------- */
+.tabs, .sheet-grip { display: none; }
+@media (max-width: 760px) {
+  body { overflow: hidden; }
+  .bar { padding: 0 12px; gap: 8px; height: 52px; }
+  .brand { width: auto; font-size: 17px; }
+  .search { flex: 1; min-width: 0; height: 36px; }
+  .search .lg { display: none; } .search .sm { display: inline; }
+  .search .kbd, .chips .chip:not(.warn) { display: none; }
+  .chips { margin-left: 0; }
+  .chip { height: 36px; padding: 0 10px; }
+  .rail, .moonstrip, .legend { display: none; }
+  .map { transform: translateY(-250px); }
+  .pos-note, .facts { display: none; }
+  .ribbon { display: none; }
+  .board {
+    left: 8px; right: 8px; top: auto; bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 8px); width: auto;
+    max-height: 70%; border-radius: 14px;
+  }
+  .headline { font-size: 26px; }
+  .diagram { padding-top: 8px; }
+  .cands { display: none; }
+  .actions { padding: 10px 12px; }
+  .block { padding: 10px 12px; }
+  .board-top, .headline, .sub { padding-left: 12px; padding-right: 12px; }
+  .fact { padding: 8px 12px; }
+  .tabs {
+    display: grid; grid-template-columns: repeat(5, 1fr); position: absolute; z-index: 20; left: 0; right: 0; bottom: 0;
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px)); background: var(--ground); border-top: 1px solid var(--hair);
+  }
+  .tabs button { display: flex; flex-direction: column; align-items: center; gap: 2px; height: 52px; background: none; border: 0; border-radius: var(--r-ctl); font-size: 12px; font-weight: 600; color: var(--ink-3); }
+  .tabs button[aria-current="true"] { color: var(--ink); }
+  .tabs button[aria-current="true"] .ic { color: var(--ink); }
+  .tabs .ic { width: 22px; height: 22px; }
+  .tabs .dotc { position: relative; }
+  .tabs .dotc::after { content: ""; position: absolute; right: -4px; top: -2px; width: 9px; height: 9px; border-radius: 50%; background: var(--disc); border: 2px solid var(--ground); }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="plane" viewBox="4.4 11.7 16.9 12.5"><path fill="currentColor" d="M13.1,22.71c-.13.45-.22.86-.41,1.33-.21-.44-.29-.84-.41-1.32l-2.19.51v-.61s2.01-1.08,2.01-1.08l-.27-3.29c-.26,0-.58-.03-.85.03l-4.22.88-.04-.46,2.12-1.2v-.73c0-.07.11-.22.19-.22h.63c.1.12.13.21.14.4l1.93-1.09c.04-1.25-.14-2.7.63-3.7.07-.1.21-.18.31-.18.33-.01.57.47.7.87.15.48.21.97.22,1.47l.04,1.36,1.99,1.27c0-.14.04-.36.12-.37.42-.06.84-.07.84.19v.74s2.09,1.17,2.09,1.17v.47s-4.39-.89-4.39-.89c-.23-.05-.5,0-.76-.01l-.27,3.3,2.02,1.04v.64s-2.19-.52-2.19-.52Z"/></symbol>
+    __ICON_SYMBOLS__
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m19.5 8.25-7.5 7.5-7.5-7.5"/></symbol>
+    <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.332-7.257 3 3 0 0 0-3.758-3.848 5.25 5.25 0 0 0-10.233 2.33A4.502 4.502 0 0 0 2.25 15Z"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/></symbol>
+    <symbol id="i-sync" viewBox="0 0 24 24"><path d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24"><path d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="M6.429 9.75 2.25 12l4.179 2.25m0-4.5 5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L21.75 12l-4.179 2.25m0 0 4.179 2.25L12 21.75 2.25 16.5l4.179-2.25m11.142 0-5.571 3-5.571-3"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/><path d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"/></symbol>
+    <symbol id="i-crosshair" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/></symbol>
+  </defs>
+</svg>
+
+<main class="app">
+  <!-- ================= MAP (schematic stand-in for the Mapbox style) ================= -->
+  <svg class="map" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Map around the observer near Karlovac with the Moon ray, 80 km ring and aircraft tracks">
+    <rect x="-300" width="2040" height="900" fill="var(--land)"/>
+    <g transform="translate(100 0)">
+    <!-- Adriatic -->
+    <path d="M-300 520 L0 520 C70 520 120 560 150 610 C190 600 215 640 250 668 C300 700 330 740 372 790 C410 830 470 860 540 900 L-300 900 Z" fill="var(--ground-deep)"/>
+    <path d="M0 520 C70 520 120 560 150 610 C190 600 215 640 250 668 C300 700 330 740 372 790 C410 830 470 860 540 900" fill="none" stroke="#2a3f73" stroke-width="1.5"/>
+    <!-- border -->
+    <path d="M300 220 C340 250 380 240 420 280 C470 300 500 360 470 400 C440 430 470 470 520 490" fill="none" stroke="#2c3f6e" stroke-width="1.5" stroke-dasharray="6 6"/>
+    <path d="M520 490 C560 520 560 560 520 600" fill="none" stroke="#2c3f6e" stroke-width="1.5" stroke-dasharray="6 6"/>
+    <!-- rivers -->
+    <path d="M520 330 C600 360 640 340 700 372 C770 408 830 380 900 426 C980 478 1050 470 1130 520 C1200 566 1300 560 1440 590" fill="none" stroke="#1d3268" stroke-width="5" stroke-linecap="round"/>
+    <path d="M560 560 C610 520 650 510 690 480 C700 470 716 450 716 430" fill="none" stroke="#1d3268" stroke-width="3" stroke-linecap="round"/>
+    <path d="M360 700 C420 660 470 650 520 600" fill="none" stroke="#1d3268" stroke-width="3" stroke-linecap="round"/>
+    <!-- 80 km ring -->
+    <circle cx="700" cy="470" r="330" fill="none" stroke="var(--ink-3)" stroke-width="1.5" stroke-dasharray="3 8" opacity="0.7"/>
+    <text class="m-lbl dim" x="700" y="132" text-anchor="middle">80 km</text>
+    <!-- cities as stations -->
+    <g>
+      <circle cx="748" cy="250" r="6" fill="var(--ground)" stroke="var(--ink-2)" stroke-width="2.5"/><text class="m-city big" x="734" y="255" text-anchor="end">Zagreb</text>
+      <circle cx="640" cy="490" r="4.5" fill="var(--ground)" stroke="var(--ink-3)" stroke-width="2"/><text class="m-city" x="560" y="478">Karlovac</text>
+      <circle cx="610" cy="392" r="3.5" fill="var(--ground)" stroke="var(--ink-3)" stroke-width="2"/><text class="m-city" x="540" y="384">Jastrebarsko</text>
+      <circle cx="338" cy="548" r="5" fill="var(--ground)" stroke="var(--ink-2)" stroke-width="2.5"/><text class="m-city big" x="352" y="553">Rijeka</text>
+      <circle cx="318" cy="200" r="5" fill="var(--ground)" stroke="var(--ink-2)" stroke-width="2.5"/><text class="m-city big" x="332" y="205">Ljubljana</text>
+      <circle cx="980" cy="618" r="4" fill="var(--ground)" stroke="var(--ink-3)" stroke-width="2"/><text class="m-city" x="992" y="623">Sisak</text>
+      <circle cx="610" cy="640" r="3.5" fill="var(--ground)" stroke="var(--ink-3)" stroke-width="2"/><text class="m-city" x="622" y="645">Slunj</text>
+      <circle cx="1210" cy="190" r="4" fill="var(--ground)" stroke="var(--ink-3)" stroke-width="2"/><text class="m-city" x="1222" y="195">Varaždin</text>
+    </g>
+
+    <!-- other aircraft: dim tracks -->
+    <g fill="none" stroke-width="2" stroke-linecap="round">
+      <path d="M512 214 L640 338 L760 462" stroke="var(--observer)" opacity="0.38"/>   <!-- DLH -->
+      <path d="M1190 330 L1100 470" stroke="var(--observer)" opacity="0.38"/>         <!-- WZZ -->
+      <path d="M880 760 L1000 640" stroke="var(--observer)" opacity="0.38"/>         <!-- RYR -->
+      <path d="M340 380 L470 330" stroke="var(--ink-3)" opacity="0.4"/>
+      <path d="M1250 700 L1150 760" stroke="var(--ink-3)" opacity="0.4"/>
+    </g>
+    <g color="var(--observer)" opacity="0.8">
+      <use href="#plane" x="750" y="452" width="22" height="16" transform="rotate(135 761 460)" />
+      <use href="#plane" x="1089" y="470" width="22" height="16" transform="rotate(213 1100 478)" />
+      <use href="#plane" x="988" y="636" width="22" height="16" transform="rotate(45 999 644)" />
+    </g>
+    <g color="var(--ink-3)" opacity="0.8">
+      <use href="#plane" x="462" y="324" width="20" height="14" transform="rotate(69 472 331)" />
+      <use href="#plane" x="1142" y="754" width="20" height="14" transform="rotate(239 1152 761)" />
+    </g>
+    <text class="m-lbl dim" x="776" y="486">DLH 4TM</text>
+    <text class="m-lbl dim" x="1112" y="492">WZZ 31A</text>
+    <text class="m-lbl dim" x="1012" y="660">RYR 8KQ</text>
+
+    <!-- Moon ray, azimuth 75.5 deg -->
+    <line x1="700" y1="470" x2="1571" y2="245" stroke="var(--moon)" stroke-width="3.5" stroke-linecap="round"/>
+    <circle cx="836" cy="437" r="7" fill="var(--moon)"/>
+    <text class="m-lbl moon" x="800" y="418">Moon · az 75.5°</text>
+
+    <!-- selected flight CTN 612: track burning brightest -->
+    <path d="M1058 591 L950 405" stroke="var(--disc)" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+    <path d="M950 405 L850 232" stroke="var(--disc)" stroke-width="3" stroke-linecap="round" stroke-dasharray="2 9" fill="none"/>
+    <path d="M1130 716 L1058 591" stroke="var(--disc)" stroke-width="2" opacity="0.4" stroke-linecap="round" fill="none"/>
+    <!-- interchange at alignment -->
+    <circle cx="950" cy="405" r="22" fill="var(--ground)" stroke="var(--ink)" stroke-width="4"/>
+    <circle cx="950" cy="405" r="9" fill="var(--disc)"/>
+    <rect x="1000" y="418" width="156" height="42" rx="6" fill="var(--ground)" stroke="var(--hair)"/>
+    <text class="m-lbl" x="1012" y="436">Alignment 20:39:18</text>
+    <text class="m-lbl dim" x="1012" y="452">62 km from you</text>
+    <g color="var(--disc)"><use href="#plane" x="1045" y="576" width="28" height="21" transform="rotate(-30 1059 586)"/></g>
+    <rect x="1076" y="588" width="106" height="24" rx="6" fill="var(--disc)"/>
+    <text x="1129" y="604" text-anchor="middle" style="font:800 13px var(--font);fill:#1a0703">CTN 612</text>
+
+    <!-- observer -->
+    <circle cx="700" cy="470" r="30" fill="none" stroke="var(--observer)" stroke-width="1.5" opacity="0.5"/>
+    <circle cx="700" cy="470" r="13" fill="var(--ground)" stroke="var(--observer)" stroke-width="4"/>
+    <circle cx="700" cy="470" r="4" fill="var(--observer)"/>
+    <rect x="652" y="508" width="96" height="24" rx="6" fill="var(--ground)" stroke="var(--hair)"/>
+    <text class="m-lbl" x="700" y="525" text-anchor="middle">You · 118 m</text>
+    </g>
+  </svg>
+
+  <!-- ================= TOP BAR ================= -->
+  <header class="bar">
+    <button class="brand" type="button" aria-label="LunaPic, refresh">
+      <svg viewBox="0 0 25.51 27.88" aria-hidden="true"><path d="M21.21,12.95c2.63-2.42,4.3-5.95,4.3-9.89,0-1.05-.12-2.08-.34-3.06-.97,4.27-3.94,7.73-7.82,9.28,1.6.84,2.93,2.12,3.86,3.66Z"/><path d="M8.16,9.28C4.28,7.73,1.32,4.27.34,0c-.22.98-.34,2-.34,3.06,0,3.94,1.67,7.47,4.3,9.89.93-1.55,2.26-2.82,3.86-3.66Z"/><path d="M12.76,9.8l.61.35c1.4-.07,2.74-.37,3.98-.87-1.37-.72-2.93-1.14-4.59-1.14s-3.22.41-4.59,1.14c1.25.5,2.58.8,3.98.87l.61-.35Z"/><path d="M19.87,14.04v8.08l-7.11,4.11-7.11-4.11v-8.08c-.47-.33-.92-.7-1.34-1.1-.89,1.48-1.41,3.21-1.41,5.07,0,5.45,4.42,9.87,9.87,9.87s9.87-4.42,9.87-9.87c0-1.85-.52-3.58-1.41-5.07-.43.39-.87.76-1.34,1.1Z"/></svg>
+      LunaPic
+    </button>
+    <button class="search" type="button"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg><span><span class="lg">Search flights, places, callsigns</span><span class="sm">Search</span></span><span class="kbd" style="flex:none">⌘K</span></button>
+    <div class="chips">
+      <div class="chip hide-m"><svg class="ic" aria-hidden="true"><use href="#i-pin"/></svg><span><b>Karlovac</b> · 118 m</span></div>
+      <div class="chip warn"><svg class="ic" aria-hidden="true"><use href="#i-cloud"/></svg><span><b>100 %</b> clouds</span></div>
+      <div class="chip live"><svg class="ic" aria-hidden="true"><use href="#i-crosshair"/></svg><span>Pi + Avionix</span></div>
+    </div>
+  </header>
+
+  <!-- ================= TOOL RAIL ================= -->
+  <nav class="rail" aria-label="Tools">
+    <section>
+      <div class="grp-title" style="--c:var(--disc)"><i></i>NOW</div>
+      <ul>
+        <li><button class="nav" type="button" aria-current="true" data-v="transits" data-n="Transits"><svg class="ic" aria-hidden="true"><use href="#i-paperairplane"/></svg>Transits<span class="n">1</span></button></li>
+        <li><button class="nav" type="button" data-v="candidates" data-n="Candidates"><svg class="ic" aria-hidden="true"><use href="#i-arrowsrightleft"/></svg>Candidates<span class="n c">3</span></button></li>
+      </ul>
+    </section>
+    <section>
+      <div class="grp-title" style="--c:var(--moon)"><i></i>SHOOT</div>
+      <ul>
+        <li><button class="nav" type="button" data-v="photo" data-n="Photographer"><svg class="ic" aria-hidden="true"><use href="#i-camera"/></svg>Photographer</button></li>
+        <li><button class="nav" type="button" data-v="stub" data-n="Compass to Moon"><svg class="ic" aria-hidden="true"><use href="#i-arrowupcircle"/></svg>Compass to Moon</button></li>
+        <li><button class="nav" type="button" data-v="stub" data-n="Field overlays"><svg class="ic" aria-hidden="true"><use href="#i-field"/></svg>Field overlays</button></li>
+        <li><button class="nav" type="button" data-v="stub" data-n="AR sky"><svg class="ic" aria-hidden="true"><use href="#i-ar"/></svg>AR sky</button></li>
+      </ul>
+    </section>
+    <section>
+      <div class="grp-title" style="--c:var(--observer)"><i></i>SKY AND PLACE</div>
+      <ul>
+        <li><button class="nav" type="button" data-v="stub" data-n="Moon"><svg class="ic" aria-hidden="true"><use href="#i-moon"/></svg>Moon</button></li>
+        <li><button class="nav" type="button" data-v="stub" data-n="Observer"><svg class="ic" aria-hidden="true"><use href="#i-observer"/></svg>Observer</button></li>
+      </ul>
+    </section>
+    <section>
+      <div class="grp-title" style="--c:var(--live)"><i></i>FEEDS</div>
+      <ul>
+        <li><button class="nav" type="button" data-v="stub" data-n="Flight source"><svg class="ic" aria-hidden="true"><use href="#i-flightsource"/></svg>Flight source</button></li>
+        <li><button class="nav" type="button" data-v="stub" data-n="Filters"><svg class="ic" aria-hidden="true"><use href="#i-funnel"/></svg>Filters</button></li>
+        <li><button class="nav" type="button" data-v="stub" data-n="Flight log"><svg class="ic" aria-hidden="true"><use href="#i-flightlog"/></svg>Flight log</button></li>
+      </ul>
+    </section>
+    <section>
+      <div class="grp-title" style="--c:var(--ink-2)"><i></i>PLAN</div>
+      <ul>
+        <li><button class="nav" type="button" data-v="stub" data-n="Runway planning"><svg class="ic" aria-hidden="true"><use href="#i-time"/></svg>Runway planning</button></li>
+      </ul>
+    </section>
+  </nav>
+
+  <!-- ================= NEXT TRANSIT BOARD ================= -->
+  <section class="board" id="v-transits" aria-labelledby="hl">
+    <div class="board-top">
+      <span class="tag" id="tag">DISC TRANSIT</span>
+      <span class="src"><i></i>Confirmed by 2 fixes</span>
+    </div>
+    <h1 class="headline" id="hl">Moon crossing in <span class="t" id="count">4:12</span></h1>
+    <p class="sub" id="sub"><b>CTN 612</b> · A320 · FL372 · 742 km/h</p>
+
+    <div class="diagram">
+      <svg viewBox="0 -18 392 140" role="img" aria-label="Transit line: now, enters disc, alignment, leaves disc">
+        <!-- line: now -> bend 45 -> interchange -> leaves -->
+        <path d="M24 78 H108 L146 40 H232" fill="none" stroke="var(--disc)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"/>
+        <path d="M24 78 H108 L146 40 H232 H368" fill="none" stroke="var(--disc)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M24 78 H108 L146 40" fill="none" stroke="var(--ink)" stroke-width="2" stroke-dasharray="1 10" stroke-linecap="round" opacity="0"/>
+        <!-- stations -->
+        <circle cx="24" cy="78" r="9" fill="var(--ground)" stroke="var(--ink)" stroke-width="3.5"/>
+        <circle cx="146" cy="40" r="7" fill="var(--ground)" stroke="var(--ink)" stroke-width="3"/>
+        <circle cx="232" cy="40" r="17" fill="var(--ground)" stroke="var(--ink)" stroke-width="4"/>
+        <circle cx="232" cy="40" r="7" fill="var(--disc)"/>
+        <circle cx="330" cy="40" r="7" fill="var(--ground)" stroke="var(--ink)" stroke-width="3"/>
+        <!-- labels -->
+        <text class="st-time" x="24" y="104" text-anchor="start" id="t-now">20:35:06</text>
+        <text class="st-name" x="24" y="118" text-anchor="start">Now</text>
+        <text class="st-time" x="146" y="14" text-anchor="middle">20:39:16</text>
+        <text class="st-name" x="146" y="-2" text-anchor="middle">Enters disc</text>
+        <text class="st-main" x="232" y="88" text-anchor="middle">20:39:18</text>
+        <text class="st-name" x="232" y="104" text-anchor="middle">Alignment</text>
+        <text class="st-time" x="330" y="14" text-anchor="middle">20:39:19</text>
+        <text class="st-name" x="330" y="-2" text-anchor="middle">Leaves disc</text>
+      </svg>
+    </div>
+
+    <div class="block">
+      <div class="block-h"><span>Are you on the line?</span><span class="v ok">Yes, 41 m east</span></div>
+      <div class="pos">
+        <svg viewBox="0 0 376 48" role="img" aria-label="Cross-track position 41 metres east of the centre line, tolerance plus or minus 118 metres">
+          <rect x="62" y="12" width="252" height="10" rx="5" fill="color-mix(in srgb, var(--live) 28%, var(--panel))" stroke="var(--live)" stroke-width="1.5"/>
+          <line x1="188" y1="4" x2="188" y2="30" stroke="var(--ink-2)" stroke-width="2"/>
+          <circle cx="232" cy="17" r="9" fill="var(--ground)" stroke="var(--observer)" stroke-width="4"/>
+          <text x="62" y="46" style="font:600 12px var(--font);fill:var(--ink-3)">W 118 m</text>
+          <text x="314" y="46" text-anchor="end" style="font:600 12px var(--font);fill:var(--ink-3)">E 118 m</text>
+        </svg>
+      </div>
+      <p class="pos-note">Disc stays covered within <b>±118 m</b>. Step 41 m west.</p>
+    </div>
+
+    <dl class="facts block" style="padding:0">
+      <div class="fact"><dt>Range</dt><dd>62<small>km</small></dd></div>
+      <div class="fact"><dt>Disc coverage</dt><dd>5.9<small>%</small></dd></div>
+      <div class="fact"><dt>Shot rating</dt><dd>Fair</dd></div>
+    </dl>
+
+    <div class="actions">
+      <button class="btn primary" type="button"><svg class="ic" aria-hidden="true"><use href="#i-arrowupcircle"/></svg>Open aim view</button>
+      <button class="btn" type="button"><svg class="ic" aria-hidden="true"><use href="#i-crosshair"/></svg>Show on map</button>
+    </div>
+
+    <div class="cands">
+      <div class="cands-h"><span>Other candidates</span><span>next 5 min</span></div>
+      <button class="row" type="button" aria-pressed="false" style="--c:var(--observer)" data-k="DLH 4TM|A21N|In frame|2:35|54|20:37:41">
+        <span class="dot"></span><span class="cs">DLH 4TM<small>A321neo · In frame</small></span><span class="eta">2:35<small>20:37:41</small></span><span class="rg">54 km</span>
+      </button>
+      <button class="row" type="button" aria-pressed="false" style="--c:var(--observer)" data-k="WZZ 31A|A321|In frame|3:50|71|20:38:56">
+        <span class="dot"></span><span class="cs">WZZ 31A<small>A321 · In frame</small></span><span class="eta">3:50<small>20:38:56</small></span><span class="rg">71 km</span>
+      </button>
+      <button class="row" type="button" aria-pressed="false" style="--c:var(--observer)" data-k="RYR 8KQ|B738|In frame|4:40|88|20:39:46">
+        <span class="dot"></span><span class="cs">RYR 8KQ<small>B737-800 · In frame</small></span><span class="eta">4:40<small>20:39:46</small></span><span class="rg">88 km</span>
+      </button>
+    </div>
+  </section>
+
+  <section class="board wide" id="v-candidates" aria-labelledby="h-cand" hidden>
+    <div class="board-title"><h2 id="h-cand">Candidates</h2><span>next 5 min</span></div>
+    <p class="lede">Flights that reach the camera frame. Alerts need 2 fresh fixes in a row.</p>
+    <div class="toolbar"><span class="seg lg" role="group" aria-label="Class"><button type="button" aria-pressed="true">All 4</button><button type="button" aria-pressed="false">Disc transit 1</button><button type="button" aria-pressed="false">In frame 3</button></span></div>
+    <div class="tbl-h"><span></span><span>Flight</span><span>Class</span><span>Alignment</span><span>Range</span></div>
+    <div class="cands">
+      <button class="row t5" type="button" aria-pressed="true" style="--c:var(--disc)"><span class="dot"></span><span class="cs">CTN 612<small>A320 · FL372</small></span><span class="cl disc-c">Disc transit</span><span class="eta">4:06<small>20:39:18</small></span><span class="rg">62 km</span></button>
+      <button class="row t5" type="button" aria-pressed="false" style="--c:var(--observer)"><span class="dot"></span><span class="cs">DLH 4TM<small>A321neo · FL350</small></span><span class="cl frame-c">In frame</span><span class="eta">2:35<small>20:37:41</small></span><span class="rg">54 km</span></button>
+      <button class="row t5" type="button" aria-pressed="false" style="--c:var(--observer)"><span class="dot"></span><span class="cs">WZZ 31A<small>A321 · FL380</small></span><span class="cl frame-c">In frame</span><span class="eta">3:50<small>20:38:56</small></span><span class="rg">71 km</span></button>
+      <button class="row t5" type="button" aria-pressed="false" style="--c:var(--observer)"><span class="dot"></span><span class="cs">RYR 8KQ<small>B737-800 · FL360</small></span><span class="cl frame-c">In frame</span><span class="eta">4:40<small>20:39:46</small></span><span class="rg">88 km</span></button>
+    </div>
+    <p class="note-r">Order follows time to alignment. Flights with a stale fix (older than 45 s) stay on the map but are not listed.</p>
+  </section>
+
+  <section class="board" id="v-photo" aria-labelledby="h-photo" hidden>
+    <div class="board-title"><h2 id="h-photo">Photographer</h2><span>CTN 612 selected</span></div>
+    <div class="form">
+      <div class="fld full"><label>Camera preset</label><button class="inp" type="button">Canon R6 Mk II<svg class="ic" aria-hidden="true"><use href="#i-chev"/></svg></button></div>
+      <div class="fld"><label>Focal length (mm)</label><div class="inp">600</div></div>
+      <div class="fld"><label>Sensor</label><button class="inp" type="button">Full frame<svg class="ic" aria-hidden="true"><use href="#i-chev"/></svg></button></div>
+      <div class="fld"><label>Frame width (px)</label><div class="inp ro">6000</div></div>
+      <div class="fld"><label>Frame height (px)</label><div class="inp ro">4000</div></div>
+    </div>
+    <p class="eff">Effective <b>600 mm</b> · frame <b>6000 × 4000 px</b></p>
+    <div class="vf">
+      <div class="vf-frame" role="img" aria-label="Viewfinder: Moon in a 6000 by 4000 frame, aircraft crossing it">
+        <div class="m moonimg"></div>
+        <svg viewBox="0 0 300 200" style="position:absolute;inset:0;width:100%;height:100%" aria-hidden="true">
+          <line x1="40" y1="130" x2="262" y2="40" stroke="var(--disc)" stroke-width="1.5" stroke-dasharray="4 4"/>
+          <rect x="1" y="1" width="298" height="198" fill="none" stroke="var(--hair)" stroke-width="1"/>
+        </svg>
+      </div>
+      <div class="vf-detail">
+        <svg viewBox="0 0 150 150" role="img" aria-label="Enlarged Moon disc with the aircraft silhouette on its path">
+          <defs><clipPath id="dc"><circle cx="75" cy="75" r="72"/></clipPath></defs>
+          <circle cx="75" cy="75" r="72" fill="#c9ccd6"/>
+          <g clip-path="url(#dc)"><circle cx="50" cy="52" r="20" fill="#b3b7c4"/><circle cx="100" cy="98" r="26" fill="#bcc0cc"/><circle cx="104" cy="44" r="9" fill="#aeb2bf"/></g>
+          <line x1="6" y1="104" x2="144" y2="52" stroke="var(--disc)" stroke-width="2" stroke-dasharray="5 4"/>
+          <g color="#0b1530"><use href="#plane" x="60" y="72" width="16" height="12" transform="rotate(-20 68 78)"/></g>
+          <circle cx="75" cy="75" r="72" fill="none" stroke="var(--hair)" stroke-width="2"/>
+        </svg>
+        Detail at the disc
+      </div>
+      <div class="vf-cap"><span>Disc <b>948 px</b></span><span>Aircraft <b>56 px</b></span><span>On the disc <b>2.9 s</b></span></div>
+    </div>
+    <div class="actions"><button class="btn primary" type="button">Save to shot list</button><button class="btn" type="button">Reset</button></div>
+  </section>
+
+  <section class="board" id="v-stub" aria-labelledby="h-stub" hidden>
+    <div class="board-title"><h2 id="h-stub">Panel</h2></div>
+    <div class="stub"><b id="stub-name">Panel</b>This panel opens in the same place. Its layout is designed in the next round.</div>
+  </section>
+
+  <!-- ================= MOON AND CONDITIONS ================= -->
+  <aside class="moonstrip" aria-label="Moon and conditions">
+    <div class="moon-head">
+      <div class="disc moonimg" role="img" aria-label="Moon, 90 percent illuminated, waning"></div>
+      <div>
+        <h2>Moon now</h2>
+        <p>Waning gibbous · 90 % lit</p>
+        <span class="tier">OPTIMAL · 23.4°</span>
+      </div>
+    </div>
+    <dl class="mgrid">
+      <div><dt>Azimuth</dt><dd>75.5°</dd></div>
+      <div><dt>Angular radius</dt><dd>0.275°</dd></div>
+      <div><dt>Moonrise</dt><dd>18:43</dd></div>
+      <div><dt>Moonset</dt><dd>10:28</dd></div>
+    </dl>
+    <div class="alert"><svg class="ic" aria-hidden="true"><use href="#i-warn"/></svg><span><b>Clouds 100 %.</b> The Moon is likely hidden even though the geometry works.</span></div>
+  </aside>
+
+  <!-- ================= TIME RIBBON ================= -->
+  <div class="ribbon">
+    <div class="rb-now"><span class="t">20:35</span><span class="d">Wed 28 Oct · now</span></div>
+    <div class="rb-line" role="img" aria-label="Next 24 hours: Moon high enough until 10:28, back at 18:43">
+      <div class="trk">
+        <i class="seg s1" style="left:1%;width:49%"></i>
+        <i class="seg s2" style="left:50%;width:7.9%"></i>
+        <i class="seg s3" style="left:57.9%;width:34.3%"></i>
+        <i class="seg s2" style="left:92.2%;width:4.8%"></i>
+        <i class="seg s1" style="left:97%;width:2%"></i>
+        <i class="stn" style="left:1%"></i><i class="stn" style="left:17.1%"></i><i class="stn" style="left:57.9%"></i><i class="stn" style="left:92.2%"></i>
+        <span class="lb now" style="left:1%">Now</span>
+        <span class="lb pk" style="left:17.1%">Peak 00:41<small> · 51°</small></span>
+        <span class="lb" style="left:57.9%">Set 10:28</span>
+        <span class="lb" style="left:92.2%">Rise 18:43</span>
+        <span class="note" style="left:75%">Moon below 5°: no candidates</span>
+      </div>
+    </div>
+    <div class="rb-act">
+      <button class="iconbtn" type="button" aria-label="Pick a date"><svg class="ic" aria-hidden="true"><use href="#i-cal"/></svg></button>
+      <button class="iconbtn live" type="button" aria-label="Sync to now"><svg class="ic" aria-hidden="true"><use href="#i-sync"/></svg></button>
+    </div>
+  </div>
+
+  <!-- ================= LEGEND ================= -->
+  <div class="legend">
+    <div class="lg-h"><span>Altitude</span><span class="seg" role="group" aria-label="Unit"><button type="button" aria-pressed="true">FT</button><button type="button" aria-pressed="false">KM</button></span></div>
+    <div class="ramp"></div>
+    <div class="ticks"><span>0</span><span>5k</span><span>15k</span><span>25k</span><span>35k</span><span>45k</span></div>
+  </div>
+
+  <!-- ================= PHONE TAB BAR ================= -->
+  <nav class="tabs" aria-label="Tools">
+    <button type="button" aria-current="true"><span class="dotc"><svg class="ic" aria-hidden="true"><use href="#i-paperairplane"/></svg></span>Now</button>
+    <button type="button"><svg class="ic" aria-hidden="true"><use href="#i-camera"/></svg>Shoot</button>
+    <button type="button"><svg class="ic" aria-hidden="true"><use href="#i-moon"/></svg>Sky</button>
+    <button type="button"><svg class="ic" aria-hidden="true"><use href="#i-flightsource"/></svg>Feeds</button>
+    <button type="button"><svg class="ic" aria-hidden="true"><use href="#i-time"/></svg>Plan</button>
+  </nav>
+</main>
+
+<script>
+(function () {
+  var countEl = document.getElementById('count');
+  var left = 4 * 60 + 12;
+  var base = { cs: 'CTN 612', type: 'A320', cls: 'DISC TRANSIT', rg: '62', at: '20:39:18', secs: 4 * 60 + 12 };
+  var timer = null;
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function fmt(s) { var m = Math.floor(s / 60), r = s % 60; return m + ':' + (r < 10 ? '0' : '') + r; }
+  function tick() {
+    if (left > 0) left--;
+    countEl.textContent = fmt(left);
+  }
+  timer = setInterval(tick, 1000);
+
+  var rows = document.querySelectorAll('.row');
+  var hl = document.getElementById('hl');
+  var tag = document.getElementById('tag');
+  var sub = document.getElementById('sub');
+  rows.forEach(function (row) {
+    row.addEventListener('click', function () {
+      var on = row.getAttribute('aria-pressed') === 'true';
+      rows.forEach(function (r) { r.setAttribute('aria-pressed', 'false'); });
+      if (on) { restore(); return; }
+      row.setAttribute('aria-pressed', 'true');
+      var p = row.dataset.k.split('|');
+      var mm = p[3].split(':');
+      left = parseInt(mm[0], 10) * 60 + parseInt(mm[1], 10);
+      hl.innerHTML = 'Frame pass in <span class="t" style="color:var(--observer-text)" id="count">' + fmt(left) + '</span>';
+      countEl = document.getElementById('count');
+      tag.textContent = 'IN FRAME'; tag.className = 'tag frame';
+      sub.innerHTML = '<b>' + p[0] + '</b> · ' + p[1] + ' · misses the disc';
+    });
+  });
+  function restore() {
+    left = base.secs;
+    hl.innerHTML = 'Moon crossing in <span class="t" id="count">' + fmt(left) + '</span>';
+    countEl = document.getElementById('count');
+    tag.textContent = 'DISC TRANSIT'; tag.className = 'tag';
+    sub.innerHTML = '<b>CTN 612</b> · A320 · FL372 · 742 km/h';
+  }
+  var views = { transits: 'v-transits', candidates: 'v-candidates', photo: 'v-photo', stub: 'v-stub' };
+  function show(v, name) {
+    Object.keys(views).forEach(function (k) { document.getElementById(views[k]).hidden = (k !== v); });
+    if (v === 'stub') {
+      document.getElementById('h-stub').textContent = name;
+      document.getElementById('stub-name').textContent = name;
+    }
+  }
+  document.querySelectorAll('.nav').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.nav').forEach(function (n) { n.removeAttribute('aria-current'); });
+      b.setAttribute('aria-current', 'true');
+      show(b.dataset.v, b.dataset.n);
+    });
+  });
+  var h = (location.hash || '').replace('#', '');
+  if (h) { var t = document.querySelector('.nav[data-v="' + h + '"]'); if (t) t.click(); }
+  document.querySelectorAll('.seg button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      b.parentNode.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', 'false'); });
+      b.setAttribute('aria-pressed', 'true');
+    });
+  });
+})();
+</script>

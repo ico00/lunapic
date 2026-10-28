@@ -1,28 +1,18 @@
-import { Geist, Geist_Mono, JetBrains_Mono, Outfit } from "next/font/google";
+import { JetBrains_Mono, Overpass } from "next/font/google";
 import type { Metadata } from "next";
 import { getSiteUrl } from "@/lib/seo/site";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const overpass = Overpass({
+  variable: "--font-overpass",
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
-});
-
-const outfit = Outfit({
-  variable: "--font-outfit",
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
 });
 
 const siteUrl = getSiteUrl();
@@ -90,9 +80,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${jetbrainsMono.variable} ${outfit.variable} h-full antialiased`}
+      className={`${overpass.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
-      <body className="mt-app-bg flex min-h-0 min-h-full flex-col text-zinc-200">
+      <body className="mt-app-bg flex min-h-0 min-h-full flex-col text-[color:var(--ink)]">
         <main className="mt-app-bg-main flex min-h-0 min-h-dvh flex-1 flex-col bg-transparent">
           {children}
         </main>

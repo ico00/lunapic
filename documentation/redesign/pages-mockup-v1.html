@@ -1,0 +1,519 @@
+<title>LunaPic Stranice</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout concept: same enamel system as the home mockup. Flight log = master/detail (table left, tracks on map right).
+   About = reading page with a sticky contents list and one column of prose. Dark by design (used at night). */
+:root {
+  --ground: #0b1530;
+  --ground-deep: #070e22;
+  --land: #0f1c3d;
+  --panel: #111e40;
+  --panel-2: #182950;
+  --hair: #2c3f6e;
+  --hair-soft: #1f315e;
+  --ink: #eef3fa;
+  --ink-2: #b8c4dc;
+  --ink-3: #8a9abd;
+  --moon: #ffb224;
+  --observer: #5b95ff;
+  --observer-text: #8db4ff;
+  --disc: #ff5d4a;
+  --live: #34d17f;
+  --s1: #5b95ff;
+  --s2: #34d17f;
+  --s3: #eef3fa;
+  --font: "Overpass", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --fs-display: 28px;
+  --fs-h1: 22px;
+  --fs-h2: 17px;
+  --fs-body: 15px;
+  --fs-meta: 13px;
+  --fs-label: 12px;
+  --r-panel: 10px;
+  --r-ctl: 6px;
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--font); font-size: var(--fs-body); line-height: 1.45; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; overflow: hidden; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+a { color: inherit; }
+svg { display: block; }
+.ic { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: var(--r-ctl); }
+.app { height: 100%; display: flex; flex-direction: column; min-height: 520px; }
+
+/* ---------- top bar ---------- */
+.bar { flex: none; height: 56px; display: flex; align-items: center; gap: 16px; padding: 0 16px; border-bottom: 1px solid var(--hair); background: var(--ground); }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; letter-spacing: -0.01em; }
+.brand svg { width: 24px; height: 26px; fill: var(--ink); }
+.tnav { display: flex; gap: 4px; margin-left: 24px; }
+.tnav a, .tnav button { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px; border-radius: var(--r-ctl); border: 0; background: none; color: var(--ink-2); font-size: var(--fs-body); font-weight: 500; text-decoration: none; transition: background-color 150ms var(--ease), color 150ms var(--ease), transform 120ms var(--ease); }
+@media (hover: hover) and (pointer: fine) { .tnav a:hover, .tnav button:hover { background: var(--panel); color: var(--ink); } }
+.tnav a:active, .tnav button:active { transform: scale(0.97); }
+.tnav [aria-current="true"] { background: var(--ink); color: var(--ground); font-weight: 700; }
+.bar .grow { flex: 1; }
+.chip { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; border: 1px solid var(--hair); border-radius: var(--r-ctl); background: var(--panel); font-size: var(--fs-meta); font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+.chip .ic { color: var(--live); }
+.sm { display: none; }
+
+/* ---------- shared controls ---------- */
+.seg { display: inline-flex; border: 1px solid var(--hair); border-radius: var(--r-ctl); overflow: hidden; }
+.seg button { height: 36px; padding: 0 14px; border: 0; background: none; font-size: var(--fs-meta); font-weight: 700; color: var(--ink-3); transition: background-color 150ms var(--ease), color 150ms var(--ease); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--ground); }
+.field { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; background: var(--ground); border: 1px solid var(--hair); border-radius: var(--r-ctl); color: var(--ink-3); transition: border-color 150ms var(--ease); }
+.field:focus-within { border-color: var(--observer); }
+.field input { flex: 1; min-width: 0; height: 100%; background: none; border: 0; outline: 0; color: var(--ink); font-size: var(--fs-body); }
+.field input::placeholder { color: var(--ink-3); }
+.btn { height: 36px; padding: 0 14px; border-radius: var(--r-ctl); border: 1px solid var(--hair); background: var(--panel-2); font-size: var(--fs-meta); font-weight: 700; display: inline-flex; align-items: center; gap: 6px; transition: border-color 150ms var(--ease), transform 120ms var(--ease); }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.btn:active:not(:disabled) { transform: scale(0.97); }
+@media (hover: hover) and (pointer: fine) { .btn:hover:not(:disabled) { border-color: var(--ink-3); } }
+.view { flex: 1; min-height: 0; }
+.view[hidden] { display: none; }
+
+/* ================= FLIGHT LOG ================= */
+.log { display: grid; grid-template-columns: 656px minmax(0, 1fr); height: 100%; }
+.side { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--hair); background: var(--ground); }
+.pg-head { padding: 20px 24px 0; }
+.pg-head h1 { margin: 0; font-size: var(--fs-display); font-weight: 800; letter-spacing: -0.015em; line-height: 1.1; }
+.pg-head p { margin: 4px 0 0; color: var(--ink-2); }
+.sum { display: grid; grid-template-columns: repeat(4, 1fr); margin: 16px 24px 0; padding: 0; border: 1px solid var(--hair); border-radius: var(--r-panel); background: var(--panel); }
+.sum div { padding: 10px 14px; border-left: 1px solid var(--hair-soft); min-width: 0; }
+.sum div:first-child { border-left: 0; }
+.sum dt { font-size: var(--fs-label); font-weight: 600; color: var(--ink-3); margin: 0; }
+.sum dd { margin: 2px 0 0; font-size: var(--fs-h2); font-weight: 800; white-space: nowrap; }
+.sum dd small { font-size: var(--fs-meta); font-weight: 600; color: var(--ink-2); }
+.ctl { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 24px 0; }
+.ctl .field { width: 232px; }
+.chips-sel { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 24px 0; align-items: center; }
+.pill { display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 6px 0 10px; border-radius: 15px; border: 1.5px solid var(--c); font-size: var(--fs-meta); font-weight: 700; }
+.pill i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.pill button { width: 22px; height: 22px; display: grid; place-items: center; border: 0; border-radius: 50%; background: none; color: var(--ink-2); }
+@media (hover: hover) and (pointer: fine) { .pill button:hover { background: var(--panel-2); color: var(--ink); } }
+.pill button .ic { width: 14px; height: 14px; }
+.linkbtn { border: 0; background: none; padding: 4px 6px; color: var(--ink-3); font-size: var(--fs-meta); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.tbl { flex: 1; min-height: 0; display: flex; flex-direction: column; margin-top: 14px; border-top: 1px solid var(--hair); }
+.th, .tr { display: grid; grid-template-columns: 16px 1.1fr 1.15fr 0.65fr 1fr 0.95fr; gap: 12px; align-items: center; padding: 0 24px; }
+.th { height: 36px; flex: none; font-size: var(--fs-label); font-weight: 700; color: var(--ink-3); background: var(--panel); border-bottom: 1px solid var(--hair-soft); }
+.th span:nth-child(4) { text-align: right; }
+.rows { flex: 1; min-height: 0; overflow-y: auto; }
+.tr { width: 100%; min-height: 54px; padding-top: 6px; padding-bottom: 6px; background: none; border: 0; border-bottom: 1px solid var(--hair-soft); text-align: left; transition: background-color 150ms var(--ease); }
+@media (hover: hover) and (pointer: fine) { .tr:hover { background: var(--panel); } }
+.tr[aria-pressed="true"] { background: var(--panel-2); }
+.tr .st { width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--ink-3); background: var(--ground); }
+.tr[aria-pressed="true"] .st { border-color: var(--c); background: var(--c); }
+.tr .a b { display: block; font-weight: 800; font-size: var(--fs-body); }
+.tr .a small, .tr .f small, .tr .l small { display: block; font-size: var(--fs-label); color: var(--ink-3); font-weight: 500; }
+.tr .f b { font-weight: 700; }
+.tr .n { text-align: right; font-weight: 700; }
+.tr .l b { font-weight: 700; font-size: var(--fs-meta); }
+.tr .r { font-size: var(--fs-meta); font-weight: 600; color: var(--ink-2); }
+.tr .r.none { color: var(--ink-3); font-weight: 400; }
+.tfoot { flex: none; border-top: 1px solid var(--hair); padding: 10px 24px 12px; background: var(--panel); }
+.tfoot .cap { margin: 0 0 8px; font-size: var(--fs-label); color: var(--ink-3); }
+.pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: var(--fs-meta); color: var(--ink-2); }
+.pager .pg { display: inline-flex; align-items: center; gap: 8px; }
+.pager input { width: 52px; height: 32px; text-align: center; background: var(--ground); border: 1px solid var(--hair); border-radius: var(--r-ctl); color: var(--ink); font-weight: 700; }
+.pager .btns { display: flex; gap: 8px; }
+.pager .btn { width: 42px; padding: 0; justify-content: center; }
+
+.mapwrap { position: relative; min-width: 0; min-height: 0; background: var(--land); overflow: hidden; }
+.mapwrap > svg.map { position: absolute; inset: 0; width: 100%; height: 100%; }
+.m-city { font: 600 13px var(--font); fill: var(--ink-3); }
+.m-city.big { font-size: 15px; fill: var(--ink-2); font-weight: 700; }
+.m-lbl { font: 700 12px var(--font); fill: var(--ink); }
+.legend { position: absolute; left: 16px; bottom: 16px; width: 300px; background: var(--panel); border: 1px solid var(--hair); border-radius: var(--r-panel); padding: 12px 14px; }
+.legend h2 { margin: 0 0 6px; font-size: var(--fs-meta); font-weight: 700; color: var(--ink-2); }
+.legend ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.legend li { display: flex; align-items: center; gap: 10px; font-size: var(--fs-meta); }
+.legend li i { width: 26px; height: 6px; border-radius: 3px; background: var(--c); }
+.legend li b { font-weight: 800; }
+.legend li span { margin-left: auto; color: var(--ink-3); }
+.mapnote { position: absolute; right: 16px; top: 16px; max-width: 280px; padding: 10px 12px; background: var(--panel); border: 1px solid var(--hair); border-radius: var(--r-panel); font-size: var(--fs-meta); color: var(--ink-2); }
+
+/* ================= ABOUT ================= */
+.about { height: 100%; overflow-y: auto; }
+.about-in { max-width: 1100px; margin: 0 auto; padding: 32px 24px 64px; display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 56px; align-items: start; }
+.toc { position: sticky; top: 24px; display: flex; flex-direction: column; gap: 2px; }
+.toc h2 { margin: 0 0 8px; padding: 0 10px; font-size: var(--fs-meta); font-weight: 700; color: var(--ink-3); }
+.toc button { display: block; text-align: left; width: 100%; height: 36px; padding: 0 10px; border: 0; border-radius: var(--r-ctl); background: none; color: var(--ink-2); font-size: var(--fs-body); font-weight: 500; transition: background-color 150ms var(--ease), color 150ms var(--ease); }
+@media (hover: hover) and (pointer: fine) { .toc button:hover { background: var(--panel); color: var(--ink); } }
+.toc button[aria-current="true"] { background: var(--panel-2); color: var(--ink); font-weight: 700; }
+.doc { min-width: 0; max-width: 720px; }
+.doc h1 { margin: 0; font-size: var(--fs-display); font-weight: 800; letter-spacing: -0.015em; line-height: 1.1; }
+.doc .lede { margin: 8px 0 0; font-size: var(--fs-h2); color: var(--ink-2); max-width: 56ch; }
+.prose p { margin: 0 0 14px; max-width: 66ch; color: var(--ink); }
+.prose { margin-top: 28px; }
+.name { max-width: 66ch; margin: 22px 0 0; padding: 14px 16px; background: var(--panel); border: 1px solid var(--hair); border-radius: var(--r-panel); display: grid; grid-template-columns: 96px 1fr; gap: 6px 16px; }
+.name dt { font-weight: 800; }
+.name dd { margin: 0; color: var(--ink-2); }
+.name dd em { font-style: normal; color: var(--moon); font-weight: 700; }
+.tip { margin: 22px 0 0; display: flex; gap: 12px; padding: 12px 14px; border-radius: var(--r-ctl); background: color-mix(in srgb, var(--observer) 12%, var(--panel)); border: 1px solid color-mix(in srgb, var(--observer) 45%, var(--panel)); max-width: 66ch; }
+.tip .ic { color: var(--observer-text); margin-top: 2px; }
+.tip b { font-weight: 800; }
+.tip p { margin: 2px 0 0; color: var(--ink); }
+.back { margin-top: 22px; display: inline-flex; text-decoration: none; }
+.faq-h { position: sticky; top: 0; z-index: 2; margin: 36px 0 0; padding: 14px 0 12px; background: var(--ground); display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.faq-h h2 { margin: 0; font-size: var(--fs-h1); font-weight: 800; }
+.faq-h .field { width: 280px; }
+.grp { margin-top: 24px; scroll-margin-top: 72px; }
+.grp h3 { margin: 0 0 8px; font-size: var(--fs-h2); font-weight: 800; color: var(--ink); }
+details { border-top: 1px solid var(--hair-soft); }
+details:last-of-type { border-bottom: 1px solid var(--hair-soft); }
+summary { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 52px; padding: 10px 0; cursor: pointer; font-size: var(--fs-body); font-weight: 700; transition: color 150ms var(--ease); }
+summary::-webkit-details-marker { display: none; }
+@media (hover: hover) and (pointer: fine) { summary:hover { color: #fff; } summary:hover .ic { color: var(--ink); } }
+summary .ic { color: var(--ink-3); transition: transform 180ms var(--ease); }
+details[open] summary .ic { transform: rotate(45deg); }
+.ans { padding: 0 0 16px; max-width: 66ch; color: var(--ink-2); }
+.ans p { margin: 0 0 12px; }
+.ans ol { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 10px; }
+.ans li::marker { color: var(--ink-3); font-weight: 700; }
+.empty { display: none; padding: 24px 0; color: var(--ink-2); }
+
+/* ---------- compact ---------- */
+@media (max-width: 1280px) {
+  .log { grid-template-columns: 560px minmax(0, 1fr); }
+  .th, .tr { grid-template-columns: 16px 1.1fr 1.1fr 0.6fr 1fr; }
+  .th span:nth-child(6), .tr .r { display: none; }
+  .about-in { gap: 32px; grid-template-columns: 200px minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  body { overflow: auto; }
+  .app { height: auto; min-height: 100%; }
+  .bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; padding: 0 12px; gap: 8px; }
+  .brand .t { display: none; }
+  .tnav { margin-left: 0; flex: 1; }
+  .tnav a, .tnav button { padding: 0 10px; }
+  .tnav .lg { display: none; } .tnav .sm { display: inline; }
+  .bar .chip { display: none; }
+  .view { overflow: visible; }
+  .log { display: block; height: auto; }
+  .side { border-right: 0; }
+  .pg-head, .ctl, .chips-sel { padding-left: 16px; padding-right: 16px; }
+  .sum { margin-left: 16px; margin-right: 16px; grid-template-columns: 1fr 1fr; }
+  .sum div:nth-child(3) { border-left: 0; }
+  .sum div:nth-child(n+3) { border-top: 1px solid var(--hair-soft); }
+  .ctl { flex-wrap: wrap; }
+  .ctl .field { width: 100%; }
+  .th { display: none; }
+  .rows { overflow: visible; }
+  .tr { grid-template-columns: 16px 1fr auto; grid-template-areas: "st f n" "st a l"; padding-left: 16px; padding-right: 16px; row-gap: 2px; min-height: 62px; }
+  .tr .st { grid-area: st; }
+  .tr .f { grid-area: f; }
+  .tr .n { grid-area: n; }
+  .tr .a { grid-area: a; }
+  .tr .l { grid-area: l; text-align: right; }
+  .tr .a b { display: inline; font-size: var(--fs-meta); font-weight: 600; color: var(--ink-2); }
+  .tr .a small, .tr .l small { display: none; }
+  .tr .f b { font-size: var(--fs-body); font-weight: 800; }
+  .tr .r { display: none; }
+  .tfoot { padding-left: 16px; padding-right: 16px; }
+  .mapwrap { height: 360px; }
+  .legend { left: 8px; right: 8px; width: auto; bottom: 8px; }
+  .mapnote { display: none; }
+  .about { overflow: visible; height: auto; }
+  .about-in { display: block; padding: 20px 16px 48px; }
+  .toc { display: none; }
+  .faq-h { top: 56px; flex-wrap: wrap; }
+  .faq-h .field { width: 100%; }
+  .name { grid-template-columns: 80px 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-search" viewBox="0 0 24 24"><path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="M15.75 19.5 8.25 12l7.5-7.5"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="m8.25 4.5 7.5 7.5-7.5 7.5"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><path d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"/></symbol>
+    <symbol id="i-feed" viewBox="0 0 24 24"><path d="M12.75 19.5v-.75a7.5 7.5 0 0 0-7.5-7.5H4.5m0-6.75h.75c7.87 0 14.25 6.38 14.25 14.25v.75M6 18.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"/></symbol>
+  </defs>
+</svg>
+
+<div class="app">
+  <header class="bar">
+    <div class="brand">
+      <svg viewBox="0 0 25.51 27.88" aria-hidden="true"><path d="M21.21,12.95c2.63-2.42,4.3-5.95,4.3-9.89,0-1.05-.12-2.08-.34-3.06-.97,4.27-3.94,7.73-7.82,9.28,1.6.84,2.93,2.12,3.86,3.66Z"/><path d="M8.16,9.28C4.28,7.73,1.32,4.27.34,0c-.22.98-.34,2-.34,3.06,0,3.94,1.67,7.47,4.3,9.89.93-1.55,2.26-2.82,3.86-3.66Z"/><path d="M12.76,9.8l.61.35c1.4-.07,2.74-.37,3.98-.87-1.37-.72-2.93-1.14-4.59-1.14s-3.22.41-4.59,1.14c1.25.5,2.58.8,3.98.87l.61-.35Z"/><path d="M19.87,14.04v8.08l-7.11,4.11-7.11-4.11v-8.08c-.47-.33-.92-.7-1.34-1.1-.89,1.48-1.41,3.21-1.41,5.07,0,5.45,4.42,9.87,9.87,9.87s9.87-4.42,9.87-9.87c0-1.85-.52-3.58-1.41-5.07-.43.39-.87.76-1.34,1.1Z"/></svg>
+      <span class="t">LunaPic</span>
+    </div>
+    <nav class="tnav" aria-label="Pages">
+      <a href="https://claude.ai/artifact/GWTQRdHsFyd6rjNwpZFfvs" target="_blank" rel="noopener"><svg class="ic" aria-hidden="true"><use href="#i-left"/></svg>Planner</a>
+      <button type="button" data-go="log" aria-current="true"><span class="lg">Flight log</span><span class="sm">Log</span></button>
+      <button type="button" data-go="about">About</button>
+    </nav>
+    <span class="grow"></span>
+    <div class="chip"><svg class="ic" aria-hidden="true"><use href="#i-feed"/></svg>Pi + Avionix logging</div>
+  </header>
+
+  <!-- ================= FLIGHT LOG ================= -->
+  <main class="view" id="v-log">
+    <div class="log">
+      <section class="side" aria-labelledby="log-h">
+        <div class="pg-head">
+          <h1 id="log-h">Flight log</h1>
+          <p>Local ADS-B log of captured aircraft and routes.</p>
+        </div>
+        <dl class="sum">
+          <div><dt>Positions</dt><dd>1,597,107</dd></div>
+          <div><dt>Last 24 h</dt><dd>18,204</dd></div>
+          <div><dt>Aircraft</dt><dd>3,912</dd></div>
+          <div><dt>Top callsign</dt><dd>RYR 8KQ <small>4,812</small></dd></div>
+        </dl>
+        <div class="ctl">
+          <span class="seg" role="group" aria-label="Period"><button type="button" aria-pressed="false">24 h</button><button type="button" aria-pressed="false">7 d</button><button type="button" aria-pressed="true">30 d</button><button type="button" aria-pressed="false">90 d</button></span>
+          <label class="field"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg><input id="log-q" type="search" placeholder="Search aircraft" autocomplete="off" spellcheck="false"></label>
+        </div>
+        <div class="chips-sel" id="chips"></div>
+        <div class="tbl">
+          <div class="th"><span></span><span>Aircraft</span><span>Flight</span><span>Fixes</span><span>Last seen</span><span>Route</span></div>
+          <div class="rows" id="rows"></div>
+          <div class="tfoot">
+            <p class="cap">Route comes from the Avionix dispatcher. It is a guess for reference and is not used in predictions.</p>
+            <div class="pager">
+              <span class="pg">3,912 aircraft<span>·</span>page <input id="pg" type="text" inputmode="numeric" value="1" aria-label="Go to page"> of 98</span>
+              <span class="btns"><button class="btn" type="button" disabled aria-label="Previous page"><svg class="ic" aria-hidden="true"><use href="#i-left"/></svg></button><button class="btn" type="button" aria-label="Next page"><svg class="ic" aria-hidden="true"><use href="#i-right"/></svg></button></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="mapwrap" aria-label="Tracks on the map">
+        <svg class="map" viewBox="0 0 900 900" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Map with the tracks of the selected aircraft around Zagreb airport">
+          <rect width="900" height="900" fill="var(--land)"/>
+          <path d="M-100 560 C-30 560 20 590 60 640 C110 630 150 670 190 700 C250 740 290 790 340 850 C370 880 400 900 430 900 L-100 900 Z" fill="var(--ground-deep)"/>
+          <path d="M-100 560 C-30 560 20 590 60 640 C110 630 150 670 190 700 C250 740 290 790 340 850 C370 880 400 900 430 900" fill="none" stroke="#2a3f73" stroke-width="1.5"/>
+          <path d="M120 150 C160 200 220 190 260 240 C310 270 330 330 300 370" fill="none" stroke="#2c3f6e" stroke-width="1.5" stroke-dasharray="6 6"/>
+          <path d="M240 380 C330 400 390 380 470 420 C560 465 640 440 720 490 C800 540 860 520 940 560" fill="none" stroke="#1d3268" stroke-width="5" stroke-linecap="round"/>
+          <path d="M300 640 C380 590 450 580 520 520" fill="none" stroke="#1d3268" stroke-width="3" stroke-linecap="round"/>
+          <g>
+            <circle cx="572" cy="352" r="6" fill="var(--ground)" stroke="var(--ink-2)" stroke-width="2.5"/><text class="m-city big" x="586" y="340">Zagreb</text>
+            <circle cx="250" cy="150" r="5" fill="var(--ground)" stroke="var(--ink-2)" stroke-width="2.5"/><text class="m-city big" x="236" y="146" text-anchor="end">Ljubljana</text>
+            <circle cx="170" cy="600" r="5" fill="var(--ground)" stroke="var(--ink-2)" stroke-width="2.5"/><text class="m-city big" x="184" y="605">Rijeka</text>
+            <circle cx="400" cy="520" r="4" fill="var(--ground)" stroke="var(--ink-3)" stroke-width="2"/><text class="m-city" x="412" y="525">Karlovac</text>
+            <circle cx="640" cy="640" r="4" fill="var(--ground)" stroke="var(--ink-3)" stroke-width="2"/><text class="m-city" x="652" y="645">Sisak</text>
+          </g>
+          <!-- observer -->
+          <circle cx="430" cy="500" r="9" fill="var(--ground)" stroke="var(--observer)" stroke-width="3.5"/>
+          <!-- tracks: smooth, geographic (no 45-degree bends) -->
+          <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="4">
+            <path id="tk-ctn" d="M585 372 C520 300 410 250 330 170 C290 128 240 96 170 60" stroke="var(--s1)"/>
+            <path id="tk-dlh" d="M330 30 C420 150 500 270 566 348" stroke="var(--s2)"/>
+            <path id="tk-wzz" d="M880 780 C790 650 680 520 600 392" stroke="var(--s3)"/>
+          </g>
+          <g stroke-width="3.5" fill="var(--ground)">
+            <circle cx="585" cy="372" r="8" stroke="var(--s1)"/><circle cx="170" cy="60" r="8" stroke="var(--s1)"/>
+            <circle cx="330" cy="30" r="8" stroke="var(--s2)"/><circle cx="566" cy="348" r="8" stroke="var(--s2)"/>
+            <circle cx="880" cy="780" r="8" stroke="var(--s3)"/><circle cx="600" cy="392" r="8" stroke="var(--s3)"/>
+          </g>
+          <rect x="182" y="40" width="76" height="24" rx="6" fill="var(--s1)"/><text x="220" y="57" text-anchor="middle" style="font:800 13px var(--font);fill:#06143a">CTN 612</text>
+          <rect x="344" y="14" width="76" height="24" rx="6" fill="var(--s2)"/><text x="382" y="31" text-anchor="middle" style="font:800 13px var(--font);fill:#04210f">DLH 4TM</text>
+          <rect x="740" y="752" width="76" height="24" rx="6" fill="var(--s3)"/><text x="778" y="769" text-anchor="middle" style="font:800 13px var(--font);fill:#0b1530">WZZ 31A</text>
+        </svg>
+        <div class="mapnote">Open circles mark the first and last logged fix of each track. Select a row to add or remove its track.</div>
+        <div class="legend" id="legend"><h2>Tracks on the map</h2><ul id="lg"></ul></div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ================= ABOUT ================= -->
+  <main class="view" id="v-about" hidden>
+    <div class="about" id="about-scroll">
+      <div class="about-in">
+        <nav class="toc" aria-label="On this page">
+          <h2>On this page</h2>
+          <button type="button" data-t="s-intro" aria-current="true">Why LunaPic exists</button>
+          <button type="button" data-t="g-0">Getting started</button>
+          <button type="button" data-t="g-1">Map overlays</button>
+          <button type="button" data-t="g-2">Transit size &amp; geometry</button>
+          <button type="button" data-t="g-3">Panels</button>
+        </nav>
+        <article class="doc">
+          <h1 id="s-intro">About / FAQ</h1>
+          <p class="lede">Short, practical answers for reading panels, map overlays, and field workflow.</p>
+          <div class="prose">
+            <p>LunaPic is a vibe-code hobbyist pet project built by Ivica Drusany, an amateur photographer with zero knowledge of astronomy and coding with one specific goal in mind: capturing the perfect moon transit shot of an aircraft passing in front of the moon.</p>
+            <p>That kind of shot demands precise timing and positioning that is nearly impossible to eyeball, so this tool was built to take the guesswork out of it.</p>
+            <p>There is no commercial agenda here, just a waste of time and money and to test AI and vibe coding.</p>
+            <p>The app tracks real flight traffic in my area, calculates when an aircraft will geometrically cross the moon as seen from observer standpoint, and guides you to the right spot on the ground, so if you want a perfect shot, prepare to run.</p>
+            <p>If you are an astro-photographer, a plane-spotter, or simply curious you are more than welcome to use LunaPic.</p>
+          </div>
+          <dl class="name">
+            <dt>Lūna</dt><dd>Moon in Latin</dd>
+            <dt>Pic</dt><dd>Picture in English</dd>
+            <dt>LunaPic</dt><dd>a combination that sounds like <em>lunatic</em>, which for sure we are if we are wasting time on this</dd>
+          </dl>
+          <div class="tip"><svg class="ic" aria-hidden="true"><use href="#i-info"/></svg><div><b>Pro Tip</b><p>Keep observer fixed first, then tune focal length and sensor in Photographer tools, and finally use corridor confidence + green-flight candidates together. That sequence gives the most reliable field decisions.</p></div></div>
+          <a class="btn back" href="https://claude.ai/artifact/GWTQRdHsFyd6rjNwpZFfvs" target="_blank" rel="noopener"><svg class="ic" aria-hidden="true"><use href="#i-left"/></svg>Back to planner</a>
+
+          <div class="faq-h">
+            <h2>Frequently asked questions</h2>
+            <label class="field"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg><input id="faq-q" type="search" placeholder="Search all answers…" autocomplete="off"></label>
+          </div>
+          <p class="empty" id="faq-empty">No answer matches that search. Try a shorter word, for example "corridor" or "alert".</p>
+          <section class="grp" id="g-0"><h3>Getting started</h3>
+<details open><summary>How do I use LunaPic in 60 seconds?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><ol><li>Set your observer location — tap the GPS button in the Observer panel, or drag the camera marker on the map to your exact tripod spot.</li><li>Open Photographer tools and enter your focal length and sensor size. This drives all feasibility scoring and the green/blue aircraft coloring on the map.</li><li>Choose a live flight source (OpenSky or adsb.lol). Aircraft populate the map within seconds.</li><li>Watch the Transit Candidates panel. It automatically lists flights that will cross or enter the moon disc from your standpoint. Rows marked ⊙ are full disk transits — the plane will geometrically pass in front of the moon.</li><li>Select a candidate row. Photographer tools shows a countdown to alignment and a shot-feasibility rating. Active Transits shows a nudge arrow with the direction and distance to walk for the optimal stand.</li><li>Get there before the countdown hits zero.</li></ol></div></details>
+<details><summary>How do I navigate the interface?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>The map fills the entire screen and all controls float on top.</p><p>Desktop: a vertical icon rail on the right edge opens side panels — click an icon to expand the panel drawer. A search bar sits centred at the top.</p><p>Mobile: a dock at the bottom has four quick-access pills — Active, Tracks, Photo, Moon — plus a More button for the remaining panels. Tap any pill to open that panel as a slide-up sheet.</p><p>The observer camera marker is always visible on the map — drag it to reposition.</p></div></details>
+<details><summary>How does the Observer point behave, and can I drag it?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>Yes — the camera marker on the map is draggable. Press and hold (or click-drag on desktop) the camera icon and move it to any position. All ephemeris calculations, transit geometry, and corridor math instantly recalculate for the new location.</p><p>The observer point is fixed — it does not follow map pan. That is intentional: the entire app is anchored to this one precise standpoint.</p><p>Other ways to set the observer: tap the location button in the Observer panel to use your device&#x27;s GPS; type coordinates directly; or use &quot;Set my location here&quot; to pin the current map view centre as the observer.</p><p>Consumer GPS can have several metres of error, so dragging the marker to a precise tripod spot (a rooftop corner, a specific kerb) is often more useful than raw GPS.</p></div></details>
+<details><summary>What does Flight source control?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>Three live sources are available:</p><p>OpenSky Network — crowdsourced ADS-B/MLAT, global coverage, free anonymous access with rate limits (429). A free OpenSky account configured in the server environment raises those limits.</p><p>adsb.lol — community-run open data network, no API key; rate limits are dynamic, so the app caches responses (~12 s per area) and debounces map moves. Aircraft data is contributed by volunteer feeders.</p><p>LunaPic ADS-B — a local receiver (Raspberry Pi running dump1090 or readsb) reachable over your network. No external rate limits; best for low-latency coverage of your exact area when you control the antenna.</p><p>All three are proxied on the server and return traffic for a bounded area around your observer. FlightRadar24 and other aggregators are not wired in — any external map can still differ from the feed you selected (different receivers, MLAT, partners).</p></div></details>
+</section>
+<section class="grp" id="g-1"><h3>Map overlays</h3>
+<details><summary>What does the long moon line on the map mean?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>It is the moon azimuth from your observer point (compass direction to look). It updates with slider time, so when you scrub time, this line rotates to the moon direction for that instant.</p></div></details>
+<details><summary>What is the cyan band and pale center line when an aircraft is selected?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>Cyan band + pale center line: the ground strip and zero-offset line (3D line-of-sight, aircraft altitude) for the current slider time only — the direction you move along the ground to line up the hull with the moon&#x27;s center at your fixed observer. Zoom out if the band is off-screen.</p></div></details>
+<details><summary>Why are some aircraft a different color?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>Aircraft colors depend on two settings:</p><p>Altitude tint ON (default): each aircraft is colored by altitude — red (ground / approach), orange, gold, green, blue (cruise ~35–45k ft), purple (high / bizjet). Mint green (#34d399) overrides the altitude color for any aircraft that is shot-feasible (both a mathematical transit overlap and optical feasibility for your camera setup).</p><p>Altitude tint OFF: all non-feasible aircraft switch to a single neutral grey tone; shot-feasible aircraft stay mint. Toggle the checkbox in the altitude legend on the map.</p><p>Colors update live as flights, time, and settings change.</p></div></details>
+<details><summary>What does the altitude color bar on the map mean?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>The bar is a quick height scale (MSL): map symbols run from light emerald (low) through emerald into sky blue and deep sky at high cruise, by reported baro/geo altitude. Tick labels under the bar default to short kilometre marks (0m, 2k, 4.5k … = 0 m, 2 km, 4.5 km, and so on). km / ft on the same row as the legend title switch ticks to compact thousands of feet (labels only; colors and geometry stay in metres). Mint (#34d399, the app&#x27;s &quot;ready / feasible&quot; accent) still marks shot-feasible aircraft — same meaning as elsewhere on the map, even if that hue appears in the mid-altitude part of the scale. The checkbox beside Aircraft color by altitude (MSL) turns the height scale off so other traffic uses one neutral tone; shot-feasible flights stay highlighted. The 3D aircraft marker also scales a bit with altitude.</p></div></details>
+<details><summary>What is the green transit opportunity corridor?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>It is an observer-centric map corridor that marks where transit chance is strongest for your current moon geometry and camera setup. Confidence bands show LOW / MEDIUM / HIGH likelihood, and the corridor appears only when moon visibility is in the Optimal tier.</p></div></details>
+<details><summary>Does the corridor guarantee a shot if a plane enters it?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>No. Treat it as a high-quality positioning and timing filter, not a guarantee. Final success still depends on real aircraft track updates, feed latency, exact transit timing, and field conditions.</p></div></details>
+<details><summary>What is the VFR aeronautical chart layer?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>The VFR layer overlays an aeronautical sectional chart on top of the base map — the same visual used by general aviation pilots for visual flight rules navigation. It shows airport symbols, airspace boundaries (Class B/C/D/E), airways, navigation aids (VORs, NDBs), terrain contours, and visual landmarks.</p><p>For moon transit photography, this is mainly useful context: you can quickly see which airports and flight paths are near your observer, which helps anticipate the kinds of traffic (commercial approach routes, GA traffic patterns, training areas) that may cross your field of view.</p><p>Toggle it from the Layers control on the map. VFR chart tiles are fetched from a third-party tile source and may not always match the most current published charts.</p></div></details>
+<details><summary>What other base map layers are available?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>The Layers control on the map lets you switch between several options:</p><p>Satellite — aerial/satellite imagery; useful for scouting a field location and checking for obstructions (trees, buildings) before heading out.</p><p>Street — standard road map; good for navigation.</p><p>VFR — aeronautical sectional chart overlay (see the dedicated FAQ entry above).</p><p>Street View — embeds an interactive Google Street View panorama at the observer location with moon and flight overlays (see the Street View FAQ entry).</p><p>Layers can be combined (e.g. Street View on top of Satellite) where the UI permits.</p></div></details>
+</section>
+<section class="grp" id="g-2"><h3>Transit size &amp; geometry</h3>
+<details><summary>Why does the plane look so tiny against the moon in my photos?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>Because of one number only: the straight-line (slant) distance from you to the aircraft. The moon is always about 0.5° across — on a 600 mm full-frame setup it renders at roughly the same ~950 px every night. The plane&#x27;s share of that disc shrinks linearly with distance.</p><p>Rule of thumb for a typical airliner (~36–40 m wingspan):</p><p>~15 km away → about 25–30% of the moon&#x27;s diameter — a dramatic, detailed silhouette.</p><p>~40 km away → about 11% — clearly a plane, but small.</p><p>~80–100 km away → 4–6% — a sliver you may barely notice in the frame.</p><p>The Photographer panel shows this distance live as &quot;Straight-line distance to plane&quot;, and the coverage percentage above it tells you exactly how big the silhouette will be. If it reads 80+ km, the plane will be tiny no matter what camera you use.</p></div></details>
+<details><summary>What is slant (straight-line) distance?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>It is the length of your actual line of sight to the aircraft — the hypotenuse of the triangle formed by you, the point on the ground below the plane, and the plane. Not the plane&#x27;s altitude, and not the map distance: light travels the full diagonal from the aircraft to your lens, and that diagonal is what sets the silhouette size.</p><p>For a transit, the aircraft must sit exactly on your sight-line to the moon. Cruising jets all fly on an invisible &quot;ceiling&quot; at roughly 11 km, so the distance to a transiting jet is simply where your sight-line pierces that ceiling:</p><p>slant ≈ cruise altitude ÷ sin(moon elevation)</p><p>Look up steeply (moon high, say 50°) and the line pierces the ceiling almost overhead — about 14 km away. Look shallow (moon at 8°) and the line travels ~78 km before reaching cruise altitude. Same moon, same jet — five times the distance, one fifth the silhouette.</p></div></details>
+<details><summary>If the moon is always the same size, why does moon elevation matter?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>Moon elevation is not a separate factor — it is the mechanism that controls the only factor: plane distance.</p><p>The moon&#x27;s apparent size barely changes (±7% over a month; a horizon moon is actually ~1.5% smaller than an overhead one — the &quot;huge moon at the horizon&quot; is an illusion). What elevation does control is the angle of your sight-line, and therefore how far away a cruise-altitude aircraft must be to cross it. Low moon → shallow line → distant planes → tiny silhouettes. High moon → steep line → close planes → big silhouettes.</p><p>The exception: aircraft that are not at cruise altitude. A plane on approach at 500–3000 m crosses your sight-line close to you regardless of moon elevation. That is why photos of low-flying aircraft in front of a low moon look so spectacular — low moon plus low traffic is the one combination where elevation stops mattering.</p></div></details>
+<details><summary>When do I get the biggest silhouettes?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>Two working strategies:</p><p>1. High moon + ordinary cruise traffic. Wait for sessions when the moon is 40°+ above the horizon (check Moon nowcast, or scrub the time slider ahead). A transiting jet is then only 13–16 km away — 25–35% of the disc. The trade-off: the transit corridor on the ground narrows with distance (roughly slant × 0.0087, so ~800 m wide at 90 km but only ~120 m at 14 km), which makes alerts and small repositioning moves matter much more. Use the candidate alerts and the nudge arrow, and be ready to walk.</p><p>2. Low moon + airport traffic. Position yourself where an approach or departure path visually crosses the moon. A plane on final at a few km slant can appear as large as the moon disc or bigger. Positioning is metre-precise (the approach path is a fixed line in the sky — you move until it intersects the moon) and the crossing lasts a fraction of a second, so prefocus on the moon and shoot bursts.</p><p>The worst combination is the one that produces most disappointing photos: a low moon with only cruise traffic — every transit is then locked to 70–100 km and physics guarantees a tiny plane. If the Photographer panel shows FAIR with 4–6% coverage, that is what is happening.</p></div></details>
+</section>
+<section class="grp" id="g-3"><h3>Panels</h3>
+<details><summary>How should I read Moon (nowcast)?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>Altitude is moon height above horizon (degrees), azimuth is compass direction from true north, and angular radius is apparent moon size. Illuminated is the percentage of the lunar disk lit as seen from Earth (0% = new moon, 100% = full moon). Visibility Advice flags low-altitude cases where the moon may be technically up but hard to see in practice.</p><p>When you keep the default balcony observer and the simulated moon lands in a narrow band around a saved reference (height, direction, near-full phase), an Ideal for transit watch callout appears — a cue that conditions match that reference session.</p><p>Copy field note copies observer coordinates, ground elevation (m), simulation instant, all numbers, rise/set times, and visibility text to the clipboard.</p></div></details>
+<details><summary>How does the Compass → Moon panel work?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>Goal. Hold the phone flat like a map (screen facing you). The compass rose (ticks + N/E/S/W) rotates with your device heading so cardinals stay lined up with the horizon (best effort from the sensor). The fixed triangle at 12 o&#x27;clock marks the top of the phone — your forward direction in the horizontal plane. The amber needle shows the shortest turn from that forward direction to the moon&#x27;s azimuth: when it points straight up to the triangle, you are aimed correctly.</p><p>Sensors. On many iPhones, Safari exposes a compass-derived heading; elsewhere the fallback is often alpha (attitude), which can drift. This is a field helper, not survey-grade north.</p><p>Field use. Prefer open air. Move away from cars, rebar, large steel, and speakers — they skew the magnetic field. If the needle jitters, walk a few steps, re-level the phone, and wait for the value below the disc to settle.</p><p>Limits. Azimuth only. It does not tell you moon altitude — use Moon (nowcast) and the map for elevation.</p></div></details>
+<details><summary>What does Active Transits show?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>Active Transits lists aircraft whose azimuth from your observer (corrected for aircraft altitude) is within 0.5° of the moon&#x27;s azimuth — they are currently on the &quot;yellow ray&quot; where a geometric transit is happening. Each row shows callsign and delta azimuth (Δ) in blue.</p><p>Nudge arrow. Tap a row to select it. A nudge arrow appears below the list showing how many metres to walk and in which compass direction to reach the optimal stand where the transit centres exactly. When you close within 5 m, the arrow is replaced by a green Centered indicator and a short double chime plays.</p><p>The list only populates when moon visibility is in the Optimal tier. If it is empty, no aircraft are on the ray right now.</p></div></details>
+<details><summary>How do transit alerts and notifications work?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>Turn on Transit alerts with the bell icon in the Transit Candidates panel header. You are then warned the moment a flight is predicted to cross the moon disc, or enters an active transit right now.</p><p>App open and on screen: an ATC-style sound (squelch + beep) plays and an in-app banner appears.</p><p>Screen off, app in the background, or fully closed: you get a system push notification (banner + vibration). This keeps working even when LunaPic is not open because detection runs on the server — once you subscribe, your observer location and camera settings are remembered server-side and the server keeps checking for transits for you.</p><p>First time: tapping the bell asks the browser for notification permission — choose Allow. On iPhone, push only works if you add LunaPic to the Home Screen (Share → Add to Home Screen) and open it from there; the alert then uses your phone&#x27;s system notification sound (iOS does not allow a custom sound or vibration for web notifications).</p><p>Turn the bell off to stop notifications. If you move your observer or change your camera, the saved settings update automatically.</p></div></details>
+<details><summary>What is the countdown in Photographer tools?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>It is an estimate of time until the selected plane&#x27;s direction aligns with the moon direction from your observer. It is meant as a practical shooting aid, not a perfect physical simulation.</p></div></details>
+<details><summary>How do camera settings affect results?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>Focal length and sensor crop (set in Photographer tools) define effective focal length. That value drives optical feasibility scoring and green/blue map filtering, so realistic camera settings are important.</p></div></details>
+<details><summary>What time basis does Photographer tools use?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>Pick a flight from the list or map. The moon position is computed for the current wall-clock time (Sync). The aircraft side extrapolates a little ahead from the latest feed position using reported ground speed and track so the countdown stays usable between feed refreshes; it is not a full flight simulator.</p></div></details>
+<details><summary>What do Field sounds do?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>Turn Sounds on after selecting an aircraft. On iPhone, turn off the silent switch and raise ringer volume; the first Sounds on tap plays a short unlock ping and links Web Audio to your finger (Safari otherwise keeps timer-driven sounds silent). Sync time to now also unlocks the shared audio context quietly.</p><p>Sounds: a chime when the selected aircraft enters the green map filter; a soft hold tone while it stays in the moon-overlap disc model; countdown beeps when timing data exists.</p></div></details>
+<details><summary>What does OpenSky latency skew do?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>The slider in the Field overlays panel lets you offset aircraft extrapolation relative to wall-clock time to compensate for feed delay. If the app shows a plane slightly behind where it looks in the sky, nudge the skew forward. Moon ephemeris is not affected — only aircraft positions shift.</p></div></details>
+<details><summary>How does AR Sky Camera work?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>AR Sky Camera opens a full-screen live camera view and overlays aircraft position markers locked to where the actual planes are in the sky. Using device orientation sensors (compass + tilt), the app places each callsign label at its correct azimuth and elevation.</p><p>The moon appears as an amber circle. When the moon or any aircraft is off-screen, an edge arrow guides you to rotate toward it. A small radar disc in the bottom-right corner shows all tracked aircraft relative to your current camera heading — useful for spotting traffic behind you.</p><p>Tap any callsign label to select that flight and open its data card at the top of the screen. Selecting here also highlights it on the main map.</p><p>All nearby mode shows all tracked flights; Only focused limits markers to the selected flight and top transit candidates. If compass heading drifts, point the phone toward a known bearing and tap Recenter.</p><p>Requires camera and orientation permissions. On iPhone Safari a compass-derived heading is used; on other browsers the fallback may drift more.</p></div></details>
+<details><summary>How does Street View work?<svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></summary><div class="ans"><p>Street View is available as a map layer — toggle it from the Layers control on the map. It opens a Google Street View panorama centred on your observer location and adds a live canvas overlay.</p><p>Overlay elements: the moon&#x27;s current position as an amber disc with crosshair; its path over a ±4-hour window (past samples faded, future samples brighter); aircraft silhouettes for transit candidates and active transits. Active transit aircraft (on the &quot;yellow ray&quot;) appear in cyan with trajectory dots and callsign + altitude; other candidates appear dimmer in purple.</p><p>The panorama auto-rotates to face the moon&#x27;s azimuth on load. Drag freely to look around — the overlay repaints in sync. A full-screen exit button is available in the top-right corner.</p><p>If no Street View panorama is available within 100 m of your observer, a notice is shown instead. Street View requires a Google Maps API key in the deployment configuration.</p></div></details>
+</section>
+        </article>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function () {
+  var rowsData = [
+    ['501C4A', '9A-CTN', 'Pi', 'CTN 612', 'A320', '1,204', '20:31', 'since 12 Oct', 'ZAG → FRA', 's1'],
+    ['3C65A1', 'D-AIEF', 'Pi', 'DLH 4TM', 'A321neo', '987', '20:12', 'since 3 Oct', 'FRA → ZAG', 's2'],
+    ['4CA7B3', 'EI-DWO', 'Avionix', 'RYR 8KQ', 'B737-800', '4,812', '19:58', 'since 29 Sep', 'BGY → ZAG', ''],
+    ['4B2A18', 'HA-LXK', 'Pi', 'WZZ 31A', 'A321', '2,266', '19:44', 'since 7 Oct', 'LTN → ZAG', 's3'],
+    ['4A8F02', '4K-AZ88', 'Pi', 'AHY 612', 'A320', '641', '18:20', 'since 16 Oct', '—', ''],
+    ['06A1E2', 'A7-BHB', 'Avionix', 'QTR 9ZD', 'B77W', '318', '17:03', 'since 19 Oct', 'DOH → LHR', ''],
+    ['501E77', '9A-CAH', 'Pi', 'CTN 7VN', 'DH8D', '1,771', '16:49', 'since 30 Sep', 'ZAG → SPU', ''],
+    ['4851F9', 'PH-EXC', 'Pi', 'TRA 6QA', 'B738', '402', '14:36', 'since 21 Oct', '—', '']
+  ];
+  var colors = { s1: 'var(--s1)', s2: 'var(--s2)', s3: 'var(--s3)' };
+  var selected = { 'CTN 612': 's1', 'DLH 4TM': 's2', 'WZZ 31A': 's3' };
+  var rowsEl = document.getElementById('rows');
+  var chipsEl = document.getElementById('chips');
+  var lgEl = document.getElementById('lg');
+  var q = document.getElementById('log-q');
+  var tracks = { 'CTN 612': 'tk-ctn', 'DLH 4TM': 'tk-dlh', 'WZZ 31A': 'tk-wzz' };
+  var pool = ['s1', 's2', 's3'];
+
+  function render() {
+    var term = (q.value || '').trim().toLowerCase();
+    var html = '';
+    rowsData.forEach(function (r, i) {
+      var hay = (r[0] + ' ' + r[1] + ' ' + r[3] + ' ' + r[4]).toLowerCase();
+      if (term && hay.indexOf(term) < 0) return;
+      var on = selected[r[3]];
+      html += '<button type="button" class="tr" data-i="' + i + '" aria-pressed="' + (on ? 'true' : 'false') + '" style="' + (on ? '--c:' + colors[on] : '') + '">' +
+        '<span class="st"></span>' +
+        '<span class="a"><b>' + r[0] + '</b><small>' + r[1] + ' · ' + r[2] + '</small></span>' +
+        '<span class="f"><b>' + r[3] + '</b><small>' + r[4] + '</small></span>' +
+        '<span class="n">' + r[5] + '</span>' +
+        '<span class="l"><b>Today ' + r[6] + '</b><small>' + r[7] + '</small></span>' +
+        '<span class="r' + (r[8] === '—' ? ' none' : '') + '">' + r[8] + '</span></button>';
+    });
+    if (!html) html = '<p style="padding:28px 24px;color:var(--ink-2);margin:0">No aircraft match "' + term.replace(/[<>&]/g, '') + '" in the last 30 days.</p>';
+    rowsEl.innerHTML = html;
+
+    var names = Object.keys(selected);
+    chipsEl.innerHTML = names.map(function (n) {
+      return '<span class="pill" style="--c:' + colors[selected[n]] + '"><i></i>' + n + '<button type="button" data-rm="' + n + '" aria-label="Remove ' + n + '"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button></span>';
+    }).join('') + (names.length > 1 ? '<button class="linkbtn" type="button" data-clear="1">Clear all</button>' : '');
+    lgEl.innerHTML = names.length ? names.map(function (n) {
+      var r = rowsData.filter(function (x) { return x[3] === n; })[0];
+      return '<li style="--c:' + colors[selected[n]] + '"><i></i><b>' + n + '</b><span>' + r[5] + ' fixes</span></li>';
+    }).join('') : '<li style="color:var(--ink-3)">Select a row to draw its track.</li>';
+    Object.keys(tracks).forEach(function (n) {
+      var el = document.getElementById(tracks[n]);
+      if (el) el.style.opacity = selected[n] ? '1' : '0';
+    });
+  }
+  function toggle(name) {
+    if (selected[name]) { delete selected[name]; }
+    else {
+      var used = Object.keys(selected).map(function (n) { return selected[n]; });
+      var free = pool.filter(function (c) { return used.indexOf(c) < 0; })[0];
+      if (!free) return;
+      selected[name] = free;
+    }
+    render();
+  }
+  rowsEl.addEventListener('click', function (e) {
+    var b = e.target.closest('.tr'); if (!b) return;
+    toggle(rowsData[+b.dataset.i][3]);
+  });
+  chipsEl.addEventListener('click', function (e) {
+    var rm = e.target.closest('[data-rm]');
+    if (rm) { delete selected[rm.dataset.rm]; render(); return; }
+    if (e.target.closest('[data-clear]')) { selected = {}; render(); }
+  });
+  q.addEventListener('input', render);
+  document.querySelectorAll('.seg button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      b.parentNode.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', 'false'); });
+      b.setAttribute('aria-pressed', 'true');
+    });
+  });
+  render();
+
+  /* page switch (stands in for separate routes) */
+  var vlog = document.getElementById('v-log'), vabout = document.getElementById('v-about');
+  function go(where) {
+    vlog.hidden = where !== 'log'; vabout.hidden = where !== 'about';
+    document.querySelectorAll('[data-go]').forEach(function (b) { b.setAttribute('aria-current', b.dataset.go === where ? 'true' : 'false'); });
+  }
+  document.querySelectorAll('[data-go]').forEach(function (b) { b.addEventListener('click', function () { go(b.dataset.go); }); });
+  var h = (location.hash || '').replace('#', '');
+  if (h === 'about') go('about');
+
+  /* about: contents + search */
+  document.querySelectorAll('.toc button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.toc button').forEach(function (x) { x.removeAttribute('aria-current'); });
+      b.setAttribute('aria-current', 'true');
+      var t = document.getElementById(b.dataset.t);
+      if (t) t.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    });
+  });
+  var fq = document.getElementById('faq-q');
+  fq.addEventListener('input', function () {
+    var term = fq.value.trim().toLowerCase(), any = false;
+    document.querySelectorAll('.grp').forEach(function (g) {
+      var shown = 0;
+      g.querySelectorAll('details').forEach(function (d) {
+        var hit = !term || d.textContent.toLowerCase().indexOf(term) >= 0;
+        d.style.display = hit ? '' : 'none';
+        if (hit) { shown++; if (term) d.open = true; }
+      });
+      g.style.display = shown ? '' : 'none';
+      if (shown) any = true;
+    });
+    document.getElementById('faq-empty').style.display = any ? 'none' : 'block';
+  });
+})();
+</script>
