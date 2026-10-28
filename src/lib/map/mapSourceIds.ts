@@ -81,6 +81,17 @@ export const PHOTO_SPOT_PATH_SOURCE = "photo-spot-path-geo";
 export const PHOTO_SPOT_PATH_LAYER_ID = "photo-spot-path-layer";
 
 /**
+ * LDZA runway planner (Planning panel): per planned instant, the ground line on
+ * which a virtual approach/departure aircraft sits on the Moon's disk.
+ */
+export const RUNWAY_PLAN_SOURCE = "runway-plan-geo";
+export const RUNWAY_PLAN_LINE_LAYER_ID = "runway-plan-line-layer";
+export const RUNWAY_PLAN_LINE_DEPARTURE_LAYER_ID = "runway-plan-line-departure-layer";
+export const RUNWAY_PLAN_MARKER_LAYER_ID = "runway-plan-marker-layer";
+export const RUNWAY_PLAN_MARKER_LABEL_LAYER_ID = "runway-plan-marker-label-layer";
+export const RUNWAY_PLAN_TIME_LAYER_ID = "runway-plan-time-layer";
+
+/**
  * Live "stand here" centerline for the selected aircraft — the ground track its
  * Moon shadow sweeps over the next few minutes, with the current spot on it.
  */

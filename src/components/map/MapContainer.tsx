@@ -9,6 +9,7 @@ import { useExtrapolatedFlightsForMap } from "@/hooks/useExtrapolatedFlightsForM
 import { useAirportRunwayLayer } from "@/hooks/useAirportRunwayLayer";
 import { useCallsignHistoryLayer } from "@/hooks/useCallsignHistoryLayer";
 import { usePhotoSpotLayer } from "@/hooks/usePhotoSpotLayer";
+import { useRunwayPlanLayer } from "@/hooks/useRunwayPlanLayer";
 import { useSelectedFlightShadowTrack } from "@/hooks/useSelectedFlightShadowTrack";
 import { useFlightHistoryLayers } from "@/hooks/useFlightHistoryLayers";
 import { useSelectedFlightTrail } from "@/hooks/useSelectedFlightTrail";
@@ -229,6 +230,7 @@ export function MapContainer({
   useSelectedFlightShadowTrack(mapRef, mapReadyTick, {
     observer,
     selectedFlightId,
+  useRunwayPlanLayer(mapRef, mapReadyTick);
     flights: filteredFlights,
     nowMs: wallNowMs,
     enabled: transitCenterlineOverlay,

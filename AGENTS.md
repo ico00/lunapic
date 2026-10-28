@@ -444,6 +444,23 @@ Prije bilo kakve optimizacije — izmjeri. Dva puta je intuicija ovdje bila
 kriva:
 
 * Newton petlja u `solveMoonShadowSpot` vrti se **0.69 iteracija po pozivu**
+### Planer za LDZA (Planning panel, `runwayShadowPlan.ts`)
+
+Treći potrošač istog solvera, ali s **virtualnim avionom** umjesto stvarnog:
+za odabrani dan/prozor/korak računa liniju „stani ovdje” po trenutku za prilaz 04
+(3°, TCH 15 m — `LANDING_*` konstante) i odlazak 22 (`DEPARTURE_CLIMB_GRADIENT`
+= 0.08 od početka staze, kalibrirano na ručni KML: ≈745 m na 6 km od praga 04).
+Avion se postavlja na 3–15 km (korak 0.5) od praga 04 duž produžene osi; svaka
+točka je `solveMoonShadowSpot` s `groundHeightMeters = LDZA_ELEVATION_M` (107).
+Pozicija stajanja **uzduž linije određuje na kojoj udaljenosti od staze avion
+prelazi Mjesec** — zato su markeri na 4/6/8/10/12 km. Prag pokrivenosti je samo
+donja granica (kao u photo-spots). Profili su **pretpostavke**, ne mjerenja:
+stvarni avion odstupa (vjetar, ATC, masa), pa je plan lokacije, ne garancija.
+Regresijski test u `runwayShadowPlan.test.ts` uspoređuje točke s ručnim KML-om
+za 28.10.2026 07:20 (unutar 60 m). Stanje: `runwayPlanLines` /
+`runwayPlanFocusMs` u storeu, panel ih objavljuje i briše pri zatvaranju;
+sloj `useRunwayPlanLayer`.
+
   (33 795 poziva, 23 405 iteracija) — većina izađe prije petlje, na pragu
   Mjesečeve visine. Optimizacija početne procjene tu **nema što skratiti**.
 * Sintetička testna baza vjerna po broju redaka i veličini i dalje može lagati:
