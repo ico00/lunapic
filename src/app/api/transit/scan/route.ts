@@ -1,3 +1,4 @@
+import { confirmedCandidateIds, type CandidateConfirmationState } from "@/lib/domain/transit/candidateConfirmation";
 import { NextResponse } from "next/server";
 import { computeActiveTransits } from "@/lib/domain/transit/computeActiveTransits";
 import { computeTransitCandidates } from "@/lib/domain/transit/computeTransitCandidates";
@@ -27,6 +28,8 @@ const DEFAULT_CAMERA: SubscriptionCamera = {
 };
 
 type EndpointState = {
+  confirmation: CandidateConfirmationState;
+  context: string;
   lastCandidateIds: Set<string>;
   lastActiveIds: Set<string>;
   stamps: Map<string, number>;
@@ -38,7 +41,7 @@ const stateByEndpoint = new Map<string, EndpointState>();
 function getState(endpoint: string): EndpointState {
   let s = stateByEndpoint.get(endpoint);
   if (!s) {
-    s = { lastCandidateIds: new Set(), lastActiveIds: new Set(), stamps: new Map() };
+    s = { confirmation: new Map(), context: "", lastCandidateIds: new Set(), lastActiveIds: new Set(), stamps: new Map() };
     stateByEndpoint.set(endpoint, s);
   }
   return s;
@@ -85,7 +88,7 @@ export async function POST(req: Request) {
   const subs = readSubs();
   const endpoints = Object.keys(subs);
   pruneState(new Set(endpoints));
-  if (endpoints.length === 0 || flights.length === 0) {
+  if (endpoints.length === 0) {
     return NextResponse.json({ scanned: endpoints.length, sent: 0 });
   }
 
@@ -122,13 +125,17 @@ export async function POST(req: Request) {
     });
 
     const st = getState(ep);
+    const context = `${observer.lat}|${observer.lng}|${observer.groundHeightMeters}|${focalLengthMm}|${sensorType}`;
+    if (st.context !== context) {
+      st.confirmation.clear();
+      st.lastCandidateIds.clear();
+      st.context = context;
+    }
     const isCooled = (id: string) =>
       nowMs - (st.stamps.get(id) ?? 0) >= COOLDOWN_MS;
     const stamp = (id: string) => st.stamps.set(id, nowMs);
 
-    const currentCandidateIds = new Set(
-      candidates.filter((c) => c.willTransit).map((c) => c.flight.id)
-    );
+    const currentCandidateIds = confirmedCandidateIds(st.confirmation, candidates, nowMs);
     const currentActiveIds = new Set(actives.map((r) => r.flight.id));
 
     type Msg = { title: string; body: string; tag: string; urgent: boolean };
@@ -149,7 +156,7 @@ export async function POST(req: Request) {
     }
 
     // --- New disc-transit candidates ---
-    for (const c of candidates.filter((c) => c.willTransit)) {
+    for (const c of candidates.filter((c) => currentCandidateIds.has(c.flight.id))) {
       const id = c.flight.id;
       if (st.lastCandidateIds.has(id) || currentActiveIds.has(id) || !isCooled(id)) {
         continue;

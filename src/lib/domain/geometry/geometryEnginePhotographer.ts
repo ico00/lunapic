@@ -1,4 +1,4 @@
-import { AstroService } from "@/lib/domain/astro/astroService";
+import { solveAzimuthAlignment, getAlignmentMoonPosition } from "./azimuthAlignment";
 import type { GroundObserver } from "@/types";
 import type { FlightState } from "@/types/flight";
 import type { MoonState } from "@/types";
@@ -8,43 +8,11 @@ import {
   moonAngularDiameterDeg,
   type LineOfSightKinematics,
   signedAzimuthGapDeg,
-  timeToAzimuthAlignmentSeconds,
   transitDurationCenterToCenterMs,
 } from "./lineOfSightKinematics";
 import { horizontalToPoint } from "./horizontal";
 import { angularSeparationDeg } from "./sky-separation";
-import { geodeticToEcef, toRad } from "./wgs84";
-
-/**
- * Projects aircraft position along a great circle (spherical Earth).
- */
-function deadReckonPosition(
-  latDeg: number,
-  lngDeg: number,
-  trackDeg: number,
-  groundSpeedMps: number,
-  deltaSec: number
-): { lat: number; lng: number } {
-  const R = 6_371_000;
-  const angDist = (groundSpeedMps * deltaSec) / R;
-  const lat1 = toRad(latDeg);
-  const lng1 = toRad(lngDeg);
-  const track = toRad(((trackDeg % 360) + 360) % 360);
-  const lat2 = Math.asin(
-    Math.sin(lat1) * Math.cos(angDist) +
-      Math.cos(lat1) * Math.sin(angDist) * Math.cos(track)
-  );
-  const lng2 =
-    lng1 +
-    Math.atan2(
-      Math.sin(track) * Math.sin(angDist) * Math.cos(lat1),
-      Math.cos(angDist) - Math.sin(lat1) * Math.sin(lat2)
-    );
-  return {
-    lat: (lat2 * 180) / Math.PI,
-    lng: ((((lng2 * 180) / Math.PI) + 540) % 360) - 180,
-  };
-}
+import { geodeticToEcef } from "./wgs84";
 
 /**
  * Kinematika tlocrta (ENU): slant, |d(azimuta očišta)/dt|, °/s i rad/s.
@@ -118,6 +86,10 @@ export function photographerPack(
   /** Aircraft elevation − moon elevation RIGHT NOW (current position, degrees). */
   currentElevationGapDeg: number;
 } | null {
+  // Predictions require measured kinematics; drawing helpers may still use defaults.
+  const v = flight.groundSpeedMps;
+  const tr = flight.trackDeg;
+  if (v == null || tr == null || !Number.isFinite(v) || !Number.isFinite(tr) || v < 1) return null;
   const kin = aircraftLineOfSightKinematics(observer, flight);
   if (!kin) {
     return null;
@@ -133,39 +105,18 @@ export function photographerPack(
     flight.position.lng,
     h
   );
-  // Use a 20 s forward step — exactly 2× the getMoonState cache bucket (10 s).
-  // A 2 s step can land in the SAME bucket as `at`, giving dMoon = 0 (rate = 0)
-  // or in the NEXT bucket, giving dMoon = 10 s of moon movement (rate = 5× actual).
-  // With 20 s, bucket(at + 20 s) is always bucket(at) + 20 000 ms, so dMoon is
-  // always the correct 20-second azimuth change — no zero-rate or 5× inflated-rate bug.
-  const m1 = new Date(at.getTime() + 20_000);
-  const mNext = AstroService.getMoonState(m1, observer.lat, observer.lng, observer.groundHeightMeters);
-  const dMoon =
-    ((mNext.azimuthDeg - moon.azimuthDeg + 540) % 360) - 180;
-  const moAzRateDegS = dMoon / 20;
+  const mNext = getAlignmentMoonPosition(at.getTime() + 20_000, observer);
+  const mNow = getAlignmentMoonPosition(at.getTime(), observer);
+  const moAzRateDegS = signedAzimuthGapDeg(mNext.azimuthDeg, mNow.azimuthDeg) / 20;
   const acAzRateDegS = (kin.azimuthRateRadPerSec * 180) / Math.PI;
   const acAz = hObs.azimuthDeg;
   const moAz = moon.azimuthDeg;
   const gapDeg = signedAzimuthGapDeg(acAz, moAz);
-  let timeToAlignmentSec = timeToAzimuthAlignmentSeconds(
-    gapDeg,
-    acAzRateDegS,
-    moAzRateDegS
-  );
-  // Guard: a plane's LoS azimuth can only sweep as far as its ground track
-  // direction (the asymptote as range → ∞). If the moon's azimuth lies beyond
-  // that maximum sweep, the linear model gives a spuriously positive t but the
-  // plane will never actually reach the moon's azimuth.
-  if (timeToAlignmentSec != null) {
-    const tr = ((((flight.trackDeg ?? 90) % 360) + 360) % 360);
-    const moonReachable =
-      kin.azimuthRateRadPerSec >= 0
-        ? ((tr - acAz + 360) % 360) >= ((moAz - acAz + 360) % 360)
-        : ((acAz - tr + 360) % 360) >= ((acAz - moAz + 360) % 360);
-    if (!moonReachable) {
-      timeToAlignmentSec = null;
-    }
-  }
+  const alignment = solveAzimuthAlignment({
+    observer, position: flight.position, altitudeMeters: h, speedMps: v,
+    trackDeg: tr, atMs: at.getTime(),
+  });
+  const timeToAlignmentSec = alignment?.timeSec ?? null;
   const L = extra.airlinerLengthMeters ?? 40;
   const dMoonFull = moonAngularDiameterDeg(moon.apparentRadius.degrees);
   const dAc = angularSizeDegFromObjectLengthMeters(L, kin.slantRangeMeters);
@@ -181,24 +132,10 @@ export function photographerPack(
   let separationAtAlignmentDeg: number | null = null;
   let futureSlantMeters: number | null = null;
   let willActuallyTransit = false;
-  if (timeToAlignmentSec != null) {
-    const v = flight.groundSpeedMps ?? 200;
-    const tr = flight.trackDeg ?? 90;
-    const futureDate = new Date(at.getTime() + timeToAlignmentSec * 1000);
-    const futurePos = deadReckonPosition(
-      flight.position.lat,
-      flight.position.lng,
-      tr,
-      v,
-      timeToAlignmentSec
-    );
-    const moonFuture = AstroService.getMoonState(
-      futureDate,
-      observer.lat,
-      observer.lng,
-      observer.groundHeightMeters
-    );
-    const acFuture = horizontalToPoint(observer, futurePos.lat, futurePos.lng, h);
+  if (alignment != null) {
+    const futurePos = alignment.position;
+    const moonFuture = alignment.moon;
+    const acFuture = alignment.aircraft;
     const sep = angularSeparationDeg(
       { altitudeDeg: acFuture.altitudeDeg, azimuthDeg: acFuture.azimuthDeg },
       { altitudeDeg: moonFuture.altitudeDeg, azimuthDeg: moonFuture.azimuthDeg }
@@ -214,9 +151,7 @@ export function photographerPack(
     futureSlantMeters = futureSlant;
     elevationGapAtAlignmentDeg = acFuture.altitudeDeg - moonFuture.altitudeDeg;
     separationAtAlignmentDeg = sep;
-    // Use elevation gap directly for transit classification — confirmed reliable
-    // (validated in real shooting 2026-05-23). The full 2D `sep` diverges for
-    // large lookahead times because the linear azimuth model loses accuracy.
+    // Elevation is meaningful only after the solver verifies azimuth alignment.
     willActuallyTransit =
       Math.abs(elevationGapAtAlignmentDeg) <= moonFuture.apparentRadius.degrees + dAcFuture / 2;
   }

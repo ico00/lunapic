@@ -6,6 +6,9 @@ import {
 } from "@/lib/audio/fieldAudio";
 import type { ActiveTransitRow } from "@/hooks/useActiveTransits";
 import type { TransitCandidate } from "@/types";
+import { confirmedCandidateIds, type CandidateConfirmationState } from "@/lib/domain/transit/candidateConfirmation";
+import { useObserverStore } from "@/stores/observer-store";
+import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const COOLDOWN_MS = 2 * 60 * 1000;
@@ -40,6 +43,13 @@ export function useCandidateAlerts({
   const [latestAlert, setLatestAlert] = useState<AlertInfo | null>(null);
   const lastCandidateIds = useRef<Set<string>>(new Set());
   const lastActiveIds = useRef<Set<string>>(new Set());
+  const confirmation = useRef<CandidateConfirmationState>(new Map());
+  const previousContext = useRef("");
+  const observer = useObserverStore((s) => s.observer);
+  const focal = useMoonTransitStore((s) => s.cameraFocalLengthMm);
+  const sensor = useMoonTransitStore((s) => s.cameraSensorType);
+  const planned = useMoonTransitStore((s) => s.timeAnchorIsPlanned);
+  const context = `${observer.lat}|${observer.lng}|${observer.groundHeightMeters}|${focal}|${sensor}|${planned}`;
   const cooldownMap = useRef<Map<string, number>>(new Map());
 
   const clearAlert = useCallback(() => setLatestAlert(null), []);
@@ -54,12 +64,14 @@ export function useCandidateAlerts({
   }
 
   useEffect(() => {
+    if (!enabled || previousContext.current !== context) {
+      confirmation.current.clear();
+      lastCandidateIds.current.clear();
+      previousContext.current = context;
+    }
     if (!enabled) return;
 
-    // Only track disc-transit candidates (willTransit: true) — "in frame" planes never trigger alerts
-    const currentCandidateIds = new Set(
-      candidates.filter((c) => c.willTransit).map((c) => c.flight.id),
-    );
+    const currentCandidateIds = confirmedCandidateIds(confirmation.current, candidates, Date.now());
     const currentActiveIds = new Set(activeTransits.map((r) => r.flight.id));
 
     // --- Active transits (priority — check first) ---
@@ -82,7 +94,7 @@ export function useCandidateAlerts({
     }
 
     // --- New candidates (only disc-transit predictions, not "in frame" only) ---
-    for (const c of candidates.filter((c) => c.willTransit)) {
+    for (const c of candidates.filter((c) => currentCandidateIds.has(c.flight.id))) {
       const id = c.flight.id;
       if (lastCandidateIds.current.has(id)) continue;
       if (currentActiveIds.has(id)) continue; // active transit already handled above
@@ -99,7 +111,7 @@ export function useCandidateAlerts({
 
     lastCandidateIds.current = currentCandidateIds;
     lastActiveIds.current = currentActiveIds;
-  }, [enabled, audioEnabled, candidates, activeTransits]);
+  }, [enabled, audioEnabled, candidates, activeTransits, context]);
 
   return { latestAlert, clearAlert };
 }

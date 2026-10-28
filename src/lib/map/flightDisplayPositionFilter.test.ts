@@ -6,9 +6,8 @@ import { advanceDisplayPosition } from "./flightDisplayPositionFilter";
 const START = { lat: 45.8, lng: 16.0 };
 const EAST = 90;
 const V = 200; // m/s
-const TICK_MS = 80;
 
-describe("advanceDisplayPosition", () => {
+describe.each([40, 80])("advanceDisplayPosition (tick %i ms)", (TICK_MS) => {
   it("ne pomiče marker unatrag ni kad meta zaostane iza njega (2026-08-21 regresija)", () => {
     const prev = { ...START, atMs: 1_000 };
     // Novi raw fix je stigao zakašnjelo pa meta leži 1.5 km IZA markera.

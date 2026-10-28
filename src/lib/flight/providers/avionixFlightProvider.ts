@@ -29,8 +29,8 @@ type LastRawFix = {
 /**
  * Avionix Nano ADS-B (openAir firmware) via `/api/avionix/aircraft`.
  * Uređaj pusha snapshot na `/api/avionix/ingest` (produkcija); `AVIONIX_URL`
- * je local-dev-only pull fallback. Tiho vraća prazan popis dok nijedno nije
- * konfigurirano.
+ * je local-dev-only pull fallback. Bez svježeg snapshota ili dostupnog pull
+ * izvora ruta vraća 503, pa UI prikazuje prijemnik kao nedostupan.
  */
 export class AvionixFlightProvider implements IFlightProvider {
   readonly id = "avionix" as const;

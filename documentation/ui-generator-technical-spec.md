@@ -489,6 +489,16 @@ Ako se visina ribbona ili gap mijenjaju u CSS-u, isti broj treba ažurirati i u 
 
 ---
 
+### Animacija aviona na karti
+
+- Prikazane pozicije i GeoJSON imaju zajednički minimalni interval **40 ms** (najviše 25 osvježavanja/s; stvarni tempo ovisi o frameovima i uređaju).
+- Izračuni statusa tranzita koriste sirove fixove na field ticku; animirane pozicije služe prikazu.
+- Odabrani avion, njegova kartica i predikcija putanje koriste izravnu ekstrapolaciju istog fixa kao Photographer brojač, bez dodatnog filtra sustizanja. Animacija između fixova ostaje; novi fix odmah korigira poziciju. Glađenje ostalih markera ne smije se koristiti kao ulaz za brojač.
+- ATC oznake, spojnice i predikcije obnavljaju se samo u ATC modu.
+- Animacijski rAF miruje dok je dokument skriven; tempo dohvaćanja ADS-B podataka ostaje neovisan.
+
+---
+
 ## 13. Pristupačnost i E2E
 
 - Toolbar u `TimeAndWeatherBlock`: `role="toolbar"`, `aria-label="Map and time actions"`.

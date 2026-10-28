@@ -25,6 +25,14 @@ export interface TransitCandidate {
    * disc at alignment (sky separation ≤ moon + aircraft apparent radii).
    */
   readonly willTransit: boolean;
+  /** Original fix evidence, unaffected by display/dead-reckoning ticks. */
+  readonly prediction?: {
+    readonly alignmentAtMs: number;
+    readonly fixTimestampMs: number;
+    readonly lat: number;
+    readonly lng: number;
+    readonly providerId: string;
+  };
 }
 
 /**

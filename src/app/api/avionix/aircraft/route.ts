@@ -99,12 +99,12 @@ export async function GET(req: Request) {
       snapshot != null ? Math.round((Date.now() - snapshot.receivedAt) / 1000) : null;
     return NextResponse.json(
       {
-        timestamp: String(Date.now()),
+        error: "Avionix receiver unavailable: no fresh snapshot",
         ...(staleAgeSec != null
           ? { stale: true, lastSnapshotAgeSec: staleAgeSec }
           : {}),
       },
-      { headers: NO_CACHE }
+      { status: 503, headers: { ...NO_CACHE, "Retry-After": "10" } }
     );
   }
 

@@ -46,10 +46,12 @@ Svaki filter se primjenjuje redom. Ako let padne na bilo kojoj provjeri, **isklj
    → isključen iz svega
    (letovi bez speed/track prolaze bezuvjetno)
 
-4. photographerPack.timeToAlignmentSec === null
+4. Nedostaje poznata konačna brzina/smjer, photographerPack === null,
+   ILI photographerPack.timeToAlignmentSec === null
    → isključen (azimut se nikad neće poravnati s Mjesecom, ILI se poravnanje
    predviđa dalje od `MAX_ALIGNMENT_LOOKAHEAD_SEC` = 300s
-   [lineOfSightKinematics.ts: timeToAzimuthAlignmentSeconds] — iznad toga
+   [lineOfSightKinematics.ts: MAX_ALIGNMENT_LOOKAHEAD_SEC;
+   azimuthAlignment.ts: solveAzimuthAlignment] — iznad toga
    dead-reckoning s konstantnim track-om/brzinom postaje nepouzdan, pa je
    "willTransit" za takve letove lažno pozitivan)
 
@@ -65,11 +67,32 @@ Svaki filter se primjenjuje redom. Ako let padne na bilo kojoj provjeri, **isklj
    → true  → "Disk transit" sekcija u panelu + okida alert
    → false → "In frame" sekcija (u kadru, ali ne prolazi disk)
 
-8. Alert (useCandidateAlerts) — okida se SAMO za willTransit: true letove
+8. Alert (useCandidateAlerts + /api/transit/scan) — SAMO willTransit: true
+   i potvrda 2 uzastopna svježa fixa istog izvora, s promijenjenom pozicijom
+   i novijim timestampom. Predviđeni trenutak poravnanja smije odstupiti ≤10 s.
+   Ponavljanje istog fixa ne broji se. Nestanak kandidata, promjena izvora,
+   lokacije/kamere ili razmak dokaza >45 s resetira potvrdu.
+   [candidateConfirmation.ts: CANDIDATE_CONFIRMATION_FIXES = 2,
+    MAX_CONFIRMED_ALIGNMENT_DRIFT_MS = 10_000; rok iz STALE_FIX_AFTER_SEC]
+   Aktivni tranziti zadržavaju postojeću neposrednu obradu.
 ```
 
-**Zašto elevation gap umjesto 2D sky separation za `willTransit`:**
-Linearni azimutalni model divergira za letove koji su trenutno daleko od Mjeseca (dugi lookahead). `separationAtAlignmentDeg` tada nije pouzdan. `elevationGapAtAlignmentDeg` je potvrđen kao pouzdan u stvarnom snimanju (2026-05-23).
+**Poravnanje mora biti numerički potvrđeno (2026-09-15).**
+`solveAzimuthAlignment` projicira putanju konstantnom brzinom, smjerom i
+visinom, evaluira topocentrični Mjesec (`getMoonPosition`, bez faze) u stvarnom
+budućem trenutku i traži korijen azimutne razlike do 300 s. Uzorkovanje za
+bracket: 10 s; bisekcija najviše 24 koraka; dozvoljeni numerički ostatak
+`ALIGNMENT_RESIDUAL_DEG = 0.001°`. Korijen na suprotnoj zraci nije poravnanje.
+Tek nakon potvrđenog azimuta `willTransit` provjerava elevation gap prema
+zbroju prividnih radijusa. Pragovi 5°/12°, 100 km i FOV ostaju isti.
+
+Stara procjena `-gap / angularRate` mogla je dati "Disk transit" za 43.5 s
+uz 5.01° stvarne separacije (sintetička regresija), jer kutna brzina nije
+konstantna čak ni na ravnoj putanji. Ne vraćati taj linearni model za
+klasifikaciju. Zadane vrijednosti 200 m/s i 90° nisu dokaz za predviđanje;
+`photographerPack` bez poznatog konačnog smjera/brzine vraća null.
+Kandidati se prikazuju odmah; potvrda iz neovisnih fixova odgađa samo alert.
+Uspon/spuštanje i buduće skretanje još nisu modelirani u ovom solveru.
 
 ### Dvije izvedbe iste detekcije (klijent + server)
 
@@ -421,6 +444,23 @@ portu**. Skripta radi isto dok app normalno radi (cijena: poller preskoči koji
 tick), uvijek pokrene i `ANALYZE`, i ima `--dry-run`. Nakon nje je
 `migrate()` no-op od ~1 ms.
 
+### Planer za LDZA (Planning panel, `runwayShadowPlan.ts`)
+
+Treći potrošač istog solvera, ali s **virtualnim avionom** umjesto stvarnog:
+za odabrani dan/prozor/korak računa liniju „stani ovdje” po trenutku za prilaz 04
+(3°, TCH 15 m — `LANDING_*` konstante) i odlazak 22 (`DEPARTURE_CLIMB_GRADIENT`
+= 0.08 od početka staze, kalibrirano na ručni KML: ≈745 m na 6 km od praga 04).
+Avion se postavlja na 3–15 km (korak 0.5) od praga 04 duž produžene osi; svaka
+točka je `solveMoonShadowSpot` s `groundHeightMeters = LDZA_ELEVATION_M` (107).
+Pozicija stajanja **uzduž linije određuje na kojoj udaljenosti od staze avion
+prelazi Mjesec** — zato su markeri na 4/6/8/10/12 km. Prag pokrivenosti je samo
+donja granica (kao u photo-spots). Profili su **pretpostavke**, ne mjerenja:
+stvarni avion odstupa (vjetar, ATC, masa), pa je plan lokacije, ne garancija.
+Regresijski test u `runwayShadowPlan.test.ts` uspoređuje točke s ručnim KML-om
+za 28.10.2026 07:20 (unutar 60 m). Stanje: `runwayPlanLines` /
+`runwayPlanFocusMs` u storeu, panel ih objavljuje i briše pri zatvaranju;
+sloj `useRunwayPlanLayer`.
+
 ### Ne zvati `getMoonState` iz geometrije
 
 `getMoonState` radi **pet** astronomy-engine poziva: `Equator` + `Horizon` za
@@ -444,23 +484,6 @@ Prije bilo kakve optimizacije — izmjeri. Dva puta je intuicija ovdje bila
 kriva:
 
 * Newton petlja u `solveMoonShadowSpot` vrti se **0.69 iteracija po pozivu**
-### Planer za LDZA (Planning panel, `runwayShadowPlan.ts`)
-
-Treći potrošač istog solvera, ali s **virtualnim avionom** umjesto stvarnog:
-za odabrani dan/prozor/korak računa liniju „stani ovdje” po trenutku za prilaz 04
-(3°, TCH 15 m — `LANDING_*` konstante) i odlazak 22 (`DEPARTURE_CLIMB_GRADIENT`
-= 0.08 od početka staze, kalibrirano na ručni KML: ≈745 m na 6 km od praga 04).
-Avion se postavlja na 3–15 km (korak 0.5) od praga 04 duž produžene osi; svaka
-točka je `solveMoonShadowSpot` s `groundHeightMeters = LDZA_ELEVATION_M` (107).
-Pozicija stajanja **uzduž linije određuje na kojoj udaljenosti od staze avion
-prelazi Mjesec** — zato su markeri na 4/6/8/10/12 km. Prag pokrivenosti je samo
-donja granica (kao u photo-spots). Profili su **pretpostavke**, ne mjerenja:
-stvarni avion odstupa (vjetar, ATC, masa), pa je plan lokacije, ne garancija.
-Regresijski test u `runwayShadowPlan.test.ts` uspoređuje točke s ručnim KML-om
-za 28.10.2026 07:20 (unutar 60 m). Stanje: `runwayPlanLines` /
-`runwayPlanFocusMs` u storeu, panel ih objavljuje i briše pri zatvaranju;
-sloj `useRunwayPlanLayer`.
-
   (33 795 poziva, 23 405 iteracija) — većina izađe prije petlje, na pragu
   Mjesečeve visine. Optimizacija početne procjene tu **nema što skratiti**.
 * Sintetička testna baza vjerna po broju redaka i veličini i dalje može lagati:
