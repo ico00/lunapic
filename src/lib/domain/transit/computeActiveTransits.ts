@@ -5,6 +5,7 @@ import {
   signedAzimuthDiffFromMoonToAcDeg,
 } from "@/lib/domain/geometry/alignmentHint";
 import { extrapolateFlightForDisplay } from "@/lib/flight/extrapolateFlightPosition";
+import { isFlightFixStale } from "@/lib/flight/flightFixFreshness";
 import { horizontalToPoint } from "@/lib/domain/geometry/horizontal";
 import { angularSeparationDeg } from "@/lib/domain/geometry/sky-separation";
 import type { GroundObserver } from "@/types/geo";
@@ -74,6 +75,10 @@ export function computeActiveTransits({
   }
   const rows: ActiveTransitRow[] = [];
   for (const rawFlight of flights) {
+    // Isti prag kao u screeningu — alert iz zamrznute pozicije je lažan.
+    if (isFlightFixStale(rawFlight, wallNowMs, latencySkewMs)) {
+      continue;
+    }
     const f = extrapolateFlightForDisplay(rawFlight, wallNowMs, latencySkewMs);
     const h = f.geoAltitudeMeters ?? f.baroAltitudeMeters;
     if (h == null) {

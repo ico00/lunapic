@@ -2,6 +2,7 @@ import {
   flightsFromLocalSdrResponse,
   type LocalSdrResponse,
 } from "@/lib/flight/localsdr/parseLocalSdrAircraft";
+import { flightFilterBounds } from "@/lib/flight/flightFilterBounds";
 import { appPath } from "@/lib/paths/appPath";
 import type { IFlightProvider } from "@/types/flight-provider";
 import type { FlightQuery, FlightState } from "@/types/flight";
@@ -49,11 +50,11 @@ export class LocalSdrFlightProvider implements IFlightProvider {
           );
         }
         return this.cache
-          ? flightsFromLocalSdrResponse(this.cache.data, q.bounds)
+          ? flightsFromLocalSdrResponse(this.cache.data, flightFilterBounds(q))
           : [];
       }
       if (this.cache && now - this.cache.at < CACHE_MS) {
-        return flightsFromLocalSdrResponse(this.cache.data, q.bounds);
+        return flightsFromLocalSdrResponse(this.cache.data, flightFilterBounds(q));
       }
       const res = await fetch(appPath("/api/localsdr/aircraft"), {
         cache: "no-store",
@@ -78,7 +79,7 @@ export class LocalSdrFlightProvider implements IFlightProvider {
       this.fetchNotBeforeMs = 0;
       this.pausedUnreachable = false;
       this.cache = { at: Date.now(), data };
-      return flightsFromLocalSdrResponse(data, q.bounds);
+      return flightsFromLocalSdrResponse(data, flightFilterBounds(q));
     };
 
     const next = this.loadChain.then(tail, tail);

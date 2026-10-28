@@ -47,4 +47,27 @@ describe("computeActiveTransits", () => {
       computeActiveTransits({ ...baseArgs, flights: [farFlight], at: MOON_UP })
     ).toEqual([]);
   });
+
+  it("ne okida alert iz zamrznute pozicije (fix stariji od granice ekstrapolacije)", () => {
+    // Avion točno na Mjesecu, ali s fixom starim 2 min — marker je davno stao,
+    // pa bi svaki alert bio lažan.
+    const onMoon: FlightState = {
+      ...farFlight,
+      id: "stale1",
+      position: { lat: 45.3, lng: 15.98 },
+      trackDeg: 180,
+    };
+    const fresh = computeActiveTransits({
+      ...baseArgs,
+      flights: [onMoon],
+      at: MOON_UP,
+    });
+    const stale = computeActiveTransits({
+      ...baseArgs,
+      flights: [{ ...onMoon, timestamp: MOON_UP.getTime() - 120_000 }],
+      at: MOON_UP,
+    });
+    expect(stale).toEqual([]);
+    expect(stale.length).toBeLessThanOrEqual(fresh.length);
+  });
 });

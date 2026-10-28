@@ -3,6 +3,10 @@ import { GeometryEngine } from "@/lib/domain/geometry/geometryEngine";
 import { isMoonVisibleFromMoonState } from "@/lib/domain/astro/moonVisibility";
 import { extrapolateFlightForDisplay } from "@/lib/flight/extrapolateFlightPosition";
 import {
+  flightFixAgeMs,
+  isFlightFixStale,
+} from "@/lib/flight/flightFixFreshness";
+import {
   evaluateShotFeasibility,
   type ShotFeasibility,
 } from "@/lib/domain/geometry/shotFeasibility";
@@ -20,6 +24,7 @@ export type PhotographerToolsUnavailableReason =
   | "moonBelowHorizon"
   | "flightNotFound"
   | "missingInputs"
+  | "staleFix"
   | "planningMode";
 
 export function formatCountdown(totalSec: number | null): string {
@@ -90,6 +95,16 @@ export function usePhotographerTools() {
     const raw = flights.find((x) => x.id === selectedId) ?? null;
     if (!raw) {
       return { pack: null, shot: null, reason: "flightNotFound" as const };
+    }
+    // Fix stariji od praga: marker već stoji, pa bi odbrojavanje bilo izmišljeno.
+    // Radije reci koliko je star nego pokazati broj u koji se ne može gledati.
+    if (isFlightFixStale(raw, now, latencySkewMs)) {
+      return {
+        pack: null,
+        shot: null,
+        reason: "staleFix" as const,
+        fixAgeSec: Math.round(flightFixAgeMs(raw, now, latencySkewMs) / 1000),
+      };
     }
     const flight = extrapolateFlightForDisplay(raw, now, latencySkewMs);
     const pack = GeometryEngine.photographerPack(observer, flight, moon, at, {

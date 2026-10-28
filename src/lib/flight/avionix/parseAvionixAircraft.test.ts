@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   avionixEntryToFlightState,
   flightsFromAvionixResponse,
@@ -81,12 +81,52 @@ describe("flightsFromAvionixResponse", () => {
   });
 
   it("koristi payload timestamp kao nowMs za sve avione u snapshotu", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-20T12:00:00.000Z"));
+    try {
+      const data: AvionixResponse = {
+        timestamp: "2026-08-20T12:00:00.000Z",
+        "3c6589": ["", "", "", "", 45.8, 16.1, 10000, 250, 90, 0, "", ""],
+      };
+      const out = flightsFromAvionixResponse(data);
+      expect(out[0].timestamp).toBe(Date.parse("2026-08-20T12:00:00.000Z"));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("epoch ms kao string (stvarni oblik s uređaja) NIJE ISO — mora se parsirati", () => {
+    // Uređaj šalje `"timestamp":"1787679514274"`. `Date.parse` na tome vraća
+    // NaN, pa je do 2026-08-25 svaki fix dobivao `Date.now()` i gubila se
+    // kompenzacija starosti (push 10 s + poll 10 s + cache 3 s).
+    const deviceMs = Date.now() - 8_000;
     const data: AvionixResponse = {
-      timestamp: "2026-08-20T12:00:00.000Z",
+      timestamp: String(deviceMs),
       "3c6589": ["", "", "", "", 45.8, 16.1, 10000, 250, 90, 0, "", ""],
     };
-    const out = flightsFromAvionixResponse(data);
-    expect(out[0].timestamp).toBe(Date.parse("2026-08-20T12:00:00.000Z"));
+    expect(flightsFromAvionixResponse(data)[0].timestamp).toBe(deviceMs);
+  });
+
+  it("prihvaća i sekunde", () => {
+    const sec = Math.floor((Date.now() - 5_000) / 1000);
+    const data: AvionixResponse = {
+      timestamp: String(sec),
+      "3c6589": ["", "", "", "", 45.8, 16.1, 10000, 250, 90, 0, "", ""],
+    };
+    expect(flightsFromAvionixResponse(data)[0].timestamp).toBe(sec * 1000);
+  });
+
+  it("odbacuje odlutali sat uređaja i pada na Date.now()", () => {
+    // NanoPi nema RTC i root mu se resetira na reboot — krivi timestamp bi
+    // gurao markere u budućnost umjesto da ih samo ne pomiče.
+    const before = Date.now();
+    const data: AvionixResponse = {
+      timestamp: String(Date.now() + 60 * 60_000),
+      "3c6589": ["", "", "", "", 45.8, 16.1, 10000, 250, 90, 0, "", ""],
+    };
+    expect(flightsFromAvionixResponse(data)[0].timestamp).toBeGreaterThanOrEqual(
+      before
+    );
   });
 
   it("prazan/nepoznat timestamp pada natrag na Date.now()", () => {
