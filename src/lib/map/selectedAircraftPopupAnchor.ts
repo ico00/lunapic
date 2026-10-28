@@ -1,7 +1,7 @@
-/** Pikseli od gornjeg lijevog kuta Mapbox containera (HUD je u headeru shella). */
+/** Desktop: razmak kartice aviona od desnog ruba Mapbox containera, u pikselima. */
 export const SELECTED_AIRCRAFT_POPUP_SCREEN_X = 16;
-/** Dovoljno ispod brand pill + safe-area-inset-top (~80px pill + 16px gap). */
-export const SELECTED_AIRCRAFT_POPUP_SCREEN_Y = 100;
+/** Desktop fallback dok kartica Mjeseca još nije u DOM-u (ispod nje, ~300px). */
+export const SELECTED_AIRCRAFT_POPUP_SCREEN_Y = 316;
 
 /**
  * Mjeri stvarnu visinu donje UI zone (dock + time ribbon + razmaci) u pikselima

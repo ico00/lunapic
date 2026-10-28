@@ -10,10 +10,9 @@ import type { MoonRiseSetKind, MoonState } from "@/types/moon";
 /**
  * Sažetak Mjeseca i uvjeta gore desno (spec §2b.8). Odgovara na pitanje
  * "vrijedi li večeras izaći": visina, faza, izlaz/zalaz i upozorenje o
- * oblacima, bez otvaranja panela.
+ * niskoj visini. Oblaci ostaju samo u gornjoj traci (WeatherOverlay), da se
+ * isti podatak ne prikazuje na dva mjesta.
  */
-
-const CLOUD_WARN_PERCENT = 70;
 
 const TIER_STYLE = {
   optimal: "border-[color:var(--live)] text-[color:var(--live)]",
@@ -56,14 +55,12 @@ export function MoonStrip({
   moonSet,
   moonRiseSetKind,
   showEphemeris,
-  cloudCoverPercent,
 }: {
   moon: MoonState;
   moonRise: Date | null;
   moonSet: Date | null;
   moonRiseSetKind: MoonRiseSetKind;
   showEphemeris: boolean;
-  cloudCoverPercent: number | null;
 }) {
   const mounted = useHasMounted();
   const ready = showEphemeris && mounted;
@@ -77,12 +74,11 @@ export function MoonStrip({
     const shape = pct >= 50 ? "gibbous" : "crescent";
     return `${waxing ? "Waxing" : "Waning"} ${shape}`;
   }, [lit, waxing]);
-  const cloudy =
-    cloudCoverPercent != null && cloudCoverPercent >= CLOUD_WARN_PERCENT;
 
   return (
     <aside
       aria-label="Moon and conditions"
+      data-testid="moon-strip"
       className="pointer-events-auto absolute right-3 z-[12] w-[312px] rounded-[var(--r-panel)] border border-[color:var(--hair)] bg-[color:var(--panel)] p-4"
       style={{ top: "calc(3.5rem + env(safe-area-inset-top) + 1rem)" }}
     >
@@ -123,15 +119,6 @@ export function MoonStrip({
           className="mt-2 rounded-[var(--r-ctl)] border border-[color:var(--moon-line)] bg-[color:var(--moon-soft)] px-3 py-2.5 text-[length:var(--fs-meta)] text-[color:var(--ink)]"
         >
           <b className="font-extrabold">{advice.label}.</b> {advice.message}
-        </p>
-      ) : null}
-      {ready && cloudy ? (
-        <p
-          role="status"
-          className="mt-2 rounded-[var(--r-ctl)] border border-[color:var(--moon-line)] bg-[color:var(--moon-soft)] px-3 py-2.5 text-[length:var(--fs-meta)] text-[color:var(--ink)]"
-        >
-          <b className="font-extrabold">Clouds {Math.round(cloudCoverPercent ?? 0)} %.</b>{" "}
-          The Moon is likely hidden even if the geometry works.
         </p>
       ) : null}
     </aside>

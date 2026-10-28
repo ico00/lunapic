@@ -36,12 +36,12 @@ function AirlineLogoSlot({ iata }: { readonly iata: string | null }) {
 
   return (
     <div
-      className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)] md:h-[3.75rem] md:w-[3.75rem]"
+      className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[var(--r-ctl)] border border-[color:var(--hair)] bg-[color:var(--ground)] md:h-[3.75rem] md:w-[3.75rem]"
       data-testid="selected-flight-airline-logo-slot"
       aria-hidden
     >
       {placeholder ? (
-        <span className="absolute inset-1 rounded-xl border border-dashed border-[color:var(--glass-stroke-strong)] bg-[color:var(--glass-1)]/50" />
+        <span className="absolute inset-1 rounded-[var(--r-ctl)] border border-dashed border-[color:var(--hair)]" />
       ) : (
         <img
           src={src}
@@ -89,9 +89,9 @@ const CONTRAIL_LABEL: Record<ContrailLikelihood, string> = {
 };
 
 const CONTRAIL_COLOR: Record<ContrailLikelihood, string> = {
-  none: "text-[color:var(--t-secondary)]",
-  transient: "text-yellow-400",
-  persistent: "text-orange-400",
+  none: "text-[color:var(--ink-2)]",
+  transient: "text-[color:var(--ink)]",
+  persistent: "text-[color:var(--disc-text)]",
 };
 
 /** Sadržaj za Mapbox `Popup` / odabranog zrakoplova (bez podloge karte). */
@@ -119,7 +119,7 @@ export function SelectedAircraftPopupContent({
 
   return (
     <div
-      className="pointer-events-auto mt-glass-elevated box-border max-md:max-h-[min(50dvh,22rem)] max-md:w-full max-md:min-w-0 max-md:max-w-none max-md:rounded-b-[var(--r-xl)] max-md:pb-2 md:max-h-[34rem] md:w-[min(20rem,calc(100vw-2.25rem))] overflow-y-auto rounded-[var(--r-xl)] p-2.5 text-[color:var(--t-secondary)] [scrollbar-width:none] md:p-3 [&::-webkit-scrollbar]:hidden"
+      className="pointer-events-auto mt-glass-elevated box-border max-md:max-h-[min(50dvh,22rem)] max-md:w-full max-md:min-w-0 max-md:max-w-none max-md:rounded-b-[var(--r-panel)] max-md:pb-2 md:max-h-[calc(100dvh-26rem)] md:w-[min(20rem,calc(100vw-2.25rem))] overflow-y-auto rounded-[var(--r-panel)] p-2.5 text-[color:var(--t-secondary)] [scrollbar-width:none] md:p-3 [&::-webkit-scrollbar]:hidden"
       data-testid="selected-flight-card"
     >
       <div className="flex items-center gap-2">
@@ -137,10 +137,10 @@ export function SelectedAircraftPopupContent({
               />
             </div>
             <div className="min-w-0 flex-1 flex flex-col gap-0.5 leading-tight">
-              <p className="break-words text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">
+              <p className="break-words text-[length:var(--fs-meta)] text-[color:var(--ink-3)]">
                 {flightAirlineDisplayLine(flight) ?? "—"}
               </p>
-              <p className="break-all text-[length:var(--fs-h2)] font-bold tracking-tight text-sky-300 md:text-[length:var(--fs-h1)] md:font-bold">
+              <p className="break-all text-[length:var(--fs-h2)] font-extrabold tracking-tight text-[color:var(--ink)] md:text-[length:var(--fs-h1)]">
                 {flight.callSign?.trim() || "—"}
               </p>
             </div>
@@ -158,7 +158,7 @@ export function SelectedAircraftPopupContent({
             </svg>
           </button>
         ) : (
-          <h2 className="mt-section-label min-w-0 flex-1 border-0 pb-0 text-sky-400/90">
+          <h2 className="mt-section-label min-w-0 flex-1 border-0 pb-0">
             Selected aircraft
           </h2>
         )}
@@ -169,7 +169,7 @@ export function SelectedAircraftPopupContent({
           aria-label="Clear aircraft selection"
           title="Close"
           data-testid="selected-flight-clear"
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)] text-[color:var(--t-secondary)] transition hover:border-sky-400/35 hover:bg-[color:var(--glass-2)] hover:text-[color:var(--t-primary)] active:scale-[0.95]"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-[var(--r-ctl)] border border-[color:var(--hair)] bg-[color:var(--panel-2)] text-[color:var(--ink-2)] transition-[border-color,transform] duration-150 active:scale-[0.95] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--ink)] [@media(hover:hover)_and_(pointer:fine)]:hover:border-[color:var(--ink-3)]"
         >
           <svg
             className="h-4 w-4"
@@ -196,77 +196,77 @@ export function SelectedAircraftPopupContent({
         <>
           <div className="mt-2 md:mt-2.5">
             <div className="grid grid-cols-2 gap-1.5 md:gap-2">
-              <div className="min-w-0 rounded-xl border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/80 px-2.5 py-1.5 md:px-3 md:py-2">
-                <div className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
+              <div className="min-w-0 rounded-[var(--r-ctl)] border border-[color:var(--hair-soft)] bg-[color:var(--ground)] px-2.5 py-1.5 md:px-3 md:py-2">
+                <div className="text-[length:var(--fs-label)] font-semibold text-[color:var(--ink-3)]">
                   Aircraft type
                 </div>
                 <div
-                  className="mt-0.5 break-words font-mono text-[length:var(--fs-meta)] leading-snug text-[color:var(--t-primary)]"
+                  className="mt-0.5 break-words font-bold text-[length:var(--fs-meta)] leading-snug text-[color:var(--ink)]"
                   title={typeDisplay}
                 >
                   {typeDisplay}
                 </div>
               </div>
-              <div className="min-w-0 rounded-xl border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/80 px-2.5 py-1.5 md:px-3 md:py-2">
-                <div className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
+              <div className="min-w-0 rounded-[var(--r-ctl)] border border-[color:var(--hair-soft)] bg-[color:var(--ground)] px-2.5 py-1.5 md:px-3 md:py-2">
+                <div className="text-[length:var(--fs-label)] font-semibold text-[color:var(--ink-3)]">
                   ICAO24
                 </div>
-                <div className="mt-0.5 truncate font-mono text-[length:var(--fs-meta)] tabular-nums leading-snug text-[color:var(--t-primary)]">
+                <div className="mt-0.5 truncate font-bold text-[length:var(--fs-meta)] leading-snug text-[color:var(--ink)]">
                   {icaoDisplay}
                 </div>
               </div>
-              <div className="min-w-0 rounded-xl border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/80 px-2.5 py-1.5 md:px-3 md:py-2">
-                <div className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
+              <div className="min-w-0 rounded-[var(--r-ctl)] border border-[color:var(--hair-soft)] bg-[color:var(--ground)] px-2.5 py-1.5 md:px-3 md:py-2">
+                <div className="text-[length:var(--fs-label)] font-semibold text-[color:var(--ink-3)]">
                   Speed
                 </div>
-                <div className="mt-0.5 truncate font-mono text-[length:var(--fs-meta)] tabular-nums leading-snug text-[color:var(--t-primary)]">
+                <div className="mt-0.5 truncate font-bold text-[length:var(--fs-meta)] leading-snug text-[color:var(--ink)]">
                   {flight.groundSpeedMps != null
                     ? `${formatFixed(mpsToKnots(flight.groundSpeedMps), 0)} kt`
                     : "—"}
                 </div>
               </div>
-              <div className="min-w-0 rounded-xl border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/80 px-2.5 py-1.5 md:px-3 md:py-2">
-                <div className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
+              <div className="min-w-0 rounded-[var(--r-ctl)] border border-[color:var(--hair-soft)] bg-[color:var(--ground)] px-2.5 py-1.5 md:px-3 md:py-2">
+                <div className="text-[length:var(--fs-label)] font-semibold text-[color:var(--ink-3)]">
                   Track
                 </div>
-                <div className="mt-0.5 truncate font-mono text-[length:var(--fs-meta)] tabular-nums leading-snug text-[color:var(--t-primary)]">
+                <div className="mt-0.5 truncate font-bold text-[length:var(--fs-meta)] leading-snug text-[color:var(--ink)]">
                   {flight.trackDeg != null
                     ? `${formatFixed(flight.trackDeg, 1)}°`
                     : "—"}
                 </div>
               </div>
-              <div className="min-w-0 rounded-xl border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/80 px-2.5 py-1.5 md:px-3 md:py-2">
-                <div className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
+              <div className="min-w-0 rounded-[var(--r-ctl)] border border-[color:var(--hair-soft)] bg-[color:var(--ground)] px-2.5 py-1.5 md:px-3 md:py-2">
+                <div className="text-[length:var(--fs-label)] font-semibold text-[color:var(--ink-3)]">
                   Altitude
                 </div>
-                <div className="mt-0.5 break-words font-mono text-[length:var(--fs-meta)] tabular-nums leading-snug text-[color:var(--t-primary)]">
+                <div className="mt-0.5 break-words font-bold text-[length:var(--fs-meta)] leading-snug text-[color:var(--ink)]">
                   {altBlock(flight)}
                 </div>
               </div>
-              <div className="min-w-0 rounded-xl border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/80 px-2.5 py-1.5 md:px-3 md:py-2">
-                <div className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
+              <div className="min-w-0 rounded-[var(--r-ctl)] border border-[color:var(--hair-soft)] bg-[color:var(--ground)] px-2.5 py-1.5 md:px-3 md:py-2">
+                <div className="text-[length:var(--fs-label)] font-semibold text-[color:var(--ink-3)]">
                   Contrails
                 </div>
                 <div
-                  className={`mt-0.5 font-mono text-[length:var(--fs-meta)] leading-snug ${contrail != null ? CONTRAIL_COLOR[contrail] : "text-[color:var(--t-tertiary)]"}`}
+                  className={`mt-0.5 font-bold text-[length:var(--fs-meta)] leading-snug ${contrail != null ? CONTRAIL_COLOR[contrail] : "text-[color:var(--t-tertiary)]"}`}
                 >
                   {contrail != null ? CONTRAIL_LABEL[contrail] : "—"}
                 </div>
               </div>
-              <div className="min-w-0 rounded-xl border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/80 px-2.5 py-1.5 md:px-3 md:py-2">
-                <div className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
+              <div className="min-w-0 rounded-[var(--r-ctl)] border border-[color:var(--hair-soft)] bg-[color:var(--ground)] px-2.5 py-1.5 md:px-3 md:py-2">
+                <div className="text-[length:var(--fs-label)] font-semibold text-[color:var(--ink-3)]">
                   Position
                 </div>
-                <div className="mt-0.5 break-words font-mono text-[length:var(--fs-meta)] tabular-nums leading-snug text-[color:var(--t-secondary)]">
+                <div className="mt-0.5 break-words font-bold text-[length:var(--fs-meta)] tabular-nums leading-snug text-[color:var(--ink-2)]">
                   {formatFixed(flight.position.lat, 3)}°,{" "}
                   {formatFixed(flight.position.lng, 3)}°
                 </div>
               </div>
-              <div className="min-w-0 rounded-xl border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/80 px-2.5 py-1.5 md:px-3 md:py-2">
-                <div className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-tertiary)]">
+              <div className="min-w-0 rounded-[var(--r-ctl)] border border-[color:var(--hair-soft)] bg-[color:var(--ground)] px-2.5 py-1.5 md:px-3 md:py-2">
+                <div className="text-[length:var(--fs-label)] font-semibold text-[color:var(--ink-3)]">
                   Source
                 </div>
-                <div className="mt-0.5 truncate font-mono text-[length:var(--fs-meta)] leading-snug text-[color:var(--t-primary)]">
+                <div className="mt-0.5 truncate font-bold text-[length:var(--fs-meta)] leading-snug text-[color:var(--ink)]">
                   {flight.providerId ? providerLabel(flight.providerId) : "—"}
                 </div>
               </div>

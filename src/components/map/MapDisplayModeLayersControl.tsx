@@ -388,7 +388,7 @@ export function MapDisplayModeLayersControl() {
 
   return (
     <>
-      <div className="pointer-events-none max-md:shrink-0 md:absolute md:bottom-[4.5rem] md:right-[26.5rem] md:left-auto md:z-10">
+      <div className="pointer-events-none max-md:shrink-0 md:absolute md:bottom-[6.25rem] md:right-[27.5rem] md:left-auto md:z-10">
         <button
           ref={triggerRef}
           type="button"

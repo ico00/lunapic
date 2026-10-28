@@ -143,7 +143,7 @@ export function ToolSheet({
       }`}
       style={{
         top: "calc(3.5rem + env(safe-area-inset-top) + 1rem)",
-        maxHeight: "calc(100% - 3.5rem - env(safe-area-inset-top) - 1rem - 5.25rem)",
+        maxHeight: "calc(100% - 3.5rem - env(safe-area-inset-top) - 1rem - 6.25rem)",
       }}
     >
       <header className="flex shrink-0 items-center justify-between gap-2 border-b border-[color:var(--hair-soft)] px-4 py-3">

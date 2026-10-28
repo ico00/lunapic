@@ -358,7 +358,7 @@ function Shell({ children }: { children: React.ReactNode }) {
       className="pointer-events-auto absolute left-[216px] z-[15] flex w-[408px] flex-col overflow-hidden rounded-[var(--r-panel)] border border-[color:var(--hair)] bg-[color:var(--panel)]"
       style={{
         top: "calc(3.5rem + env(safe-area-inset-top) + 1rem)",
-        maxHeight: "calc(100% - 3.5rem - env(safe-area-inset-top) - 1rem - 5.25rem)",
+        maxHeight: "calc(100% - 3.5rem - env(safe-area-inset-top) - 1rem - 6.25rem)",
       }}
     >
       {children}

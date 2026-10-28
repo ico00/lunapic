@@ -16,6 +16,7 @@ import { PlanningPanel } from "@/components/shell/panels/PlanningPanel";
 import { TimeSliderPanel } from "@/components/shell/panels/TimeSliderPanel";
 import { TransitCandidatesPanel } from "@/components/shell/panels/TransitCandidatesPanel";
 import { MoonStrip } from "@/components/shell/MoonStrip";
+import { MoonTimeLine } from "@/components/shell/MoonTimeLine";
 import { NextTransitBoard } from "@/components/shell/NextTransitBoard";
 import { ToolRail, ToolSheet } from "@/components/shell/ToolRail";
 import { StreetViewFullscreen } from "@/components/map/StreetViewFullscreen";
@@ -54,6 +55,8 @@ import {
 } from "@/lib/flight/flightSearch";
 import { computeShotFeasibleFlightIds } from "@/lib/domain/transit/computeShotFeasibleFlightIds";
 import { useObserverStore } from "@/stores/observer-store";
+import type { GroundObserver } from "@/types/geo";
+import type { LiveFlightFeeds } from "@/stores/moon-transit-store";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import type { MapContainerProps } from "@/components/map/MapContainer";
 import dynamic from "next/dynamic";
@@ -219,6 +222,22 @@ function CommandBar({
   );
 }
 
+function formatCoord(value: number, pos: string, neg: string): string {
+  return `${Math.abs(value).toFixed(3)}° ${value >= 0 ? pos : neg}`;
+}
+
+const FEED_NAMES: readonly [keyof LiveFlightFeeds, string][] = [
+  ["localsdr", "LunaPic ADS-B"],
+  ["avionix", "Avionix"],
+  ["adsbone", "adsb.lol"],
+  ["opensky", "OpenSky"],
+];
+
+function feedsSummary(feeds: LiveFlightFeeds): string {
+  const on = FEED_NAMES.filter(([id]) => feeds[id]).map(([, name]) => name);
+  return on.length === 0 ? "No flight source" : on.join(" + ");
+}
+
 /* ---------------- Weather + actions (top right) ---------------------------- */
 
 function TopRightCluster({
@@ -227,16 +246,39 @@ function TopRightCluster({
   onGps,
   gpsBusy,
   observerLocked,
+  observer,
+  feedsLabel,
 }: {
   onPlace: () => void;
   onFocus: () => void;
   onGps: () => void;
   gpsBusy: boolean;
   observerLocked: boolean;
+  observer: GroundObserver;
+  feedsLabel: string;
 }) {
   return (
     <div className="pointer-events-auto flex shrink-0 items-center gap-1">
+      <div
+        className="mr-1 hidden h-[38px] items-center gap-2 rounded-[var(--r-ctl)] border border-[color:var(--hair)] bg-[color:var(--panel)] px-3 text-[length:var(--fs-meta)] font-semibold text-[color:var(--ink-2)] xl:flex"
+        title="Observer position and ground height"
+      >
+        <span className="size-2.5 shrink-0 rounded-full border-[2.5px] border-[color:var(--observer)]" aria-hidden />
+        <span>
+          <b className="font-extrabold text-[color:var(--ink)]">
+            {formatCoord(observer.lat, "N", "S")} {formatCoord(observer.lng, "E", "W")}
+          </b>
+          {observer.groundHeightMeters != null ? ` · ${Math.round(observer.groundHeightMeters)} m` : ""}
+        </span>
+      </div>
       <WeatherOverlay />
+      <div
+        className="ml-1 hidden h-[38px] items-center gap-2 rounded-[var(--r-ctl)] border border-[color:var(--hair)] bg-[color:var(--panel)] px-3 text-[length:var(--fs-meta)] font-semibold text-[color:var(--ink-2)] 2xl:flex"
+        title="Flight sources in use"
+      >
+        <span className="size-2 shrink-0 rounded-full bg-[color:var(--live)]" aria-hidden />
+        {feedsLabel}
+      </div>
       <div className="mx-2 h-5 w-px shrink-0 bg-[color:var(--hair)]" aria-hidden />
       <button
         type="button"
@@ -614,8 +656,11 @@ function TimeRibbon(props: {
   isPlanned: boolean;
   planningDateValue: string;
   onPlanningDate: (value: string) => void;
+  anchorMs: number;
+  observer: GroundObserver;
   compact?: boolean;
 }) {
+  const mounted = useHasMounted();
   if (props.compact) {
     // Mobile slim ribbon — tanka pilula 44px s [time | slider | offset | sync ikona]
     return (
@@ -666,52 +711,65 @@ function TimeRibbon(props: {
       </div>
     );
   }
-  // Desktop slim ribbon — ista filozofija kao mobile, samo malo veće (h-12).
+  // Desktop: vrijeme kao linija sa stanicama (spec §2b.4).
+  const at = new Date(props.referenceEpochMs);
+  const clock = mounted && props.showEphemeris
+    ? at.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })
+    : "—";
+  const dateLabel = mounted && props.showEphemeris
+    ? `${at.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}${
+        props.isPlanned ? " · planned" : props.offsetHours < 0.05 ? " · now" : ""
+      }`
+    : "";
   return (
-    <div className="mt-glass-elevated pointer-events-auto absolute z-[14] left-[216px] right-[5.5rem] bottom-3 flex h-12 items-center gap-3 rounded-[var(--r-panel)] px-4">
-      <div className="min-w-0 flex-1">
-        <TimeSliderPanel
-          variant="mapChip"
-          hideHeading
-          referenceEpochMs={props.referenceEpochMs}
-          offsetHours={props.offsetHours}
-          onOffsetHoursChange={props.onSlider}
-          showEphemeris={props.showEphemeris}
-          isMoonBelowHorizon={props.isMoonBelowHorizon}
-          sliderMaxHours={props.sliderWidthHours}
-          timeSliderStartLabel={props.timeSliderStartLabel}
-          timeSliderEndLabel={props.timeSliderEndLabel}
-          timeSliderMode={props.timeSliderMode}
-        />
+    <div className="mt-glass-elevated pointer-events-auto absolute z-[14] left-[216px] right-[5.5rem] bottom-3 flex h-[76px] items-stretch overflow-hidden rounded-[var(--r-panel)]">
+      <div className="flex min-w-[132px] flex-col justify-center gap-0.5 border-r border-[color:var(--hair-soft)] px-4">
+        <span className="text-[length:var(--fs-h1)] font-extrabold leading-none" suppressHydrationWarning>
+          {clock}
+        </span>
+        <span className="text-[length:var(--fs-label)] font-semibold text-[color:var(--ink-3)]" suppressHydrationWarning>
+          {dateLabel}
+        </span>
       </div>
-      <PlanningDateButton
-        isPlanned={props.isPlanned}
-        planningDateValue={props.planningDateValue}
-        onPlanningDate={props.onPlanningDate}
-        sizeClass="h-9 w-9"
-        iconClass="h-[18px] w-[18px]"
+      <MoonTimeLine
+        anchorMs={props.anchorMs}
+        widthHours={props.sliderWidthHours}
+        offsetHours={props.offsetHours}
+        onSlider={props.onSlider}
+        showEphemeris={props.showEphemeris}
+        isMoonBelowHorizon={props.isMoonBelowHorizon}
+        observer={props.observer}
       />
-      <button
-        type="button"
-        onClick={props.syncTime}
-        className="grid h-9 w-9 shrink-0 place-items-center rounded-[var(--r-ctl)] border border-[color:var(--live)] text-[color:var(--live)] transition-[background-color,transform] duration-150 active:scale-[0.95] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color:var(--mint-soft)]"
-        title="Sync time to now"
-        aria-label="Sync time to now"
-      >
-        <svg
-          className="h-[18px] w-[18px]"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
+      <div className="flex items-center gap-2 border-l border-[color:var(--hair-soft)] px-3">
+        <PlanningDateButton
+          isPlanned={props.isPlanned}
+          planningDateValue={props.planningDateValue}
+          onPlanningDate={props.onPlanningDate}
+          sizeClass="h-[42px] w-[42px]"
+          iconClass="h-5 w-5"
+        />
+        <button
+          type="button"
+          onClick={props.syncTime}
+          className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[var(--r-ctl)] border border-[color:var(--live)] text-[color:var(--live)] transition-[background-color,transform] duration-150 active:scale-[0.95] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color:var(--mint-soft)]"
+          title="Sync time to now"
+          aria-label="Sync time to now"
         >
-          <path d="M21 12a9 9 0 1 1-3.5-7.1" />
-          <path d="M21 4v5h-5" />
-        </svg>
-      </button>
+          <svg
+            className="h-5 w-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M21 12a9 9 0 1 1-3.5-7.1" />
+            <path d="M21 4v5h-5" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }
@@ -907,6 +965,7 @@ export function HomePageClient() {
   const flights = useMoonTransitStore((st) => st.flights);
   const localsdrStatus = useMoonTransitStore((st) => st.localsdrStatus);
   const mapDisplayMode = useMoonTransitStore((st) => st.mapDisplayMode);
+  const timeAnchorMs = useMoonTransitStore((st) => st.timeAnchorMs);
   const isWide = useIsMdUp();
   const [flightFilterCriteria, setFlightFilterCriteria] = useState<FlightFilterCriteria>({
     query: "",
@@ -1239,14 +1298,14 @@ export function HomePageClient() {
             }}
           >
             <BrandPill />
-            <div className="flex min-w-0 flex-1 justify-center">
+            <div className="ml-6 flex min-w-0 flex-1 justify-start">
               <CommandBar
                 query={flightFilterCriteria.query}
                 onChange={(next) =>
                   setFlightFilterCriteria((prev) => ({ ...prev, query: next }))
                 }
                 resultCount={filteredFlightCount}
-                widthClass="w-full max-w-[420px]"
+                widthClass="w-full max-w-[460px]"
               />
             </div>
             <TopRightCluster
@@ -1255,6 +1314,8 @@ export function HomePageClient() {
               onGps={s.onUseGps}
               gpsBusy={s.gpsBusy}
               observerLocked={observerLocationLocked}
+              observer={s.obs}
+              feedsLabel={feedsSummary(s.liveFlightFeeds)}
             />
           </header>
 
@@ -1295,7 +1356,6 @@ export function HomePageClient() {
             moonSet={s.moonSet}
             moonRiseSetKind={s.moonRiseSetKind}
             showEphemeris={s.showEphemeris}
-            cloudCoverPercent={s.cloudCoverPercent}
           />
 
           {/* Time ribbon dolje */}
@@ -1313,6 +1373,8 @@ export function HomePageClient() {
             isPlanned={s.isPlanned}
             planningDateValue={s.planningDateValue}
             onPlanningDate={s.onPlanningDate}
+            anchorMs={timeAnchorMs}
+            observer={s.obs}
           />
 
           {/* Green zone alert */}
@@ -1446,6 +1508,8 @@ export function HomePageClient() {
               isPlanned={s.isPlanned}
               planningDateValue={s.planningDateValue}
               onPlanningDate={s.onPlanningDate}
+              anchorMs={timeAnchorMs}
+              observer={s.obs}
               compact
             />
           </div>
