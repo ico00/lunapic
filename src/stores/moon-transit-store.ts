@@ -7,6 +7,7 @@ import {
   getCameraPresetById,
 } from "@/lib/camera/cameraPresets";
 import type { CameraSensorType } from "@/lib/domain/geometry/shotFeasibility";
+import type { RunwayShadowLine } from "@/lib/domain/geometry/runwayShadowPlan";
 import {
   mergeLiveFlightLists,
   mergeLiveFlightListsWithSdrPriority,
@@ -267,6 +268,15 @@ type MoonTransitState = {
    */
   photoSpotSelected: PhotoSpotOpportunity | null;
   setPhotoSpotSelected: (spot: PhotoSpotOpportunity | null) => void;
+  /**
+   * LDZA runway planner lines computed by the Planning panel. The panel owns
+   * the inputs and the computation; the map layer only renders these (cleared
+   * when the panel closes) and highlights `runwayPlanFocusMs`.
+   */
+  runwayPlanLines: readonly RunwayShadowLine[];
+  runwayPlanFocusMs: number | null;
+  setRunwayPlanLines: (lines: readonly RunwayShadowLine[]) => void;
+  setRunwayPlanFocusMs: (ms: number | null) => void;
   setFlightProvider: (id: FlightProviderId) => void;
   setLiveFlightFeeds: (patch: Partial<LiveFlightFeeds>) => void;
   /** Ako je još `static` (stari build), prebaci na live dual — static nije u comboboxu. */
@@ -512,6 +522,10 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   setFlightLogAltitude: (a) => set({ flightLogAltitude: a }),
   photoSpotSelected: null,
   setPhotoSpotSelected: (spot) => set({ photoSpotSelected: spot }),
+  runwayPlanLines: [],
+  runwayPlanFocusMs: null,
+  setRunwayPlanLines: (lines) => set({ runwayPlanLines: lines }),
+  setRunwayPlanFocusMs: (ms) => set({ runwayPlanFocusMs: ms }),
   setFlightProvider: (id) =>
     set((s) => {
       let liveFlightFeeds = s.liveFlightFeeds;
