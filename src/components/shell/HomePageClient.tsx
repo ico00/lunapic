@@ -12,6 +12,7 @@ import { FlightSourcePanel } from "@/components/shell/panels/FlightSourcePanel";
 import { MoonEphemerisPanel } from "@/components/shell/panels/MoonEphemerisPanel";
 import { ObserverLocationPanel } from "@/components/shell/panels/ObserverLocationPanel";
 import { PhotographerToolsPanel } from "@/components/shell/panels/PhotographerToolsPanel";
+import { PlanningPanel } from "@/components/shell/panels/PlanningPanel";
 import { TimeSliderPanel } from "@/components/shell/panels/TimeSliderPanel";
 import { TransitCandidatesPanel } from "@/components/shell/panels/TransitCandidatesPanel";
 import { StreetViewFullscreen } from "@/components/map/StreetViewFullscreen";
@@ -1275,6 +1276,9 @@ export function HomePageClient() {
       }
       if (id === "flightlog") {
         return <FlightLogPanel />;
+      }
+      if (id === "planning") {
+        return <PlanningPanel />;
       }
       // "more" — grid svih ostalih panela
       return <MoreToolsGrid onSelect={(panelId) => setMobileSheetId(panelId)} />;
