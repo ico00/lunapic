@@ -25,6 +25,7 @@ import {
   SectionIconFunnel,
   SectionIconPaperAirplane,
   SectionIconQuestionMarkCircle,
+  SectionIconStreetView,
   SectionIconTime,
 } from "@/components/shell/sectionCategoryIcons";
 
@@ -46,6 +47,7 @@ export type PanelId =
   | "flight"
   | "filters"
   | "flightlog"
+  | "forecast"
   | "planning";
 
 /** ID koji se koristi u sheetu i docku — uključuje i "more" virtualni panel. */
@@ -207,6 +209,17 @@ export const PANEL_REGISTRY: readonly PanelDef[] = [
     accent: "violet",
     dockPrimary: false,
     wide: true,
+  },
+  {
+    id: "forecast",
+    group: "plan",
+    railLabel: "Transit forecast",
+    label: "Transit forecast",
+    dockLabel: "Forecast",
+    mobileTitle: "Transit forecast",
+    icon: SectionIconStreetView,
+    accent: "mint",
+    dockPrimary: false,
   },
   {
     id: "planning",

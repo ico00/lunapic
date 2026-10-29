@@ -14,6 +14,7 @@ import { PhotographerToolsPanel } from "@/components/shell/panels/PhotographerTo
 import { PlanningPanel } from "@/components/shell/panels/PlanningPanel";
 import { TimeSliderPanel } from "@/components/shell/panels/TimeSliderPanel";
 import { TransitCandidatesPanel } from "@/components/shell/panels/TransitCandidatesPanel";
+import { TransitForecastPanel } from "@/components/shell/panels/TransitForecastPanel";
 import { MoonTimeLine } from "@/components/shell/MoonTimeLine";
 import { NextTransitBoard } from "@/components/shell/NextTransitBoard";
 import { ToolRail, ToolSheet } from "@/components/shell/ToolRail";
@@ -1201,6 +1202,9 @@ export function HomePageClient() {
       }
       if (id === "flightlog") {
         return <FlightLogPanel />;
+      }
+      if (id === "forecast") {
+        return <TransitForecastPanel />;
       }
       if (id === "planning") {
         return <PlanningPanel />;

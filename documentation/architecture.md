@@ -295,6 +295,8 @@ Key behaviours:
 - **Row click** — commercial flights (has callsign): selects `flightLogSelectedCallsign`, which triggers `useCallsignHistoryLayer` to draw session lines + mean path on the map. Aircraft without a callsign: selects `flightLogSelectedIcao24` + `daysBack`, which triggers `useSelectedFlightTrail` to draw the historical track.
 - **Selection hint chip** — shown at the bottom of the panel when a selection is active; displays "Route history on map: {callsign}" or "Track on map: {icao24}" with an × clear button.
 - **Pagination** — 50 rows per page with Prev / Next buttons (shown only when > 1 page).
+- **Past transits** — retroactive scan of the log against the Moon (`/api/flight-log/transit-history`).
+- The forward-looking sections ("Upcoming opportunities" via `/api/flight-log/transit-calendar`, "Where to stand" via `/api/flight-log/photo-spots`) moved on 2026-10-29 to **`TransitForecastPanel.tsx`** (Plan group, id `forecast`). They read the log but answer a planning question, and they depend only on the observer and camera, not on the table selection.
 
 ### New store fields (Flight Log panel)
 
