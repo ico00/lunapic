@@ -153,15 +153,15 @@ export function MoonEphemerisPanel({
       ) : null}
       {balconyIdealForTransitWatch ? (
         <div
-          className="mb-3 rounded-2xl border border-amber-400/45 bg-amber-400/[0.10] px-3.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+          className="mt-note mb-3"
           role="status"
           aria-live="polite"
           data-testid="moon-balcony-transit-watch-ideal"
         >
-          <p className="mt-section-label text-amber-300">
+          <p className="mt-section-label text-[color:var(--moon)]">
             Ideal for transit watch
           </p>
-          <p className="mt-1.5 text-[length:var(--fs-body)] leading-snug text-amber-200/90">
+          <p className="mt-1.5 text-[length:var(--fs-body)] leading-snug text-[color:var(--ink)]">
             Moon height, direction, and phase match the saved balcony reference — clear sight line; a good time to wait on a moon crossing.
           </p>
         </div>

@@ -559,14 +559,13 @@ function addVfrOpenAipLayer(map: Map): void {
   const apiKey = (process.env.NEXT_PUBLIC_OPENAIP_API_KEY ?? "").trim();
   if (!apiKey) return;
 
-  // Subdomain rotation for parallel tile fetching
+  // OpenAIP više nema a/b/c subdomene (DNS ih ne razrješava → "Load failed"),
+  // samo `api.tiles.openaip.net`; HTTP/2 ionako paralelizira na jednom hostu.
   if (!map.getSource(VFR_OPENAIP_SOURCE)) {
     map.addSource(VFR_OPENAIP_SOURCE, {
       type: "raster",
       tiles: [
-        `https://a.api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.png?apiKey=${apiKey}`,
-        `https://b.api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.png?apiKey=${apiKey}`,
-        `https://c.api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.png?apiKey=${apiKey}`,
+        `https://api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.png?apiKey=${apiKey}`,
       ],
       tileSize: 256,
       minzoom: 0,
@@ -702,10 +701,10 @@ export function registerMoonTransitLayers(
     source: MOON_AZ_SOURCE,
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
-      "line-color": "#fef08a",
-      "line-width": 10,
-      "line-blur": 3.5,
-      "line-opacity": 0.24,
+      "line-color": "#ffb224",
+      "line-width": 2,
+      "line-blur": 0,
+      "line-opacity": 0,
     },
   });
   map.addLayer({
@@ -714,9 +713,9 @@ export function registerMoonTransitLayers(
     source: MOON_AZ_SOURCE,
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
-      "line-color": "#fffbeb",
-      "line-width": 1.4,
-      "line-opacity": 0.95,
+      "line-color": "#ffb224",
+      "line-width": 1.5,
+      "line-opacity": 0.55,
     },
   });
   map.addLayer({
@@ -725,10 +724,10 @@ export function registerMoonTransitLayers(
     source: MOON_AZ_NOW_SOURCE,
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
-      "line-color": "#22d3ee",
-      "line-width": 7.5,
-      "line-blur": 2.8,
-      "line-opacity": 0.24,
+      "line-color": "#ffb224",
+      "line-width": 2,
+      "line-blur": 0,
+      "line-opacity": 0,
     },
   });
   map.addLayer({
@@ -737,10 +736,9 @@ export function registerMoonTransitLayers(
     source: MOON_AZ_NOW_SOURCE,
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
-      "line-color": "#67e8f9",
-      "line-width": 1.5,
-      "line-opacity": 0.95,
-      "line-dasharray": [0.9, 1.2],
+      "line-color": "#ffb224",
+      "line-width": 3.5,
+      "line-opacity": 1,
     },
   });
   map.addLayer({
@@ -758,9 +756,9 @@ export function registerMoonTransitLayers(
       "symbol-placement": "point",
     },
     paint: {
-      "text-color": "#cffafe",
-      "text-halo-color": "#083344",
-      "text-halo-width": 1.2,
+      "text-color": "#ffb224",
+      "text-halo-color": "#0b1530",
+      "text-halo-width": 1.4,
     },
   });
 
@@ -783,11 +781,12 @@ export function registerMoonTransitLayers(
     type: "circle",
     source: MOON_INT_SOURCE,
     paint: {
-      "circle-radius": 6,
-      "circle-color": "#facc15",
-      "circle-stroke-color": "#1c1917",
-      "circle-stroke-width": 2,
-      "circle-opacity": 0.95,
+      // Presjecište zrake i putanje = "stanica poravnanja": veliki prsten s punom sredinom.
+      "circle-radius": 9,
+      "circle-color": "#ff5d4a",
+      "circle-stroke-color": "#eef3fa",
+      "circle-stroke-width": 4,
+      "circle-opacity": 1,
     },
   });
 
@@ -1001,10 +1000,10 @@ export function registerMoonTransitLayers(
         "interpolate",
         ["linear"],
         ["line-progress"],
-        0,   "rgba(251, 191, 36, 0)",
-        0.4, "rgba(251, 191, 36, 0.15)",
-        0.75, "rgba(251, 191, 36, 0.5)",
-        1,   "rgba(253, 230, 138, 0.9)",
+        0,   "rgba(255, 93, 74, 0)",
+        0.4, "rgba(255, 93, 74, 0.2)",
+        0.75, "rgba(255, 93, 74, 0.55)",
+        1,   "rgba(255, 93, 74, 0.95)",
       ],
     } as unknown as Record<string, unknown>,
   });
@@ -1014,10 +1013,10 @@ export function registerMoonTransitLayers(
     source: SELECTED_FLIGHT_TRAJECTORY_SOURCE,
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
-      "line-color": "#f59e0b",
-      "line-width": 9,
-      "line-blur": 2.4,
-      "line-opacity": 0.38,
+      "line-color": "#ff5d4a",
+      "line-width": 2,
+      "line-blur": 0,
+      "line-opacity": 0,
     },
   });
   map.addLayer({
@@ -1026,8 +1025,8 @@ export function registerMoonTransitLayers(
     source: SELECTED_FLIGHT_TRAJECTORY_SOURCE,
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
-      "line-color": "#fde68a",
-      "line-width": 3,
+      "line-color": "#ff5d4a",
+      "line-width": 4.5,
       "line-opacity": 1,
       "line-dasharray": [0.9, 1.25],
       "line-z-offset": [
@@ -1051,9 +1050,9 @@ export function registerMoonTransitLayers(
       "symbol-placement": "point",
     },
     paint: {
-      "text-color": "#fef3c7",
-      "text-halo-color": "#451a03",
-      "text-halo-width": 1.3,
+      "text-color": "#eef3fa",
+      "text-halo-color": "#0b1530",
+      "text-halo-width": 1.4,
     },
   });
 

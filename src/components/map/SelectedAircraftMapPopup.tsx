@@ -73,12 +73,12 @@ function isMobileMapWidth(map: Map): boolean {
  * Screen pixel anchor for `map.unproject` (origin top-left of the map container).
  * Mobile: bottom-centre of map canvas; sidrište se mjeri iz stvarnog DOM elementa
  * doka (isti pristup kao CSS varijable --mobile-dock-h u globals.css).
- * Desktop: HUD ispod headera (`anchor: top-left`).
+ * Desktop: desni stupac ispod kartice Mjeseca (`anchor: top-right`).
  */
 function popupScreenAnchor(map: Map): {
   x: number;
   y: number;
-  anchor: "top-left" | "bottom";
+  anchor: "top-right" | "bottom";
 } {
   const rect = map.getContainer().getBoundingClientRect();
   if (isMobileMapWidth(map)) {
@@ -86,10 +86,16 @@ function popupScreenAnchor(map: Map): {
     const y = Math.max(1, rect.height - bottomUiPx);
     return { x: rect.width / 2, y, anchor: "bottom" };
   }
+  // Desktop: kartica ide u desni stupac ispod kartice Mjeseca, daleko od lijevog
+  // izbornika i ploče. Visina kartice Mjeseca varira (upozorenja), pa se mjeri.
+  const strip = document.querySelector<HTMLElement>('[data-testid="moon-strip"]');
+  const y = strip
+    ? Math.round(strip.getBoundingClientRect().bottom - rect.top) + 12
+    : SELECTED_AIRCRAFT_POPUP_SCREEN_Y;
   return {
-    x: SELECTED_AIRCRAFT_POPUP_SCREEN_X,
-    y: SELECTED_AIRCRAFT_POPUP_SCREEN_Y,
-    anchor: "top-left",
+    x: rect.width - SELECTED_AIRCRAFT_POPUP_SCREEN_X,
+    y,
+    anchor: "top-right",
   };
 }
 

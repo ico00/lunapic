@@ -47,7 +47,7 @@ export function CompassAimPanel() {
         <button
           type="button"
           onClick={onEnable}
-          className="min-h-[48px] w-full rounded-2xl border border-emerald-500/35 bg-emerald-500/[0.10] py-3 text-[length:var(--fs-body)] font-semibold text-emerald-100 transition hover:border-emerald-400/55 hover:bg-emerald-500/[0.16] active:scale-[0.98]"
+          className="mt-btn mt-btn-primary w-full"
         >
           Allow orientation (iOS)
         </button>

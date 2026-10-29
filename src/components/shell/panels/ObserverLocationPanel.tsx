@@ -79,7 +79,7 @@ export function ObserverLocationPanel({
     <div className="space-y-4">
       {/* Address search */}
       <div className="relative">
-        <div className="flex h-10 items-center gap-2 rounded-xl border border-white/[0.10] bg-white/[0.04] px-3 transition focus-within:border-white/[0.22] focus-within:ring-1 focus-within:ring-sky-500/30">
+        <div className="mt-field">
           <svg className="h-4 w-4 shrink-0 text-[color:var(--t-tertiary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="M12 22s7-7.5 7-12a7 7 0 0 0-14 0c0 4.5 7 12 7 12z" />
             <circle cx="12" cy="10" r="3" />
@@ -116,15 +116,15 @@ export function ObserverLocationPanel({
           )}
         </div>
         {results.length > 0 && (
-          <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-10 overflow-hidden rounded-xl border border-white/[0.10] bg-[rgba(14,18,42,0.97)] shadow-xl backdrop-blur-xl">
+          <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-10 overflow-hidden rounded-[var(--r-ctl)] border border-[color:var(--hair)] bg-[color:var(--panel-2)]">
             {results.map((feature) => (
               <button
                 key={feature.id}
                 type="button"
                 onClick={() => handleSelect(feature)}
-                className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition hover:bg-white/[0.06]"
+                className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition-colors [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color:var(--hair-soft)]"
               >
-                <svg className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <svg className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[color:var(--observer-text)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                   <path d="M12 22s7-7.5 7-12a7 7 0 0 0-14 0c0 4.5 7 12 7 12z" />
                   <circle cx="12" cy="10" r="2" />
                 </svg>
@@ -160,11 +160,11 @@ export function ObserverLocationPanel({
           type="button"
           onClick={onUseGps}
           disabled={gpsBusy || locationActionsDisabled}
-          className="min-h-[48px] rounded-2xl border border-sky-500/35 bg-sky-500/[0.10] px-3 py-3 text-[length:var(--fs-body)] font-semibold text-sky-200 transition hover:border-sky-400/55 hover:bg-sky-500/[0.16] active:scale-[0.98] disabled:opacity-50"
+          className="mt-btn mt-btn-primary"
         >
           {gpsBusy ? "Locating…" : "Use my GPS"}
         </button>
-        {gpsError && <p className="text-[length:var(--fs-meta)] text-rose-300">{gpsError}</p>}
+        {gpsError && <p className="text-[length:var(--fs-meta)] text-[color:var(--disc-text)]">{gpsError}</p>}
       </div>
     </div>
   );

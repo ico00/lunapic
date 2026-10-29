@@ -1,6 +1,5 @@
 "use client";
 
-import { ArSkyCameraPanel } from "@/components/field/ArSkyCameraPanel";
 import { CompassAimPanel } from "@/components/field/CompassAimPanel";
 import { FieldOverlaysSection } from "@/components/field/FieldOverlaysSection";
 import { AddToHomeScreenPrompt } from "@/components/shell/AddToHomeScreenPrompt";
@@ -15,6 +14,10 @@ import { PhotographerToolsPanel } from "@/components/shell/panels/PhotographerTo
 import { PlanningPanel } from "@/components/shell/panels/PlanningPanel";
 import { TimeSliderPanel } from "@/components/shell/panels/TimeSliderPanel";
 import { TransitCandidatesPanel } from "@/components/shell/panels/TransitCandidatesPanel";
+import { TransitForecastPanel } from "@/components/shell/panels/TransitForecastPanel";
+import { MoonTimeLine } from "@/components/shell/MoonTimeLine";
+import { NextTransitBoard } from "@/components/shell/NextTransitBoard";
+import { ToolRail, ToolSheet } from "@/components/shell/ToolRail";
 import { StreetViewFullscreen } from "@/components/map/StreetViewFullscreen";
 import { WeatherOverlay } from "@/components/weather/WeatherOverlay";
 import { useHasMounted } from "@/hooks/useHasMounted";
@@ -51,6 +54,8 @@ import {
 } from "@/lib/flight/flightSearch";
 import { computeShotFeasibleFlightIds } from "@/lib/domain/transit/computeShotFeasibleFlightIds";
 import { useObserverStore } from "@/stores/observer-store";
+import type { GroundObserver } from "@/types/geo";
+import type { LiveFlightFeeds } from "@/stores/moon-transit-store";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import type { MapContainerProps } from "@/components/map/MapContainer";
 import dynamic from "next/dynamic";
@@ -161,7 +166,7 @@ function CommandBar({
   }, [onChange, query.length]);
 
   return (
-    <div className={`pointer-events-auto flex h-11 items-center gap-2.5 rounded-full border px-3.5 transition focus-within:ring-1 focus-within:ring-sky-500/30 ${floating ? "mt-glass-elevated border-white/[0.12] focus-within:border-white/[0.22]" : "border-white/[0.08] bg-white/[0.04] focus-within:border-white/[0.22]"} ${widthClass}`}>
+    <div className={`pointer-events-auto flex h-[38px] items-center gap-2.5 rounded-[var(--r-ctl)] border px-3 transition-[border-color] duration-150 focus-within:border-[color:var(--observer)] ${floating ? "mt-glass-elevated border-[color:var(--hair)]" : "border-[color:var(--hair)] bg-[color:var(--panel)]"} ${widthClass}`}>
       <svg
         className="h-[17px] w-[17px] shrink-0 cursor-pointer text-[color:var(--t-tertiary)]"
         viewBox="0 0 24 24"
@@ -183,13 +188,13 @@ function CommandBar({
         onChange={(e) => onChange(e.target.value)}
         placeholder="Search flights…"
         aria-label="Search flights"
-        className="flex-1 min-w-0 bg-transparent text-[16px] text-[color:var(--t-primary)] outline-none placeholder:text-[color:var(--t-tertiary)]"
+        className="flex-1 min-w-0 bg-transparent text-[length:var(--fs-body)] text-[color:var(--ink)] outline-none placeholder:text-[color:var(--ink-3)]"
         autoCapitalize="none"
         autoCorrect="off"
         spellCheck={false}
       />
       {hasQuery && resultCount !== null && (
-        <span className="shrink-0 rounded-full bg-sky-500/15 px-2 py-0.5 text-[length:var(--fs-label)] font-medium text-sky-300">
+        <span className="shrink-0 rounded-full bg-[color:var(--observer)] px-2 py-0.5 text-[length:var(--fs-label)] font-extrabold text-[#06143a]">
           {resultCount}
         </span>
       )}
@@ -208,12 +213,28 @@ function CommandBar({
           </svg>
         </button>
       ) : (
-        <span className="hidden shrink-0 rounded-md border border-white/[0.10] bg-white/[0.04] px-1.5 py-[2px] font-mono text-[length:var(--fs-label)] text-[color:var(--t-tertiary)] md:inline-block">
+        <span className="hidden shrink-0 rounded-[4px] border border-[color:var(--hair)] px-2 py-0.5 text-[length:var(--fs-label)] text-[color:var(--ink-3)] md:inline-block">
           ⌘K
         </span>
       )}
     </div>
   );
+}
+
+function formatCoord(value: number, pos: string, neg: string): string {
+  return `${Math.abs(value).toFixed(3)}° ${value >= 0 ? pos : neg}`;
+}
+
+const FEED_NAMES: readonly [keyof LiveFlightFeeds, string][] = [
+  ["localsdr", "LunaPic ADS-B"],
+  ["avionix", "Avionix"],
+  ["adsbone", "adsb.lol"],
+  ["opensky", "OpenSky"],
+];
+
+function feedsSummary(feeds: LiveFlightFeeds): string {
+  const on = FEED_NAMES.filter(([id]) => feeds[id]).map(([, name]) => name);
+  return on.length === 0 ? "No flight source" : on.join(" + ");
 }
 
 /* ---------------- Weather + actions (top right) ---------------------------- */
@@ -224,24 +245,47 @@ function TopRightCluster({
   onGps,
   gpsBusy,
   observerLocked,
+  observer,
+  feedsLabel,
 }: {
   onPlace: () => void;
   onFocus: () => void;
   onGps: () => void;
   gpsBusy: boolean;
   observerLocked: boolean;
+  observer: GroundObserver;
+  feedsLabel: string;
 }) {
   return (
     <div className="pointer-events-auto flex shrink-0 items-center gap-1">
+      <div
+        className="mr-1 hidden h-[38px] items-center gap-2 rounded-[var(--r-ctl)] border border-[color:var(--hair)] bg-[color:var(--panel)] px-3 text-[length:var(--fs-meta)] font-semibold text-[color:var(--ink-2)] xl:flex"
+        title="Observer position and ground height"
+      >
+        <span className="size-2.5 shrink-0 rounded-full border-[2.5px] border-[color:var(--observer)]" aria-hidden />
+        <span>
+          <b className="font-extrabold text-[color:var(--ink)]">
+            {formatCoord(observer.lat, "N", "S")} {formatCoord(observer.lng, "E", "W")}
+          </b>
+          {observer.groundHeightMeters != null ? ` · ${Math.round(observer.groundHeightMeters)} m` : ""}
+        </span>
+      </div>
       <WeatherOverlay />
-      <div className="mx-2 h-5 w-px shrink-0 bg-white/[0.12]" aria-hidden />
+      <div
+        className="ml-1 hidden h-[38px] items-center gap-2 rounded-[var(--r-ctl)] border border-[color:var(--hair)] bg-[color:var(--panel)] px-3 text-[length:var(--fs-meta)] font-semibold text-[color:var(--ink-2)] 2xl:flex"
+        title="Flight sources in use"
+      >
+        <span className="size-2 shrink-0 rounded-full bg-[color:var(--live)]" aria-hidden />
+        {feedsLabel}
+      </div>
+      <div className="mx-2 h-5 w-px shrink-0 bg-[color:var(--hair)]" aria-hidden />
       <button
         type="button"
         onClick={onGps}
         disabled={gpsBusy || observerLocked}
         title="Use my GPS"
         aria-label="Use my GPS — set observer to device location"
-        className="grid h-9 w-9 place-items-center rounded-full text-emerald-300 transition hover:bg-emerald-500/15 active:scale-[0.95] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500/75 disabled:cursor-not-allowed disabled:opacity-40"
+        className="grid h-9 w-9 place-items-center rounded-[var(--r-ctl)] text-[color:var(--ink-2)] transition-[background-color,color,transform] duration-150 active:scale-[0.95] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--ink)] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color:var(--panel)] [@media(hover:hover)_and_(pointer:fine)]:hover:text-[color:var(--ink)] disabled:cursor-not-allowed disabled:opacity-40"
       >
         {gpsBusy ? (
           <svg className="h-[18px] w-[18px] animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
@@ -261,7 +305,7 @@ function TopRightCluster({
         disabled={observerLocked}
         title="Set my location here"
         aria-label="Set my location here — current view center becomes observer"
-        className="grid h-9 w-9 place-items-center rounded-full text-amber-300 transition hover:bg-amber-500/15 active:scale-[0.95] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500/75 disabled:cursor-not-allowed disabled:opacity-40"
+        className="grid h-9 w-9 place-items-center rounded-[var(--r-ctl)] text-[color:var(--ink-2)] transition-[background-color,color,transform] duration-150 active:scale-[0.95] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--ink)] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color:var(--panel)] [@media(hover:hover)_and_(pointer:fine)]:hover:text-[color:var(--ink)] disabled:cursor-not-allowed disabled:opacity-40"
       >
         <svg
           className="h-[18px] w-[18px]"
@@ -282,7 +326,7 @@ function TopRightCluster({
         onClick={onFocus}
         title="Focus on me"
         aria-label="Focus on me — pan map to observer"
-        className="grid h-9 w-9 place-items-center rounded-full text-sky-300 transition hover:bg-sky-500/15 active:scale-[0.95] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500/75"
+        className="grid h-9 w-9 place-items-center rounded-[var(--r-ctl)] text-[color:var(--ink-2)] transition-[background-color,color,transform] duration-150 active:scale-[0.95] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--ink)] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color:var(--panel)] [@media(hover:hover)_and_(pointer:fine)]:hover:text-[color:var(--ink)]"
       >
         <svg
           className="h-[18px] w-[18px]"
@@ -302,155 +346,23 @@ function TopRightCluster({
   );
 }
 
-/* ---------------- Right rail (desktop) ------------------------------------- */
-
-const RAIL_ITEMS = PANEL_REGISTRY;
+/* ---------------- Akcenti mobilnog docka ----------------------------------- */
 
 const ACCENT_BTN: Record<PanelAccent, string> = {
-  moon: "border-amber-400/35 bg-amber-500/[0.12] text-amber-300",
-  sky: "border-sky-400/35 bg-sky-500/[0.12] text-sky-300",
-  mint: "border-emerald-400/35 bg-emerald-500/[0.12] text-emerald-300",
-  rose: "border-rose-400/35 bg-rose-500/[0.12] text-rose-300",
-  violet: "border-violet-400/35 bg-violet-500/[0.12] text-violet-300",
+  moon: "border-[color:var(--moon)] bg-[color:var(--moon-soft)] text-[color:var(--moon)]",
+  sky: "border-[color:var(--observer)] bg-[color:var(--sky-soft)] text-[color:var(--observer-text)]",
+  mint: "border-[color:var(--live)] bg-[color:var(--mint-soft)] text-[color:var(--live)]",
+  rose: "border-[color:var(--disc)] bg-[color:var(--rose-soft)] text-[color:var(--disc-text)]",
+  violet: "border-[color:var(--observer)] bg-[color:var(--sky-soft)] text-[color:var(--observer-text)]",
 };
 
 const ACCENT_ICON: Record<PanelAccent, string> = {
-  moon:   "text-amber-300",
-  sky:    "text-sky-300",
-  mint:   "text-emerald-300",
-  rose:   "text-rose-300",
-  violet: "text-violet-300",
+  moon: "text-[color:var(--moon)]",
+  sky: "text-[color:var(--observer-text)]",
+  mint: "text-[color:var(--live)]",
+  rose: "text-[color:var(--disc-text)]",
+  violet: "text-[color:var(--observer-text)]",
 };
-
-function FloatingRail({
-  expandedId,
-  onSelect,
-  onClose,
-  badges,
-  warnIds,
-  children,
-}: {
-  expandedId: PanelId | null;
-  onSelect: (id: PanelId) => void;
-  onClose: () => void;
-  badges: Partial<Record<PanelId, number>>;
-  warnIds?: Partial<Record<PanelId, boolean>>;
-  children: React.ReactNode;
-}) {
-  const expanded = expandedId !== null;
-  const item = RAIL_ITEMS.find((r) => r.id === expandedId);
-
-  return (
-    <aside
-      aria-label="Tools"
-      className={`mt-glass-elevated pointer-events-auto absolute right-3 top-[calc(3.5rem+env(safe-area-inset-top)+0.75rem)] z-[15] flex overflow-hidden rounded-3xl transition-[width] duration-300 ease-[cubic-bezier(0.2,0.9,0.2,1.06)] ${
-        expanded
-          ? `bottom-[8.5rem] ${item?.wide ? "w-[min(50vw,960px)]" : "w-[420px]"}`
-          : "h-fit max-h-[calc(100dvh-3.5rem-env(safe-area-inset-top)-0.75rem-8.5rem)] w-[72px] overflow-y-auto"
-      }`}
-    >
-      {/* Strip s ikonama */}
-      <nav
-        aria-label="Tool strip"
-        className="flex w-[72px] shrink-0 flex-col items-center gap-1.5 px-2 py-3"
-      >
-        {RAIL_ITEMS.map((item) => {
-          const Icon = item.icon;
-          const isOpen = expandedId === item.id;
-          const badge = badges[item.id];
-          const warn = warnIds?.[item.id] ?? false;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => onSelect(item.id)}
-              aria-pressed={isOpen}
-              aria-label={item.label}
-              title={item.label}
-              className={`relative grid h-12 w-12 place-items-center rounded-2xl border transition active:scale-[0.96] ${
-                isOpen
-                  ? `${ACCENT_BTN[item.accent]} shadow-[0_0_24px_-8px_rgba(96,165,250,0.55)]`
-                  : "border-transparent text-[color:var(--t-tertiary)] hover:bg-white/[0.05] hover:text-[color:var(--t-primary)]"
-              }`}
-            >
-              <Icon className={`h-[22px] w-[22px] ${
-                isOpen ? ACCENT_ICON[item.accent] : `${ACCENT_ICON[item.accent]} opacity-50`
-              }`} />
-              {badge && badge > 0 ? (
-                <span
-                  aria-hidden
-                  className="absolute right-1 top-1 grid min-w-[18px] place-items-center rounded-full bg-amber-400 px-1 font-mono text-[length:var(--fs-micro)] font-bold leading-[18px] text-zinc-900"
-                >
-                  {badge}
-                </span>
-              ) : warn ? (
-                <span
-                  aria-hidden
-                  className="absolute right-1.5 top-1.5 size-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)] ring-2 ring-[color:var(--bg-1)]"
-                />
-              ) : null}
-              {isOpen ? (
-                <span
-                  aria-hidden
-                  className="absolute -left-[10px] top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-current shadow-[0_0_8px_currentColor]"
-                />
-              ) : null}
-            </button>
-          );
-        })}
-        <div className="mt-1 flex w-full flex-col items-center border-t border-white/[0.08] pt-2">
-          <Link
-            href="/about"
-            title="About and usage guide"
-            aria-label="About and usage guide"
-            className="relative grid h-12 w-12 place-items-center rounded-2xl border border-transparent text-[color:var(--t-tertiary)] transition hover:bg-white/[0.05] hover:text-[color:var(--t-primary)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500/75"
-          >
-            <SectionIconQuestionMarkCircle className="h-[22px] w-[22px] text-sky-300/90 opacity-80 hover:opacity-100" />
-          </Link>
-        </div>
-      </nav>
-
-      {/* Drawer s panelom */}
-      {expanded && item ? (
-        <div className="flex min-w-0 flex-1 flex-col border-l border-white/[0.08]">
-          <header className="flex shrink-0 items-center justify-between gap-2 border-b border-white/[0.08] px-4 py-3.5">
-            <h2 className="mt-panel-title flex min-w-0 items-center gap-2.5">
-              <span
-                aria-hidden
-                className={`size-2 shrink-0 rounded-full shadow-[0_0_10px_currentColor] ${
-                  ACCENT_BTN[item.accent].split(" ").find((c) => c.startsWith("text-")) ?? "text-[color:var(--t-secondary)]"
-                }`}
-              />
-              <span className="truncate">{item.label}</span>
-            </h2>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close panel"
-              className="grid h-9 w-9 place-items-center rounded-full border border-white/[0.10] bg-white/[0.04] text-[color:var(--t-secondary)] transition hover:border-white/[0.20] hover:bg-white/[0.08]"
-            >
-              <svg
-                className="h-4 w-4"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden
-              >
-                <path d="M18 6L6 18M6 6l12 12" />
-              </svg>
-            </button>
-          </header>
-          <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 [scrollbar-gutter:stable]">
-            {children}
-          </div>
-        </div>
-      ) : null}
-    </aside>
-  );
-}
 
 /* ---------------- Time ribbon (bottom) ------------------------------------- */
 
@@ -743,12 +655,15 @@ function TimeRibbon(props: {
   isPlanned: boolean;
   planningDateValue: string;
   onPlanningDate: (value: string) => void;
+  anchorMs: number;
+  observer: GroundObserver;
   compact?: boolean;
 }) {
+  const mounted = useHasMounted();
   if (props.compact) {
     // Mobile slim ribbon — tanka pilula 44px s [time | slider | offset | sync ikona]
     return (
-      <div className="mt-glass-elevated pointer-events-auto absolute z-[14] left-2 right-2 bottom-[var(--mobile-ribbon-bottom)] flex h-11 items-center gap-2 rounded-full px-3.5">
+      <div className="mt-glass-elevated pointer-events-auto absolute z-[14] left-2 right-2 bottom-[var(--mobile-ribbon-bottom)] flex h-11 items-center gap-2 rounded-[var(--r-panel)] px-3.5">
         <div className="min-w-0 flex-1">
           <TimeSliderPanel
             variant="mapChip"
@@ -774,7 +689,7 @@ function TimeRibbon(props: {
         <button
           type="button"
           onClick={props.syncTime}
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-emerald-500/35 bg-emerald-500/[0.10] text-emerald-300 transition hover:border-emerald-400/55 hover:bg-emerald-500/[0.18] active:scale-[0.95]"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-[var(--r-ctl)] border border-[color:var(--live)] text-[color:var(--live)] transition-[background-color,transform] duration-150 active:scale-[0.95] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color:var(--mint-soft)]"
           title="Sync time to now"
           aria-label="Sync time to now"
         >
@@ -795,52 +710,65 @@ function TimeRibbon(props: {
       </div>
     );
   }
-  // Desktop slim ribbon — ista filozofija kao mobile, samo malo veće (h-12).
+  // Desktop: vrijeme kao linija sa stanicama (spec §2b.4).
+  const at = new Date(props.referenceEpochMs);
+  const clock = mounted && props.showEphemeris
+    ? at.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })
+    : "—";
+  const dateLabel = mounted && props.showEphemeris
+    ? `${at.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}${
+        props.isPlanned ? " · planned" : props.offsetHours < 0.05 ? " · now" : ""
+      }`
+    : "";
   return (
-    <div className="mt-glass-elevated pointer-events-auto absolute z-[14] left-3 right-[5.5rem] bottom-3 flex h-12 items-center gap-3 rounded-full px-4">
-      <div className="min-w-0 flex-1">
-        <TimeSliderPanel
-          variant="mapChip"
-          hideHeading
-          referenceEpochMs={props.referenceEpochMs}
-          offsetHours={props.offsetHours}
-          onOffsetHoursChange={props.onSlider}
-          showEphemeris={props.showEphemeris}
-          isMoonBelowHorizon={props.isMoonBelowHorizon}
-          sliderMaxHours={props.sliderWidthHours}
-          timeSliderStartLabel={props.timeSliderStartLabel}
-          timeSliderEndLabel={props.timeSliderEndLabel}
-          timeSliderMode={props.timeSliderMode}
-        />
+    <div className="mt-glass-elevated pointer-events-auto absolute z-[14] left-[216px] right-[5.5rem] bottom-3 flex h-[76px] items-stretch overflow-hidden rounded-[var(--r-panel)]">
+      <div className="flex min-w-[132px] flex-col justify-center gap-0.5 border-r border-[color:var(--hair-soft)] px-4">
+        <span className="text-[length:var(--fs-h1)] font-extrabold leading-none" suppressHydrationWarning>
+          {clock}
+        </span>
+        <span className="text-[length:var(--fs-label)] font-semibold text-[color:var(--ink-3)]" suppressHydrationWarning>
+          {dateLabel}
+        </span>
       </div>
-      <PlanningDateButton
-        isPlanned={props.isPlanned}
-        planningDateValue={props.planningDateValue}
-        onPlanningDate={props.onPlanningDate}
-        sizeClass="h-9 w-9"
-        iconClass="h-[18px] w-[18px]"
+      <MoonTimeLine
+        anchorMs={props.anchorMs}
+        widthHours={props.sliderWidthHours}
+        offsetHours={props.offsetHours}
+        onSlider={props.onSlider}
+        showEphemeris={props.showEphemeris}
+        isMoonBelowHorizon={props.isMoonBelowHorizon}
+        observer={props.observer}
       />
-      <button
-        type="button"
-        onClick={props.syncTime}
-        className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-emerald-500/35 bg-emerald-500/[0.10] text-emerald-300 transition hover:border-emerald-400/55 hover:bg-emerald-500/[0.18] active:scale-[0.95]"
-        title="Sync time to now"
-        aria-label="Sync time to now"
-      >
-        <svg
-          className="h-[18px] w-[18px]"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
+      <div className="flex items-center gap-2 border-l border-[color:var(--hair-soft)] px-3">
+        <PlanningDateButton
+          isPlanned={props.isPlanned}
+          planningDateValue={props.planningDateValue}
+          onPlanningDate={props.onPlanningDate}
+          sizeClass="h-[42px] w-[42px]"
+          iconClass="h-5 w-5"
+        />
+        <button
+          type="button"
+          onClick={props.syncTime}
+          className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[var(--r-ctl)] border border-[color:var(--live)] text-[color:var(--live)] transition-[background-color,transform] duration-150 active:scale-[0.95] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color:var(--mint-soft)]"
+          title="Sync time to now"
+          aria-label="Sync time to now"
         >
-          <path d="M21 12a9 9 0 1 1-3.5-7.1" />
-          <path d="M21 4v5h-5" />
-        </svg>
-      </button>
+          <svg
+            className="h-5 w-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M21 12a9 9 0 1 1-3.5-7.1" />
+            <path d="M21 4v5h-5" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }
@@ -1036,6 +964,7 @@ export function HomePageClient() {
   const flights = useMoonTransitStore((st) => st.flights);
   const localsdrStatus = useMoonTransitStore((st) => st.localsdrStatus);
   const mapDisplayMode = useMoonTransitStore((st) => st.mapDisplayMode);
+  const timeAnchorMs = useMoonTransitStore((st) => st.timeAnchorMs);
   const isWide = useIsMdUp();
   const [flightFilterCriteria, setFlightFilterCriteria] = useState<FlightFilterCriteria>({
     query: "",
@@ -1217,9 +1146,6 @@ export function HomePageClient() {
       if (id === "field") {
         return <FieldOverlaysSection />;
       }
-      if (id === "ar") {
-        return <ArSkyCameraPanel />;
-      }
       if (id === "observer") {
         return (
           <div className="space-y-3">
@@ -1235,14 +1161,14 @@ export function HomePageClient() {
                 type="button"
                 onClick={requestPlaceObserverFromView}
                 disabled={observerLocationLocked}
-                className="min-h-[48px] rounded-2xl border border-amber-500/35 bg-amber-500/[0.10] px-3 py-3 text-[length:var(--fs-meta)] font-semibold text-amber-200 shadow-[0_4px_16px_-8px_rgba(251,191,36,0.5)] transition hover:border-amber-400/55 hover:bg-amber-500/[0.16] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
+                className="mt-btn text-[length:var(--fs-meta)]"
               >
                 Set my location here
               </button>
               <button
                 type="button"
                 onClick={requestFocusOnObserver}
-                className="min-h-[48px] rounded-2xl border border-sky-500/30 bg-sky-500/[0.08] px-3 py-3 text-[length:var(--fs-meta)] font-semibold text-sky-200 shadow-[0_4px_16px_-8px_rgba(96,165,250,0.45)] transition hover:border-sky-400/50 hover:bg-sky-500/[0.14] active:scale-[0.97]"
+                className="mt-btn text-[length:var(--fs-meta)]"
               >
                 Focus on me
               </button>
@@ -1276,6 +1202,9 @@ export function HomePageClient() {
       }
       if (id === "flightlog") {
         return <FlightLogPanel />;
+      }
+      if (id === "forecast") {
+        return <TransitForecastPanel />;
       }
       if (id === "planning") {
         return <PlanningPanel />;
@@ -1361,21 +1290,21 @@ export function HomePageClient() {
         <>
           {/* Top bar — unified glass header: brand | search (flex-1) | actions */}
           <header
-            className="pointer-events-auto absolute inset-x-0 top-0 z-[20] flex items-center gap-3 border-b border-white/[0.09] bg-[rgba(14,18,42,0.85)] px-4 backdrop-blur-xl backdrop-saturate-150"
+            className="pointer-events-auto absolute inset-x-0 top-0 z-[20] flex items-center gap-3 border-b border-[color:var(--hair)] bg-[color:var(--ground)] px-4"
             style={{
               paddingTop: "env(safe-area-inset-top)",
               height: "calc(3.5rem + env(safe-area-inset-top))",
             }}
           >
             <BrandPill />
-            <div className="flex min-w-0 flex-1 justify-center">
+            <div className="ml-6 flex min-w-0 flex-1 justify-start">
               <CommandBar
                 query={flightFilterCriteria.query}
                 onChange={(next) =>
                   setFlightFilterCriteria((prev) => ({ ...prev, query: next }))
                 }
                 resultCount={filteredFlightCount}
-                widthClass="w-full max-w-[420px]"
+                widthClass="w-full max-w-[460px]"
               />
             </div>
             <TopRightCluster
@@ -1384,21 +1313,40 @@ export function HomePageClient() {
               onGps={s.onUseGps}
               gpsBusy={s.gpsBusy}
               observerLocked={observerLocationLocked}
+              observer={s.obs}
+              feedsLabel={feedsSummary(s.liveFlightFeeds)}
             />
           </header>
 
-          {/* Right rail */}
-          <FloatingRail
-            expandedId={railOpenId}
+          {/* Lijevi izbornik + ploča (spec §2b.5) */}
+          <ToolRail
+            activeId={railOpenId}
             onSelect={(id) =>
               setRailOpenId((prev) => (prev === id ? null : id))
             }
-            onClose={() => setRailOpenId(null)}
             badges={railBadges}
             warnIds={railWarn}
-          >
-            {railOpenId ? renderPanel(railOpenId) : null}
-          </FloatingRail>
+          />
+          {railOpenId ? (
+            <ToolSheet
+              item={PANEL_BY_ID[railOpenId]}
+              onClose={() => setRailOpenId(null)}
+            >
+              {renderPanel(railOpenId)}
+            </ToolSheet>
+          ) : (
+            <NextTransitBoard
+              candidates={s.candidatesDisplay}
+              selectedFlightId={s.selectedFlightId}
+              onSelectFlight={handleSelectFlightFromPanel}
+              observer={s.obs}
+              moon={s.moon}
+              showEphemeris={s.showEphemeris}
+              isPlanned={s.isPlanned}
+              watchedFlightCount={flights.length}
+              onOpenCandidates={() => setRailOpenId("candidates")}
+            />
+          )}
 
           {/* Time ribbon dolje */}
           <TimeRibbon
@@ -1415,6 +1363,8 @@ export function HomePageClient() {
             isPlanned={s.isPlanned}
             planningDateValue={s.planningDateValue}
             onPlanningDate={s.onPlanningDate}
+            anchorMs={timeAnchorMs}
+            observer={s.obs}
           />
 
           {/* Green zone alert */}
@@ -1432,7 +1382,7 @@ export function HomePageClient() {
 <>
           {/* Top bar — unified glass header, spojen na vrh ekrana */}
           <header
-            className="pointer-events-auto absolute inset-x-0 top-0 z-[78] flex items-center gap-2 border-b border-white/[0.09] bg-[rgba(14,18,42,0.85)] px-3 backdrop-blur-xl backdrop-saturate-150"
+            className="pointer-events-auto absolute inset-x-0 top-0 z-[78] flex items-center gap-2 border-b border-[color:var(--hair)] bg-[color:var(--ground)] px-3"
             style={{
               paddingTop: "env(safe-area-inset-top)",
               height: "calc(3.5rem + env(safe-area-inset-top))",
@@ -1441,7 +1391,7 @@ export function HomePageClient() {
             <BrandPill size="compact" />
             <div className="min-w-0 flex-1" />
             <WeatherOverlay />
-            <div className="h-5 w-px shrink-0 bg-white/[0.12]" aria-hidden />
+            <div className="h-5 w-px shrink-0 bg-[color:var(--hair)]" aria-hidden />
             <div
               className={`flex shrink-0 items-center gap-1 transition-opacity duration-200 ${
                 s.selectedFlightId != null || mobileSheetId != null
@@ -1456,7 +1406,7 @@ export function HomePageClient() {
                 disabled={s.gpsBusy || observerLocationLocked}
                 title="Use my GPS"
                 aria-label="Use my GPS"
-                className="grid h-9 w-9 place-items-center rounded-full text-emerald-300 transition hover:bg-emerald-500/15 active:scale-[0.95] disabled:opacity-40"
+                className="grid h-9 w-9 place-items-center rounded-[var(--r-ctl)] text-[color:var(--ink-2)] transition-[background-color,color,transform] duration-150 active:scale-[0.95] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--ink)] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color:var(--panel)] [@media(hover:hover)_and_(pointer:fine)]:hover:text-[color:var(--ink)] disabled:opacity-40"
               >
                 {s.gpsBusy ? (
                   <svg className="h-[18px] w-[18px] animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
@@ -1476,7 +1426,7 @@ export function HomePageClient() {
                 disabled={observerLocationLocked}
                 title="Set location"
                 aria-label="Set my location here"
-                className="grid h-9 w-9 place-items-center rounded-full text-amber-300 transition hover:bg-amber-500/15 active:scale-[0.95] disabled:opacity-40"
+                className="grid h-9 w-9 place-items-center rounded-[var(--r-ctl)] text-[color:var(--ink-2)] transition-[background-color,color,transform] duration-150 active:scale-[0.95] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--ink)] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color:var(--panel)] [@media(hover:hover)_and_(pointer:fine)]:hover:text-[color:var(--ink)] disabled:opacity-40"
               >
                 <svg
                   className="h-[18px] w-[18px]"
@@ -1497,7 +1447,7 @@ export function HomePageClient() {
                 onClick={requestFocusOnObserver}
                 title="Focus on me"
                 aria-label="Focus on me"
-                className="grid h-9 w-9 place-items-center rounded-full text-sky-300 transition hover:bg-sky-500/15 active:scale-[0.95]"
+                className="grid h-9 w-9 place-items-center rounded-[var(--r-ctl)] text-[color:var(--ink-2)] transition-[background-color,color,transform] duration-150 active:scale-[0.95] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--ink)] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color:var(--panel)] [@media(hover:hover)_and_(pointer:fine)]:hover:text-[color:var(--ink)]"
               >
                 <svg
                   className="h-[18px] w-[18px]"
@@ -1548,6 +1498,8 @@ export function HomePageClient() {
               isPlanned={s.isPlanned}
               planningDateValue={s.planningDateValue}
               onPlanningDate={s.onPlanningDate}
+              anchorMs={timeAnchorMs}
+              observer={s.obs}
               compact
             />
           </div>

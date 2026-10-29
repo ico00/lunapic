@@ -1,0 +1,62 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "documentation/redesign/home-mockup-v1.html"
+        ],
+        "createdAt": "2026-10-28T19:45:15.467Z",
+        "reason": "false positive: detector reads #000 for buttons using color: inherit; screenshots at 1440 and 500 px show correct contrast"
+      },
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "documentation/redesign/pages-mockup-v1.html"
+        ],
+        "createdAt": "2026-10-28T19:53:42.673Z",
+        "reason": "false positive: detector reads #000 for buttons using color: inherit; screenshots at 1440 and 500 px show correct contrast"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "documentation/redesign/home-mockup-v1.src.html"
+        ],
+        "createdAt": "2026-10-28T19:54:51.358Z",
+        "reason": "false positive: measured in a browser, every flagged wrapper (.board, .sum, .seg, .tbl, .side) carries its padding on child cells; no text element sits closer than 8px to its own border"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "documentation/redesign/home-mockup-v1.html"
+        ],
+        "createdAt": "2026-10-28T19:54:51.378Z",
+        "reason": "same as the .src.html file"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "documentation/redesign/pages-mockup-v1.src.html"
+        ],
+        "createdAt": "2026-10-28T19:54:51.398Z",
+        "reason": "false positive: measured in a browser, every flagged wrapper (.board, .sum, .seg, .tbl, .side) carries its padding on child cells; no text element sits closer than 8px to its own border"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "documentation/redesign/pages-mockup-v1.html"
+        ],
+        "createdAt": "2026-10-28T19:54:51.421Z",
+        "reason": "same as the .src.html file"
+      }
+    ]
+  }
+}

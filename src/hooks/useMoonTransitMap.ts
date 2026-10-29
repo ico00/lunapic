@@ -1,5 +1,6 @@
 import { geoBoundsFromMapbox } from "@/lib/map/geoBoundsFromMapbox";
 import { fieldPerfRecord, fieldPerfTime, isFieldPerfEnabled } from "@/lib/perf/fieldPerf";
+import { applyEnamelBasemap } from "@/lib/map/enamelBasemap";
 import { createObserverMarkerElement } from "@/lib/map/observerMarkerElement";
 import { queryTerrainElevationMeters } from "@/lib/map/mapboxTerrainElevation";
 import { registerMoonTransitLayers } from "@/lib/map/registerMoonTransitLayers";
@@ -369,6 +370,7 @@ export function useMoonTransitMap(
     const settled = () => onMoveSettled(map);
 
     map.on("load", () => {
+      applyEnamelBasemap(map);
       registerMoonTransitLayers(map, () => {
         settled();
         const obs = useObserverStore.getState().observer;

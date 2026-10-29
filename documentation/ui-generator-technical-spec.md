@@ -85,6 +85,96 @@ Koordinatni standard: **WGS84**. GeoJSON: `[longitude, latitude]`. Tipovi aplika
 
 ---
 
+## 2b. Redizajn v2: „transit dijagram” (smjer odobren na mockupu, kod još nije migriran)
+
+**Status.** Smjer je odobren na mockupu `documentation/redesign/home-mockup-v1.html` (naslovnica + stanja panela) i `documentation/redesign/pages-mockup-v1.html` (Flight log, About). Dok se kod ne migrira, §2.1–2.7 i §3 i dalje opisuju produkciju. Pri migraciji ova sekcija **zamjenjuje** §2.1–2.7; stare tokene (`--glass-*`, `--aurora`, `.mt-glass-elevated`, `.mt-title` gradijent) treba ukloniti, ne držati uz nove.
+
+**Ideja.** Tranzit se crta kao linija na dijagramu gradskog prijevoza. Stanica = prsten, poravnanje (presjecište) = veliki prsten s punom sredinom, linije se lome samo pod 45° i 90°. Odabrana linija gori najjače, ostalo se prigušuje. Ploča „Next transit” uvijek odgovara na: kad, koji avion, jesam li na liniji.
+
+### 2b.1 Površine i zabrane
+
+- Podloga je **ravna, neprozirna** tamnoplava (emajl). Zabranjeno: `backdrop-filter`/blur, vanjski sjaj (`box-shadow` bez offseta), gradijent kao dekoracija, gradijent teksta (`.mt-title`), `border-left` deblji od 1px na karticama/redovima.
+- Jedini dozvoljeni gradijent: rampa visine u legendi (podatak, ne dekor).
+- Panel: `border: 1px solid var(--hair)`, radijus `--r-panel` (10px). Kontrole: radijus `--r-ctl` (6px). Značke/tagovi: pill (999px). Nema drugih radijusa.
+- Kartice samo za objekte koji su zasebni (ploča, Layers + legenda, traka vremena). Unutar ploče grupe se dijele hairlineom, ne novim karticama.
+
+### 2b.2 Tokeni (`:root`)
+
+| Token | Vrijednost | Uloga |
+|---|---|---|
+| `--ground` | `#0b1530` | Gornja traka, izbornik, tijelo stranice |
+| `--ground-deep` | `#070e22` | Najdublja ploha, Moon disc podloga |
+| `--land` | `#1b1d21` | Kopno na karti: **neutralni grafit, namjerno ne plavo** |
+| `--panel` | `#111e40` | Ploče i kartice |
+| `--panel-2` | `#182950` | Hover, odabran red, sekundarni gumb |
+| `--hair` / `--hair-soft` | `#2c3f6e` / `#1f315e` | Obrub ploče / razdjelnici unutar ploče |
+| `--ink` | `#eef3fa` | Primarni tekst (zamjena za `--t-primary`) |
+| `--ink-2` | `#b8c4dc` | Sekundarni tekst (`--t-secondary`) |
+| `--ink-3` | `#8a9abd` | Pomoćni tekst (`--t-tertiary`), min. 4.5:1 na `--panel` |
+| `--moon` | `#ffb224` | **Samo Mjesec**: zraka, faza, rise/set, traka vidljivosti |
+| `--observer` / `--observer-text` | `#5b95ff` / `#8db4ff` | Promatrač, „u kadru”, odabrano vrijeme |
+| `--disc` / `--disc-text` | `#ff5d4a` / `#ff8d7e` | Prolaz preko diska, upozorenje o tranzitu |
+| `--live` | `#34d17f` | Izvor uživo, dobro/spremno, „na liniji” |
+
+**Granice na karti** su jedna oštra linija: Mapboxove podloge `admin-*-boundary-bg` (široke, zamućene) su isključene (`enamelBasemap.ts`) jer u našoj boji postaju siva traka koja pri zumu mijenja debljinu.
+
+**Karta je siva, sučelje je plavo.** Podloga karte (`enamelBasemap.ts`) je neutralni grafit: kopno `#1b1d21`, voda `#0d0e11`, ceste `#2c2f36`/`#3d414a`, granice `#4b505b`, oznake `#8e939d`/`#c4c8cf`. Plava karta koja se stapa s plavim izbornikom i pločama gubi razliku između „alata” i „terena”, a boje na karti (amber, scarlet, cobalt) tek na neutralnoj podlozi nose značenje. Plavo smije biti samo sučelje i podatak (promatrač, u kadru).
+
+**Tailwind skale** `sky`, `emerald`, `amber`, `rose` preslikane su u `globals.css` (`@theme`) na boje s fiksnim poslom (observer, live, moon, disc), a `violet` je neutralna plavosiva. Nova komponenta ne koristi te klase za gumbe i upozorenja nego `.mt-btn` / `.mt-note` (§2b.5).
+
+**Serije podataka** (Flight log: odabrani zrakoplovi na karti): `--s1 #5b95ff`, `--s2 #34d17f`, `--s3 #eef3fa`. Najviše tri istovremeno; četvrta serija nije dozvoljena dok se ne doda token. Labela u legendi uvijek imenuje seriju, boja nikad nije jedini nositelj značenja.
+
+Boje imaju **fiksan posao** i ne smiju se koristiti za dekoraciju ni za kategorije panela. Ljubičasta (`--aurora`) i ružičasta (`--rose`) se ukidaju. Tekst na bojom ispunjenim tagovima je tamni (`#1a0703` na `--disc`, `#06143a` na `--observer`) radi kontrasta.
+
+### 2b.3 Tipografija
+
+- Jedna obitelj: **Overpass** (400–800), uz `system-ui` fallback. Zamjenjuje Outfit + Geist u UI-ju. Brojke uvijek `font-variant-numeric: tabular-nums` (globalno na `body`).
+- Skala (fiksna, ne fluidna): `--fs-display` 28, `--fs-h1` 22, `--fs-h2` 17, `--fs-body` 15, `--fs-meta` 13, `--fs-label` 12. `--fs-micro` (10px) se ukida: nijedan tekst ispod 12px.
+- Naslovi su sentence case. **Nema** uppercase labela s razmakom slova iznad naslova (eyebrow). Jedina iznimka su nazivi grupa u izborniku (`NOW`, `SHOOT`, …) jer su dio navigacije.
+- Pravilo iz AGENTS.md ostaje: u komponentama isključivo `text-[length:var(--fs-…)]` i `text-[color:var(--ink…)]` (mapiranje: `--t-primary`→`--ink`, `--t-secondary`→`--ink-2`, `--t-tertiary`→`--ink-3`).
+
+### 2b.4 Dijagramski elementi
+
+- **Stanica**: krug 15px, ispuna `--ground`, obrub 3.5px `--ink`. **Presjecište/poravnanje**: krug ~34px s obrubom 4px `--ink` i punom sredinom `--disc`.
+- **Linija**: debljina 7–8px, `stroke-linecap: round`. Dijelovi: puna (stvarno), isprekidana (predviđeno/oprez), prigušena `#33466f` (nedostupno).
+- Traka vidljivosti Mjeseca: puna = iznad 12°, isprekidana = 5–12° (`caution`), prigušena = ispod 5° (nema kandidata). Pragovi iz `moonFieldVisibilityAdvice.ts` ne mijenjaju se.
+- Oznake stanica na traci vremena su ispod linije; oznaka koja bi se preklopila s oznakom „Now” (ili s prethodnom oznakom) prelazi iznad linije. Oznaka „Now” uvijek ostaje ispod (`MoonTimeLine.tsx`, `placeStationLabels`).
+- Na karti: Mjesečeva zraka `--moon` 3.5px; odabrani let `--disc` 4.5px, ostali `--observer` na 38% neprozirnosti; prsten 80 km isprekidan `--ink-3`.
+
+### 2b.5 Komponente
+
+- **Izbornik (rail)**, 200px, `--ground`: 12 panela u 5 grupa s oznakom grupe (prsten u boji grupe): *Now* (Transits, Candidates), *Shoot* (Photographer, Compass to Moon, Field overlays), *Sky and place* (Moon, Observer), *Feeds* (Flight source, Filters, Flight log), *Plan* (Transit forecast, Runway planning). Svaka stavka ima ikonu **i** tekst. Aktivna stavka = porculanska ispuna (`--ink` pozadina, `--ground` tekst). Registar panela (`panelRegistry.tsx`) dobiva polje `group`; `accent` se ukida.
+- **Ploča (sheet)** na `left: 216px; top: 72px; width: 408px`. Izbornik bira što ploča prikazuje; zadano je „Next transit”. Svi paneli se otvaraju na istom mjestu, ne u zasebnom ladičaru s desne strane.
+- **Tag**: 26px, pill, ispuna u boji klase (`DISC TRANSIT` = `--disc`, `IN FRAME` = `--observer`).
+- **Gumbi**: visina 42px, `--r-ctl`. Primarni = porculan (`--ink` ispuna). Sekundarni = `--panel-2` + `--hair` obrub. Stanje `:active` je `scale(0.97)`; hover samo unutar `@media (hover: hover) and (pointer: fine)`. Implementacija: klase `.mt-btn` (sekundarni), `.mt-btn-primary`, `.mt-btn-sm` (34px) u `globals.css`. Jedan primarni gumb po ploči (glavna radnja, npr. „Use my GPS”); ostali su sekundarni. Bez obojenih obruba, sjaja i `rounded-2xl`.
+- **Polje za unos**: `.mt-field`, 42px, `--ground` ispuna, `--hair` obrub, fokus obrub `--observer`.
+- **Segmentirani prekidač** (FT/KM, 24h/7d/…): obrub `--hair`, aktivan segment porculan.
+- **Redovi popisa**: min. 42px, ikona-stanica lijevo (prsten u boji klase, puni kad je odabran), vrijeme i domet desno poravnati.
+- **Upozorenje**: ploha miješana iz boje stanja i `--panel` (`color-mix`), obrub u boji stanja, ikona + podebljani prvi dio rečenice. Primjer: oblaci 100 % uz dobru geometriju. Implementacija: `.mt-note` (zadano amber = Mjesec) uz `.mt-note-live`, `.mt-note-disc`, `.mt-note-observer`.
+- Combobox i checkbox uzorci iz §4/§4a ostaju strukturno isti (portal, `z-[280]`, sky = odabir), ali koriste `--panel-2`, `--hair`, `--observer`.
+- **Fokus**: `outline: 2px solid var(--ink); outline-offset: 2px`.
+
+### 2b.6 Pokret
+
+- 120–150 ms, `cubic-bezier(0.23, 1, 0.32, 1)`, samo `transform`, `opacity`, boja. Nema ulaznih animacija stranice; odbrojavanje kuca svake sekunde bez animacije.
+- `prefers-reduced-motion`: sve tranzicije isključene.
+
+### 2b.7 Responzivnost
+
+- Desktop (> 760px): gornja traka 56px, izbornik 200px, ploča, vremenska traka dolje, Layers (`left: 216px`) i legenda visine (`left: 300px`) dolje lijevo uz izbornik, `bottom: 6.25rem`. Ploča „Next transit” ostavlja ispod sebe 13rem da ih ne prekrije; otvoreni panel (`ToolSheet`) ih smije prekriti. Moon strip (kartica „Moon now” gore desno) je uklonjen — isti podaci su u panelu Moon i na traci vremena. Do 1280px se skrivaju sekundarne značke i manje oznake na traci.
+- Telefon (≤ 760px): izbornik postaje donja traka s 5 grupa (*Now, Shoot, Sky, Feeds, Plan*), ploča postaje donji panel (`max-height: 70%`), legenda i traka vremena se otvaraju iz grupa. Ciljevi dodira ≥ 42px.
+- Karta se na telefonu pomiče tako da je promatrač iznad ploče, ne ispod nje.
+
+### 2b.8 Sadržaj i jezik
+
+- **Mjesec ispod 5° (`CRITICAL_BELOW_DEG`): ploča se ne crta.** Prazna kartica „Moon below the usable horizon” je zauzimala pola karte bez korisne informacije; traka vremena pokazuje kad Mjesec prelazi 5°. Ostala prazna stanja (Loading, Planning mode, No transit) ostaju.
+- Ploča odgovara redom: oznaka klase → naslov s odbrojavanjem („Moon crossing in 4:06”) → linija s vremenima → „Are you on the line?” (poprečni pomak i tolerancija iz `moonShadowSpot`) → domet, pokrivenost diska, ocjena kadra → akcije → ostali kandidati.
+- Ocjena kadra prati §Shot feasibility: Excellent (< 80 km i pokrivenost > 10 %), Fair, Poor. Pokrivenost aviona na disku nikad se ne zaokružuje na „lijepu” brojku; mockup koristi A320 (35.8 m) na 62 km = 5.9 %.
+- Jezik UI-ja je engleski (§1.1). **Flight log stranica trenutno ima hrvatske labele** (npr. „Ukupno pozicija”); pri migraciji ih treba ujednačiti na engleski.
+- Vremena su lokalna; dosadašnji „UTC day” prikaz rise/set zamjenjuje se lokalnim vremenom (uz UTC u tooltipu).
+
+---
+
 ## 3. Kartice sekcija i footnote (`ShellSectionCard.tsx`)
 
 ### 3.1 `ShellSectionAccent`
@@ -397,7 +487,8 @@ Sve promjene vizuala na letovima / Mjesecu treba raditi kroz postojeće **source
 - **„Gdje stati” slojevi:** **emerald** = cijela obitelj „stani ovdje” — točka, elipsa tolerancije **i putanja sjene** s minutnim oznakama (`rgba(52,211,153,0.75)`, `dasharray [5,3]`, oznake `#a7f3d0`); **sky** = nesigurnost (krug povijesnog rasipanja rute, `fill 0.10` / rub `0.35`). Tri mjerila namjerno se crtaju zajedno: elipsa je desetci metara, rasipanje stotine metara do kilometara — kontrast između njih **jest** poruka.
 - **Amber je rezerviran za vlastito gibanje aviona** (`selected-flight-trajectory`, `#fde68a`, sitne crtice `[0.9,1.25]`, oznaka `+90s`) i za sat na luku Mjeseca. Putanja sjene je do 2026-08-23 bila amber isprekidana — ista boja **i** ista obitelj uzorka kao predikcija leta, pa se dvije linije o dva različita objekta nisu dale razlikovati na prvi pogled. Duge crtice su drugi znak, da razlika ne visi samo o boji.
 - **Planning panel (`PlanningPanel`, id `planning`)** — planer za LDZA koji za odabrani dan/prozor/korak crta linije „stani ovdje” za virtualni A320 na prilazu 04 (3°, TCH 15 m) i odlasku 22 (gradijent 8 %). Cijela obitelj je **emerald** (`#34d399`, širina 4); tokovi se razlikuju **crticom, ne bojom**: prilaz = puna linija, odlazak = `line-dasharray [2,1.5]`. Svaka linija nosi bijelu oznaku sata (`HH:MM`, `en-GB`) na bližem kraju; marker (krug 4.5) na 4/6/8/10/12 km nosi pokrivenost u promjerima Mjeseca (`4.1×`, `#a7f3d0`) i oznaka se crta samo za fokusirani trenutak (ili za sve dok ništa nije fokusirano). Fokus = klik na redak u panelu, ostale linije padaju na `opacity 0.22` umjesto da nestanu. Odabir dana/vremena/koraka/veličine ide kroz `ShellSelect` (generički combobox, §4) — **native `<input type="date">` zabranjen** (§10.1). „Aircraft size” je **samo donja granica** (Any, ≥1×, ≥1.5×, ≥2×, ≥3× Mjeseca), bez gornje. Amber ostaje rezerviran za gibanje aviona/sat na luku Mjeseca, pa se ovdje koristi samo za upozorenja (Mjesec < 5°, skraćen popis). Izvor računa: `runwayShadowPlan.ts` (domena) — profili su pretpostavke i nose se u footnoteu panela. **Zadani prikaz = jedno vrijeme:** panel automatski fokusira prvi redak i na karti crta samo njega (deset skoro paralelnih linija na 10 min razmaka čitaju se kao jedna široka traka); kvačica „Show all times on the map” (`runwayPlanShowAll`) vraća sva vremena s prigušenjem neodabranih. Klik na redak u zadanom prikazu uvijek odabire; u show-all prikazu klik na odabrani redak skida fokus. **Uputa** („How to use”, sky okvir kao napomene u `FlightLogPanel`) je sklopiva i pamti se u `localStorage` (`lunapic.planning.guideHidden`, uz try/catch). **„Days with the Moon up”:** idućih 30 dana, po danu osvijetljenost Mjeseca (tierovi kao §10.2: ≥85 % emerald, 50–85 % amber, ispod tercijarno) i prozori u kojima je Mjesec ≥ 12° (`runwayPlanDays.ts`, `CAUTION_BELOW_DEG`); klik na prozor puni dan/od/do (prvih 90 min). Prvih 7 dana s prozorom, ostalo iza „Show all 30 days”. Panel se otvara na prvom prozoru od sada, ne na praznom danu. Pregled ne ocjenjuje stazu, vjetar ni promet.
-- **Bedž pokrivenosti** (`PhotoSpotRow`): ≥ 50 % emerald, 25–50 % amber, < 25 % neutralno (`bg-white/[0.05]`, tercijarni tekst; dohvatljivo samo preko `closest` liste promašaja, koja ignorira prag). Klizač je **samo donja granica**, 25–150 %, default 25 — gore se ne filtrira ništa: avion širi od diska (prilazni promet redovito prelazi 150 %) je željeni rezultat, pa vrh klizača služi da se traže *samo* takvi.
+- **Transit forecast panel (`TransitForecastPanel`, id `forecast`, grupa Plan)** — „Upcoming opportunities” (`/api/flight-log/transit-calendar`, idućih 14 dana) i „Where to stand” (`/api/flight-log/photo-spots`). Do 2026-10-29 bili su na dnu Flight loga; podaci dolaze iz loga, ali pitanje je planersko („kamo i kada ići”), pa su u Planu. Flight log zadržava samo povijest (tablica, tipovi, „Past transits”). Panel je standardne širine (408 px), ne `wide`.
+- **Bedž pokrivenosti** (`PhotoSpotRow`, `TransitForecastPanel.tsx`): ≥ 50 % emerald, 25–50 % amber, < 25 % neutralno (`bg-white/[0.05]`, tercijarni tekst; dohvatljivo samo preko `closest` liste promašaja, koja ignorira prag). Klizač je **samo donja granica**, 25–150 %, default 25 — gore se ne filtrira ništa: avion širi od diska (prilazni promet redovito prelazi 150 %) je željeni rezultat, pa vrh klizača služi da se traže *samo* takvi.
 
 ---
 
