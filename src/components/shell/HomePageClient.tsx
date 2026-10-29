@@ -1344,7 +1344,6 @@ export function HomePageClient() {
               showEphemeris={s.showEphemeris}
               isPlanned={s.isPlanned}
               watchedFlightCount={flights.length}
-              onOpenAim={() => setRailOpenId("compass")}
               onOpenCandidates={() => setRailOpenId("candidates")}
             />
           )}

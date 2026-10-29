@@ -71,7 +71,6 @@ function render(overrides: Partial<Parameters<typeof NextTransitBoard>[0]> = {})
       showEphemeris: true,
       isPlanned: false,
       watchedFlightCount: 12,
-      onOpenAim: () => {},
       onOpenCandidates: () => {},
       ...overrides,
     })
@@ -93,7 +92,8 @@ describe("NextTransitBoard", () => {
     expect(html).toContain("CTN 612");
     expect(html).toContain("Alignment");
     expect(html).toContain("Are you on the line?");
-    expect(html).toContain("Open aim view");
+    expect(html).toContain("Show on map");
+    expect(html).not.toContain("Open aim view");
   });
 
   it("says why there is nothing to show instead of a blank board", () => {

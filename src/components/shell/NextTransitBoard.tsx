@@ -60,7 +60,6 @@ type Props = {
   showEphemeris: boolean;
   isPlanned: boolean;
   watchedFlightCount: number;
-  onOpenAim: () => void;
   onOpenCandidates: () => void;
 };
 
@@ -73,7 +72,6 @@ export function NextTransitBoard({
   showEphemeris,
   isPlanned,
   watchedFlightCount,
-  onOpenAim,
   onOpenCandidates,
 }: Props) {
   const nowMs = useWallNowMs(1000);
@@ -272,21 +270,11 @@ export function NextTransitBoard({
         />
       </dl>
 
-      <div className="flex gap-2 border-t border-[color:var(--hair-soft)] px-4 py-2.5">
-        <button
-          type="button"
-          onClick={() => {
-            onSelectFlight(subject.flight.id);
-            onOpenAim();
-          }}
-          className="inline-flex h-[42px] flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-[var(--r-ctl)] border border-[color:var(--ink)] bg-[color:var(--ink)] px-4 text-[length:var(--fs-body)] font-bold text-[color:var(--ground)] transition-[background-color,transform] duration-150 active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--ink)] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-white"
-        >
-          Open aim view
-        </button>
+      <div className="border-t border-[color:var(--hair-soft)] px-4 py-2.5">
         <button
           type="button"
           onClick={() => onSelectFlight(subject.flight.id)}
-          className="inline-flex h-[42px] items-center justify-center gap-2 whitespace-nowrap rounded-[var(--r-ctl)] border border-[color:var(--hair)] bg-[color:var(--panel-2)] px-4 text-[length:var(--fs-body)] font-bold transition-[border-color,transform] duration-150 active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--ink)] [@media(hover:hover)_and_(pointer:fine)]:hover:border-[color:var(--ink-3)]"
+          className="inline-flex h-[42px] w-full items-center justify-center gap-2 whitespace-nowrap rounded-[var(--r-ctl)] border border-[color:var(--ink)] bg-[color:var(--ink)] px-4 text-[length:var(--fs-body)] font-bold text-[color:var(--ground)] transition-[background-color,transform] duration-150 active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--ink)] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-white"
         >
           Show on map
         </button>
