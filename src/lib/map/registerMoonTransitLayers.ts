@@ -559,14 +559,13 @@ function addVfrOpenAipLayer(map: Map): void {
   const apiKey = (process.env.NEXT_PUBLIC_OPENAIP_API_KEY ?? "").trim();
   if (!apiKey) return;
 
-  // Subdomain rotation for parallel tile fetching
+  // OpenAIP više nema a/b/c subdomene (DNS ih ne razrješava → "Load failed"),
+  // samo `api.tiles.openaip.net`; HTTP/2 ionako paralelizira na jednom hostu.
   if (!map.getSource(VFR_OPENAIP_SOURCE)) {
     map.addSource(VFR_OPENAIP_SOURCE, {
       type: "raster",
       tiles: [
-        `https://a.api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.png?apiKey=${apiKey}`,
-        `https://b.api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.png?apiKey=${apiKey}`,
-        `https://c.api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.png?apiKey=${apiKey}`,
+        `https://api.tiles.openaip.net/api/data/openaip/{z}/{x}/{y}.png?apiKey=${apiKey}`,
       ],
       tileSize: 256,
       minzoom: 0,
