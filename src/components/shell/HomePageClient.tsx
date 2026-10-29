@@ -1,6 +1,5 @@
 "use client";
 
-import { ArSkyCameraPanel } from "@/components/field/ArSkyCameraPanel";
 import { CompassAimPanel } from "@/components/field/CompassAimPanel";
 import { FieldOverlaysSection } from "@/components/field/FieldOverlaysSection";
 import { AddToHomeScreenPrompt } from "@/components/shell/AddToHomeScreenPrompt";
@@ -15,7 +14,6 @@ import { PhotographerToolsPanel } from "@/components/shell/panels/PhotographerTo
 import { PlanningPanel } from "@/components/shell/panels/PlanningPanel";
 import { TimeSliderPanel } from "@/components/shell/panels/TimeSliderPanel";
 import { TransitCandidatesPanel } from "@/components/shell/panels/TransitCandidatesPanel";
-import { MoonStrip } from "@/components/shell/MoonStrip";
 import { MoonTimeLine } from "@/components/shell/MoonTimeLine";
 import { NextTransitBoard } from "@/components/shell/NextTransitBoard";
 import { ToolRail, ToolSheet } from "@/components/shell/ToolRail";
@@ -1147,9 +1145,6 @@ export function HomePageClient() {
       if (id === "field") {
         return <FieldOverlaysSection />;
       }
-      if (id === "ar") {
-        return <ArSkyCameraPanel />;
-      }
       if (id === "observer") {
         return (
           <div className="space-y-3">
@@ -1349,14 +1344,6 @@ export function HomePageClient() {
               onOpenCandidates={() => setRailOpenId("candidates")}
             />
           )}
-
-          <MoonStrip
-            moon={s.moon}
-            moonRise={s.moonRise}
-            moonSet={s.moonSet}
-            moonRiseSetKind={s.moonRiseSetKind}
-            showEphemeris={s.showEphemeris}
-          />
 
           {/* Time ribbon dolje */}
           <TimeRibbon

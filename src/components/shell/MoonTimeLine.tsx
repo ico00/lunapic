@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useHasMounted } from "@/hooks/useHasMounted";
 import { getMoonPosition } from "@/lib/domain/astro/moon";
 import {
@@ -38,6 +38,45 @@ function hhmm(ms: number): string {
 
 type Run = { from: number; to: number; tier: Tier };
 type Station = { frac: number; label: string; detail?: string };
+
+/** Procjena širine oznake (12px, semibold) — dovoljno za izbjegavanje preklapanja. */
+const CHAR_PX = 7;
+const LABEL_GAP_PX = 8;
+
+function labelWidthPx(text: string): number {
+  return text.length * CHAR_PX;
+}
+
+/**
+ * Oznake stanica idu ispod linije; ona koja bi se preklopila s oznakom "Now"
+ * ili s prethodnom oznakom ispod linije prelazi iznad linije.
+ */
+export function placeStationLabels(
+  stations: readonly Station[],
+  trackPx: number,
+  nowBox: readonly [number, number],
+): ("below" | "above")[] {
+  const hits = (a: readonly [number, number], b: readonly [number, number]) =>
+    a[0] < b[1] + LABEL_GAP_PX && b[0] < a[1] + LABEL_GAP_PX;
+  const order = stations.map((_, i) => i).sort((a, b) => stations[a].frac - stations[b].frac);
+  const rows: ("below" | "above")[] = stations.map(() => "below");
+  let lastBelow: readonly [number, number] | null = null;
+  let lastAbove: readonly [number, number] | null = null;
+  for (const i of order) {
+    const st = stations[i];
+    const x = trackPx * (0.01 + st.frac * 0.98);
+    const w = labelWidthPx(st.label + (st.detail ?? ""));
+    const box = [x - w / 2, x + w / 2] as const;
+    const blocked = hits(box, nowBox) || (lastBelow != null && hits(box, lastBelow));
+    if (blocked && !(lastAbove != null && hits(box, lastAbove))) {
+      rows[i] = "above";
+      lastAbove = box;
+    } else {
+      lastBelow = box;
+    }
+  }
+  return rows;
+}
 
 export function MoonTimeLine({
   anchorMs,
@@ -100,6 +139,22 @@ export function MoonTimeLine({
   const pos = (f: number) => `${1 + f * 98}%`;
   const width = (a: number, b: number) => `${(b - a) * 98}%`;
 
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [trackPx, setTrackPx] = useState(0);
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setTrackPx(entry.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const nowLabel = offsetHours < 0.05 ? "Now" : `+${formatFixed(offsetHours, 1)} h`;
+  const nowX = trackPx * (0.01 + frac * 0.98);
+  const nowW = labelWidthPx(nowLabel);
+  const nowBox = (frac > 0.9 ? [nowX - nowW, nowX] : [nowX - 7, nowX - 7 + nowW]) as [number, number];
+  const rows = profile && trackPx > 0 ? placeStationLabels(profile.stations, trackPx, nowBox) : null;
+
   return (
     <div
       className={`relative h-full min-w-0 flex-1 px-[22px] ${
@@ -107,6 +162,7 @@ export function MoonTimeLine({
       }`}
     >
       <div
+        ref={trackRef}
         className="relative h-full has-[:focus-visible]:rounded-[var(--r-ctl)] has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-[color:var(--ink)]"
         aria-hidden={!profile}
       >
@@ -130,7 +186,7 @@ export function MoonTimeLine({
                 }}
               />
             ))}
-            {profile.stations.map((st) => (
+            {profile.stations.map((st, i) => (
               <span key={`${st.frac}-${st.label}`}>
                 <i
                   aria-hidden
@@ -138,7 +194,7 @@ export function MoonTimeLine({
                   style={{ left: pos(st.frac) }}
                 />
                 <span
-                  className="absolute top-[46px] -translate-x-1/2 whitespace-nowrap text-[length:var(--fs-label)] font-semibold text-[color:var(--ink-3)]"
+                  className={`absolute ${rows?.[i] === "above" ? "top-[4px]" : "top-[46px]"} -translate-x-1/2 whitespace-nowrap text-[length:var(--fs-label)] font-semibold text-[color:var(--ink-3)]`}
                   style={{ left: pos(st.frac) }}
                 >
                   {st.label}
@@ -155,7 +211,7 @@ export function MoonTimeLine({
               className="absolute top-[46px] text-[length:var(--fs-label)] font-bold text-[color:var(--ink-2)]"
               style={{ left: pos(frac), transform: frac > 0.9 ? "translateX(-100%)" : "translateX(-7px)" }}
             >
-              {offsetHours < 0.05 ? "Now" : `+${formatFixed(offsetHours, 1)} h`}
+              {nowLabel}
             </span>
           </>
         ) : null}

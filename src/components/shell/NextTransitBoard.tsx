@@ -165,16 +165,9 @@ export function NextTransitBoard({
       </Shell>
     );
   }
-  if (moonLow) {
-    return (
-      <Shell>
-        <Empty
-          title="The Moon is below the usable horizon"
-          body={`It is at ${formatFixed(moon.altitudeDeg, 1)}°. Candidates and alerts need the Moon above ${CRITICAL_BELOW_DEG}°.`}
-        />
-      </Shell>
-    );
-  }
+  // Mjesec ispod horizonta: ploča se ne crta (prazna kartica je samo zauzimala
+  // kartu); traka vremena pokazuje kad Mjesec prelazi 5°.
+  if (moonLow) return null;
   if (!subject || !detail) {
     return (
       <Shell>
@@ -358,7 +351,9 @@ function Shell({ children }: { children: React.ReactNode }) {
       className="pointer-events-auto absolute left-[216px] z-[15] flex w-[408px] flex-col overflow-hidden rounded-[var(--r-panel)] border border-[color:var(--hair)] bg-[color:var(--panel)]"
       style={{
         top: "calc(3.5rem + env(safe-area-inset-top) + 1rem)",
-        maxHeight: "calc(100% - 3.5rem - env(safe-area-inset-top) - 1rem - 6.25rem)",
+        // Ispod ploče stoje Layers i legenda visina (lijevi rub, iznad trake
+        // vremena), pa ploča ostavlja mjesta za njih umjesto da ih prekrije.
+        maxHeight: "calc(100% - 3.5rem - env(safe-area-inset-top) - 1rem - 13rem)",
       }}
     >
       {children}

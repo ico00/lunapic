@@ -14,7 +14,6 @@
 
 import type { ComponentType, SVGProps } from "react";
 import {
-  SectionIconAR,
   SectionIconCamera,
   SectionIconArrowUpCircle,
   SectionIconField,
@@ -46,7 +45,6 @@ export type PanelId =
   | "observer"
   | "flight"
   | "filters"
-  | "ar"
   | "flightlog"
   | "planning";
 
@@ -163,17 +161,6 @@ export const PANEL_REGISTRY: readonly PanelDef[] = [
     mobileTitle: "Observer",
     icon: SectionIconObserver,
     accent: "moon",
-    dockPrimary: false,
-  },
-  {
-    id: "ar",
-    group: "shoot",
-    railLabel: "AR sky",
-    label: "AR sky overlay",
-    dockLabel: "AR",
-    mobileTitle: "AR sky overlay",
-    icon: SectionIconAR,
-    accent: "sky",
     dockPrimary: false,
   },
   {

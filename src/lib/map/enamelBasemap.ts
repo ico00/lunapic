@@ -40,7 +40,10 @@ export function applyEnamelBasemap(map: MapboxMap): void {
       else if (/building/.test(id)) set(map, id, "fill-color", C.landSoft);
       else set(map, id, "fill-color", C.landSoft);
     } else if (type === "line") {
-      if (/admin|boundary/.test(id)) set(map, id, "line-color", C.boundary);
+      // `admin-*-boundary-bg` je široka zamućena podloga ispod granice; s našom
+      // bojom postaje siva traka uz liniju koja pri zumu mijenja debljinu.
+      if (/boundary-bg$/.test(id)) map.setLayoutProperty(id, "visibility", "none");
+      else if (/admin|boundary/.test(id)) set(map, id, "line-color", C.boundary);
       else if (/water/.test(id)) set(map, id, "line-color", C.waterLine);
       else if (/motorway|trunk|primary|major/.test(id)) set(map, id, "line-color", C.roadMajor);
       else if (/road|bridge|tunnel|street|path|ferry|aeroway/.test(id)) set(map, id, "line-color", C.road);

@@ -102,8 +102,8 @@ describe("NextTransitBoard", () => {
     expect(render({ showEphemeris: false })).toContain("Loading the sky");
   });
 
-  it("refuses to predict while the Moon is below the usable horizon", () => {
+  it("draws nothing while the Moon is below the usable horizon", () => {
     const low = { ...moon, altitudeDeg: 2 };
-    expect(render({ moon: low })).toContain("below the usable horizon");
+    expect(render({ moon: low })).toBe("");
   });
 });

@@ -219,8 +219,8 @@ export function TransitCandidatesPanel({
       {/* Alerts toggle */}
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">Transit alerts</p>
-          <p className="text-[length:var(--fs-meta)] text-[color:var(--t-disabled)] leading-tight">
+          <p className="mt-section-label">Transit alerts</p>
+          <p className="text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)] leading-tight">
             Sound + push when a candidate appears
           </p>
         </div>
