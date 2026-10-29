@@ -1161,14 +1161,14 @@ export function HomePageClient() {
                 type="button"
                 onClick={requestPlaceObserverFromView}
                 disabled={observerLocationLocked}
-                className="min-h-[48px] rounded-2xl border border-amber-500/35 bg-amber-500/[0.10] px-3 py-3 text-[length:var(--fs-meta)] font-semibold text-amber-200 shadow-[0_4px_16px_-8px_rgba(251,191,36,0.5)] transition hover:border-amber-400/55 hover:bg-amber-500/[0.16] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
+                className="mt-btn text-[length:var(--fs-meta)]"
               >
                 Set my location here
               </button>
               <button
                 type="button"
                 onClick={requestFocusOnObserver}
-                className="min-h-[48px] rounded-2xl border border-sky-500/30 bg-sky-500/[0.08] px-3 py-3 text-[length:var(--fs-meta)] font-semibold text-sky-200 shadow-[0_4px_16px_-8px_rgba(96,165,250,0.45)] transition hover:border-sky-400/50 hover:bg-sky-500/[0.14] active:scale-[0.97]"
+                className="mt-btn text-[length:var(--fs-meta)]"
               >
                 Focus on me
               </button>

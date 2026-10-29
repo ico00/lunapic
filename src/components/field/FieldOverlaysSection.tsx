@@ -161,7 +161,7 @@ export function FieldOverlaysSection() {
           <button
             type="button"
             onClick={onExportText}
-            className="flex-1 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-1.5 text-[length:var(--fs-meta)] font-medium text-emerald-100"
+            className="mt-btn mt-btn-sm flex-1"
           >
             Cheat sheet (.txt)
           </button>
@@ -169,7 +169,7 @@ export function FieldOverlaysSection() {
             type="button"
             onClick={onExportPng}
             disabled={exportBusy}
-            className="flex-1 rounded-xl border border-white/[0.1] bg-zinc-800/60 py-1.5 text-[length:var(--fs-meta)] text-[color:var(--t-secondary)] disabled:opacity-50"
+            className="mt-btn mt-btn-sm flex-1"
           >
             {exportBusy ? "…" : "Snapshot (.png)"}
           </button>

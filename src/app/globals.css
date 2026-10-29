@@ -12,8 +12,8 @@
 :root {
   /* — Podloga i plohe ——————————————————————— */
   --ground: #0b1530;        /* gornja traka, izbornik, tijelo */
-  --ground-deep: #070e22;   /* voda na karti, najdublja ploha */
-  --land: #0f1c3d;          /* kopno na karti */
+  --ground-deep: #070e22;   /* najdublja ploha, podloga diska Mjeseca */
+  --land: #1b1d21;          /* kopno na karti: neutralni grafit, ne plavo */
   --panel: #111e40;         /* ploče i kartice */
   --panel-2: #182950;       /* hover, odabran red, sekundarni gumb */
   --hair: #2c3f6e;          /* obrub ploče */
@@ -139,6 +139,40 @@
   --color-zinc-800: #182950;
   --color-zinc-900: #111e40;
   --color-zinc-950: #0b1530;
+
+  /* Semantičke skale se poravnaju s bojama koje imaju fiksan posao (spec §2b.2),
+     pa i stare klase sky/emerald/amber/rose dobivaju paletu dijagrama. Ljubičasta
+     je ukinuta: violet-* je neutralna plavosiva. */
+  --color-sky-100: #dde8ff;
+  --color-sky-200: #bcd3ff;
+  --color-sky-300: #8db4ff;
+  --color-sky-400: #6fa0ff;
+  --color-sky-500: #5b95ff;
+  --color-sky-600: #3f78e6;
+  --color-emerald-100: #d6f6e4;
+  --color-emerald-200: #a7ecc7;
+  --color-emerald-300: #6fe0a3;
+  --color-emerald-400: #34d17f;
+  --color-emerald-500: #2ab56c;
+  --color-emerald-600: #1f9658;
+  --color-amber-100: #ffefc7;
+  --color-amber-200: #ffdf9a;
+  --color-amber-300: #ffcb63;
+  --color-amber-400: #ffb224;
+  --color-amber-500: #e69a0d;
+  --color-amber-600: #c27f06;
+  --color-rose-100: #ffe0dc;
+  --color-rose-200: #ffc2ba;
+  --color-rose-300: #ff8d7e;
+  --color-rose-400: #ff6f5c;
+  --color-rose-500: #ff5d4a;
+  --color-rose-600: #e04632;
+  --color-violet-100: #e6ecf5;
+  --color-violet-200: #d3dcec;
+  --color-violet-300: #b8c4dc;
+  --color-violet-400: #8a9abd;
+  --color-violet-500: #6b7ca6;
+  --color-violet-600: #44588f;
 }
 
 html {
@@ -184,6 +218,95 @@ body {
 }
 
 @layer components {
+
+  /* — Gumbi (spec §2b.5): 42px, radijus kontrole, bez sjaja.
+       Primarni = porculan, sekundarni = --panel-2 + --hair obrub. — */
+  .mt-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 42px;
+    padding: 0 14px;
+    border-radius: var(--r-ctl);
+    border: 1px solid var(--hair);
+    background: var(--panel-2);
+    color: var(--ink);
+    font-size: var(--fs-body);
+    font-weight: 600;
+    line-height: 1.2;
+    text-align: center;
+    transition:
+      transform 120ms var(--ease-ui),
+      background-color 120ms var(--ease-ui),
+      border-color 120ms var(--ease-ui);
+  }
+  .mt-btn:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  .mt-btn:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+  .mt-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .mt-btn-primary {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--ground);
+    font-weight: 700;
+  }
+  .mt-btn-sm {
+    min-height: 34px;
+    padding: 0 10px;
+    font-size: var(--fs-meta);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .mt-btn:hover:not(:disabled) {
+      border-color: var(--ink-3);
+    }
+    .mt-btn-primary:hover:not(:disabled) {
+      background: #ffffff;
+      border-color: #ffffff;
+    }
+  }
+
+  /* — Polje za unos — */
+  .mt-field {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 42px;
+    padding: 0 12px;
+    border-radius: var(--r-ctl);
+    border: 1px solid var(--hair);
+    background: var(--ground);
+    color: var(--ink);
+    transition: border-color 120ms var(--ease-ui);
+  }
+  .mt-field:focus-within {
+    border-color: var(--observer);
+  }
+
+  /* — Upozorenje: ploha miješana iz boje stanja i --panel, obrub u boji stanja.
+       Boja stanja po poslu: Mjesec = amber (zadano), prolaz = disc,
+       spremno = live, promatrač = observer. — */
+  .mt-note {
+    --note: var(--moon);
+    display: block;
+    padding: 10px 12px;
+    border-radius: var(--r-ctl);
+    border: 1px solid var(--note);
+    background: color-mix(in srgb, var(--note) 12%, var(--panel));
+    color: var(--ink);
+    font-size: var(--fs-meta);
+    line-height: 1.5;
+  }
+  .mt-note-live { --note: var(--live); }
+  .mt-note-disc { --note: var(--disc); }
+  .mt-note-observer { --note: var(--observer); }
 
   /* — Brand "LunaPic": puna porculanska boja, bez gradijenta — */
   .mt-title {

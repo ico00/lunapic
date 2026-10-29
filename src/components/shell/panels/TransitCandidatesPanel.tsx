@@ -141,11 +141,11 @@ function CandidateRow({
   isTransit: boolean;
 }) {
   const selectedStyle = isTransit
-    ? "border-sky-400/55 bg-sky-500/[0.10] shadow-[0_4px_16px_-8px_rgba(96,165,250,0.45)]"
-    : "border-violet-400/55 bg-violet-500/[0.10] shadow-[0_4px_16px_-8px_rgba(167,139,250,0.35)]";
+    ? "border-[color:var(--observer)] bg-[color:var(--panel-2)]"
+    : "border-[color:var(--ink-3)] bg-[color:var(--panel-2)]";
   const hoverStyle = isTransit
-    ? "hover:border-sky-400/30 hover:bg-sky-500/[0.05]"
-    : "hover:border-violet-400/30 hover:bg-violet-500/[0.05]";
+    ? "[@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color:var(--panel-2)]"
+    : "[@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color:var(--panel-2)]";
   const callsignColor = isTransit ? "text-sky-300" : "text-violet-300";
 
   return (
@@ -198,7 +198,7 @@ export function TransitCandidatesPanel({
   if (planningMode) {
     return (
       <div>
-        <p className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-[length:var(--fs-meta)] leading-relaxed text-amber-300/90">
+        <p className="mt-note">
           Planning a future date — candidates need live traffic, so this list is
           paused. Moon position, path and corridor on the map stay accurate for
           the selected date. Press Sync to return to live traffic.
@@ -237,7 +237,7 @@ export function TransitCandidatesPanel({
           aria-label={alertsEnabled ? "Disable transit alerts" : "Enable transit alerts"}
           className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition active:scale-[0.95] ${
             alertsEnabled
-              ? "border-amber-400/55 bg-amber-500/[0.12] text-amber-200 shadow-[0_4px_16px_-8px_rgba(251,191,36,0.45)]"
+              ? "border-[color:var(--moon)] bg-[color:var(--moon-soft)] text-[color:var(--ink)]"
               : "border-white/[0.10] bg-white/[0.03] text-[color:var(--t-tertiary)] hover:border-white/[0.18] hover:text-[color:var(--t-primary)]"
           }`}
         >

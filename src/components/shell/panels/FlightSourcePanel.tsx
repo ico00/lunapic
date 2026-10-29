@@ -166,7 +166,7 @@ export function FlightSourcePanel({
       })}
 
       {openSkyRateLimited && (
-        <div className="mt-1.5 flex items-start gap-2 rounded-md border border-amber-400/25 bg-amber-500/[0.07] px-2.5 py-2 text-[length:var(--fs-label)] text-amber-200">
+        <div className="mt-1.5 mt-note flex items-start gap-2 !px-2.5 !py-2 !text-[length:var(--fs-label)]">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden>
             <path d="M12 8v5M12 16h.01M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z" />
           </svg>
@@ -178,7 +178,7 @@ export function FlightSourcePanel({
       )}
 
       {sdrUnreachable && (
-        <div className="mt-1.5 flex items-start gap-2 rounded-md border border-rose-400/25 bg-rose-500/[0.07] px-2.5 py-2 text-[length:var(--fs-label)] text-rose-200">
+        <div className="mt-1.5 mt-note mt-note-disc flex items-start gap-2 !px-2.5 !py-2 !text-[length:var(--fs-label)]">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden>
             <path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
           </svg>
@@ -191,7 +191,7 @@ export function FlightSourcePanel({
 
       {avionixUnreachable && (
         <div
-          className="mt-1.5 flex items-start gap-2 rounded-md border border-rose-400/25 bg-rose-500/[0.07] px-2.5 py-2 text-[length:var(--fs-label)] text-rose-200"
+          className="mt-1.5 mt-note mt-note-disc flex items-start gap-2 !px-2.5 !py-2 !text-[length:var(--fs-label)]"
           data-testid="avionix-offline-notice"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden>

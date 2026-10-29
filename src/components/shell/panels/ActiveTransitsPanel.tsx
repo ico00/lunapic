@@ -63,7 +63,7 @@ function NudgeArrow({
 }) {
   if (meters < 5) {
     return (
-      <div className="mt-3 flex flex-col items-center gap-1.5 rounded-2xl border border-emerald-400/30 bg-emerald-500/[0.08] py-4">
+      <div className="mt-3 flex flex-col items-center gap-1.5 mt-note mt-note-live rounded-[var(--r-panel)] py-4">
         <span className="text-[length:var(--fs-h1)] leading-none text-emerald-400">✓</span>
         <span className="font-mono text-[length:var(--fs-meta)] font-semibold text-emerald-400">
           Centered
@@ -76,7 +76,7 @@ function NudgeArrow({
   const m = Math.round(meters);
 
   return (
-    <div className="mt-3 flex flex-col items-center gap-2 rounded-2xl border border-amber-400/25 bg-amber-500/[0.06] px-4 py-4">
+    <div className="mt-3 flex flex-col items-center gap-2 mt-note rounded-[var(--r-panel)] px-4 py-4">
       <span className="text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">
         Walk {cardinal}
       </span>
@@ -117,7 +117,7 @@ export function ActiveTransitsPanel({
   if (planningMode) {
     return (
       <div>
-        <p className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-[length:var(--fs-meta)] leading-relaxed text-amber-300/90">
+        <p className="mt-note">
           Planning a future date — active transits need live traffic, so this
           list is paused. Press Sync to return to live traffic.
         </p>
@@ -147,8 +147,8 @@ export function ActiveTransitsPanel({
                   }}
                   className={`min-h-[56px] w-full space-y-1.5 rounded-2xl border px-3 py-2.5 text-left transition active:scale-[0.99] ${
                     selectedFlightId === row.flight.id
-                      ? "border-amber-400/55 bg-amber-500/[0.10] shadow-[0_4px_16px_-8px_rgba(251,191,36,0.45)]"
-                      : "border-white/[0.10] bg-white/[0.03] hover:border-amber-400/30 hover:bg-amber-500/[0.05]"
+                      ? "border-[color:var(--disc)] bg-[color:var(--panel-2)]"
+                      : "border-[color:var(--hair)] bg-transparent [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color:var(--panel-2)]"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">

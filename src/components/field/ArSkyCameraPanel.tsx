@@ -478,7 +478,7 @@ export function ArSkyCameraPanel() {
         onClick={() => {
           setOpen(true);
         }}
-        className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-1.5 text-[length:var(--fs-meta)] font-medium text-emerald-100"
+        className="mt-btn mt-btn-primary w-full"
       >
         Open AR sky overlay
       </button>

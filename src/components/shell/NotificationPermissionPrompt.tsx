@@ -84,9 +84,9 @@ export function NotificationPermissionPrompt({ supported, onAllow }: Props) {
         aria-label="Dismiss"
         onClick={() => snoozeDays(3)}
       />
-      <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/10 bg-zinc-950/95 p-4 shadow-2xl shadow-black/60 backdrop-blur-xl sm:p-5">
+      <div className="relative z-10 w-full max-w-md rounded-[var(--r-panel)] border border-[color:var(--hair)] bg-[color:var(--panel)] p-4 sm:p-5">
         <div className="flex items-start gap-3">
-          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-amber-400/40 bg-amber-500/[0.12] text-amber-300">
+          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[color:var(--observer)] text-[color:var(--observer-text)]">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5" aria-hidden>
               <path d="M12 22a2 2 0 0 0 2-2H10a2 2 0 0 0 2 2Z" />
               <path d="M18 16v-5c0-3.07-1.64-5.64-4.5-6.32V4a1.5 1.5 0 0 0-3 0v.68C7.63 5.36 6 7.92 6 11v5l-2 2h16l-2-2Z" />
@@ -109,21 +109,21 @@ export function NotificationPermissionPrompt({ supported, onAllow }: Props) {
           <button
             type="button"
             onClick={allow}
-            className="rounded-xl bg-amber-500/[0.15] border border-amber-400/40 px-4 py-2.5 text-[length:var(--fs-body)] font-semibold text-amber-200 transition hover:bg-amber-500/[0.22] active:scale-[0.98] sm:order-1"
+            className="mt-btn mt-btn-primary sm:order-1"
           >
             Allow notifications
           </button>
           <button
             type="button"
             onClick={() => snoozeDays(3)}
-            className="rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-[length:var(--fs-body)] font-medium text-[color:var(--t-primary)] sm:order-2"
+            className="mt-btn sm:order-2"
           >
             Not now
           </button>
           <button
             type="button"
             onClick={neverAsk}
-            className="rounded-xl border border-white/[0.08] px-4 py-2.5 text-[length:var(--fs-body)] text-[color:var(--t-tertiary)] sm:order-3"
+            className="mt-btn border-transparent bg-transparent font-medium text-[color:var(--ink-3)] sm:order-3"
           >
             Don&apos;t ask again
           </button>

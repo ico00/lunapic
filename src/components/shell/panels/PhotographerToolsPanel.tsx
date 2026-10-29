@@ -200,7 +200,7 @@ export function PhotographerToolsPanel({
         <p className="text-[length:var(--fs-body)] text-[color:var(--t-tertiary)]">No flight selected.</p>
       )}
       {photoUnavailableReason === "planningMode" ? (
-        <p className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-[length:var(--fs-meta)] leading-relaxed text-amber-300/90">
+        <p className="mt-note">
           {reasonText(photoUnavailableReason)}
         </p>
       ) : (

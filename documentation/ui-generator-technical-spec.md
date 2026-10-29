@@ -103,8 +103,8 @@ Koordinatni standard: **WGS84**. GeoJSON: `[longitude, latitude]`. Tipovi aplika
 | Token | Vrijednost | Uloga |
 |---|---|---|
 | `--ground` | `#0b1530` | Gornja traka, izbornik, tijelo stranice |
-| `--ground-deep` | `#070e22` | Voda/najdublja ploha na karti, Moon disc podloga |
-| `--land` | `#0f1c3d` | Kopno na karti |
+| `--ground-deep` | `#070e22` | Najdublja ploha, Moon disc podloga |
+| `--land` | `#1b1d21` | Kopno na karti: **neutralni grafit, namjerno ne plavo** |
 | `--panel` | `#111e40` | Ploče i kartice |
 | `--panel-2` | `#182950` | Hover, odabran red, sekundarni gumb |
 | `--hair` / `--hair-soft` | `#2c3f6e` / `#1f315e` | Obrub ploče / razdjelnici unutar ploče |
@@ -117,6 +117,10 @@ Koordinatni standard: **WGS84**. GeoJSON: `[longitude, latitude]`. Tipovi aplika
 | `--live` | `#34d17f` | Izvor uživo, dobro/spremno, „na liniji” |
 
 **Granice na karti** su jedna oštra linija: Mapboxove podloge `admin-*-boundary-bg` (široke, zamućene) su isključene (`enamelBasemap.ts`) jer u našoj boji postaju siva traka koja pri zumu mijenja debljinu.
+
+**Karta je siva, sučelje je plavo.** Podloga karte (`enamelBasemap.ts`) je neutralni grafit: kopno `#1b1d21`, voda `#0d0e11`, ceste `#2c2f36`/`#3d414a`, granice `#4b505b`, oznake `#8e939d`/`#c4c8cf`. Plava karta koja se stapa s plavim izbornikom i pločama gubi razliku između „alata” i „terena”, a boje na karti (amber, scarlet, cobalt) tek na neutralnoj podlozi nose značenje. Plavo smije biti samo sučelje i podatak (promatrač, u kadru).
+
+**Tailwind skale** `sky`, `emerald`, `amber`, `rose` preslikane su u `globals.css` (`@theme`) na boje s fiksnim poslom (observer, live, moon, disc), a `violet` je neutralna plavosiva. Nova komponenta ne koristi te klase za gumbe i upozorenja nego `.mt-btn` / `.mt-note` (§2b.5).
 
 **Serije podataka** (Flight log: odabrani zrakoplovi na karti): `--s1 #5b95ff`, `--s2 #34d17f`, `--s3 #eef3fa`. Najviše tri istovremeno; četvrta serija nije dozvoljena dok se ne doda token. Labela u legendi uvijek imenuje seriju, boja nikad nije jedini nositelj značenja.
 
@@ -142,10 +146,11 @@ Boje imaju **fiksan posao** i ne smiju se koristiti za dekoraciju ni za kategori
 - **Izbornik (rail)**, 200px, `--ground`: 12 panela u 5 grupa s oznakom grupe (prsten u boji grupe): *Now* (Transits, Candidates), *Shoot* (Photographer, Compass to Moon, Field overlays), *Sky and place* (Moon, Observer), *Feeds* (Flight source, Filters, Flight log), *Plan* (Transit forecast, Runway planning). Svaka stavka ima ikonu **i** tekst. Aktivna stavka = porculanska ispuna (`--ink` pozadina, `--ground` tekst). Registar panela (`panelRegistry.tsx`) dobiva polje `group`; `accent` se ukida.
 - **Ploča (sheet)** na `left: 216px; top: 72px; width: 408px`. Izbornik bira što ploča prikazuje; zadano je „Next transit”. Svi paneli se otvaraju na istom mjestu, ne u zasebnom ladičaru s desne strane.
 - **Tag**: 26px, pill, ispuna u boji klase (`DISC TRANSIT` = `--disc`, `IN FRAME` = `--observer`).
-- **Gumbi**: visina 42px, `--r-ctl`. Primarni = porculan (`--ink` ispuna). Sekundarni = `--panel-2` + `--hair` obrub. Stanje `:active` je `scale(0.97)`; hover samo unutar `@media (hover: hover) and (pointer: fine)`.
+- **Gumbi**: visina 42px, `--r-ctl`. Primarni = porculan (`--ink` ispuna). Sekundarni = `--panel-2` + `--hair` obrub. Stanje `:active` je `scale(0.97)`; hover samo unutar `@media (hover: hover) and (pointer: fine)`. Implementacija: klase `.mt-btn` (sekundarni), `.mt-btn-primary`, `.mt-btn-sm` (34px) u `globals.css`. Jedan primarni gumb po ploči (glavna radnja, npr. „Use my GPS”); ostali su sekundarni. Bez obojenih obruba, sjaja i `rounded-2xl`.
+- **Polje za unos**: `.mt-field`, 42px, `--ground` ispuna, `--hair` obrub, fokus obrub `--observer`.
 - **Segmentirani prekidač** (FT/KM, 24h/7d/…): obrub `--hair`, aktivan segment porculan.
 - **Redovi popisa**: min. 42px, ikona-stanica lijevo (prsten u boji klase, puni kad je odabran), vrijeme i domet desno poravnati.
-- **Upozorenje**: ploha miješana iz boje stanja i `--panel` (`color-mix`), obrub u boji stanja, ikona + podebljani prvi dio rečenice. Primjer: oblaci 100 % uz dobru geometriju.
+- **Upozorenje**: ploha miješana iz boje stanja i `--panel` (`color-mix`), obrub u boji stanja, ikona + podebljani prvi dio rečenice. Primjer: oblaci 100 % uz dobru geometriju. Implementacija: `.mt-note` (zadano amber = Mjesec) uz `.mt-note-live`, `.mt-note-disc`, `.mt-note-observer`.
 - Combobox i checkbox uzorci iz §4/§4a ostaju strukturno isti (portal, `z-[280]`, sky = odabir), ali koriste `--panel-2`, `--hair`, `--observer`.
 - **Fokus**: `outline: 2px solid var(--ink); outline-offset: 2px`.
 

@@ -1,22 +1,24 @@
 import type { Map as MapboxMap } from "mapbox-gl";
 
 /**
- * Prebojava Mapboxov `dark-v11` u emajl-plavu paletu (spec §2b.2) na učitavanju
- * stila: kopno, voda, ceste, granice i oznake. Slojeve prepoznaje po tipu i
+ * Prebojava Mapboxov `dark-v11` u neutralni grafit (spec §2b.2) na učitavanju
+ * stila: kopno, voda, ceste, granice i oznake. Karta je namjerno siva, ne plava,
+ * da se jasno odvaja od plavog sučelja i da boje linija (amber, scarlet,
+ * cobalt) na njoj nose značenje. Slojeve prepoznaje po tipu i
  * imenu, pa ne ovisi o točnom popisu id-eva u stilu. Svaki sloj ima vlastiti
  * try/catch jer neki id-evi nemaju paint svojstvo koje pokušavamo postaviti.
  */
 const C = {
-  land: "#0f1c3d",
-  landSoft: "#12224a",
-  water: "#070e22",
-  waterLine: "#1d3268",
-  road: "#1d3268",
-  roadMajor: "#2a3f73",
-  boundary: "#2c3f6e",
-  label: "#8a9abd",
-  labelMajor: "#b8c4dc",
-  halo: "#0b1530",
+  land: "#1b1d21",
+  landSoft: "#1f2126",
+  water: "#0d0e11",
+  waterLine: "#2a2d34",
+  road: "#2c2f36",
+  roadMajor: "#3d414a",
+  boundary: "#4b505b",
+  label: "#8e939d",
+  labelMajor: "#c4c8cf",
+  halo: "#111215",
 } as const;
 
 function set(map: MapboxMap, id: string, prop: string, value: string | number) {
