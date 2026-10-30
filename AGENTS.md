@@ -248,6 +248,16 @@ avion prijeđe 120 m u sekundi, pa bi baza inače rasla 3× brže. Ne slati samo
 avione blizu promatrača radi uštede — flight log i forecast koriste puni doseg.
 Gzip je zato jedina ušteda (~10 KB umjesto ~63 KB po snimku).
 
+**Kad Pi utihne (2026-10-30).** Pi je jedini zadani izvor, pa njegov pad gasi i
+server-side alerte. `server.js` zato prati polje `now` u snimku
+(`receiverWatchdog.cjs`) i nakon `RECEIVER_OFFLINE_AFTER_MS` = **5 min** bez novih
+podataka šalje Web Push svim pretplatama, a još jedan kad se podaci vrate
+(`/api/push/receiver-status`, isti token kao scan). Mjeri se promjena `now`, ne
+vrijeme prijema: ako `readsb` padne a push radi dalje, stiže uvijek isti snimak.
+Stanje je u memoriji, pa restart tijekom prekida šalje obavijest ponovno.
+`/api/localsdr/aircraft` bez svježeg snimka vraća **503**, kao i Avionix: prije je
+vraćao `200` s praznom listom, pa `offline` oznaka u panelu nikad nije zasvijetlila.
+
 **Zašto push:** ranije je server **povlačio** podatke s Pija preko Tailscale
 Funnela. To zahtijeva da Pi bude javno dostupan — Funnel → javni DNS → cert →
 ingress. Ta se registracija pokazala nestabilnom: javni DNS zapis za

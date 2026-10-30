@@ -89,6 +89,10 @@ const { readSdrSnapshot, isSnapshotFresh } = requireFromRoot(
   path.resolve(process.cwd(), "sdrSnapshot.cjs")
 );
 
+const { createReceiverWatchdog } = requireFromRoot(
+  path.resolve(process.cwd(), "receiverWatchdog.cjs")
+);
+
 /** Push smjer je konfiguriran kad postoji ingest token (Pi tada šalje). */
 const SDR_INGEST_ENABLED = Boolean(process.env.SDR_INGEST_TOKEN?.trim());
 
@@ -369,6 +373,37 @@ async function startFlightLogger() {
   // icao24 → { lat, lng, logged_at }
   const lastSeen = new Map();
 
+  const receiverWatchdog = createReceiverWatchdog(Date.now());
+  let receiverStatusInFlight = false;
+
+  /** Web Push kad Pi utihne ili se vrati — vidi `receiverWatchdog.cjs`. */
+  async function reportReceiverStatus() {
+    if (!INTERNAL_SCAN_TOKEN || !VAPID_READY || receiverStatusInFlight) return;
+    const event = receiverWatchdog.pendingEvent(Date.now());
+    if (!event) return;
+    receiverStatusInFlight = true;
+    try {
+      const res = await fetch(resolveReceiverStatusUrl(), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-internal-token": INTERNAL_SCAN_TOKEN,
+        },
+        body: JSON.stringify(event),
+        signal: AbortSignal.timeout(8_000),
+      });
+      discardBody(res);
+      if (res.ok) {
+        receiverWatchdog.acknowledge(event.status);
+        console.log(`[flight-logger] Prijemnik ${event.status}, ${event.silentMinutes} min`);
+      }
+    } catch (e) {
+      console.error("[flight-logger] Obavijest o prijemniku nije poslana:", describeFetchError(e));
+    } finally {
+      receiverStatusInFlight = false;
+    }
+  }
+
   // Dijagnostika: uzastopni neuspjesi prema Piju. Bez ovoga se u cPanel logu
   // nije vidjelo ništa — feed bi tiho utihnuo i UI bi samo javio "offline".
   let sdrFailStreak = 0;
@@ -513,6 +548,11 @@ async function startFlightLogger() {
           })
         : Promise.resolve(undefined),
     ]);
+
+    if (localsdrConfigured) {
+      receiverWatchdog.noteSnapshot(sdrData?.now, Date.now());
+      void reportReceiverStatus();
+    }
 
     const sdrAircraft = sdrData?.aircraft;
     const hasSdrRows = Array.isArray(sdrAircraft) && sdrAircraft.length > 0;
@@ -804,6 +844,10 @@ function resolveScanUrl() {
   const site = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (site) return `${site.replace(/\/$/, "")}/api/transit/scan`;
   return `http://127.0.0.1:${port}${basePathClean ?? ""}/api/transit/scan`;
+}
+
+function resolveReceiverStatusUrl() {
+  return resolveScanUrl().replace(/\/api\/transit\/scan$/, "/api/push/receiver-status");
 }
 
 /**
