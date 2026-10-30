@@ -35,7 +35,11 @@ knowing:
   (the web fallback to OpenSky applies only when *no* source at all is enabled),
   so OpenSky credits are not spent unless someone ticks it.
 * If the Pi stops pushing, the map is empty until a web source is ticked — the
-  "offline" badge and banner on the LunaPic row are the signal.
+  "offline" badge and banner on the LunaPic row are the signal. There is no
+  automatic switch to a web source: those positions lag by up to 30 s and would
+  feed the countdown with worse data, so that remains a deliberate choice. After
+  5 min of silence every push subscriber also gets a notification, and another
+  when data returns (`receiverWatchdog.cjs`, `/api/push/receiver-status`).
 * The last enabled source cannot be unticked (`setLiveFlightFeeds` ignores a
   patch that would leave all four off).
 * The panel lists **Local receivers · no delay** (LunaPic ADS-B, Avionix Nano)

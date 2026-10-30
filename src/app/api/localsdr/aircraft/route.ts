@@ -107,15 +107,16 @@ export async function GET(req: Request) {
   if (!SDR_URL || !SDR_URL_RAW) {
     const staleAgeSec =
       snapshot != null ? Math.round((Date.now() - snapshot.receivedAt) / 1000) : null;
+    // 503, ne prazna lista: `200` s nula aviona klijent čita kao "prijemnik radi,
+    // samo je nebo prazno", pa `offline` oznaka nikad ne bi zasvijetlila.
     return NextResponse.json(
       {
-        now: Date.now() / 1000,
-        aircraft: [],
+        error: "Local SDR receiver unavailable: no fresh snapshot",
         ...(staleAgeSec != null
           ? { stale: true, lastSnapshotAgeSec: staleAgeSec }
           : {}),
       },
-      { headers: NO_CACHE }
+      { status: 503, headers: { ...NO_CACHE, "Retry-After": "10" } }
     );
   }
 
