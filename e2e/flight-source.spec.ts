@@ -30,6 +30,19 @@ test.describe("flight source", () => {
     await expect(openSkyFeed).not.toBeChecked();
     await expect(adsbOneFeed).not.toBeChecked();
 
+    // Grupe (spec §4a.2b): lokalni prijemnici na vrhu, web API-ji ispod.
+    await expect(page.getByText("Local receivers · no delay")).toBeVisible();
+    await expect(page.getByText("Web APIs · delayed")).toBeVisible();
+    const order = await page
+      .locator('[data-testid^="live-feed-"]')
+      .evaluateAll((els) => els.map((el) => el.getAttribute("data-testid")));
+    expect(order).toEqual([
+      "live-feed-localsdr",
+      "live-feed-avionix",
+      "live-feed-opensky",
+      "live-feed-adsbone",
+    ]);
+
     // Avionix: na popisu, ali nije uključen i ne može se kliknuti.
     await expect(avionixFeed).toBeVisible();
     await expect(avionixFeed).not.toBeChecked();

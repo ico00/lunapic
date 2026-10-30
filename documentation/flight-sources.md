@@ -38,6 +38,10 @@ knowing:
   "offline" badge and banner on the LunaPic row are the signal.
 * The last enabled source cannot be unticked (`setLiveFlightFeeds` ignores a
   patch that would leave all four off).
+* The panel lists **Local receivers · no delay** (LunaPic ADS-B, Avionix Nano)
+  first and **Web APIs · delayed** (OpenSky, adsb.lol) below it, with a note that
+  web feeds refresh every 30 s and lag behind the local receivers (spec §4a.2b).
+  The order lives in `FlightSourcePanel.tsx`, not in `FLIGHT_PROVIDER_COMBO_IDS`.
 * **Avionix Nano is shown greyed out, unchecked and not clickable** while
   `AVIONIX_FEED_AVAILABLE` (`src/types/flight-provider.ts`) is `false`; the store
   also refuses to turn it on programmatically. Flip the constant to `true` when
