@@ -14,7 +14,7 @@ import { PhotographerToolsPanel } from "@/components/shell/panels/PhotographerTo
 import { PlanningPanel } from "@/components/shell/panels/PlanningPanel";
 import { TransitCandidatesPanel } from "@/components/shell/panels/TransitCandidatesPanel";
 import { TransitForecastPanel } from "@/components/shell/panels/TransitForecastPanel";
-import { MobileGroupList, MobileSheet, MobileTabBar, type MobileView } from "@/components/shell/MobileShell";
+import { MobileMoreList, MobileSheet, MobileTabBar, type MobileView } from "@/components/shell/MobileShell";
 import { MoonTimeLine } from "@/components/shell/MoonTimeLine";
 import { NextTransitBoard } from "@/components/shell/NextTransitBoard";
 import { ToolRail, ToolSheet } from "@/components/shell/ToolRail";
@@ -33,12 +33,7 @@ import { NotificationPermissionPrompt } from "@/components/shell/NotificationPer
 import { useFlightAircraftTypeIndexPrefetch } from "@/hooks/useFlightAircraftTypeIndexPrefetch";
 import { useAstronomySync } from "@/hooks/useAstronomySync";
 import { useWeatherSync } from "@/hooks/useWeatherSync";
-import {
-  PANEL_BY_ID,
-  type MobilePanelId,
-  type PanelGroupId,
-  type PanelId,
-} from "@/components/shell/panelRegistry";
+import { PANEL_BY_ID, type PanelId } from "@/components/shell/panelRegistry";
 import { resumeSharedAudioFromUserGesture } from "@/lib/audio/fieldAudio";
 import { appPath } from "@/lib/paths/appPath";
 import {
@@ -61,8 +56,9 @@ import { createPortal } from "react-dom";
    ravne neprozirne plohe iznad nje.
    - Desktop: gornja traka, lijevi izbornik s 5 grupa, ploča "Next transit" ili
               otvoreni panel na istom mjestu, vremenska traka dolje.
-   - Telefon: gornja traka, ploča kao donji panel, donja traka s 5 grupa;
-              paneli, vrijeme i legenda otvaraju se iz grupa (`MobileShell`).
+   - Telefon: gornja traka; iznad donje trake su uska ploča, Layers + legenda
+              visine i vremenska traka; četiri panela su na jedan dodir, ostalo
+              je u popisu "More" (`MobileShell`).
    ========================================================================= */
 
 const MapContainer = dynamic<MapContainerProps>(
@@ -552,7 +548,6 @@ function PlanningDateButton(props: {
   onPlanningDate: (value: string) => void;
   sizeClass: string;
   iconClass: string;
-  label?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [btnEl, setBtnEl] = useState<HTMLButtonElement | null>(null);
@@ -589,7 +584,6 @@ function PlanningDateButton(props: {
           <rect x="3" y="5" width="18" height="16" rx="2" />
           <path d="M8 3v4M16 3v4M3 9h18" />
         </svg>
-        {props.label}
       </button>
       {open && btnEl && (
         <PlanningCalendarPopup
@@ -638,7 +632,7 @@ function TimeRibbon(props: {
   onPlanningDate: (value: string) => void;
   anchorMs: number;
   observer: GroundObserver;
-  /** Telefon: sadržaj panela "Time and Moon line", bez vlastite kartice. */
+  /** Telefon: niska traka bez oznaka stanica, u stupcu iznad donje trake. */
   compact?: boolean;
 }) {
   const mounted = useHasMounted();
@@ -674,25 +668,50 @@ function TimeRibbon(props: {
     />
   );
   if (props.compact) {
+    const moved = props.isPlanned || props.offsetHours >= 0.05;
     return (
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1">{now}</div>
-        <div className="-mx-3 h-[76px]">{line}</div>
-        <p className="text-[length:var(--fs-meta)] text-[color:var(--ink-3)]">
-          Drag along the line to move the Moon and the map to that time.
-        </p>
-        <div className="grid grid-cols-2 gap-2.5">
+      <div className="mt-glass-elevated pointer-events-auto flex h-14 shrink-0 items-center overflow-hidden rounded-[var(--r-panel)]">
+        <div className="flex w-[74px] shrink-0 flex-col justify-center gap-0.5 self-stretch border-r border-[color:var(--hair-soft)] pl-3">
+          <span
+            className={`text-[length:var(--fs-h2)] font-extrabold leading-none ${moved ? "text-[color:var(--observer-text)]" : ""}`}
+            suppressHydrationWarning
+          >
+            {clock}
+          </span>
+          <span className="text-[length:var(--fs-label)] font-semibold text-[color:var(--ink-3)]" suppressHydrationWarning>
+            {mounted && props.showEphemeris
+              ? moved
+                ? at.toLocaleDateString("en-GB", { weekday: "short", day: "numeric" })
+                : "Now"
+              : ""}
+          </span>
+        </div>
+        <MoonTimeLine
+          dense
+          anchorMs={props.anchorMs}
+          widthHours={props.sliderWidthHours}
+          offsetHours={props.offsetHours}
+          onOffsetHours={props.onOffsetHours}
+          showEphemeris={props.showEphemeris}
+          isMoonBelowHorizon={props.isMoonBelowHorizon}
+          observer={props.observer}
+        />
+        <div className="flex shrink-0 items-center gap-1 pr-1.5">
           <PlanningDateButton
             isPlanned={props.isPlanned}
             planningDateValue={props.planningDateValue}
             onPlanningDate={props.onPlanningDate}
-            sizeClass="h-[42px] w-full"
+            sizeClass="h-[42px] w-[42px]"
             iconClass="h-5 w-5"
-            label="Plan a date"
           />
-          <button type="button" onClick={props.syncTime} className="mt-btn" aria-label="Sync time to now">
-            <SyncIcon className="h-5 w-5 text-[color:var(--live)]" />
-            Sync to now
+          <button
+            type="button"
+            onClick={props.syncTime}
+            className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[var(--r-ctl)] border border-[color:var(--live)] text-[color:var(--live)] transition-transform duration-150 active:scale-[0.95]"
+            title="Sync time to now"
+            aria-label="Sync time to now"
+          >
+            <SyncIcon className="h-5 w-5" />
           </button>
         </div>
       </div>
@@ -799,7 +818,7 @@ function StreetViewExitButton() {
     <button
       type="button"
       onClick={() => setMapDisplayMode("default")}
-      className="mt-btn fixed bottom-[4.5rem] left-3 z-[9999] max-md:bottom-[var(--mobile-overlay-bottom)]"
+      className="mt-btn fixed bottom-[4.5rem] left-3 z-[9999] max-md:bottom-auto max-md:left-2 max-md:top-[calc(3.5rem+env(safe-area-inset-top)+0.5rem)]"
       aria-label="Exit Street View"
     >
       <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -927,37 +946,20 @@ export function HomePageClient() {
     [s.liveFlightFeeds.localsdr, localsdrStatus]
   );
 
-  const mobileAlertGroups = useMemo<Partial<Record<PanelGroupId, boolean>>>(
-    () => ({
-      now: s.activeTransits.length > 0 || s.candidatesDisplay.some((c) => c.willTransit),
-      feeds: railWarn.flight === true,
-    }),
-    [s.activeTransits.length, s.candidatesDisplay, railWarn.flight]
-  );
-
-  /** Tab "Now" vraća ploču; ponovni dodir otvara popis Transits i Candidates. */
-  const onMobileTab = useCallback((group: PanelGroupId) => {
-    setMobileView((prev) => {
-      if (group === "now") return prev == null ? { group, panel: null } : null;
-      return prev?.group === group ? null : { group, panel: null };
-    });
+  const onMobileTab = useCallback((id: PanelId | "more") => {
+    setMobileView((prev) => (prev === id ? null : id));
   }, []);
 
-  const openMobilePanel = useCallback((group: PanelGroupId, panel: MobilePanelId) => {
-    setMobileView({ group, panel });
-  }, []);
-
-  // Karta na telefonu: promatrač ostaje iznad ploče, ne ispod nje (spec §2b.7).
+  // Karta na telefonu: promatrač ostaje iznad traka, ne ispod njih (spec §2b.7).
   const boardRoRef = useRef<ResizeObserver | null>(null);
   const boardWrapRef = useCallback((el: HTMLDivElement | null) => {
     boardRoRef.current?.disconnect();
     boardRoRef.current = null;
-    // Dok ploču zamjenjuje panel ili kartica aviona, karta ostaje gdje je.
     if (!el) return;
     const measure = () => {
       const height = el.getBoundingClientRect().height;
       const fromBottom = window.innerHeight - el.getBoundingClientRect().top;
-      // Sitne promjene visine ploče ne smiju micati kartu.
+      // Sitne promjene visine ne smiju micati kartu.
       setBoardInsetPx(height > 0 ? Math.round(fromBottom / 24) * 24 : 0);
     };
     measure();
@@ -967,7 +969,7 @@ export function HomePageClient() {
 
   /* ---- Renderer panela (zajednički za rail i mobile sheet) -------------- */
   const renderPanel = useCallback(
-    (id: MobilePanelId): React.ReactNode => {
+    (id: PanelId): React.ReactNode => {
       if (id === "active") {
         return (
           <ActiveTransitsPanel
@@ -1094,34 +1096,7 @@ export function HomePageClient() {
       if (id === "forecast") {
         return <TransitForecastPanel />;
       }
-      if (id === "planning") {
-        return <PlanningPanel />;
-      }
-      if (id === "mapkey") {
-        return (
-          <div className="flex flex-col gap-3">
-            <MapDisplayModeLayersControl />
-            <FlightAltitudeLegend />
-          </div>
-        );
-      }
-      return (
-        <TimeRibbon
-          compact
-          referenceEpochMs={s.referenceEpochMs}
-          offsetHours={s.offsetHours}
-          onOffsetHours={s.setOffsetHours}
-          showEphemeris={s.showEphemeris}
-          isMoonBelowHorizon={s.isMoonBelowHorizon}
-          sliderWidthHours={s.sliderWidthHours}
-          syncTime={handleSyncTime}
-          isPlanned={s.isPlanned}
-          planningDateValue={s.planningDateValue}
-          onPlanningDate={s.onPlanningDate}
-          anchorMs={timeAnchorMs}
-          observer={s.obs}
-        />
-      );
+      return <PlanningPanel />;
     },
     [
       s,
@@ -1131,9 +1106,7 @@ export function HomePageClient() {
       requestFocusOnObserver,
       requestPlaceObserverFromView,
       handleSelectFlightFromPanel,
-      handleSyncTime,
       subscribeToPush,
-      timeAnchorMs,
     ]
   );
 
@@ -1142,9 +1115,9 @@ export function HomePageClient() {
     if (isWide) {
       setRailOpenId("photo");
     } else {
-      openMobilePanel("shoot", "photo");
+      setMobileView("photo");
     }
-  }, [isWide, openMobilePanel]);
+  }, [isWide]);
 
   /* =========================================================================
      RENDER
@@ -1312,48 +1285,57 @@ export function HomePageClient() {
             <WeatherOverlay />
           </header>
 
-          <button
-            type="button"
-            onClick={requestFocusOnObserver}
-            aria-label="Focus on me"
-            title="Focus on me"
-            className="mt-toolbar-btn pointer-events-auto absolute right-2 z-[14] !h-[42px] !w-[42px]"
+          {/* Promatrač na jedan dodir (Mapbox zoom je ispod, globals.css). */}
+          <div
+            className="pointer-events-auto absolute right-2 z-[14] flex flex-col gap-1"
             style={{ top: "calc(3.5rem + env(safe-area-inset-top) + 0.5rem)" }}
           >
-            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <circle cx="12" cy="12" r="3" />
-              <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
-            </svg>
-          </button>
-
-          {s.isPlanned || s.offsetHours >= 0.05 ? (
-            <div
-              className="pointer-events-auto absolute left-2 z-[14] flex h-[42px] items-center overflow-hidden rounded-[var(--r-ctl)] border border-[color:var(--observer)] bg-[color:var(--panel)]"
-              style={{ top: "calc(3.5rem + env(safe-area-inset-top) + 0.5rem)" }}
+            <button
+              type="button"
+              onClick={s.onUseGps}
+              disabled={s.gpsBusy || observerLocationLocked}
+              aria-label="Use my GPS"
+              title="Use my GPS"
+              className="mt-toolbar-btn !h-[42px] !w-[42px]"
             >
-              <button
-                type="button"
-                onClick={() => openMobilePanel("sky", "time")}
-                className="h-full px-3 text-[length:var(--fs-meta)] font-bold text-[color:var(--observer-text)]"
-                suppressHydrationWarning
-              >
-                {new Date(s.referenceEpochMs).toLocaleString("en-GB", {
-                  weekday: "short",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  hour12: false,
-                })}
-              </button>
-              <button
-                type="button"
-                onClick={handleSyncTime}
-                aria-label="Sync time to now"
-                className="grid h-full w-[42px] place-items-center border-l border-[color:var(--hair-soft)] text-[color:var(--live)]"
-              >
-                <SyncIcon className="h-[18px] w-[18px]" />
-              </button>
-            </div>
-          ) : null}
+              {s.gpsBusy ? (
+                <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+                  <path d="M21 12a9 9 0 1 1-3.5-7.1" />
+                </svg>
+              ) : (
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+                  <circle cx="12" cy="12" r="4" />
+                  <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+                </svg>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={requestPlaceObserverFromView}
+              disabled={observerLocationLocked}
+              aria-label="Set my location here"
+              title="Set my location here"
+              className="mt-toolbar-btn !h-[42px] !w-[42px]"
+            >
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M12 22s7-7.5 7-12a7 7 0 0 0-14 0c0 4.5 7 12 7 12z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={requestFocusOnObserver}
+              aria-label="Focus on me"
+              title="Focus on me"
+              className="mt-toolbar-btn !h-[42px] !w-[42px]"
+            >
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
+              </svg>
+            </button>
+          </div>
 
           {showGreenAlert && topGreenCallSign ? (
             <GreenZoneAlert
@@ -1365,14 +1347,16 @@ export function HomePageClient() {
             />
           ) : null}
 
-          {/* Ploča; dok je avion odabran, njegovu karticu na karti ne prekriva. */}
-          {mobileView == null && s.selectedFlightId == null ? (
-            <div
-              ref={boardWrapRef}
-              className="pointer-events-none absolute inset-x-2 bottom-[var(--mobile-overlay-bottom)] z-[15] flex max-h-[70%] flex-col"
-            >
+          {/* Trake iznad donje trake. Dok je avion odabran, njegova kartica sjeda
+              na mjesto ploče i legende; `invisible` čuva visinu, pa se karta ne miče. */}
+          <div
+            ref={boardWrapRef}
+            className="pointer-events-none absolute inset-x-2 bottom-[var(--mobile-overlay-bottom)] z-[15] flex flex-col gap-2"
+          >
+            <div className={`flex flex-col gap-2 ${s.selectedFlightId != null ? "invisible" : ""}`}>
               <NextTransitBoard
-                variant="sheet"
+                variant="strip"
+                onExpand={() => setMobileView("board")}
                 candidates={s.candidatesDisplay}
                 selectedFlightId={s.selectedFlightId}
                 onSelectFlight={handleSelectFlightFromPanel}
@@ -1381,31 +1365,63 @@ export function HomePageClient() {
                 showEphemeris={s.showEphemeris}
                 isPlanned={s.isPlanned}
                 watchedFlightCount={flights.length}
-                onOpenCandidates={() => openMobilePanel("now", "candidates")}
+                onOpenCandidates={() => setMobileView("candidates")}
               />
+              <div className="flex items-stretch gap-2">
+                <MapDisplayModeLayersControl />
+                <FlightAltitudeLegend />
+              </div>
             </div>
-          ) : null}
+            <TimeRibbon
+              compact
+              referenceEpochMs={s.referenceEpochMs}
+              offsetHours={s.offsetHours}
+              onOffsetHours={s.setOffsetHours}
+              showEphemeris={s.showEphemeris}
+              isMoonBelowHorizon={s.isMoonBelowHorizon}
+              sliderWidthHours={s.sliderWidthHours}
+              syncTime={handleSyncTime}
+              isPlanned={s.isPlanned}
+              planningDateValue={s.planningDateValue}
+              onPlanningDate={s.onPlanningDate}
+              anchorMs={timeAnchorMs}
+              observer={s.obs}
+            />
+          </div>
 
           {mobileView ? (
             <MobileSheet
               view={mobileView}
-              onBack={() => setMobileView({ group: mobileView.group, panel: null })}
+              onBack={() => setMobileView("more")}
               onClose={() => setMobileView(null)}
             >
-              {mobileView.panel ? (
-                renderPanel(mobileView.panel)
-              ) : (
-                <MobileGroupList
-                  group={mobileView.group}
-                  onOpen={(panel) => openMobilePanel(mobileView.group, panel)}
-                  badges={railBadges}
-                  warnIds={railWarn}
+              {mobileView === "more" ? (
+                <MobileMoreList onOpen={setMobileView} warnIds={railWarn} />
+              ) : mobileView === "board" ? (
+                <NextTransitBoard
+                  variant="sheet"
+                  candidates={s.candidatesDisplay}
+                  selectedFlightId={s.selectedFlightId}
+                  onSelectFlight={handleSelectFlightFromPanel}
+                  observer={s.obs}
+                  moon={s.moon}
+                  showEphemeris={s.showEphemeris}
+                  isPlanned={s.isPlanned}
+                  watchedFlightCount={flights.length}
+                  onOpenCandidates={() => setMobileView("candidates")}
                 />
+              ) : (
+                renderPanel(mobileView)
               )}
             </MobileSheet>
           ) : null}
 
-          <MobileTabBar view={mobileView} onSelect={onMobileTab} alertGroups={mobileAlertGroups} />
+          <MobileTabBar
+            view={mobileView}
+            onSelect={onMobileTab}
+            badges={railBadges}
+            warnMore={railWarn.flight === true}
+          />
         </>
       )}
     </div>

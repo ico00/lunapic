@@ -22,7 +22,7 @@ const faqSections: { title: string; items: FaqItem[] }[] = [
       {
         question: "How do I navigate the interface?",
         answer:
-          "The map fills the entire screen and the Next transit board answers when, which aircraft and whether you stand on the line, without opening anything.\n\nDesktop: the menu on the left holds the 12 panels in five groups: Now, Shoot, Sky and place, Feeds and Plan. A panel opens in the same place as the board, and closing it brings the board back. The time line runs along the bottom.\n\nPhone: the bar at the bottom has the same five groups and the board sits above it. Tap a group to see its panels. The time line is under Sky, the map layers and altitude scale are under Feeds.\n\nThe observer marker is always visible on the map — drag it to reposition.",
+          "The map fills the entire screen and the Next transit board answers when, which aircraft and whether you stand on the line, without opening anything.\n\nDesktop: the menu on the left holds the 12 panels in five groups: Now, Shoot, Sky and place, Feeds and Plan. A panel opens in the same place as the board, and closing it brings the board back. The time line runs along the bottom.\n\nPhone: the bar at the bottom opens Active transits, Candidates, Photographer and Moon with one tap, and More holds every other panel. Above it you always see a one-line Next transit strip (tap it for the full board), the Layers tile, the altitude scale and the time line. GPS, Set my location here and Focus on me are the buttons at the top right.\n\nThe observer marker is always visible on the map — drag it to reposition.",
       },
       {
         question: "How does the Observer point behave, and can I drag it?",

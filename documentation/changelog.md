@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 where version bumps are made for releases (currently `0.x`).
 
+## [2026-10-30] — Phone: one tap to the main panels
+
+Phone feedback on the redesign: the group menu hid what used to be one tap away.
+
+### Changed
+
+- **Bottom bar** is now Active, Candidates, Photo, Moon and More. The first four open with one tap, and More lists every other panel by group.
+- **Time line, Layers and altitude scale** stay visible above the bottom bar again.
+- **Next transit on a phone** is a one-line strip with the class, countdown, aircraft and whether you are on the line. Tap it for the full board. The full board stays closed so the map keeps enough room.
+- **GPS, Set my location here and Focus on me** are one tap again, as buttons at the top right.
+
 ## [2026-10-30] — Transit diagram redesign, phase 2
 
 See also: **[ui-generator-technical-spec.md](ui-generator-technical-spec.md)** §2b for the system and its rules.
@@ -14,7 +25,7 @@ Finishes the redesign started in #53: the phone, the panels and the Flight log a
 
 ### Added
 
-- **Phone layout.** A bottom bar with the five groups (Now, Shoot, Sky, Feeds, Plan) replaces the dock, and the Next transit board is a bottom panel. The time line and the altitude scale with Layers open from the Sky and Feeds groups. While time is moved away from now, a chip under the top bar shows the simulated time with Sync.
+- **Phone layout** on the flat system, with the Next transit board and a new bottom bar. The navigation was revised the same day, see the entry above.
 - **Map stays above the board on a phone.** The observer no longer ends up hidden behind the panel; the map uses padding, so Focus on me and Set my location here follow the visible part.
 - **Next transit board with nothing to show** keeps its structure: a dimmed line to the 5-minute prediction limit, plus Moon altitude, azimuth and illumination. With the Moon at 5–12° the board warns about haze.
 

@@ -8,7 +8,7 @@
  *  2. Dodaj `PanelDef` objekt u `PANEL_REGISTRY`
  *  3. U `HomePageClient.renderPanel()` dodaj render case za novi id
  *
- * Sve ostalo (izbornik, mobilna traka grupa, naslovi ploča) se derivira
+ * Sve ostalo (izbornik, mobilna traka, popis "More", naslovi ploča) se derivira
  * automatski iz ovog registrija.
  */
 
@@ -47,12 +47,6 @@ export type PanelId =
   | "forecast"
   | "planning";
 
-/**
- * Na telefonu traka vremena i legenda nisu stalno na karti nego se otvaraju
- * iz grupa (spec §2b.7), pa uz panele postoje još dvije stavke.
- */
-export type MobilePanelId = PanelId | "time" | "mapkey";
-
 export type PanelDef = {
   /** Stabilni string ID. */
   readonly id: PanelId;
@@ -70,22 +64,17 @@ export type PanelDef = {
 
 export type PanelGroupId = "now" | "shoot" | "sky" | "feeds" | "plan";
 
-/**
- * Redoslijed grupa; `ink` je token iz globals.css za oznaku u izborniku,
- * `tabLabel` i `icon` su za donju traku na telefonu.
- */
+/** Redoslijed grupa; `ink` je token iz globals.css za oznaku grupe. */
 export const PANEL_GROUPS: readonly {
   readonly id: PanelGroupId;
   readonly label: string;
-  readonly tabLabel: string;
   readonly ink: string;
-  readonly icon: ComponentType<SVGProps<SVGSVGElement>>;
 }[] = [
-  { id: "now", label: "Now", tabLabel: "Now", ink: "var(--disc)", icon: SectionIconPaperAirplane },
-  { id: "shoot", label: "Shoot", tabLabel: "Shoot", ink: "var(--moon)", icon: SectionIconCamera },
-  { id: "sky", label: "Sky and place", tabLabel: "Sky", ink: "var(--observer)", icon: SectionIconMoon },
-  { id: "feeds", label: "Feeds", tabLabel: "Feeds", ink: "var(--live)", icon: SectionIconFlightSource },
-  { id: "plan", label: "Plan", tabLabel: "Plan", ink: "var(--ink-2)", icon: SectionIconTime },
+  { id: "now", label: "Now", ink: "var(--disc)" },
+  { id: "shoot", label: "Shoot", ink: "var(--moon)" },
+  { id: "sky", label: "Sky and place", ink: "var(--observer)" },
+  { id: "feeds", label: "Feeds", ink: "var(--live)" },
+  { id: "plan", label: "Plan", ink: "var(--ink-2)" },
 ] as const;
 
 /* -------------------------------------------------------------------------- */
@@ -195,18 +184,20 @@ export const PANELS_BY_GROUP = PANEL_GROUPS.map((g) => ({
   panels: PANEL_REGISTRY.filter((p) => p.group === g.id),
 }));
 
-/** Stavke koje postoje samo na telefonu. */
-export const MOBILE_EXTRA_PANELS: readonly {
-  readonly id: Exclude<MobilePanelId, PanelId>;
-  readonly group: PanelGroupId;
-  readonly label: string;
-  readonly icon: ComponentType<SVGProps<SVGSVGElement>>;
-}[] = [
-  { id: "time", group: "sky", label: "Time and Moon line", icon: SectionIconTime },
-  { id: "mapkey", group: "feeds", label: "Map layers and altitude", icon: SectionIconField },
+/** Telefon: paneli na jedan dodir; sve ostalo je u popisu "More". */
+export const MOBILE_TAB_PANELS: readonly { readonly id: PanelId; readonly tabLabel: string }[] = [
+  { id: "active", tabLabel: "Active" },
+  { id: "candidates", tabLabel: "Candidates" },
+  { id: "photo", tabLabel: "Photo" },
+  { id: "moon", tabLabel: "Moon" },
 ] as const;
 
-export function mobilePanelLabel(id: MobilePanelId): string {
-  const extra = MOBILE_EXTRA_PANELS.find((p) => p.id === id);
-  return extra ? extra.label : PANEL_BY_ID[id as PanelId].label;
+export function isMobileTabPanel(id: PanelId): boolean {
+  return MOBILE_TAB_PANELS.some((tab) => tab.id === id);
 }
+
+/** Popis "More": grupe bez panela koji su već na donjoj traci. */
+export const MOBILE_MORE_GROUPS = PANELS_BY_GROUP.map((group) => ({
+  ...group,
+  panels: group.panels.filter((panel) => !isMobileTabPanel(panel.id)),
+})).filter((group) => group.panels.length > 0);

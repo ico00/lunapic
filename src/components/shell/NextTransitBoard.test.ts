@@ -102,6 +102,15 @@ describe("NextTransitBoard", () => {
     expect(render({ showEphemeris: false })).toContain("Loading the sky");
   });
 
+  it("fits the answer into one strip on a phone", () => {
+    const html = render({ variant: "strip" });
+    expect(html).toContain("Disc");
+    expect(html).toContain("CTN 612");
+    expect(html).not.toContain("Show on map");
+    expect(render({ variant: "strip", candidates: [] })).toContain("12 aircraft in range");
+    expect(render({ variant: "strip", moon: { ...moon, altitudeDeg: 2 } })).toBe("");
+  });
+
   it("draws nothing while the Moon is below the usable horizon", () => {
     const low = { ...moon, altitudeDeg: 2 };
     expect(render({ moon: low })).toBe("");
