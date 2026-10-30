@@ -43,7 +43,7 @@ The production host does **not** need to mirror the full git tree.
 **Required to run** (after a successful `next build` on a machine with the same `cpanelBasePath.cjs`):
 
 - `.next/` **including `.next/node_modules/`** (symlink aliases for `serverExternalPackages` — see the rsync rules below), `public/`, `node_modules/`, `package.json` (+ lockfile recommended — the server `npm install` reads it)
-- `server.js`, `next.config.ts`, `cpanelBasePath.cjs` + root runtime CJS moduli (`flightLogSchema.cjs`, `sdrSnapshot.cjs`, `sdrUrl.cjs`, `avionixSnapshot.cjs`)
+- `server.js`, `next.config.ts`, `cpanelBasePath.cjs` + root runtime CJS moduli (`flightLogSchema.cjs`, `sdrSnapshot.cjs`, `sdrUrl.cjs`, `avionixSnapshot.cjs`, `receiverWatchdog.cjs`, `aircraftIndexLookup.cjs`)
 
 **Not required** for run-only: `src/`, `e2e/`, tests, `documentation/`, `.git/`, and most dev config — as long as `.next` is complete.
 

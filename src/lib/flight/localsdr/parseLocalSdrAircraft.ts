@@ -1,4 +1,5 @@
 import { canonicalIcao24Id } from "@/lib/flight/icao24CanonicalId";
+import { adsbEmitterCategoryFromDesignator } from "@/lib/flight/opensky/emitterCategory";
 import type { FlightState } from "@/types/flight";
 import type { GeoBounds } from "@/types/geo";
 
@@ -134,7 +135,7 @@ export function localSdrAircraftToFlightState(
     groundSpeedMps,
     trackDeg,
     timestamp,
-    adsbEmitterCategory: null,
+    adsbEmitterCategory: adsbEmitterCategoryFromDesignator(row.category),
     aircraftType,
     airlineName: null,
     registration,

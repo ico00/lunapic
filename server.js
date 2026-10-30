@@ -89,6 +89,9 @@ const { readSdrSnapshot, isSnapshotFresh } = requireFromRoot(
   path.resolve(process.cwd(), "sdrSnapshot.cjs")
 );
 
+const { lookupAircraft } = requireFromRoot(
+  path.resolve(process.cwd(), "aircraftIndexLookup.cjs")
+);
 const { createReceiverWatchdog } = requireFromRoot(
   path.resolve(process.cwd(), "receiverWatchdog.cjs")
 );
@@ -635,6 +638,7 @@ async function startFlightLogger() {
         groundSpeedMps: speed_mps,
         trackDeg: track_deg,
         verticalRateFpm: vert_rate_fpm,
+        aircraftType: aircraft_type,
         timestamp: logged_at,
         providerId: "localsdr",
       });
@@ -717,6 +721,7 @@ async function startFlightLogger() {
           groundSpeedMps: speed_mps,
           trackDeg: track_deg,
           verticalRateFpm: vert_rate_fpm,
+          aircraftType: aircraft_type,
           timestamp: logged_at,
           providerId: "avionix",
         });
@@ -741,16 +746,19 @@ async function startFlightLogger() {
     // For aircraft whose registration/type weren't in aircraft.json, fetch from the
     // tar1090 per-aircraft DB endpoint (same data the tar1090 UI uses). Results are
     // cached in icaoMetaCache so each ICAO24 is fetched at most once per process run.
-    if (TAR1090_DB_BASE && posRows.length > 0) {
-      const toFetch = posRows
-        .filter((r) => r[11] === null && r[12] === null && !icaoMetaCache.has(r[0]))
-        .map((r) => r[0]);
-      if (toFetch.length > 0) {
-        await Promise.all(toFetch.map((icao) => fetchTar1090Meta(icao)));
+    // In push mode there is no tar1090 to ask, so the OpenSky index answers instead.
+    if (posRows.length > 0) {
+      if (TAR1090_DB_BASE) {
+        const toFetch = posRows
+          .filter((r) => r[11] === null && r[12] === null && !icaoMetaCache.has(r[0]))
+          .map((r) => r[0]);
+        if (toFetch.length > 0) {
+          await Promise.all(toFetch.map((icao) => fetchTar1090Meta(icao)));
+        }
       }
       for (const r of posRows) {
         if (r[11] !== null || r[12] !== null) continue;
-        const meta = icaoMetaCache.get(r[0]);
+        const meta = TAR1090_DB_BASE ? icaoMetaCache.get(r[0]) : lookupAircraft(r[0]);
         if (!meta) continue;
         r[11] = meta.r;
         r[12] = meta.t;
@@ -814,7 +822,13 @@ async function startFlightLogger() {
       const cur = liveFlightsByIcao.get(f.icao24);
       if (!cur || f.timestamp >= cur.timestamp) liveFlightsByIcao.set(f.icao24, f);
     }
-    triggerTransitScan([...liveFlightsByIcao.values()]);
+    // Tip nosi stvarnu duljinu aviona u scan, pa push i klijent računaju isti disk.
+    triggerTransitScan(
+      [...liveFlightsByIcao.values()].map((f) => ({
+        ...f,
+        aircraftType: f.aircraftType ?? lookupAircraft(f.icao24)?.t ?? null,
+      }))
+    );
   }
 
   poll().catch(() => {});

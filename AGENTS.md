@@ -375,8 +375,13 @@ dimenzije** kad su poznate, inače default 40 m:
    disk radius), `ViewfinderPreview` (length → silueta).
 
 Avion bez zapisa u indeksu (novi/vojni/čarter) ostaje na defaultu 40 m —
-konzervativno veći disk. **Server-side scan** (`/api/transit/scan`) ne radi
-index lookup pa uvijek koristi 40 m default.
+konzervativno veći disk. **Server-side scan** (`/api/transit/scan`) dobiva tip od
+`server.js` (`aircraftIndexLookup.cjs`, isti indeks iz datoteke) i iz njega računa
+iste dimenzije, pa push i klijent procjenjuju isti disk.
+
+Pi vrti `readsb` bez baze tipova (feed nema `t`/`r`/`desc`), pa isti lookup puni i
+`positions` i `aircraft` za `localsdr`. Pokrivenost živog feeda je ~68 % (2026-10-30,
+119 od 174 aviona). Povijesni redovi se ne dopunjuju.
 
 ## Obrnuti problem — „gdje stati” (`moonShadowSpot.ts`)
 
