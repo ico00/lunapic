@@ -22,6 +22,8 @@ vi.mock("@/lib/flight/flightProviderRegistry", () => ({
 }));
 
 const { useMoonTransitStore } = await import("./moon-transit-store");
+// Zadano stanje prije nego što ga ijedan test prepiše setState-om.
+const INITIAL_FEEDS = useMoonTransitStore.getState().liveFlightFeeds;
 
 const BOUNDS = { north: 46.7, south: 44.9, east: 17.4, west: 14.8 };
 
@@ -411,5 +413,50 @@ describe("selekcija praćenog leta", () => {
     const s = useMoonTransitStore.getState();
     expect(s.selectedFlightId).toBe("aaa111");
     expect(s.selectedFlightMissingSinceMs).toBeNull();
+  });
+});
+
+describe("zadani live izvori", () => {
+  beforeEach(() => {
+    useMoonTransitStore.setState({
+      flightProvider: "opensky",
+      liveFlightFeeds: INITIAL_FEEDS,
+      selectedFlightId: null,
+    });
+  });
+
+  it("vlastiti prijemnik je uključen, web izvori i Avionix isključeni", () => {
+    expect(INITIAL_FEEDS).toEqual({
+      opensky: false,
+      adsbone: false,
+      localsdr: true,
+      avionix: false,
+    });
+  });
+
+  it("web izvori se i dalje mogu ručno upaliti", () => {
+    useMoonTransitStore.getState().setLiveFlightFeeds({ opensky: true });
+    expect(useMoonTransitStore.getState().liveFlightFeeds).toEqual({
+      opensky: true,
+      adsbone: false,
+      localsdr: true,
+      avionix: false,
+    });
+  });
+
+  it("Avionix se ne može uključiti dok uređaj nije spojen (AVIONIX_FEED_AVAILABLE=false)", () => {
+    useMoonTransitStore.getState().setLiveFlightFeeds({ avionix: true });
+    expect(useMoonTransitStore.getState().liveFlightFeeds.avionix).toBe(false);
+  });
+
+  it("zadnji uključeni izvor se ne može ugasiti", () => {
+    useMoonTransitStore.getState().setLiveFlightFeeds({ localsdr: false });
+    expect(useMoonTransitStore.getState().liveFlightFeeds.localsdr).toBe(true);
+  });
+
+  it("sa samo LunaPic izvorom upit ide samo na localsdr (bez OpenSkya)", async () => {
+    calls.length = 0;
+    await useMoonTransitStore.getState().loadFlightsInBounds(BOUNDS);
+    expect(calls).toEqual(["localsdr"]);
   });
 });

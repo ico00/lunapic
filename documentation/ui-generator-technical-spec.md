@@ -244,6 +244,22 @@ const off = `... text-zinc-300 hover:bg-zinc-800 hover:text-zinc-50`; // isklju�
 - Aktivni red: **`bg-sky-500/15`** + **`text-sky-200`** — ne `blue`, ne `yellow`.
 - `yellow-*` nije u paleti; za akcent teksta koristiti **`amber-*`** (lokacija/upozorenja) ili **`sky-*`** (selekcija/toggle).
 
+### 4a.2a Onemogućen red (izvor koji trenutno nije dostupan)
+
+Red čiji se izvor ne može uključiti (npr. **Avionix Nano** dok uređaj nije spojen,
+`AVIONIX_FEED_AVAILABLE = false`) ostaje na popisu, ali:
+
+- checkbox je **`disabled`** i **nikad `checked`**; klase checkboxa ostaju
+  `shellAccentCheckboxClass` uz `disabled:cursor-not-allowed` (zasivljenje daje red, ne checkbox);
+- red nema ni on ni hover stanje: `cursor-not-allowed opacity-60`, tekst
+  **`text-[color:var(--t-tertiary)]`** (ne `zinc-*`), bez `bg-sky-*` i bez hover pozadine;
+- red nosi `title` s razlogom (npr. „Avionix Nano is not connected”) i
+  `aria-disabled="true"`; bez brojača, bez „↑ priority”, bez „offline” bedža.
+
+Zasivljenje je **jednom, na redu** (`opacity-60`), ne i na checkboxu — inače se
+množi (0.6 × 0.6). `opacity-60` (a ne `text-zinc-600`) čuva čitljivost naziva i
+radi isto na tekstu i na checkboxu.
+
 ### 4a.3 Combobox trigger hover/fokus
 
 ```

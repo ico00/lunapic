@@ -10,6 +10,13 @@ export type FlightProviderId = (typeof FLIGHT_PROVIDER_IDS)[number];
 export const FLIGHT_PROVIDER_COMBO_IDS = ["opensky", "adsbone", "localsdr", "avionix"] as const;
 
 /**
+ * Avionix Nano trenutno nije spojen (2026-10-30): izvor ostaje na popisu, ali je
+ * zasivljen, nikad uključen i ne može se kliknuti (store ga drži na `false`).
+ * Vrati na `true` kad se uređaj ponovno spoji — jedino mjesto koje to mijenja.
+ */
+export const AVIONIX_FEED_AVAILABLE = false;
+
+/**
  * Strategy interface for external flight data (OpenSky, custom feeds, mock).
  * Implementations are swapped without changing domain logic.
  */
