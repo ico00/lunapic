@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo } from "react";
+import { useMemo } from "react";
 import { useWallNowMs } from "@/hooks/useWallNowMs";
 import {
   CAUTION_BELOW_DEG,
@@ -28,8 +28,7 @@ const SHADOW_BUCKET_MS = 5_000;
 /** Isti horizont kao `MAX_ALIGNMENT_LOOKAHEAD_SEC`: dalje predviđanje ne vrijedi. */
 const PREDICTION_LIMIT_MS = 300_000;
 
-type BoardVariant = "rail" | "sheet";
-const VariantContext = createContext<BoardVariant>("rail");
+type BoardVariant = "rail" | "sheet" | "strip";
 
 function clock(ms: number): string {
   return new Date(ms).toLocaleTimeString("en-GB", {
@@ -69,8 +68,12 @@ type Props = {
   isPlanned: boolean;
   watchedFlightCount: number;
   onOpenCandidates: () => void;
-  /** `rail` = uz izbornik na desktopu, `sheet` = donji panel na telefonu. */
+  /**
+   * `rail` = uz izbornik na desktopu. Telefon: `strip` je uska traka iznad
+   * karte, a dodir (`onExpand`) otvara cijelu ploču kao `sheet`.
+   */
   variant?: BoardVariant;
+  onExpand?: () => void;
 };
 
 export function NextTransitBoard({
@@ -84,8 +87,8 @@ export function NextTransitBoard({
   watchedFlightCount,
   onOpenCandidates,
   variant = "rail",
+  onExpand,
 }: Props) {
-  const compact = variant === "sheet";
   const nowMs = useWallNowMs(1000);
   const latencySkewMs = useMoonTransitStore((s) => s.openSkyLatencySkewMs);
   const focalMm = useMoonTransitStore((s) => s.cameraFocalLengthMm);
@@ -161,6 +164,38 @@ export function NextTransitBoard({
   }, [detailFlightId, alignmentKnown, shadowBucket, observer.lat, observer.lng, observer.groundHeightMeters]);
 
   /* ------------------------------ prazna stanja ---------------------------- */
+
+  if (variant === "strip") {
+    if (!showEphemeris || moonLow) return null;
+    if (isPlanned) {
+      return <Strip onExpand={onExpand} title="Planning mode" detail="Sync to now for live candidates." />;
+    }
+    if (!subject || !detail) {
+      return (
+        <Strip
+          onExpand={onExpand}
+          title="No transit in the next 5 minutes"
+          detail={`${watchedFlightCount} aircraft in range · Moon ${formatFixed(moon.altitudeDeg, 0)}°`}
+        />
+      );
+    }
+    const inside = standing != null && Math.abs(standing.offsetRight) <= standing.tolerance;
+    return (
+      <Strip
+        onExpand={onExpand}
+        tag={subject.willTransit ? "Disc" : "Frame"}
+        isDisc={subject.willTransit}
+        countdown={countdown(detail.pack.timeToAlignmentSec ?? 0)}
+        title={[flightLabel(subject), subject.flight.aircraftType].filter(Boolean).join(" · ")}
+        detail={
+          standing
+            ? `${inside ? "On the line" : "Off the line"}, ${formatFixed(Math.abs(standing.offsetRight), 0)} m ${standing.offsetRight >= 0 ? "right" : "left"}`
+            : ""
+        }
+        detailTone={standing ? (inside ? "good" : "bad") : undefined}
+      />
+    );
+  }
 
   if (!showEphemeris) {
     return <Shell variant={variant}><p className="px-4 py-6 text-[length:var(--fs-body)] text-[color:var(--ink-2)]">Loading the sky…</p></Shell>;
@@ -285,7 +320,7 @@ export function NextTransitBoard({
             </span>
           </div>
           <LinePosition offset={standing.offsetRight} tolerance={standing.tolerance} />
-          <p className="mt-1 text-[length:var(--fs-meta)] text-[color:var(--ink-3)] max-md:hidden">
+          <p className="mt-1 text-[length:var(--fs-meta)] text-[color:var(--ink-3)]">
             Facing the Moon. The disc stays covered within{" "}
             <b className="font-semibold text-[color:var(--ink-2)]">±{formatFixed(standing.tolerance, 0)} m</b>
             {Math.abs(standing.offsetRight) > standing.tolerance
@@ -295,7 +330,7 @@ export function NextTransitBoard({
         </div>
       ) : null}
 
-      <dl className={`grid-cols-3 border-t border-[color:var(--hair-soft)] ${compact ? "hidden" : "grid"}`}>
+      <dl className="grid grid-cols-3 border-t border-[color:var(--hair-soft)]">
         <Fact label="Range" value={formatFixed(pack.futureSlantMeters != null ? pack.futureSlantMeters / 1000 : (shot?.slantRangeMeters ?? 0) / 1000, 0)} unit="km" />
         <Fact label="Disc coverage" value={shot ? formatFixed(shot.moonCoveragePercent, 1) : "—"} unit="%" />
         <Fact
@@ -315,17 +350,7 @@ export function NextTransitBoard({
         </button>
       </div>
 
-      {compact && ordered.length > 1 ? (
-        <button
-          type="button"
-          onClick={onOpenCandidates}
-          className="min-h-[42px] border-t border-[color:var(--hair-soft)] px-4 text-left text-[length:var(--fs-meta)] font-semibold text-[color:var(--ink-2)]"
-        >
-          All {ordered.length} candidates
-        </button>
-      ) : null}
-
-      {!compact && others.length > 0 ? (
+      {others.length > 0 ? (
         <div className="min-h-0 flex-1 overflow-y-auto border-t border-[color:var(--hair-soft)]">
           <div className="flex items-center justify-between px-4 pb-1 pt-2.5 text-[length:var(--fs-meta)] font-bold text-[color:var(--ink-2)]">
             <span>Other candidates</span>
@@ -378,21 +403,18 @@ export function NextTransitBoard({
 /* ------------------------------ dijelovi ----------------------------------- */
 
 function Shell({ children, variant }: { children: React.ReactNode; variant: BoardVariant }) {
-  const frame =
-    "pointer-events-auto flex flex-col overflow-hidden rounded-[var(--r-panel)] border border-[color:var(--hair)] bg-[color:var(--panel)]";
+  // Telefon: sadržaj panela, okvir daje `MobileSheet`.
   if (variant === "sheet") {
     return (
-      <VariantContext.Provider value="sheet">
-        <section aria-label="Next transit" className={`${frame} relative min-h-0 overflow-y-auto`}>
-          {children}
-        </section>
-      </VariantContext.Provider>
+      <section aria-label="Next transit" className="-mx-3 -my-3 flex flex-col">
+        {children}
+      </section>
     );
   }
   return (
     <section
       aria-label="Next transit"
-      className={`${frame} absolute left-[216px] z-[15] w-[408px]`}
+      className="pointer-events-auto absolute left-[216px] z-[15] flex w-[408px] flex-col overflow-hidden rounded-[var(--r-panel)] border border-[color:var(--hair)] bg-[color:var(--panel)]"
       style={{
         top: "calc(3.5rem + env(safe-area-inset-top) + 1rem)",
         // Ispod ploče stoje Layers i legenda visina (lijevi rub, iznad trake
@@ -402,6 +424,68 @@ function Shell({ children, variant }: { children: React.ReactNode; variant: Boar
     >
       {children}
     </section>
+  );
+}
+
+/** Telefon: odgovor u jednom retku, da karta, vrijeme i legenda ostanu vidljivi. */
+function Strip({
+  onExpand,
+  tag,
+  isDisc = false,
+  countdown: time,
+  title,
+  detail,
+  detailTone,
+}: {
+  onExpand?: () => void;
+  tag?: string;
+  isDisc?: boolean;
+  countdown?: string;
+  title: string;
+  detail: string;
+  detailTone?: "good" | "bad";
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onExpand}
+      aria-label={`Next transit: ${time ? `${tag} in ${time}, ` : ""}${title}. Open details.`}
+      className="pointer-events-auto flex min-h-[52px] w-full items-center gap-2.5 rounded-[var(--r-panel)] border border-[color:var(--hair)] bg-[color:var(--panel)] px-3 py-1.5 text-left transition-transform duration-150 active:scale-[0.98]"
+    >
+      {tag ? (
+        <span
+          className={`inline-flex h-[26px] shrink-0 items-center rounded-full px-2.5 text-[length:var(--fs-label)] font-extrabold ${
+            isDisc ? "bg-[color:var(--disc)] text-[#1a0703]" : "bg-[color:var(--observer)] text-[#06143a]"
+          }`}
+        >
+          {tag}
+        </span>
+      ) : null}
+      {time ? (
+        <span className={`shrink-0 text-[length:var(--fs-h1)] font-extrabold ${isDisc ? "text-[color:var(--disc-text)]" : "text-[color:var(--observer-text)]"}`}>
+          {time}
+        </span>
+      ) : null}
+      <span className="min-w-0 flex-1">
+        <b className="block truncate text-[length:var(--fs-meta)] font-extrabold">{title}</b>
+        {detail ? (
+          <small
+            className={`block truncate text-[length:var(--fs-label)] font-semibold ${
+              detailTone === "good"
+                ? "text-[color:var(--live)]"
+                : detailTone === "bad"
+                  ? "text-[color:var(--disc-text)]"
+                  : "text-[color:var(--ink-3)]"
+            }`}
+          >
+            {detail}
+          </small>
+        ) : null}
+      </span>
+      <svg className="h-4 w-4 shrink-0 text-[color:var(--ink-3)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M5 15l7-7 7 7" />
+      </svg>
+    </button>
   );
 }
 
@@ -461,12 +545,11 @@ function TransitLine({
   leaveLabel?: string | null;
   gapNote?: string | null;
 }) {
-  const compact = useContext(VariantContext) === "sheet";
   const ink = idle ? "#33466f" : isDisc ? "var(--disc)" : "var(--observer)";
   return (
     <div className="px-2 pb-1 pt-2.5">
       <svg
-        viewBox={compact ? "0 18 392 104" : "0 -18 392 140"}
+        viewBox="0 -18 392 140"
         className="h-auto w-full overflow-visible"
         role="img"
         aria-label={idle ? "Prediction line from now to five minutes ahead, no alignment" : "Transit line from now to alignment"}
@@ -500,27 +583,19 @@ function TransitLine({
         {enterLabel ? (
           <>
             <circle cx="146" cy="40" r="7" fill="var(--ground)" stroke="var(--ink)" strokeWidth="3" />
-            {compact ? null : (
-              <>
-                <text x="146" y="14" textAnchor="middle" className="fill-[color:var(--ink)] text-[13px] font-bold">{enterLabel}</text>
-                <text x="146" y="-2" textAnchor="middle" className="fill-[color:var(--ink-2)] text-[12px] font-semibold">Enters disc</text>
-              </>
-            )}
+                        <text x="146" y="14" textAnchor="middle" className="fill-[color:var(--ink)] text-[13px] font-bold">{enterLabel}</text>
+            <text x="146" y="-2" textAnchor="middle" className="fill-[color:var(--ink-2)] text-[12px] font-semibold">Enters disc</text>
           </>
         ) : null}
         {leaveLabel ? (
           <>
             <circle cx="330" cy="40" r="7" fill="var(--ground)" stroke="var(--ink)" strokeWidth="3" />
-            {compact ? null : (
-              <>
-                <text x="330" y="14" textAnchor="middle" className="fill-[color:var(--ink)] text-[13px] font-bold">{leaveLabel}</text>
-                <text x="330" y="-2" textAnchor="middle" className="fill-[color:var(--ink-2)] text-[12px] font-semibold">Leaves disc</text>
-              </>
-            )}
+                        <text x="330" y="14" textAnchor="middle" className="fill-[color:var(--ink)] text-[13px] font-bold">{leaveLabel}</text>
+            <text x="330" y="-2" textAnchor="middle" className="fill-[color:var(--ink-2)] text-[12px] font-semibold">Leaves disc</text>
           </>
         ) : null}
         {gapNote ? (
-          <text x="330" y={compact ? 30 : 20} textAnchor="middle" className="fill-[color:var(--ink-2)] text-[12px] font-semibold">{gapNote}</text>
+          <text x="330" y="20" textAnchor="middle" className="fill-[color:var(--ink-2)] text-[12px] font-semibold">{gapNote}</text>
         ) : null}
       </svg>
     </div>

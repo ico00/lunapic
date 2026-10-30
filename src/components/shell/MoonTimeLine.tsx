@@ -97,6 +97,7 @@ export function MoonTimeLine({
   showEphemeris,
   isMoonBelowHorizon,
   observer,
+  dense = false,
 }: {
   anchorMs: number;
   widthHours: number;
@@ -105,6 +106,8 @@ export function MoonTimeLine({
   showEphemeris: boolean;
   isMoonBelowHorizon: boolean;
   observer: GroundObserver;
+  /** Telefon: niska traka bez oznaka, uska je za nazive stanica. */
+  dense?: boolean;
 }) {
   const mounted = useHasMounted();
   const max = Math.max(0, widthHours);
@@ -176,7 +179,7 @@ export function MoonTimeLine({
 
   return (
     <div
-      className={`relative h-full min-w-0 flex-1 px-[22px] ${
+      className={`relative h-full min-w-0 flex-1 ${dense ? "px-3" : "px-[22px]"} ${
         isMoonBelowHorizon && showEphemeris ? "opacity-70" : ""
       }`}
     >
@@ -184,6 +187,7 @@ export function MoonTimeLine({
         ref={trackRef}
         data-testid="moon-time-line"
         className="relative h-full cursor-pointer touch-none select-none has-[:focus-visible]:rounded-[var(--r-ctl)] has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-[color:var(--ink)]"
+        style={dense ? { transform: "translateY(-3.5px)" } : undefined}
         aria-hidden={!profile}
         onPointerDown={(e) => {
           e.currentTarget.setPointerCapture(e.pointerId);
@@ -221,6 +225,7 @@ export function MoonTimeLine({
                   style={{ left: pos(st.frac) }}
                 />
                 <span
+                  hidden={dense}
                   className={`absolute ${rows?.[i] === "above" ? "top-[4px]" : "top-[46px]"} whitespace-nowrap text-[length:var(--fs-label)] font-semibold text-[color:var(--ink-3)]`}
                   style={{
                     left: pos(st.frac),
@@ -242,6 +247,7 @@ export function MoonTimeLine({
               style={{ left: pos(frac) }}
             />
             <span
+              hidden={dense}
               className="absolute top-[46px] text-[length:var(--fs-label)] font-bold text-[color:var(--ink-2)]"
               style={{ left: pos(frac), transform: frac > 0.9 ? "translateX(-100%)" : "translateX(-7px)" }}
             >

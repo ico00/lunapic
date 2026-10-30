@@ -392,7 +392,7 @@ export function MapDisplayModeLayersControl() {
         <button
           ref={triggerRef}
           type="button"
-          className="pointer-events-auto mt-glass-elevated flex min-h-0 w-[4.75rem] flex-col overflow-hidden max-md:h-24 md:h-full rounded-[var(--r-panel)] outline-none transition hover:ring-1 hover:ring-[color:var(--observer)] focus-visible:ring-2 focus-visible:ring-[color:var(--observer)] active:scale-[0.98] md:h-auto"
+          className="pointer-events-auto mt-glass-elevated flex h-full min-h-0 w-[4.75rem] flex-col overflow-hidden rounded-[var(--r-panel)] outline-none transition hover:ring-1 hover:ring-[color:var(--observer)] focus-visible:ring-2 focus-visible:ring-[color:var(--observer)] active:scale-[0.98] md:h-auto"
           aria-expanded={open}
           aria-haspopup="dialog"
           aria-controls={open ? menuId : undefined}

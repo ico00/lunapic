@@ -124,14 +124,15 @@ Boje imaju **fiksan posao** i ne smiju se koristiti za dekoraciju ni za kategori
 ### 2b.7 Responzivnost
 
 - Desktop (> 760px): gornja traka 56px, izbornik 200px, ploča, vremenska traka dolje, Layers (`left: 216px`) i legenda visine (`left: 300px`) dolje lijevo uz izbornik, `bottom: 6.25rem`. Ploča „Next transit” ostavlja ispod sebe 13rem da ih ne prekrije; otvoreni panel (`ToolSheet`) ih smije prekriti. Moon strip (kartica „Moon now” gore desno) je uklonjen — isti podaci su u panelu Moon i na traci vremena. Do 1280px se skrivaju sekundarne značke i manje oznake na traci.
-- Telefon (`< md`, 768px; isti prag kao `useIsMdUp`): izbornik postaje donja traka s 5 grupa (*Now, Shoot, Sky, Feeds, Plan*, `MobileShell.tsx`), ploča postaje donji panel (`max-height: 70%`) sa satom, linijom, „Are you on the line?” i radnjom, bez dometa i ostalih kandidata. Ciljevi dodira ≥ 42px.
-- Dodir na grupu otvara popis njezinih panela iznad trake, panel se otvara na istom mjestu sa strelicom natrag. Tab *Now* vraća ploču; drugi dodir otvara popis Transits i Candidates. Točka `--disc` na tabu: *Now* kad postoji prolaz preko diska, *Feeds* kad vlastiti prijemnik ne odgovara.
-- Traka vremena je stavka *Time and Moon line* u grupi *Sky*, legenda visina i Layers su *Map layers and altitude* u grupi *Feeds* (`MOBILE_EXTRA_PANELS`). Dok je vrijeme pomaknuto, ispod gornje trake stoji značka sa simuliranim vremenom i gumbom Sync, pa je stanje uvijek vidljivo.
-- Gornja traka na telefonu: logo, pretraga, oblaci. GPS i „Set my location here” su u panelu Observer; „Focus on me” je plutajući gumb desno gore.
-- Dok je avion odabran, njegova kartica na karti zamjenjuje ploču.
-- Karta se na telefonu pomiče tako da je promatrač iznad ploče, ne ispod nje: `useMapBottomInset` postavlja Mapbox `padding`, a ne pomiče canvas, pa `flyTo` i „Set my location here” poštuju vidljivi dio. Visina se zaokružuje na 24px da sitne promjene ploče ne miču kartu.
+- Telefon (`< md`, 768px; isti prag kao `useIsMdUp`): donja traka ima pet tabova, **Active, Candidates, Photo, Moon i More** (`MOBILE_TAB_PANELS`, `MobileShell.tsx`). Prva četiri otvaraju panel jednim dodirom, drugi dodir ga zatvara. More je popis svih ostalih panela po grupama izbornika, s About na dnu, a panel otvoren iz njega ima strelicu natrag. Brojčić na tabu: Active `--disc`, Candidates `--observer`; točka `--disc` na More kad vlastiti prijemnik ne odgovara. **Razlog:** grupe s izbornika stavile su najčešće panele dva dodira daleko i sakrile vrijeme, Layers i legendu, što je u terenu krivo (korisnička povratna informacija 2026-10-30).
+- **Stalno vidljivo iznad donje trake**, odozgo prema dolje: uska ploča (`NextTransitBoard variant="strip"`), Layers + legenda visine, vremenska traka (`TimeRibbon compact`, 56px: sat, linija bez oznaka stanica, datum, Sync). Ciljevi dodira ≥ 42px.
+- **Uska ploča** (min. 52px) daje odgovor u jednom retku: oznaka, odbrojavanje, avion, „On the line” ili „Off the line” s pomakom; bez kandidata „No transit in the next 5 minutes” i broj aviona. Dodir otvara cijelu ploču u `MobileSheet` (`variant="sheet"`). Puna ploča nije stalno otvorena jer uz vrijeme i legendu ostavlja premalo karte.
+- Dok je vrijeme pomaknuto, sat na vremenskoj traci je u `--observer-text`, a ispod njega piše dan.
+- Gornja traka na telefonu: logo, pretraga, oblaci. **Use my GPS, Set my location here i Focus on me** su stupac gumba desno gore, jedan dodir; Mapbox zoom je ispod njih.
+- Dok je avion odabran, njegova kartica sjeda na mjesto uske ploče i legende. One su `invisible`, ne uklonjene, pa visina ostaje ista i karta se ne miče. Vremenska traka ostaje vidljiva.
+- Karta se na telefonu pomiče tako da je promatrač iznad traka, ne ispod njih: `useMapBottomInset` postavlja Mapbox `padding`, a ne pomiče canvas, pa `flyTo` i „Set my location here” poštuju vidljivi dio. Visina se zaokružuje na 24px da sitne promjene ne miču kartu.
 
-### 2b.8 Sadržaj i jezik
+## 2b.8 Sadržaj i jezik
 
 - **Mjesec ispod 5° (`CRITICAL_BELOW_DEG`): ploča se ne crta.** Prazna kartica „Moon below the usable horizon” je zauzimala pola karte bez korisne informacije; traka vremena pokazuje kad Mjesec prelazi 5°. Ostala prazna stanja (Loading, Planning mode, No transit) ostaju.
 - Ploča odgovara redom: oznaka klase → naslov s odbrojavanjem („Moon crossing in 4:06”) → linija s vremenima → „Are you on the line?” (poprečni pomak i tolerancija iz `moonShadowSpot`) → domet, pokrivenost diska, ocjena kadra → akcije → ostali kandidati.
@@ -333,7 +334,7 @@ Silueta aviona (`#facc15` / `#fde047`) crta se **iznad** diska, pa je 15 % gornj
 
 - **`useIsMdUp()`** — `matchMedia("(min-width: 768px)")`, početno `false` (SSR/hidratacija sigurna). Prag za desktop i telefon.
 - Karta je `absolute inset-0`; sve ostalo su plohe iznad nje. Raspored i pragovi su u §2b.5 i §2b.7.
-- Mobilni sadržaj panela: `data-testid="mobile-deck-content"`; traka grupa: `data-testid="mobile-primary-nav"`, tabovi `mobile-shell-tab-<grupa>`, redovi popisa `mobile-panel-row-<panel>`.
+- Mobilni sadržaj panela: `data-testid="mobile-deck-content"`; donja traka: `data-testid="mobile-primary-nav"`, tabovi `mobile-shell-tab-<active|candidates|photo|moon|more>`, redovi popisa More `mobile-panel-row-<panel>`.
 
 ---
 
@@ -343,7 +344,7 @@ Silueta aviona (`#facc15` / `#fde047`) crta se **iznad** diska, pa je 15 % gornj
 - **Hydracija:** `useHasMounted` — labela „—” dok nije klijent (izbjegava mismatch datuma).
 - **Horizon dim:** ako je Mjesec ispod horizonta i ephemeris spreman: `opacity-70`.
 - **Prikaz vremena:** `referenceEpochMs` kao `toLocale*("en-GB", …)` sa `suppressHydrationWarning` gdje treba.
-- `TimeRibbon` crta desktop karticu, a s `compact` sadržaj panela *Time and Moon line* na telefonu.
+- `TimeRibbon` crta desktop karticu, a s `compact` nisku traku na telefonu (`MoonTimeLine dense`, bez oznaka stanica).
 
 ### 10.1 Planning date picker (time ribbon)
 
@@ -351,7 +352,7 @@ Silueta aviona (`#facc15` / `#fde047`) crta se **iznad** diska, pa je 15 % gornj
 - **Pozicioniranje popupa (desktop, `md+`):** **iznad sidra** (`bottom = innerHeight − rect.top + 8`), desni rub poravnat s gumbom, clamp na rubove viewporta (`8px`). Širina 272 px.
 - **Mobile (`<md`):** **full-screen modal** — backdrop `fixed inset-0 z-[280]`, `--ground-deep` na 80 %, kartica centrirana (`w-[min(22rem,100%)]`), dnevne ćelije povećane na `h-11 w-11` (touch target), dodatni ✕ gumb u headeru. Backdrop tap i Escape zatvaraju. Razlog: anchored popup se na malom ekranu miješa s altitude legendom i dockom.
 - **Kalendar semantika:** tjedan počinje ponedjeljkom (`Mo…Su`); prošli dani disabled (`--t-disabled`); **danas** = prsten `--live`; **odabrani (planning) dan** = puna ispuna `--observer` (odabrano vrijeme, §2b.2); hover `--panel-2`. Mjesečna navigacija ne ide u mjesece prije tekućeg. Zatvaranje: klik izvan + Escape.
-- **Pozicija:** na traci vremena između linije i Sync gumba (42px); na telefonu puni gumb „Plan a date”.
+- **Pozicija:** na traci vremena između linije i Sync gumba (42px), i na desktopu i na telefonu.
 - **Stanja:** neaktivno = `--panel-2` + `--hair`; **planning mode aktivan** = obrub `--observer`, tekst `--observer-text`.
 - **Ograničenja:** `min` = današnji lokalni datum; odabir današnjeg (ili ranijeg) datuma = povratak u live (`syncTimeToNow`). Budući datum → `setTimeAnchorPlanned(lokalna ponoć)`.
 - **Planning mode semantika:** store flag `timeAnchorIsPlanned`; `tickLiveTime` tada NE povlači sidro na now. Live-ovisni izračuni (kandidati, active transits, photographer) vraćaju prazno / reason `planningMode`; paneli prikazuju `.mt-note`. Ephemeris slojevi (Mjesec, putanja, koridor) rade normalno za odabrani dan.
@@ -408,16 +409,16 @@ Sve promjene vizuala na letovima / Mjesecu treba raditi kroz postojeće **source
 | Golden flash | 200 | Puni ekran |
 | Header mobile | 78 | |
 | MobileSheet | 75 | `absolute` |
-| Mobilna traka grupa (MobileTabBar) | 60 | `absolute bottom-0` |
-| Ploča "Next transit" | 15 | desktop i telefon |
-| Značka simuliranog vremena, Focus on me (telefon) | 14 | |
+| Mobilna donja traka (MobileTabBar) | 60 | `absolute bottom-0` |
+| Ploča "Next transit"; stupac traka na telefonu | 15 | |
+| Gumbi promatrača (telefon) | 14 | |
 | Map aircraft popup (CSS klasa) | 20 | |
 
 ---
 
 ## 12a. Mobilni bottom layout — CSS varijable
 
-**Nikad ne dodavaj `env(safe-area-inset-bottom)` direktno na `bottom` u komponentama iznad trake grupa.** SAI je već uračunat u `--mobile-dock-h`; dodavanje ga zasebno u svakom elementu duplira pomak na pravim uređajima s home indicatorom (iPhone ≈ +34px).
+**Nikad ne dodavaj `env(safe-area-inset-bottom)` direktno na `bottom` u komponentama iznad donje trake.** SAI je već uračunat u `--mobile-dock-h`; dodavanje ga zasebno u svakom elementu duplira pomak na pravim uređajima s home indicatorom (iPhone ≈ +34px).
 
 Jedino mjesto gdje se SAI računa je `globals.css`:
 
@@ -426,7 +427,7 @@ Jedino mjesto gdje se SAI računa je `globals.css`:
 --mobile-overlay-bottom: calc(var(--mobile-dock-h) + 0.5rem);
 ```
 
-Ploča, `MobileSheet` i izlaz iz Street Viewa koriste `bottom-[var(--mobile-overlay-bottom)]`. **Novi plutajući element iznad trake** koristi ovu varijablu ili gradi na njoj; ne uvoditi novu `calc(...+env(safe-area-inset-bottom))` konstantu.
+Stupac traka i `MobileSheet` koriste `bottom-[var(--mobile-overlay-bottom)]`. **Novi plutajući element iznad donje trake** koristi ovu varijablu ili gradi na njoj; ne uvoditi novu `calc(...+env(safe-area-inset-bottom))` konstantu.
 
 ---
 
@@ -438,7 +439,7 @@ Ploča, `MobileSheet` i izlaz iz Street Viewa koriste `bottom-[var(--mobile-over
 sidrišna y = rect.height - mobileBottomUiHeightPx()
 ```
 
-`mobileBottomUiHeightPx()` (`src/lib/map/selectedAircraftPopupAnchor.ts`) mjeri stvarnu visinu trake grupa (`data-testid="mobile-primary-nav"`) i dodaje 8px razmaka. Kartica raste prema gore; dok je avion odabran, ploča "Next transit" se ne crta (§2b.7).
+`mobileBottomUiHeightPx()` (`src/lib/map/selectedAircraftPopupAnchor.ts`) mjeri stvarnu visinu donje trake (`data-testid="mobile-primary-nav"`) i dodaje 72px: razmak 8, vremenska traka 56, razmak 8. Ako se visina vremenske trake promijeni, isti broj treba ažurirati ovdje. Kartica raste prema gore; dok je avion odabran, uska ploča i legenda su skrivene (§2b.7).
 
 ### Što NE raditi
 

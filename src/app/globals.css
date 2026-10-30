@@ -71,7 +71,7 @@
   --ease-ui: cubic-bezier(0.23, 1, 0.32, 1);
 
   /* — Mobilni bottom layout (jedino mjesto gdje se SAI računa) —————————
-     Traka grupa (6px + 52px + 6px + SAI) = 4rem + SAI.
+     Donja traka (6px + 52px + 6px + SAI) = 4rem + SAI.
      Sve komponente iznad trake referenciraju ove varijable umjesto da svaka
      zasebno dodaje env(safe-area-inset-bottom) — to je uzrokovalo duple
      pomake na pravim uređajima s home indicatorom.
@@ -525,15 +525,15 @@ body {
 /* ============================================================
    Mapbox NavigationControl — mobile prilagodba pozicije.
    Desktop: `bottom-right` (default kako je dodano u useMoonTransitMap).
-   Mobile: dno karte zauzimaju ploča i traka grupa, pa cijeli
-   `.mapboxgl-ctrl-bottom-right` kontejner ide gore desno, ispod gumba
-   „Focus on me” (gornja traka 3.5rem + 0.5rem + gumb 42px + 0.5rem).
+   Mobile: dno karte zauzimaju trake, pa cijeli `.mapboxgl-ctrl-bottom-right`
+   kontejner ide gore desno, ispod tri gumba promatrača
+   (gornja traka 3.5rem + 0.5rem + 3 × 42px + 2 × 0.25rem + 0.5rem).
    ============================================================ */
 @media (max-width: 767px) {
   .mapboxgl-ctrl-bottom-right {
     bottom: auto;
     right: 0.5rem;
-    top: calc(env(safe-area-inset-top, 0px) + 7.125rem);
+    top: calc(env(safe-area-inset-top, 0px) + 12.875rem);
     flex-direction: column;
     align-items: flex-end;
     gap: 0.25rem;
