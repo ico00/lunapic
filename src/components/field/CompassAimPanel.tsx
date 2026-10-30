@@ -52,11 +52,11 @@ export function CompassAimPanel() {
           Allow orientation (iOS)
         </button>
       )}
-      {err && <p className="mt-2 text-[length:var(--fs-meta)] text-red-400/90">{err}</p>}
+      {err && <p className="mt-2 text-[length:var(--fs-meta)] text-[color:var(--disc-text)]">{err}</p>}
       {listening && (
         <div className="mt-3 flex w-full min-w-0 flex-col items-center gap-2">
           <div
-            className="relative h-[7.5rem] w-[7.5rem] shrink-0 overflow-visible rounded-full border-2 border-zinc-600 bg-zinc-950/80 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
+            className="relative h-[7.5rem] w-[7.5rem] shrink-0 overflow-visible rounded-full border-2 border-[color:var(--hair)] bg-[color:var(--panel-2)]"
             aria-label="Compass rose and moon azimuth error: align gold needle to the top marker"
           >
             {/* Rotating rose: geographic frame; turns so cardinals track the horizon */}
@@ -87,9 +87,9 @@ export function CompassAimPanel() {
               {CARDINALS.map(({ label, deg }) => (
                 <span
                   key={label}
-                  className={`absolute left-1/2 top-1/2 select-none text-[0.55rem] font-semibold leading-none ${
+                  className={`absolute left-1/2 top-1/2 select-none text-[length:var(--fs-label)] font-semibold leading-none ${
                     label === "N"
-                      ? "text-amber-400/95"
+                      ? "text-[color:var(--ink)]"
                       : "text-[color:var(--t-secondary)]"
                   }`}
                   style={{
@@ -102,7 +102,7 @@ export function CompassAimPanel() {
               {INTERCARDINALS.map(({ label, deg }) => (
                 <span
                   key={label}
-                  className="absolute left-1/2 top-1/2 select-none text-[0.45rem] font-medium leading-none text-[color:var(--t-tertiary)]"
+                  className="absolute left-1/2 top-1/2 select-none text-[length:var(--fs-label)] font-medium leading-none text-[color:var(--t-tertiary)]"
                   style={{
                     transform: `translate(-50%, -50%) rotate(${deg}deg) translateY(-2.1rem) rotate(${headingForRose}deg)`,
                   }}
@@ -113,20 +113,20 @@ export function CompassAimPanel() {
             </div>
             {/* Fixed to screen: top of phone / forward in the horizontal plane */}
             <span
-              className="pointer-events-none absolute left-1/2 top-1 z-[12] -translate-x-1/2 text-[0.55rem] leading-none text-blue-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"
+              className="pointer-events-none absolute left-1/2 top-1 z-[12] -translate-x-1/2 text-[length:var(--fs-label)] leading-none text-[color:var(--ink)]"
               title="Top of phone — align the gold needle here when aimed at the moon"
             >
               ▲
             </span>
             <div
-              className="absolute left-1/2 top-1/2 z-[11] w-0.5 rounded-full bg-yellow-400 shadow shadow-blue-500/20"
+              className="absolute left-1/2 top-1/2 z-[11] w-0.5 rounded-full bg-[color:var(--moon)]"
               style={{
                 height: 40,
                 transform: `translate(-50%, -100%) rotate(${delta}deg)`,
                 transformOrigin: "50% 100%",
               }}
             />
-            <div className="absolute left-1/2 top-1/2 z-[11] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500 ring-1 ring-zinc-950" />
+            <div className="absolute left-1/2 top-1/2 z-[11] h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[color:var(--ink)]" />
           </div>
           <p className="w-full min-w-0 break-words px-1 text-center text-[length:var(--fs-meta)] leading-snug text-[color:var(--t-secondary)]">
             {hasHeading

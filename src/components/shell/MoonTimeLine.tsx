@@ -14,7 +14,8 @@ import type { GroundObserver } from "@/types/geo";
  * Vremenska traka kao linija sa stanicama (spec §2b.4): puna = Mjesec iznad
  * 12°, isprekidana = 5–12°, prigušena = ispod 5° (nema kandidata). Stanice su
  * vrhunac Mjeseca i prijelazi preko 5°. Povlačenje po liniji pomiče simulirano
- * vrijeme kao i stari klizač (isti `<input type="range">` ispod).
+ * vrijeme; cijela traka prima dodir, jer se na iOS-u prozirni `<input type="range">`
+ * pomiče samo s palca, a palac se ne vidi. Input ostaje za tipkovnicu.
  */
 
 const STEP_MIN = 15;
@@ -42,6 +43,8 @@ type Station = { frac: number; label: string; detail?: string };
 /** Procjena širine oznake (12px, semibold) — dovoljno za izbjegavanje preklapanja. */
 const CHAR_PX = 7;
 const LABEL_GAP_PX = 8;
+/** Oznaka smije izaći iz trake do ruba okvira (`px-[22px]`), ali ne preko njega. */
+const LABEL_EDGE_PX = 18;
 
 function labelWidthPx(text: string): number {
   return text.length * CHAR_PX;
@@ -78,11 +81,19 @@ export function placeStationLabels(
   return rows;
 }
 
+/** Pomak oznake kad bi centrirana izašla iz okvira trake (na telefonu je traka uska). */
+export function stationLabelShiftPx(x: number, textPx: number, trackPx: number): number {
+  const half = textPx / 2;
+  const overLeft = -LABEL_EDGE_PX - (x - half);
+  const overRight = x + half - (trackPx + LABEL_EDGE_PX);
+  return overLeft > 0 ? overLeft : overRight > 0 ? -overRight : 0;
+}
+
 export function MoonTimeLine({
   anchorMs,
   widthHours,
   offsetHours,
-  onSlider,
+  onOffsetHours,
   showEphemeris,
   isMoonBelowHorizon,
   observer,
@@ -90,7 +101,7 @@ export function MoonTimeLine({
   anchorMs: number;
   widthHours: number;
   offsetHours: number;
-  onSlider: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onOffsetHours: (hours: number) => void;
   showEphemeris: boolean;
   isMoonBelowHorizon: boolean;
   observer: GroundObserver;
@@ -149,6 +160,14 @@ export function MoonTimeLine({
     return () => ro.disconnect();
   }, []);
 
+  const seek = (e: React.PointerEvent<HTMLDivElement>) => {
+    const el = trackRef.current;
+    if (!el || !showEphemeris || max <= 0) return;
+    const rect = el.getBoundingClientRect();
+    const f = ((e.clientX - rect.left) / rect.width - 0.01) / 0.98;
+    onOffsetHours(Math.round(Math.min(1, Math.max(0, f)) * max * 60) * STEP_HOURS);
+  };
+
   const nowLabel = offsetHours < 0.05 ? "Now" : `+${formatFixed(offsetHours, 1)} h`;
   const nowX = trackPx * (0.01 + frac * 0.98);
   const nowW = labelWidthPx(nowLabel);
@@ -163,8 +182,16 @@ export function MoonTimeLine({
     >
       <div
         ref={trackRef}
-        className="relative h-full has-[:focus-visible]:rounded-[var(--r-ctl)] has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-[color:var(--ink)]"
+        data-testid="moon-time-line"
+        className="relative h-full cursor-pointer touch-none select-none has-[:focus-visible]:rounded-[var(--r-ctl)] has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-[color:var(--ink)]"
         aria-hidden={!profile}
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId);
+          seek(e);
+        }}
+        onPointerMove={(e) => {
+          if (e.currentTarget.hasPointerCapture(e.pointerId)) seek(e);
+        }}
       >
         {profile ? (
           <>
@@ -194,8 +221,15 @@ export function MoonTimeLine({
                   style={{ left: pos(st.frac) }}
                 />
                 <span
-                  className={`absolute ${rows?.[i] === "above" ? "top-[4px]" : "top-[46px]"} -translate-x-1/2 whitespace-nowrap text-[length:var(--fs-label)] font-semibold text-[color:var(--ink-3)]`}
-                  style={{ left: pos(st.frac) }}
+                  className={`absolute ${rows?.[i] === "above" ? "top-[4px]" : "top-[46px]"} whitespace-nowrap text-[length:var(--fs-label)] font-semibold text-[color:var(--ink-3)]`}
+                  style={{
+                    left: pos(st.frac),
+                    transform: `translateX(calc(-50% + ${stationLabelShiftPx(
+                      trackPx * (0.01 + st.frac * 0.98),
+                      labelWidthPx(st.label + (st.detail ?? "")),
+                      trackPx
+                    )}px))`,
+                  }}
                 >
                   {st.label}
                   {st.detail ? <span className="max-[1280px]:hidden">{st.detail}</span> : null}
@@ -221,9 +255,9 @@ export function MoonTimeLine({
           max={max}
           step={STEP_HOURS}
           value={Math.min(offsetHours, max)}
-          onChange={onSlider}
+          onChange={(e) => onOffsetHours(parseFloat(e.target.value))}
           disabled={!showEphemeris}
-          className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-default"
+          className="pointer-events-none absolute inset-0 h-full w-full opacity-0"
           aria-label="Simulated time offset in hours"
         />
       </div>

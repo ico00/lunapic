@@ -1,7 +1,7 @@
 import type { MoonPathSample, MoonState } from "@/types";
 import type { MoonRiseSetTimes } from "@/types/moon";
 import { getMoonState } from "./moon";
-import { getMoonRiseSetForObserverDay } from "./moonTimes";
+import { getMoonRiseSetForLocalDay } from "./moonTimes";
 
 /** 24 samples × 30 min = 12 h forward from the reference instant (used as fallback if rise/set nisu još u storeu). */
 export const MOON_PATH_SAMPLE_COUNT = 24;
@@ -158,15 +158,15 @@ export const AstroService = {
   },
 
   /**
-   * Izlaz i zlaz Mjeseca za kalendaru dan koji sadrži `date` (UTC ponoć),
-   * s obzirom na suncalc i poziciju promatrača.
+   * Izlaz i zlaz Mjeseca za lokalni kalendarski dan koji sadrži `date`.
    */
   getMoonTimes(
     date: Date,
     lat: number,
-    lng: number
+    lng: number,
+    observerElevM = 0
   ): MoonRiseSetTimes {
-    return getMoonRiseSetForObserverDay(date, lat, lng, true);
+    return getMoonRiseSetForLocalDay(date, lat, lng, observerElevM);
   },
 
   /**

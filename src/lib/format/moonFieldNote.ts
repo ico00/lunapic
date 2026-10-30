@@ -55,8 +55,8 @@ export function formatMoonFieldNoteText(input: {
     `Moon azimuth (from north): ${formatFixed(moon.azimuthDeg)}°`,
     `Moon angular radius: ${formatFixed(moon.apparentRadius.degrees, 3)}°`,
     `Moon illuminated: ${illum}%`,
-    `Moonrise (UTC day): ${moonriseText}`,
-    `Moonset (UTC day): ${moonsetText}`,
+    `Moonrise (local): ${moonriseText}`,
+    `Moonset (local): ${moonsetText}`,
   ];
   if (visibilitySummary) {
     lines.push(`Field visibility: ${visibilitySummary}`);

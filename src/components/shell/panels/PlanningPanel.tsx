@@ -166,7 +166,7 @@ const FLOW_LABEL: Record<RunwayFlow, string> = {
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.14em] text-[color:var(--t-tertiary)]">
+    <span className="mt-section-label">
       {children}
     </span>
   );
@@ -265,7 +265,7 @@ export function PlanningPanel() {
               });
             }}
             aria-expanded={!guideHidden}
-            className="rounded-full border border-white/10 px-2.5 py-0.5 text-[length:var(--fs-label)] text-[color:var(--t-secondary)] transition hover:border-white/20 hover:text-[color:var(--t-primary)]"
+            className="rounded-full border border-[color:var(--hair-soft)] px-2.5 py-0.5 text-[length:var(--fs-label)] text-[color:var(--t-secondary)] transition hover:border-[color:var(--ink-3)] hover:text-[color:var(--t-primary)]"
           >
             {guideHidden ? "How to use" : "Hide"}
           </button>
@@ -275,7 +275,7 @@ export function PlanningPanel() {
         </p>
         <RunwayInUseNote status={runwayInUse} />
         {guideHidden ? null : (
-          <ol className="list-decimal space-y-1 rounded-xl border border-sky-400/25 bg-sky-500/[0.07] py-2 pl-7 pr-3 text-[length:var(--fs-meta)] text-[color:var(--t-secondary)]">
+          <ol className="mt-note mt-note-observer list-decimal space-y-1 !py-2 !pl-7 !pr-3 text-[length:var(--fs-meta)] text-[color:var(--t-secondary)]">
             <li>
               <span className="text-[color:var(--t-primary)]">Pick a day</span> below — the Moon must be up.
               Tap a window to load it.
@@ -313,22 +313,18 @@ export function PlanningPanel() {
               return (
                 <li
                   key={d.dateKey}
-                  className={`flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md px-2 py-1.5 text-[length:var(--fs-label)] ${
-                    d.dateKey === date ? "bg-sky-500/15" : ""
+                  className={`flex flex-wrap items-center gap-x-2 gap-y-1 rounded-[var(--r-ctl)] px-2 py-1.5 text-[length:var(--fs-label)] ${
+                    d.dateKey === date ? "bg-[color:var(--panel-2)]" : ""
                   }`}
                 >
-                  <span className="w-[5.5rem] shrink-0 font-mono text-[color:var(--t-primary)]">{label}</span>
+                  <span className="w-[5.5rem] shrink-0 text-[color:var(--t-primary)]">{label}</span>
                   {lit === null ? (
                     <span className="text-[color:var(--t-tertiary)]">Moon too low</span>
                   ) : (
                     <>
                       <span
-                        className={`shrink-0 rounded-full px-2 py-0.5 text-[length:var(--fs-meta)] font-semibold ${
-                          lit >= 0.85
-                            ? "bg-emerald-500/25 text-emerald-300"
-                            : lit >= 0.5
-                              ? "bg-amber-500/20 text-amber-300"
-                              : "bg-white/[0.05] text-[color:var(--t-tertiary)]"
+                        className={`mt-chip shrink-0 ${
+                          lit >= 0.85 ? "mt-chip-moon" : lit >= 0.5 ? "" : "opacity-70"
                         }`}
                       >
                         {formatFixed(lit * 100, 0)}% lit
@@ -338,7 +334,7 @@ export function PlanningPanel() {
                           key={w.startMs}
                           type="button"
                           onClick={() => applyWindow(d, w)}
-                          className="rounded-md border border-white/10 px-2 py-0.5 font-mono text-[length:var(--fs-meta)] text-[color:var(--t-secondary)] transition hover:border-sky-500/35 hover:text-[color:var(--t-primary)]"
+                          className="rounded-[var(--r-ctl)] border border-[color:var(--hair-soft)] px-2 py-0.5 text-[length:var(--fs-meta)] text-[color:var(--t-secondary)] transition hover:border-[color:var(--observer)] hover:text-[color:var(--t-primary)]"
                         >
                           {hhmm(w.startMs)}–{hhmm(w.endMs)}
                         </button>
@@ -352,7 +348,7 @@ export function PlanningPanel() {
         <button
           type="button"
           onClick={() => setAllDays((v) => !v)}
-          className="rounded-full border border-white/10 px-3 py-1 text-[length:var(--fs-label)] text-[color:var(--t-secondary)] transition hover:border-white/20 hover:text-[color:var(--t-primary)]"
+          className="rounded-full border border-[color:var(--hair-soft)] px-3 py-1 text-[length:var(--fs-label)] text-[color:var(--t-secondary)] transition hover:border-[color:var(--ink-3)] hover:text-[color:var(--t-primary)]"
         >
           {allDays ? "Show fewer days" : `Show all ${DAYS_AHEAD} days`}
         </button>
@@ -422,10 +418,10 @@ export function PlanningPanel() {
         ).map(([flow, checked, set]) => (
           <label
             key={flow}
-            className={`flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[length:var(--fs-body)] transition ${
+            className={`flex cursor-pointer items-center gap-2 rounded-[var(--r-ctl)] px-2 py-1.5 text-[length:var(--fs-body)] transition ${
               checked
-                ? "bg-sky-500/15 text-sky-200"
-                : "text-zinc-300 hover:bg-zinc-800 hover:text-zinc-50"
+                ? "bg-[color:var(--panel-2)] text-[color:var(--observer-text)]"
+                : "text-[color:var(--ink-2)] hover:bg-[color:var(--panel-2)] hover:text-[color:var(--ink)]"
             }`}
           >
             <input
@@ -443,10 +439,10 @@ export function PlanningPanel() {
       </div>
 
       {!spanValid ? (
-        <p className="text-[length:var(--fs-label)] text-rose-300">End time must not be before start.</p>
+        <p className="text-[length:var(--fs-label)] text-[color:var(--disc-text)]">End time must not be before start.</p>
       ) : null}
       {truncated ? (
-        <p className="text-[length:var(--fs-label)] text-amber-300/90">
+        <p className="mt-note">
           Showing the first {MAX_SAMPLES} lines — narrow the window or use a longer interval.
         </p>
       ) : null}
@@ -454,12 +450,12 @@ export function PlanningPanel() {
       <div className="space-y-1.5">
         <div className="flex items-center justify-between gap-2">
           <FieldLabel>Moon at {formatPlanTime(startMs)}</FieldLabel>
-          <span className="font-mono text-[length:var(--fs-meta)] text-[color:var(--t-secondary)]">
+          <span className="text-[length:var(--fs-meta)] text-[color:var(--t-secondary)]">
             {formatFixed(moonAtStartDeg, 0)}° alt
           </span>
         </div>
         {moonLow ? (
-          <p className="text-[length:var(--fs-label)] text-amber-300/90">
+          <p className="mt-note">
             Moon is below {CRITICAL_BELOW_DEG}° at the start — no lines are drawn until it rises higher.
           </p>
         ) : null}
@@ -496,22 +492,18 @@ export function PlanningPanel() {
                     type="button"
                     aria-pressed={selected}
                     onClick={() => setFocusMs(selected && showAllTimes ? null : r.atMs)}
-                    className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[length:var(--fs-label)] transition ${
-                      selected ? "bg-sky-500/15 ring-1 ring-sky-400/70" : "hover:bg-white/[0.04]"
+                    className={`flex w-full items-center gap-2 rounded-[var(--r-ctl)] px-2 py-1.5 text-left text-[length:var(--fs-label)] transition ${
+                      selected ? "bg-[color:var(--panel-2)] ring-1 ring-[color:var(--observer)]" : "hover:bg-[color:var(--panel-2)]"
                     }`}
                   >
-                    <span className="w-11 shrink-0 font-mono font-semibold text-[color:var(--t-primary)]">
+                    <span className="w-11 shrink-0 font-semibold text-[color:var(--t-primary)]">
                       {formatPlanTime(r.atMs)}
                     </span>
                     <span className="min-w-0 flex-1 text-[color:var(--t-secondary)]">
                       Moon {formatFixed(r.moonAltitudeDeg, 0)}° · az {formatFixed(r.moonAzimuthDeg, 0)}°
                     </span>
                     <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-[length:var(--fs-meta)] font-semibold ${
-                        r.bestCoveragePercent >= 200
-                          ? "bg-emerald-500/25 text-emerald-300"
-                          : "bg-amber-500/20 text-amber-300"
-                      }`}
+                      className={`mt-chip shrink-0 ${r.bestCoveragePercent >= 200 ? "mt-chip-live" : "mt-chip-observer"}`}
                     >
                       up to {formatFixed(r.bestCoveragePercent / 100, 1)}×
                     </span>
@@ -541,7 +533,7 @@ export function PlanningPanel() {
         )}
       </div>
 
-      <p className="rounded-xl border border-dashed border-zinc-600/40 bg-zinc-950/35 px-3 py-2 text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">
+      <p className="rounded-[var(--r-panel)] border border-dashed border-[color:var(--hair)] bg-[color:var(--panel-2)] px-3 py-2 text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">
         Any point on a line puts the aircraft on the Moon at that time. Where you stand along it sets how far from
         the runway that happens (dots: 4, 6, 8, 10, 12 km; label: aircraft width in Moon diameters). Assumes a 3°
         glide with 15 m threshold height, an 8 % climb-out and an A320 (35.8 m); terrain is not modelled.

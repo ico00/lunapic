@@ -113,7 +113,7 @@ export function MapDisplayModeLayersControl() {
     const el = triggerRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    const w = Math.max(360, r.width * 5.2);
+    const w = Math.min(Math.max(360, r.width * 5.2), window.innerWidth - 2 * VIEWPORT_MARGIN_PX);
     // Preliminary placement uses a height estimate; the post-render effect below
     // re-measures the actual menu height and corrects `top` so it never overlaps
     // the trigger or the controls to its right.
@@ -217,7 +217,7 @@ export function MapDisplayModeLayersControl() {
           maxHeight: "min(50vh, 18rem)",
         }}
       >
-        <div className="shrink-0 border-b border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)] px-3 py-2 font-[family-name:var(--font-jetbrains-mono)] text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-secondary)]">
+        <div className="shrink-0 border-b border-[color:var(--hair-soft)] bg-[color:var(--panel)] px-3 py-2 text-[length:var(--fs-label)] font-semibold text-[color:var(--t-secondary)]">
           Aircraft display
         </div>
 
@@ -230,8 +230,8 @@ export function MapDisplayModeLayersControl() {
         */}
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           {/* Flight history section */}
-          <div className="shrink-0 border-b border-[color:var(--glass-stroke)] px-3 py-2">
-            <div className="mb-2 font-[family-name:var(--font-jetbrains-mono)] text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-secondary)]">
+          <div className="shrink-0 border-b border-[color:var(--hair-soft)] px-3 py-2">
+            <div className="mb-2 text-[length:var(--fs-label)] font-semibold text-[color:var(--t-secondary)]">
               Flight history
             </div>
             <div className="flex flex-col gap-1.5">
@@ -264,7 +264,7 @@ export function MapDisplayModeLayersControl() {
                         setHourFilter({ from, to: hourFilter?.to ?? (from + 6) % 24 });
                       }}
                       aria-label="Heatmap hour window start"
-                      className="rounded-[var(--r-sm)] border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)] px-1.5 py-0.5 text-[length:var(--fs-label)] text-[color:var(--t-primary)] outline-none focus-visible:ring-1 focus-visible:ring-sky-400/40"
+                      className="rounded-[var(--r-ctl)] border border-[color:var(--hair-soft)] bg-[color:var(--panel)] px-1.5 py-0.5 text-[length:var(--fs-label)] text-[color:var(--t-primary)] outline-none focus-visible:ring-1 focus-visible:ring-[color:var(--observer)]"
                     >
                       <option value="all">All</option>
                       {Array.from({ length: 24 }, (_, h) => (
@@ -280,7 +280,7 @@ export function MapDisplayModeLayersControl() {
                             setHourFilter({ from: hourFilter.from, to: parseInt(e.target.value, 10) })
                           }
                           aria-label="Heatmap hour window end"
-                          className="rounded-[var(--r-sm)] border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)] px-1.5 py-0.5 text-[length:var(--fs-label)] text-[color:var(--t-primary)] outline-none focus-visible:ring-1 focus-visible:ring-sky-400/40"
+                          className="rounded-[var(--r-ctl)] border border-[color:var(--hair-soft)] bg-[color:var(--panel)] px-1.5 py-0.5 text-[length:var(--fs-label)] text-[color:var(--t-primary)] outline-none focus-visible:ring-1 focus-visible:ring-[color:var(--observer)]"
                         >
                           {Array.from({ length: 24 }, (_, h) => (
                             <option key={h} value={h}>{String(h).padStart(2, "0")}h</option>
@@ -311,8 +311,8 @@ export function MapDisplayModeLayersControl() {
 
           {/* Static reference overlays — two per row, so another toggle here costs
               no height at all (see the scroll note above). */}
-          <div className="shrink-0 border-b border-[color:var(--glass-stroke)] px-3 py-2">
-            <div className="mb-2 font-[family-name:var(--font-jetbrains-mono)] text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.12em] text-[color:var(--t-secondary)]">
+          <div className="shrink-0 border-b border-[color:var(--hair-soft)] px-3 py-2">
+            <div className="mb-2 text-[length:var(--fs-label)] font-semibold text-[color:var(--t-secondary)]">
               Reference
             </div>
             <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
@@ -354,10 +354,10 @@ export function MapDisplayModeLayersControl() {
                 key={opt.id}
                 type="button"
                 onClick={() => closeAndSet(opt.id)}
-                className={`flex flex-col overflow-hidden rounded-[var(--r-md)] border text-left outline-none transition focus-visible:ring-2 focus-visible:ring-sky-500/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--glass-3)] ${
+                className={`flex flex-col overflow-hidden rounded-[var(--r-panel)] border text-left outline-none transition focus-visible:ring-2 focus-visible:ring-[color:var(--observer)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--panel-2)] ${
                   active
-                    ? "border-sky-400/45 bg-sky-500/[0.12] ring-1 ring-sky-400/25"
-                    : "border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/90 hover:border-sky-400/35 hover:bg-[color:var(--glass-2)]/80"
+                    ? "border-[color:var(--observer)] bg-[color:var(--panel-2)] ring-1 ring-[color:var(--observer)]"
+                    : "border-[color:var(--hair-soft)] bg-[color:var(--panel)]/90 hover:border-[color:var(--observer)] hover:bg-[color:var(--panel)]/80"
                 }`}
                 aria-pressed={active}
                 data-testid={`map-display-mode-${opt.id}`}
@@ -366,13 +366,13 @@ export function MapDisplayModeLayersControl() {
                 <div className="relative aspect-[4/3] w-full overflow-hidden">
                   {previewForMode(opt.id)}
                 </div>
-                <div className="flex items-center justify-between gap-1 border-t border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)]/70 px-2 py-2">
+                <div className="flex items-center justify-between gap-1 border-t border-[color:var(--hair-soft)] bg-[color:var(--panel)]/70 px-2 py-2">
                   <span className="min-w-0 truncate text-[length:var(--fs-label)] font-semibold text-[color:var(--t-primary)]">
                     {opt.label}
                   </span>
                   {active ? (
                     <span
-                      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sky-500/90 text-[length:var(--fs-label)] font-bold leading-none text-[color:var(--bg-0)]"
+                      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[color:var(--panel-2)] text-[length:var(--fs-label)] font-bold leading-none text-[color:var(--bg-0)]"
                       aria-hidden
                     >
                       ✓
@@ -392,7 +392,7 @@ export function MapDisplayModeLayersControl() {
         <button
           ref={triggerRef}
           type="button"
-          className="pointer-events-auto mt-glass-elevated flex h-full min-h-0 w-[4.75rem] flex-col overflow-hidden rounded-[var(--r-md)] outline-none transition hover:ring-1 hover:ring-sky-400/25 focus-visible:ring-2 focus-visible:ring-sky-500/45 active:scale-[0.98] md:h-auto"
+          className="pointer-events-auto mt-glass-elevated flex min-h-0 w-[4.75rem] flex-col overflow-hidden max-md:h-24 md:h-full rounded-[var(--r-panel)] outline-none transition hover:ring-1 hover:ring-[color:var(--observer)] focus-visible:ring-2 focus-visible:ring-[color:var(--observer)] active:scale-[0.98] md:h-auto"
           aria-expanded={open}
           aria-haspopup="dialog"
           aria-controls={open ? menuId : undefined}
@@ -404,7 +404,7 @@ export function MapDisplayModeLayersControl() {
           <div className="relative min-h-0 w-full flex-1 md:h-[4.5rem] md:flex-none">
             {previewForMode(mapDisplayMode)}
           </div>
-          <div className="flex min-h-[1.35rem] shrink-0 items-center justify-center gap-1 border-t border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)] px-1 py-0.5 text-[length:var(--fs-label)] font-semibold leading-none tracking-wide text-[color:var(--t-secondary)]">
+          <div className="flex min-h-[1.35rem] shrink-0 items-center justify-center gap-1 border-t border-[color:var(--hair-soft)] bg-[color:var(--panel)] px-1 py-0.5 text-[length:var(--fs-label)] font-semibold leading-none tracking-wide text-[color:var(--t-secondary)]">
             <LayersStackIcon className="h-3.5 w-3.5 shrink-0 text-[color:var(--t-tertiary)]" />
             <span className="truncate">Layers</span>
           </div>

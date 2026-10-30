@@ -179,10 +179,10 @@ export function PhotographerToolsPanel({
   const shotTier = photoShotFeasibility?.tier ?? null;
   const shotBadgeClass =
     shotTier === "excellent"
-      ? "bg-sky-500/15 text-sky-200 border-sky-500/35"
-      : shotTier === "fair"
-        ? "bg-amber-500/10 text-amber-300 border-amber-500/30"
-        : "bg-zinc-900/60 text-[color:var(--t-tertiary)] border-white/[0.09]";
+      ? "mt-chip-live"
+      : shotTier === "poor"
+        ? "mt-chip-disc"
+        : "";
   const shotLabel =
     shotTier === "excellent"
       ? "EXCELLENT"
@@ -206,7 +206,7 @@ export function PhotographerToolsPanel({
       ) : (
         selectedFlightId != null &&
         !photoPack && (
-          <p className="text-[length:var(--fs-body)] text-amber-300/90">
+          <p className="mt-note mt-note-observer">
             {reasonText(photoUnavailableReason)}
           </p>
         )
@@ -216,23 +216,23 @@ export function PhotographerToolsPanel({
       {photoPack && (
         <div className="space-y-3">
           <div
-            className="rounded-2xl border border-white/[0.09] bg-zinc-900/50 px-2 py-3 text-center"
+            className="rounded-[var(--r-panel)] border border-[color:var(--hair-soft)] bg-[color:var(--panel-2)] px-2 py-3 text-center"
             aria-live="polite"
           >
             <p className="text-[length:var(--fs-label)] font-medium leading-snug text-[color:var(--t-primary)]">
               Time until azimuth alignment
             </p>
-            <p className="mt-3 font-mono text-[length:var(--fs-display)] font-semibold tabular-nums tracking-tight text-amber-400">
+            <p className="mt-3 text-[length:var(--fs-display)] font-extrabold tracking-[-0.015em] text-[color:var(--ink)]">
               {formatCountdown(photoPack.timeToAlignmentSec ?? null)}
             </p>
             {photoPack.timeToAlignmentSec != null && (
               <div className="mt-2.5">
                 {photoPack.willActuallyTransit ? (
-                  <span className="inline-block rounded-full border border-emerald-400/40 bg-emerald-500/10 px-3 py-0.5 font-mono text-[length:var(--fs-label)] font-semibold text-emerald-300">
+                  <span className="mt-chip mt-chip-disc">
                     Disk transit confirmed
                   </span>
                 ) : (
-                  <span className="inline-block rounded-full border border-amber-400/40 bg-amber-500/10 px-3 py-0.5 font-mono text-[length:var(--fs-label)] text-amber-300">
+                  <span className="mt-chip mt-chip-observer">
                     Azimuth only — elevation miss
                     {photoPack.elevationGapAtAlignmentDeg != null
                       ? ` (Δalt ${photoPack.elevationGapAtAlignmentDeg > 0 ? "+" : ""}${photoPack.elevationGapAtAlignmentDeg.toFixed(2)}°)`
@@ -242,7 +242,7 @@ export function PhotographerToolsPanel({
               </div>
             )}
           </div>
-          <dl className="min-w-0 space-y-0.5 break-words font-mono text-[length:var(--fs-body)] tabular-nums text-[color:var(--t-secondary)]">
+          <dl className="min-w-0 space-y-0.5 break-words text-[length:var(--fs-body)] tabular-nums text-[color:var(--t-secondary)]">
             <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
               <dt className="max-w-[58%] shrink-0 font-sans font-normal normal-case text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
                 How fast your aim swings (°/s)
@@ -272,7 +272,7 @@ export function PhotographerToolsPanel({
                 <dt className="max-w-[58%] shrink-0 font-sans font-normal normal-case text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
                   Sky separation at alignment
                 </dt>
-                <dd className={photoPack.willActuallyTransit ? "text-emerald-300" : "text-amber-300"}>
+                <dd className={photoPack.willActuallyTransit ? "text-[color:var(--disc-text)]" : "text-[color:var(--observer-text)]"}>
                   {photoPack.separationAtAlignmentDeg.toFixed(3)}°
                 </dd>
               </div>
@@ -282,7 +282,7 @@ export function PhotographerToolsPanel({
                 <dt className="max-w-[58%] shrink-0 font-sans font-normal normal-case text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
                   Elevation gap at alignment
                 </dt>
-                <dd className={Math.abs(photoPack.elevationGapAtAlignmentDeg) < 0.3 ? "text-emerald-300" : "text-amber-300"}>
+                <dd className={Math.abs(photoPack.elevationGapAtAlignmentDeg) < 0.3 ? "text-[color:var(--disc-text)]" : "text-[color:var(--observer-text)]"}>
                   {photoPack.elevationGapAtAlignmentDeg > 0 ? "+" : ""}
                   {photoPack.elevationGapAtAlignmentDeg.toFixed(3)}°
                 </dd>
@@ -290,11 +290,11 @@ export function PhotographerToolsPanel({
             )}
           </dl>
           {photoShotFeasibility && photoPack.timeToAlignmentSec != null ? (
-            <div className="rounded-2xl border border-white/[0.09] bg-zinc-900/50 px-2.5 py-2">
+            <div className="rounded-[var(--r-panel)] border border-[color:var(--hair-soft)] bg-[color:var(--panel-2)] px-2.5 py-2">
               <div className="flex items-center justify-between gap-2">
                 <span className="mt-section-label">Shot feasibility</span>
                 <span
-                  className={`rounded-full border px-2 py-0.5 font-mono text-[length:var(--fs-label)] tracking-wide ${shotBadgeClass}`}
+                  className={`rounded-full border px-2 py-0.5 text-[length:var(--fs-label)] tracking-wide ${shotBadgeClass}`}
                 >
                   {shotLabel}
                 </span>
@@ -362,7 +362,7 @@ export function PhotographerToolsPanel({
 
       {/* === 3. Field sounds ================================================== */}
       {selectedFlightId ? (
-        <div className="border-t border-white/[0.07] pt-3">
+        <div className="border-t border-[color:var(--hair-soft)] pt-3">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">Field sounds</span>
             <button
@@ -374,11 +374,8 @@ export function PhotographerToolsPanel({
                 }
                 onToggleBeep();
               }}
-              className={`rounded-xl px-2.5 py-1 text-[length:var(--fs-label)] font-medium ${
-                beepOnTransit
-                  ? "bg-emerald-500/15 text-emerald-300"
-                  : "bg-zinc-800/70 text-[color:var(--t-tertiary)]"
-              }`}
+              aria-pressed={beepOnTransit}
+              className={`mt-btn mt-btn-sm ${beepOnTransit ? "!border-[color:var(--live)] !text-[color:var(--live)]" : ""}`}
             >
               {beepOnTransit ? "Sounds on" : "Sounds off"}
             </button>
@@ -387,8 +384,8 @@ export function PhotographerToolsPanel({
       ) : null}
 
       {/* === 4. Camera settings — na dnu (preset/focal/sensor/frame) ========== */}
-      <div className="border-t border-white/[0.07] pt-3">
-        <p className="mt-section-label-emerald border-0 pb-0">Camera settings</p>
+      <div className="border-t border-[color:var(--hair-soft)] pt-3">
+        <p className="mt-section-label">Camera settings</p>
         <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
           <label className="flex min-h-0 min-w-0 flex-col gap-1 sm:col-span-2">
             <span className="mt-section-label">
@@ -425,7 +422,7 @@ export function PhotographerToolsPanel({
                   (e.target as HTMLInputElement).blur();
                 }
               }}
-              className="box-border h-9 w-full rounded-xl border border-white/[0.1] bg-zinc-900/70 px-2 font-mono text-[16px] leading-none text-[color:var(--t-primary)]"
+              className="box-border h-[42px] w-full rounded-[var(--r-ctl)] border border-[color:var(--hair)] bg-[color:var(--ground)] px-2 text-[16px] leading-none text-[color:var(--t-primary)]"
             />
           </label>
           <label className="flex min-h-0 min-w-0 flex-col gap-1">
@@ -465,7 +462,7 @@ export function PhotographerToolsPanel({
                   (e.target as HTMLInputElement).blur();
                 }
               }}
-              className="box-border h-9 w-full rounded-xl border border-white/[0.1] bg-zinc-900/70 px-2 font-mono text-[length:var(--fs-body-strong)] leading-none text-[color:var(--t-primary)] disabled:cursor-not-allowed disabled:opacity-55"
+              className="box-border h-[42px] w-full rounded-[var(--r-ctl)] border border-[color:var(--hair)] bg-[color:var(--ground)] px-2 text-[length:var(--fs-body-strong)] leading-none text-[color:var(--t-primary)] disabled:cursor-not-allowed disabled:opacity-55"
             />
           </label>
           <label className="flex min-h-0 min-w-0 flex-col gap-1">
@@ -493,14 +490,14 @@ export function PhotographerToolsPanel({
                   (e.target as HTMLInputElement).blur();
                 }
               }}
-              className="box-border h-9 w-full rounded-xl border border-white/[0.1] bg-zinc-900/70 px-2 font-mono text-[length:var(--fs-body-strong)] leading-none text-[color:var(--t-primary)] disabled:cursor-not-allowed disabled:opacity-55"
+              className="box-border h-[42px] w-full rounded-[var(--r-ctl)] border border-[color:var(--hair)] bg-[color:var(--ground)] px-2 text-[length:var(--fs-body-strong)] leading-none text-[color:var(--t-primary)] disabled:cursor-not-allowed disabled:opacity-55"
             />
           </label>
         </div>
-        <p className="mt-1 font-mono text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">
+        <p className="mt-1 text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">
           Effective focal length: {formatFixed(effectiveFocalMm, 0)} mm
         </p>
-        <p className="mt-0.5 font-mono text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">
+        <p className="mt-0.5 text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">
           Output frame (active):{" "}
           {cameraFrameWidthPx}×{cameraFrameHeightPx} px
         </p>

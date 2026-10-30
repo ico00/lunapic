@@ -125,13 +125,13 @@ export function AddToHomeScreenPrompt() {
     >
       <button
         type="button"
-        className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-[color:var(--ground-deep)]/80"
         aria-label="Dismiss"
         onClick={() => {
           snoozeDays(7);
         }}
       />
-      <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/10 bg-zinc-950/95 p-4 shadow-2xl shadow-black/60 backdrop-blur-xl sm:p-5">
+      <div className="relative z-10 w-full max-w-md rounded-[var(--r-panel)] border border-[color:var(--hair)] bg-[color:var(--panel)] p-4 sm:p-5">
         <h2
           id="a2hs-title"
           className="text-[length:var(--fs-body-strong)] font-semibold tracking-tight text-[color:var(--t-primary)]"
@@ -155,14 +155,14 @@ export function AddToHomeScreenPrompt() {
             onClick={() => {
               snoozeDays(7);
             }}
-            className="rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-[length:var(--fs-body)] font-medium text-[color:var(--t-primary)] sm:order-2"
+            className="rounded-[var(--r-panel)] border border-[color:var(--hair-soft)] bg-[color:var(--panel-2)] px-4 py-2.5 text-[length:var(--fs-body)] font-medium text-[color:var(--t-primary)] sm:order-2"
           >
             Remind me in 7 days
           </button>
           <button
             type="button"
             onClick={neverAsk}
-            className="rounded-xl border border-white/[0.08] px-4 py-2.5 text-[length:var(--fs-body)] text-[color:var(--t-tertiary)] sm:order-3"
+            className="rounded-[var(--r-panel)] border border-[color:var(--hair-soft)] px-4 py-2.5 text-[length:var(--fs-body)] text-[color:var(--t-tertiary)] sm:order-3"
           >
             Don’t show again
           </button>

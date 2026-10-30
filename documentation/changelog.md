@@ -6,6 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 where version bumps are made for releases (currently `0.x`).
 
+## [2026-10-30] — Transit diagram redesign, phase 2
+
+See also: **[ui-generator-technical-spec.md](ui-generator-technical-spec.md)** §2b for the system and its rules.
+
+Finishes the redesign started in #53: the phone, the panels and the Flight log and About pages now use the same flat system as the desktop home screen.
+
+### Added
+
+- **Phone layout.** A bottom bar with the five groups (Now, Shoot, Sky, Feeds, Plan) replaces the dock, and the Next transit board is a bottom panel. The time line and the altitude scale with Layers open from the Sky and Feeds groups. While time is moved away from now, a chip under the top bar shows the simulated time with Sync.
+- **Map stays above the board on a phone.** The observer no longer ends up hidden behind the panel; the map uses padding, so Focus on me and Set my location here follow the visible part.
+- **Next transit board with nothing to show** keeps its structure: a dimmed line to the 5-minute prediction limit, plus Moon altitude, azimuth and illumination. With the Moon at 5–12° the board warns about haze.
+
+### Changed
+
+- **Panels** have no blur, glow or gradients left, and colours follow their fixed jobs: amber only for the Moon, scarlet for disc transits, cobalt for in-frame, green for live and ready. Uppercase section labels are gone.
+- **Flight log page** is a master and detail view in English: table on the left, tracks on the map on the right. It shows up to three tracks at a time, each keeping its colour until removed.
+- **About page** has a contents list and one column of text. The FAQ now describes the current navigation and map colours.
+- **Map colours** on the selected stand band, the Street View overlay and shot-feasible aircraft now match the interface tokens.
+- JetBrains Mono is no longer loaded; Overpass is the only interface font.
+
+### Fixed
+
+- **Moonrise and Moonset.** The panel showed local clock times under a "UTC day" label, and the day ran UTC midnight to UTC midnight, so on 6 of 31 days in October a rise or set from the neighbouring local day appeared. They are now computed for the local calendar day. The UTC time is in the tooltip, and a day with no rise or set says None today.
+- **Moonrise and Moonset accuracy.** They came from SunCalc, which has no lunar parallax and differed from the altitude shown in the app by a median of 6 minutes, up to 16. They now use astronomy-engine, the same source as the Moon position.
+- **Time line on a phone** responds to touch anywhere along the line; on iOS the old hidden slider only moved from its invisible thumb.
+
 ## [2026-10-30] — Own receiver at its final site: earlier, more accurate alerts
 
 See also: **[flight-sources.md](flight-sources.md)** for sources and cadence, and `AGENTS.md` for the measurements behind each threshold.

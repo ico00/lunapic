@@ -84,29 +84,10 @@ export function useHomeShellOrchestration() {
       }),
     [referenceEpochMs, timeAnchorMs, moonRise, moonSet, moonRiseSetKind]
   );
-  const timeSliderStartLabel = useMemo(
-    () =>
-      new Date(timeSliderWindow.t0).toLocaleTimeString("en-GB", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      }),
-    [timeSliderWindow.t0]
-  );
-  const timeSliderEndLabel = useMemo(
-    () =>
-      new Date(timeSliderWindow.t1).toLocaleTimeString("en-GB", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      }),
-    [timeSliderWindow.t1]
-  );
   const sliderWidthHours = useMemo(
     () => (timeSliderWindow.t1 - timeSliderWindow.t0) / 3_600_000,
     [timeSliderWindow.t0, timeSliderWindow.t1]
   );
-  const timeSliderMode = "forward24h" as const;
   const syncTimeToNow = useMoonTransitStore((s) => s.syncTimeToNow);
   const tickLiveTime = useMoonTransitStore((s) => s.tickLiveTime);
   const activeTransits = useActiveTransits();
@@ -221,9 +202,9 @@ export function useHomeShellOrchestration() {
   );
 
   const offsetHours = timeOffsetMs / 3_600_000;
-  const onSlider = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setTimeOffsetMs(parseFloat(e.target.value) * 3_600_000);
+  const setOffsetHours = useCallback(
+    (hours: number) => {
+      setTimeOffsetMs(hours * 3_600_000);
     },
     [setTimeOffsetMs]
   );
@@ -273,7 +254,7 @@ export function useHomeShellOrchestration() {
     bestHours,
     onSelectPlanningHour,
     offsetHours,
-    onSlider,
+    setOffsetHours,
     showEphemeris,
     moonDisplay,
     candidatesDisplay,
@@ -281,10 +262,7 @@ export function useHomeShellOrchestration() {
     moonRise,
     moonSet,
     moonRiseSetKind,
-    timeSliderStartLabel,
-    timeSliderEndLabel,
     sliderWidthHours,
-    timeSliderMode,
     isMoonBelowHorizon,
     cloudCoverPercent,
   };

@@ -215,12 +215,12 @@ export function FlightLogPanel() {
     <div className="flex h-full min-h-0 flex-col gap-3">
       {/* Selection hint */}
       {(flightLogCallsign || flightLogIcao24) && (
-        <div className="rounded-xl border border-sky-400/25 bg-sky-500/[0.07] px-3 py-2 text-[length:var(--fs-label)]">
+        <div className="mt-note mt-note-observer text-[length:var(--fs-label)]">
           <div className="flex items-center justify-between">
-          <span className="text-sky-300">
+          <span className="text-[color:var(--observer-text)]">
             {flightLogCallsign
-              ? <>Route history on map: <span className="font-mono">{flightLogCallsign}</span></>
-              : <>Track on map: <span className="font-mono">{flightLogIcao24}</span></>}
+              ? <>Route history on map: <span className="">{flightLogCallsign}</span></>
+              : <>Track on map: <span className="">{flightLogIcao24}</span></>}
           </span>
           <button
             type="button"
@@ -239,7 +239,7 @@ export function FlightLogPanel() {
           {nextPass && nextPass.callsign === flightLogCallsign && (
             <div className="mt-1 text-[color:var(--t-secondary)]">
               Next expected pass:{" "}
-              <span className="font-semibold text-sky-200">{fmtNextPass(nextPass.estimateMs)}</span>
+              <span className="font-semibold text-[color:var(--observer-text)]">{fmtNextPass(nextPass.estimateMs)}</span>
               {" "}±{nextPass.stdMinutes} min
               <span className="text-[color:var(--t-tertiary)]"> · {nextPass.sessionCount} flights</span>
             </div>
@@ -259,17 +259,13 @@ export function FlightLogPanel() {
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-2">
         {/* Range pills */}
-        <div className="flex gap-1">
+        <div className="mt-seg" role="group" aria-label="Period">
           {RANGE_OPTS.map(({ label, days }) => (
             <button
               key={days}
               type="button"
               onClick={() => handleRangeChange(days)}
-              className={`rounded-full px-3 py-1 text-[length:var(--fs-label)] font-semibold transition ${
-                daysBack === days
-                  ? "bg-violet-500/25 text-violet-200 border border-violet-400/40"
-                  : "border border-white/10 text-[color:var(--t-tertiary)] hover:border-white/20 hover:text-[color:var(--t-primary)]"
-              }`}
+              aria-pressed={daysBack === days}
             >
               {label}
             </button>
@@ -297,7 +293,7 @@ export function FlightLogPanel() {
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="ICAO, callsign, reg, carrier…"
-            className="w-full rounded-full border border-white/10 bg-white/[0.04] pl-8 pr-8 py-1.5 text-[length:var(--fs-meta)] text-[color:var(--t-primary)] outline-none placeholder:text-[color:var(--t-tertiary)] focus:border-violet-400/40 focus:ring-1 focus:ring-violet-400/20"
+            className="w-full rounded-full border border-[color:var(--hair-soft)] bg-[color:var(--panel-2)] pl-8 pr-8 py-1.5 text-[length:var(--fs-meta)] text-[color:var(--t-primary)] outline-none placeholder:text-[color:var(--t-tertiary)] focus:border-[color:var(--hair)] focus:ring-1 focus:ring-violet-400/20"
           />
           {search && (
             <button
@@ -339,8 +335,8 @@ export function FlightLogPanel() {
                 aria-pressed={active}
                 className={`rounded-full border px-2 py-0.5 text-[length:var(--fs-meta)] transition ${
                   active
-                    ? "border-violet-400/40 bg-violet-500/20 text-violet-200"
-                    : "border-white/10 text-[color:var(--t-tertiary)] hover:border-white/20 hover:text-[color:var(--t-primary)]"
+                    ? "border-[color:var(--hair)] bg-[color:var(--panel-2)] text-[color:var(--ink-2)]"
+                    : "border-[color:var(--hair-soft)] text-[color:var(--t-tertiary)] hover:border-[color:var(--ink-3)] hover:text-[color:var(--t-primary)]"
                 }`}
                 title={`Filter table to ${type}`}
               >
@@ -352,10 +348,10 @@ export function FlightLogPanel() {
       )}
 
       {/* Table — the only scrollable region of the panel */}
-      <div className="min-h-[10rem] flex-1 overflow-x-auto overflow-y-auto rounded-xl border border-white/[0.08]">
+      <div className="min-h-[10rem] flex-1 overflow-x-auto overflow-y-auto rounded-[var(--r-panel)] border border-[color:var(--hair-soft)]">
         <table className="w-full text-[length:var(--fs-meta)]">
           <thead className="sticky top-0 z-10 bg-[color:var(--bg-1)]">
-            <tr className="border-b border-white/[0.08] mt-section-label">
+            <tr className="border-b border-[color:var(--hair-soft)] mt-section-label">
               <th className="px-3 py-2 text-left w-10"></th>
               <th className="px-3 py-2 text-left">Carrier</th>
               <th className="px-3 py-2 text-left">Callsign</th>
@@ -401,7 +397,7 @@ export function FlightLogPanel() {
             type="button"
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={page === 0}
-            className="rounded-full border border-white/10 px-3 py-1 text-[color:var(--t-secondary)] disabled:opacity-30 hover:border-white/20 hover:text-[color:var(--t-primary)] transition"
+            className="rounded-full border border-[color:var(--hair-soft)] px-3 py-1 text-[color:var(--t-secondary)] disabled:opacity-30 hover:border-[color:var(--ink-3)] hover:text-[color:var(--t-primary)] transition"
           >
             ← Prev
           </button>
@@ -416,7 +412,7 @@ export function FlightLogPanel() {
               onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
               onBlur={(e) => { e.currentTarget.value = String(commitPageInput(e.currentTarget.value)); }}
               onFocus={(e) => e.currentTarget.select()}
-              className="w-10 rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-center text-[color:var(--t-primary)] outline-none focus:border-violet-400/40 focus:ring-1 focus:ring-violet-400/20"
+              className="w-10 rounded-[var(--r-ctl)] border border-[color:var(--hair-soft)] bg-[color:var(--panel-2)] px-1.5 py-0.5 text-center text-[color:var(--t-primary)] outline-none focus:border-[color:var(--hair)] focus:ring-1 focus:ring-violet-400/20"
             />
             / {totalPages}
           </span>
@@ -424,7 +420,7 @@ export function FlightLogPanel() {
             type="button"
             onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
             disabled={page >= totalPages - 1}
-            className="rounded-full border border-white/10 px-3 py-1 text-[color:var(--t-secondary)] disabled:opacity-30 hover:border-white/20 hover:text-[color:var(--t-primary)] transition"
+            className="rounded-full border border-[color:var(--hair-soft)] px-3 py-1 text-[color:var(--t-secondary)] disabled:opacity-30 hover:border-[color:var(--ink-3)] hover:text-[color:var(--t-primary)] transition"
           >
             Next →
           </button>
@@ -432,23 +428,23 @@ export function FlightLogPanel() {
       )}
 
       {/* Past transits — retroactive scan of the log against the Moon's position */}
-      <div className="flex flex-col gap-2 border-t border-white/[0.08] pt-3">
+      <div className="flex flex-col gap-2 border-t border-[color:var(--hair-soft)] pt-3">
         <div className="flex items-center justify-between">
-          <span className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.14em] text-[color:var(--t-tertiary)]">
+          <span className="mt-section-label">
             Past transits
           </span>
           <button
             type="button"
             onClick={runPastScan}
             disabled={scanBusy}
-            className="rounded-full border border-white/10 px-3 py-1 text-[length:var(--fs-label)] text-[color:var(--t-secondary)] disabled:opacity-40 hover:border-white/20 hover:text-[color:var(--t-primary)] transition"
+            className="rounded-full border border-[color:var(--hair-soft)] px-3 py-1 text-[length:var(--fs-label)] text-[color:var(--t-secondary)] disabled:opacity-40 hover:border-[color:var(--ink-3)] hover:text-[color:var(--t-primary)] transition"
           >
             {scanBusy ? "Scanning…" : `Scan last ${daysBack === 1 ? "24 h" : `${daysBack} d`}`}
           </button>
         </div>
 
         {scanError && (
-          <p className="text-[length:var(--fs-label)] text-rose-300">Scan failed — try again.</p>
+          <p className="text-[length:var(--fs-label)] text-[color:var(--disc-text)]">Scan failed — try again.</p>
         )}
 
         {scanEvents !== null && !scanError && (
@@ -471,19 +467,15 @@ export function FlightLogPanel() {
                         setFlightLogSelectedCallsign(null);
                       }
                     }}
-                    className="flex w-full items-center gap-2 py-1.5 text-left text-[length:var(--fs-label)] hover:bg-white/[0.04] transition rounded-md px-1.5"
+                    className="flex w-full items-center gap-2 py-1.5 text-left text-[length:var(--fs-label)] hover:bg-[color:var(--panel-2)] transition rounded-[var(--r-ctl)] px-1.5"
                     title="Show route on map"
                   >
                     <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-[length:var(--fs-meta)] font-semibold ${
-                        ev.kind === "transit"
-                          ? "bg-emerald-500/15 text-emerald-300 border border-emerald-400/30"
-                          : "bg-sky-500/10 text-sky-300 border border-sky-400/25"
-                      }`}
+                      className={`mt-chip shrink-0 ${ev.kind === "transit" ? "mt-chip-disc" : "mt-chip-observer"}`}
                     >
                       {ev.kind === "transit" ? "DISC" : "NEAR"}
                     </span>
-                    <span className="font-mono text-[color:var(--t-primary)]">
+                    <span className="text-[color:var(--t-primary)]">
                       {ev.callsign ?? ev.icao24.toUpperCase()}
                     </span>
                     <span className="ml-auto text-right text-[color:var(--t-tertiary)]">
@@ -515,14 +507,14 @@ function AirlineLogo({ callsign }: { callsign: string | null | undefined }) {
   if (!src || broken) {
     return (
       <div
-        className="h-7 w-7 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.03]"
+        className="h-7 w-7 rounded-[var(--r-ctl)] border border-dashed border-[color:var(--hair-soft)] bg-[color:var(--panel-2)]"
         aria-hidden
       />
     );
   }
   return (
     <div
-      className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/[0.10] bg-white/[0.04]"
+      className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-[var(--r-ctl)] border border-[color:var(--hair-soft)] bg-[color:var(--panel-2)]"
       aria-hidden
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -584,10 +576,10 @@ function AircraftRow({
   return (
     <tr
       onClick={handleClick}
-      className={`cursor-pointer border-b border-white/[0.05] transition ${
+      className={`cursor-pointer border-b border-[color:var(--hair-soft)] transition ${
         isSelected
-          ? "bg-sky-500/[0.10] hover:bg-sky-500/[0.16]"
-          : "hover:bg-white/[0.04]"
+          ? "bg-[color:var(--panel-2)] hover:bg-[color:var(--panel-2)]"
+          : "hover:bg-[color:var(--panel-2)]"
       }`}
     >
       <td className="px-3 py-1.5">
@@ -596,7 +588,7 @@ function AircraftRow({
       <td className="px-3 py-1.5 text-[color:var(--t-secondary)] max-w-[120px] truncate" title={carrier || undefined}>
         {carrier || <span className="text-[color:var(--t-disabled)]">—</span>}
       </td>
-      <td className="px-3 py-1.5 font-mono text-[color:var(--t-primary)]">
+      <td className="px-3 py-1.5 text-[color:var(--t-primary)]">
         {row.last_callsign ?? <span className="text-[color:var(--t-disabled)]">—</span>}
       </td>
       <td className="px-3 py-1.5 text-[color:var(--t-tertiary)]">

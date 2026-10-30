@@ -4,10 +4,10 @@ import { useObserverStore } from "@/stores/observer-store";
 import { useEffect, useMemo } from "react";
 
 /**
- * Račun izlaz/zlaz Mjeseca (suncalc) za UTC dan trenutnog `referenceEpochMs` u
+ * Račun izlaz/zlaz Mjeseca za lokalni dan trenutnog `referenceEpochMs` u
  * storeu, te zapis u store. Ponovi dohvat kad se poveća `ephemerisRefetchKey`
- * (**Sync**, prijelaz na drugi UTC dan klizačem, promjena promatrača) — ne na
- * svakom koraku klizača unutar istog UTC dana.
+ * (**Sync**, prijelaz na drugi lokalni dan, promjena promatrača) — ne na
+ * svakom koraku klizača unutar istog dana.
  */
 export function useAstronomySync(): void {
   const ephemerisRefetchKey = useMoonTransitStore(
@@ -16,6 +16,7 @@ export function useAstronomySync(): void {
   const setMoonRiseSet = useMoonTransitStore((s) => s.setMoonRiseSet);
   const lat = useObserverStore((s) => s.observer.lat);
   const lng = useObserverStore((s) => s.observer.lng);
+  const groundHeightMeters = useObserverStore((s) => s.observer.groundHeightMeters);
 
   const observerKey = useMemo(
     () => `${lat.toFixed(5)}:${lng.toFixed(5)}`,
@@ -24,15 +25,12 @@ export function useAstronomySync(): void {
 
   useEffect(() => {
     const { referenceEpochMs } = useMoonTransitStore.getState();
-    const t0 = new Date(referenceEpochMs);
-    const t = new Date(
-      Date.UTC(
-        t0.getUTCFullYear(),
-        t0.getUTCMonth(),
-        t0.getUTCDate()
-      )
+    const m = AstroService.getMoonTimes(
+      new Date(referenceEpochMs),
+      lat,
+      lng,
+      groundHeightMeters ?? 0
     );
-    const m = AstroService.getMoonTimes(t, lat, lng);
     setMoonRiseSet({
       moonRise: m.rise,
       moonSet: m.set,
@@ -44,5 +42,6 @@ export function useAstronomySync(): void {
     setMoonRiseSet,
     lat,
     lng,
+    groundHeightMeters,
   ]);
 }

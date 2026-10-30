@@ -4,24 +4,21 @@ export const SELECTED_AIRCRAFT_POPUP_SCREEN_X = 16;
 export const SELECTED_AIRCRAFT_POPUP_SCREEN_Y = 316;
 
 /**
- * Mjeri stvarnu visinu donje UI zone (dock + time ribbon + razmaci) u pikselima
- * od dna viewporta. Koristi isti dock element koji CSS varijabla --mobile-dock-h
- * opisuje, ali mjeri iz DOM-a — tako automatski prolazi i s pravim SAI-om.
- *
- * Ribbon visina (h-11 = 44px) i gap iznad doka (0.25rem ≈ 4px) su iste
- * konstante kao u --mobile-ribbon-bottom / --mobile-overlay-bottom.
+ * Mjeri stvarnu visinu donje trake grupa u pikselima od dna viewporta. Koristi
+ * isti element koji CSS varijabla --mobile-dock-h opisuje, ali mjeri iz DOM-a,
+ * pa automatski prolazi i s pravim SAI-om.
  */
 export function mobileBottomUiHeightPx(): number {
-  if (typeof document === "undefined") return 148;
+  if (typeof document === "undefined") return 72;
 
   const nav = document.querySelector<HTMLElement>(
     '[data-testid="mobile-primary-nav"]'
   );
-  if (!nav) return 148;
+  if (!nav) return 72;
 
   const navTop = nav.getBoundingClientRect().top;
   const dockHeightPx = window.innerHeight - navTop;
 
-  // dock + gap (4px) + ribbon (44px) + sigurnosni razmak (8px)
-  return Math.round(dockHeightPx) + 56;
+  // traka + sigurnosni razmak (8px)
+  return Math.round(dockHeightPx) + 8;
 }

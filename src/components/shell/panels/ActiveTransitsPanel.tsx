@@ -64,8 +64,8 @@ function NudgeArrow({
   if (meters < 5) {
     return (
       <div className="mt-3 flex flex-col items-center gap-1.5 mt-note mt-note-live rounded-[var(--r-panel)] py-4">
-        <span className="text-[length:var(--fs-h1)] leading-none text-emerald-400">✓</span>
-        <span className="font-mono text-[length:var(--fs-meta)] font-semibold text-emerald-400">
+        <span className="text-[length:var(--fs-h1)] leading-none text-[color:var(--live)]">✓</span>
+        <span className="text-[length:var(--fs-meta)] font-semibold text-[color:var(--live)]">
           Centered
         </span>
       </div>
@@ -86,7 +86,7 @@ function NudgeArrow({
       >
         <svg
           viewBox="0 0 24 40"
-          className="h-12 w-7 drop-shadow-[0_0_10px_rgba(251,191,36,0.65)]"
+          className="h-12 w-7 drop-"
           aria-hidden
         >
           <path
@@ -97,7 +97,7 @@ function NudgeArrow({
           />
         </svg>
       </div>
-      <span className="font-mono text-[length:var(--fs-h1)] font-bold leading-none tabular-nums text-amber-300">
+      <span className="text-[length:var(--fs-h1)] font-extrabold leading-none text-[color:var(--ink)]">
         {m} m
       </span>
     </div>
@@ -129,7 +129,7 @@ export function ActiveTransitsPanel({
     <div>
       <p className="text-[length:var(--fs-body)] leading-relaxed text-[color:var(--t-secondary)]">
         Aircraft within{" "}
-        <span className="font-mono font-semibold text-amber-300">0.5°</span>{" "}
+        <span className="font-semibold text-[color:var(--ink)]">0.5°</span>{" "}
         of the moon disc — full sky separation (azimuth + elevation).
       </p>
       {showEphemeris && (
@@ -145,17 +145,17 @@ export function ActiveTransitsPanel({
                   onClick={() => {
                     onSelectFlight(row.flight.id);
                   }}
-                  className={`min-h-[56px] w-full space-y-1.5 rounded-2xl border px-3 py-2.5 text-left transition active:scale-[0.99] ${
+                  className={`min-h-[56px] w-full space-y-1.5 rounded-[var(--r-panel)] border px-3 py-2.5 text-left transition active:scale-[0.99] ${
                     selectedFlightId === row.flight.id
                       ? "border-[color:var(--disc)] bg-[color:var(--panel-2)]"
                       : "border-[color:var(--hair)] bg-transparent [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color:var(--panel-2)]"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate font-mono text-[length:var(--fs-body-strong)] font-semibold text-amber-300">
+                    <span className="truncate text-[length:var(--fs-body-strong)] font-extrabold text-[color:var(--ink)]">
                       {row.flight.callSign ?? row.flight.id}
                     </span>
-                    <span className="shrink-0 font-mono text-[length:var(--fs-body-strong)] font-bold text-sky-300">
+                    <span className="shrink-0 text-[length:var(--fs-body-strong)] font-extrabold text-[color:var(--disc-text)]">
                       Δ {formatFixed(row.separationDeg, 2)}°
                     </span>
                   </div>

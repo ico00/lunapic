@@ -42,7 +42,7 @@ function ensureLayers(map: mapboxgl.Map) {
       filter: ["all", ["==", ["get", "kind"], "line"], ["==", ["get", "flow"], "landing04"]],
       layout: { "line-cap": "round", "line-join": "round" },
       paint: {
-        "line-color": "#34d399",
+        "line-color": "#34d17f",
         "line-width": 4,
         "line-opacity": ACTIVE_OPACITY,
       },
@@ -56,7 +56,7 @@ function ensureLayers(map: mapboxgl.Map) {
       filter: ["all", ["==", ["get", "kind"], "line"], ["==", ["get", "flow"], "departure22"]],
       layout: { "line-cap": "butt", "line-join": "round" },
       paint: {
-        "line-color": "#34d399",
+        "line-color": "#34d17f",
         "line-width": 4,
         "line-dasharray": [2, 1.5],
         "line-opacity": ACTIVE_OPACITY,
@@ -71,7 +71,7 @@ function ensureLayers(map: mapboxgl.Map) {
       filter: ["==", ["get", "kind"], "marker"],
       paint: {
         "circle-radius": 4.5,
-        "circle-color": "#34d399",
+        "circle-color": "#34d17f",
         "circle-stroke-width": 1.5,
         "circle-stroke-color": "rgba(255,255,255,0.9)",
         "circle-opacity": ACTIVE_OPACITY,

@@ -14,7 +14,7 @@
 Držimo **vrijeme**, **karta** (`mapView`) i **letovi** u jednom Zustand agregatu namjerno:
 
 - `loadFlightsInBounds` prirodno ovisi o granicama karte trenutne sesije, a i o **simuliranom** trenutku u UI-ju; razdvajanje u više storeova zahtijevalo bi sinkronizacijski sloj.
-- **Mjesečev izlaz/zlaz** (suncalc) živi u istom storeu: `useAstronomySync` osvježava `getMoonTimes` na promjenu **promatrača**, nakon `syncTimeToNow`, i kad **klizač** prijeđe u drugi **UTC kalendar dan** (bump `ephemerisRefetchKey`), ne na svaki mali korak klizača unutar istog UTC dana.
+- **Mjesečev izlaz/zlaz** (astronomy-engine, lokalni dan) živi u istom storeu: `useAstronomySync` osvježava `getMoonTimes` na promjenu **promatrača**, nakon `syncTimeToNow`, i kad **klizač** prijeđe u drugi **lokalni kalendarski dan** (bump `ephemerisRefetchKey`), ne na svaki mali korak klizača unutar istog dana.
 - Isti store drži i `flightProvider` + `liveFlightFeeds` — combobox (portal) samo s checkboxima za **OpenSky** i **ADS-B One**; `ensureFlightSourceComboboxMode` migrira stari `static` na live dual. `static` / `mock` ostaju u tipu i testovima.
 
 Ako u budućnosti raste bol (paralelni PR-ovi, teški testovi), moguć je rascjep — vidi `documentation/optimization-and-refactoring.md` i `documentation/architecture.md` (sekcija o agregatu).

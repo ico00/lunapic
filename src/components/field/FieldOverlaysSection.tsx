@@ -94,7 +94,7 @@ export function FieldOverlaysSection() {
             onClick={() => {
               addSkew(-1_000);
             }}
-            className="shrink-0 rounded border border-zinc-600 px-2 py-1 text-[length:var(--fs-label)] text-[color:var(--t-primary)]"
+            className="shrink-0 rounded border border-[color:var(--hair)] px-2 py-1 text-[length:var(--fs-label)] text-[color:var(--t-primary)]"
           >
             −1 s
           </button>
@@ -107,7 +107,7 @@ export function FieldOverlaysSection() {
             onChange={(e) => {
               setSkew(parseFloat(e.target.value) * 1_000);
             }}
-            className="h-1.5 w-full min-w-0 flex-1 accent-sky-500"
+            className="h-1.5 w-full min-w-0 flex-1 accent-[color:var(--ink)]"
             aria-label="Aircraft time offset in seconds"
           />
           <button
@@ -115,12 +115,12 @@ export function FieldOverlaysSection() {
             onClick={() => {
               addSkew(1_000);
             }}
-            className="shrink-0 rounded border border-zinc-600 px-2 py-1 text-[length:var(--fs-label)] text-[color:var(--t-primary)]"
+            className="shrink-0 rounded border border-[color:var(--hair)] px-2 py-1 text-[length:var(--fs-label)] text-[color:var(--t-primary)]"
           >
             +1 s
           </button>
         </div>
-        <p className="mt-1 text-center font-mono text-[length:var(--fs-meta)] text-amber-400/85">
+        <p className="mt-1 text-center text-[length:var(--fs-meta)] font-semibold text-[color:var(--ink-2)]">
           {skewSec >= 0 ? "+" : ""}
           {num(skewSec, 1)} s
         </p>
@@ -129,12 +129,12 @@ export function FieldOverlaysSection() {
           onClick={() => {
             setSkew(0);
           }}
-          className="mt-1 w-full rounded-lg border border-white/[0.08] py-0.5 text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]"
+          className="mt-1 w-full rounded-[var(--r-ctl)] border border-[color:var(--hair-soft)] py-0.5 text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]"
         >
           Reset
         </button>
       </div>
-      <div className="flex items-center justify-between gap-2 border-t border-zinc-800/80 pt-2">
+      <div className="flex items-center justify-between gap-2 border-t border-[color:var(--hair)] pt-2">
         <div className="min-w-0 pr-1">
           <p className="mt-section-label">Lock location</p>
           <p className="mt-1 text-[length:var(--fs-meta)] leading-snug text-[color:var(--t-tertiary)] normal-case tracking-normal">
@@ -146,16 +146,13 @@ export function FieldOverlaysSection() {
           onClick={() => {
             setLocked(!locked);
           }}
-          className={`rounded px-3 py-1.5 text-[length:var(--fs-meta)] ${
-            locked
-              ? "bg-emerald-500/15 text-emerald-300"
-              : "bg-zinc-800/70 text-[color:var(--t-tertiary)]"
-          }`}
+          aria-pressed={locked}
+          className={`mt-btn mt-btn-sm ${locked ? "!border-[color:var(--live)] !text-[color:var(--live)]" : ""}`}
         >
           {locked ? "Unlock" : "Lock"}
         </button>
       </div>
-      <div className="border-t border-zinc-800/80 pt-2">
+      <div className="border-t border-[color:var(--hair)] pt-2">
         <p className="mt-section-label">Export plan</p>
         <div className="mt-1 flex flex-col gap-1.5 sm:flex-row">
           <button

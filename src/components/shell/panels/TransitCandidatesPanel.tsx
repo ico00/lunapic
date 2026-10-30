@@ -12,12 +12,12 @@ function ElevationGapBadge({ gap }: { gap: number | null }) {
   const sign = gap >= 0 ? "+" : "−";
   const label = `Δalt ${sign}${formatFixed(abs, 2)}°`;
   if (abs <= 0.26) {
-    return <span className="font-mono text-[length:var(--fs-meta)] font-medium text-emerald-400">{label}</span>;
+    return <span className="text-[length:var(--fs-meta)] font-semibold text-[color:var(--disc-text)]">{label}</span>;
   }
   if (abs <= 1.5) {
-    return <span className="font-mono text-[length:var(--fs-meta)] font-medium text-amber-400">{label}</span>;
+    return <span className="text-[length:var(--fs-meta)] font-semibold text-[color:var(--observer-text)]">{label}</span>;
   }
-  return <span className="font-mono text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">{label}</span>;
+  return <span className="text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">{label}</span>;
 }
 
 type TransitCandidatesPanelProps = {
@@ -49,9 +49,9 @@ function bestHourTitle(s: BestHourSample, hourLabel: string): string {
 }
 
 const BEST_HOUR_TIER_CLASS: Record<BestHourSample["tier"], string> = {
-  great: "bg-emerald-500/25 text-emerald-300",
-  ok: "bg-amber-500/20 text-amber-300",
-  poor: "bg-white/[0.05] text-[color:var(--t-tertiary)]",
+  great: "bg-[color:color-mix(in_srgb,var(--live)_22%,var(--panel))] text-[color:var(--live)]",
+  ok: "bg-[color:color-mix(in_srgb,var(--moon)_18%,var(--panel))] text-[color:var(--moon)]",
+  poor: "bg-[color:var(--panel-2)] text-[color:var(--t-tertiary)]",
   belowHorizon: "bg-transparent text-[color:var(--t-tertiary)] opacity-40",
 };
 
@@ -83,8 +83,8 @@ function BestHoursSection({
               onClick={() => onSelectHour?.(s.hourStartMs)}
               disabled={onSelectHour == null}
               title={bestHourTitle(s, hh)}
-              className={`grid h-8 place-items-center rounded-lg font-mono text-[length:var(--fs-label)] tabular-nums transition ${BEST_HOUR_TIER_CLASS[s.tier]} ${
-                isActive ? "ring-1 ring-sky-400/70" : ""
+              className={`grid h-8 place-items-center rounded-[var(--r-ctl)] text-[length:var(--fs-label)] tabular-nums transition ${BEST_HOUR_TIER_CLASS[s.tier]} ${
+                isActive ? "ring-1 ring-[color:var(--observer)]" : ""
               } ${onSelectHour ? "hover:ring-1 hover:ring-white/25 active:scale-[0.97]" : ""}`}
               aria-label={bestHourTitle(s, hh)}
               aria-pressed={isActive}
@@ -96,11 +96,11 @@ function BestHoursSection({
       </div>
       <div className="mt-2 flex items-center gap-3 text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">
         <span className="flex items-center gap-1">
-          <span className="h-2 w-2 rounded-full bg-emerald-400/80" aria-hidden />
+          <span className="h-2 w-2 rounded-full bg-[color:var(--panel-2)]" aria-hidden />
           ≥15% of disc
         </span>
         <span className="flex items-center gap-1">
-          <span className="h-2 w-2 rounded-full bg-amber-400/80" aria-hidden />
+          <span className="h-2 w-2 rounded-full bg-[color:var(--panel-2)]" aria-hidden />
           8–15%
         </span>
         <span className="flex items-center gap-1">
@@ -112,7 +112,7 @@ function BestHoursSection({
         {best && best.coveragePercent != null && best.slantMeters != null ? (
           <>
             Best around{" "}
-            <span className="font-mono font-semibold text-emerald-300">
+            <span className="font-semibold text-[color:var(--live)]">
               {String(new Date(best.hourStartMs).getHours()).padStart(2, "0")}:00
             </span>
             {" "}— moon at {formatFixed(best.moonAltitudeDeg, 0)}°, a cruise jet
@@ -146,24 +146,24 @@ function CandidateRow({
   const hoverStyle = isTransit
     ? "[@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color:var(--panel-2)]"
     : "[@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color:var(--panel-2)]";
-  const callsignColor = isTransit ? "text-sky-300" : "text-violet-300";
+  const callsignColor = "text-[color:var(--ink)]";
 
   return (
     <li>
       <button
         type="button"
         onClick={() => onSelectFlight(c.flight.id)}
-        className={`flex min-h-[48px] w-full min-w-0 items-center justify-between gap-2 rounded-2xl border px-3 py-2.5 text-left transition active:scale-[0.99] ${
+        className={`flex min-h-[48px] w-full min-w-0 items-center justify-between gap-2 rounded-[var(--r-panel)] border px-3 py-2.5 text-left transition active:scale-[0.99] ${
           selectedFlightId === c.flight.id
             ? selectedStyle
-            : `border-white/[0.10] bg-white/[0.03] ${hoverStyle}`
+            : `border-[color:var(--hair-soft)] bg-[color:var(--panel-2)] ${hoverStyle}`
         }`}
       >
-        <span className={`truncate font-mono text-[length:var(--fs-body)] font-semibold ${callsignColor}`}>
+        <span className={`truncate text-[length:var(--fs-body)] font-semibold ${callsignColor}`}>
           {c.flight.callSign ?? c.flight.id}
         </span>
         <div className="flex shrink-0 flex-col items-end gap-0.5">
-          <span className="font-mono text-[length:var(--fs-meta)] font-medium text-[color:var(--t-secondary)]">
+          <span className="text-[length:var(--fs-meta)] font-medium text-[color:var(--t-secondary)]">
             {formatFixed(c.separationDeg, 3)}°
             {c.isPossibleTransit ? " · ⊙" : ""}
           </span>
@@ -238,7 +238,7 @@ export function TransitCandidatesPanel({
           className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition active:scale-[0.95] ${
             alertsEnabled
               ? "border-[color:var(--moon)] bg-[color:var(--moon-soft)] text-[color:var(--ink)]"
-              : "border-white/[0.10] bg-white/[0.03] text-[color:var(--t-tertiary)] hover:border-white/[0.18] hover:text-[color:var(--t-primary)]"
+              : "border-[color:var(--hair-soft)] bg-[color:var(--panel-2)] text-[color:var(--t-tertiary)] hover:border-[color:var(--ink-3)] hover:text-[color:var(--t-primary)]"
           }`}
         >
           {alertsEnabled ? (
@@ -259,7 +259,7 @@ export function TransitCandidatesPanel({
         {showEphemeris && isLoading && (
           <p className="text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">Loading…</p>
         )}
-        {error && <p className="text-[length:var(--fs-meta)] text-rose-300">{error}</p>}
+        {error && <p className="text-[length:var(--fs-meta)] text-[color:var(--disc-text)]">{error}</p>}
       </div>
       {showEphemeris && (
         <div className="mt-3 space-y-4">

@@ -139,7 +139,7 @@ export function ObserverLocationPanel({
       </div>
 
       {/* Coordinates */}
-      <dl className="space-y-1.5 font-mono text-[length:var(--fs-meta)] tabular-nums text-[color:var(--t-primary)]">
+      <dl className="space-y-1.5 text-[length:var(--fs-meta)] tabular-nums text-[color:var(--t-primary)]">
         <div className="flex justify-between gap-2">
           <dt className="text-[color:var(--t-tertiary)]">φ</dt>
           <dd>{formatFixed(observer.lat, 5)}°</dd>

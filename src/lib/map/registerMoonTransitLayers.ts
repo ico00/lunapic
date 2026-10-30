@@ -924,7 +924,7 @@ export function registerMoonTransitLayers(
     source: SELECTED_STAND_SOURCE,
     filter: ["==", ["get", "kind"], "strip"],
     paint: {
-      "fill-color": "#38bdf8",
+      "fill-color": "#5b95ff",
       "fill-opacity": SELECTED_STAND_MAP_FILL_OPACITY,
     },
   });
@@ -944,7 +944,7 @@ export function registerMoonTransitLayers(
     source: SELECTED_STAND_SOURCE,
     filter: ["==", ["get", "kind"], "volume"],
     paint: {
-      "fill-extrusion-color": "#38bdf8",
+      "fill-extrusion-color": "#5b95ff",
       "fill-extrusion-opacity": 0.2,
       "fill-extrusion-height": [
         "coalesce",
@@ -961,7 +961,7 @@ export function registerMoonTransitLayers(
     filter: ["==", ["get", "kind"], "strip"],
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
-      "line-color": "#38bdf8",
+      "line-color": "#5b95ff",
       "line-width": 2,
       "line-opacity": SELECTED_STAND_MAP_LINE_OPACITY,
     },

@@ -2,14 +2,15 @@
 
 import "mapbox-gl/dist/mapbox-gl.css";
 import mapboxgl from "mapbox-gl";
-import Link from "next/link";
 import {
   useCallback,
   useEffect,
   useRef,
   useState,
 } from "react";
+import { PageTopBar } from "@/components/shell/PageTopBar";
 import type { AircraftListRow } from "@/lib/db/flightLogDb";
+import { applyEnamelBasemap } from "@/lib/map/enamelBasemap";
 import { appPath } from "@/lib/paths/appPath";
 
 // ---------------------------------------------------------------------------
@@ -37,24 +38,33 @@ interface LoadedTrack {
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
 const PAGE_SIZE = 50;
-const TRACK_COLORS = [
-  "#60a5fa", "#fbbf24", "#34d399", "#a78bfa", "#fb7185",
-  "#f97316", "#22d3ee", "#84cc16", "#e879f9", "#94a3b8",
-];
+/** Serije podataka (spec §2b.2): tokeni `--s1…3`; Mapbox ne čita CSS varijable. */
+const TRACK_COLORS = ["#5b95ff", "#34d17f", "#eef3fa"] as const;
+const RANGE_OPTS = [
+  { days: 1, label: "24 h" },
+  { days: 7, label: "7 d" },
+  { days: 30, label: "30 d" },
+  { days: 90, label: "90 d" },
+] as const;
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function fmtDate(ms: number): string {
-  return new Date(ms).toLocaleString(undefined, {
+  return new Date(ms).toLocaleString("en-GB", {
     month: "short", day: "numeric",
     hour: "2-digit", minute: "2-digit",
+    hour12: false,
   });
 }
 
 function fmtNumber(n: number): string {
-  return n.toLocaleString();
+  return n.toLocaleString("en-GB");
+}
+
+function fmtDay(ms: number): string {
+  return new Date(ms).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
 /** Prikazni naziv za `aircraft.source` — koji je lokalni prijemnik zadnji upisao ovaj zapis. */
@@ -84,9 +94,10 @@ function FlightLogMap({ tracks }: { tracks: LoadedTrack[] }) {
       zoom: 5,
       attributionControl: false,
     });
-    map.addControl(new mapboxgl.AttributionControl({ compact: true }), "bottom-left");
+    map.addControl(new mapboxgl.AttributionControl({ compact: true }), "bottom-right");
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
     map.on("load", () => {
+      applyEnamelBasemap(map);
       mapRef.current = map;
       setReady(true);
     });
@@ -105,14 +116,14 @@ function FlightLogMap({ tracks }: { tracks: LoadedTrack[] }) {
     const activeIds = new Set(tracks.map((t) => t.icao24));
 
     // Remove layers/sources for deselected aircraft. Match on the line layer but
-    // tear down ALL layers bound to the source (line, glow, dot) before removing
-    // the source — Mapbox throws if a source is removed while any layer uses it.
+    // tear down ALL layers bound to the source (line, dot) before removing the
+    // source — Mapbox throws if a source is removed while any layer uses it.
     const style = map.getStyle();
     for (const layer of style?.layers ?? []) {
-      if (!layer.id.startsWith("fllog-line-") || layer.id.endsWith("-glow")) continue;
+      if (!layer.id.startsWith("fllog-line-")) continue;
       const id = layer.id.replace("fllog-line-", "");
       if (!activeIds.has(id)) {
-        for (const lid of [`fllog-line-${id}`, `fllog-line-${id}-glow`, `fllog-dot-${id}`]) {
+        for (const lid of [`fllog-line-${id}`, `fllog-dot-${id}`]) {
           if (map.getLayer(lid)) map.removeLayer(lid);
         }
         if (map.getSource(`fllog-src-${id}`)) map.removeSource(`fllog-src-${id}`);
@@ -135,28 +146,13 @@ function FlightLogMap({ tracks }: { tracks: LoadedTrack[] }) {
           data: track.geojson as Parameters<mapboxgl.GeoJSONSource["setData"]>[0],
         });
 
-        // Glow/halo under the line
-        map.addLayer({
-          id: `${layId}-glow`,
-          type: "line",
-          source: srcId,
-          paint: {
-            "line-color": track.color,
-            "line-width": 8,
-            "line-opacity": 0.15,
-            "line-blur": 4,
-          },
-          layout: { "line-cap": "round", "line-join": "round" },
-        });
-
         map.addLayer({
           id: layId,
           type: "line",
           source: srcId,
           paint: {
             "line-color": track.color,
-            "line-width": 2,
-            "line-opacity": 0.9,
+            "line-width": 4,
           },
           layout: { "line-cap": "round", "line-join": "round" },
         });
@@ -168,10 +164,10 @@ function FlightLogMap({ tracks }: { tracks: LoadedTrack[] }) {
           source: srcId,
           filter: ["==", ["geometry-type"], "Point"],
           paint: {
-            "circle-radius": 5,
-            "circle-color": track.color,
-            "circle-stroke-color": "#111",
-            "circle-stroke-width": 1.5,
+            "circle-radius": 6,
+            "circle-color": "#0b1530",
+            "circle-stroke-color": track.color,
+            "circle-stroke-width": 3,
           },
         });
 
@@ -182,10 +178,10 @@ function FlightLogMap({ tracks }: { tracks: LoadedTrack[] }) {
           const feat = e.features?.[0];
           const props = feat?.properties as { icao24?: string; count?: number; callsign?: string } | undefined;
           const html = `
-            <div style="font-family:monospace;font-size:12px;line-height:1.5;color:#f4f5fb">
-              <div style="font-weight:700;color:${track.color}">${track.callsign ?? track.icao24.toUpperCase()}</div>
-              <div style="color:#8b90a8">${track.icao24.toUpperCase()}</div>
-              <div style="margin-top:4px">${fmtNumber(props?.count ?? track.pointCount)} pozicija</div>
+            <div style="font-size:12px;line-height:1.5;color:#eef3fa">
+              <div style="font-weight:800">${track.callsign ?? track.icao24.toUpperCase()}</div>
+              <div style="color:#8a9abd">${track.icao24.toUpperCase()}</div>
+              <div style="margin-top:4px">${fmtNumber(props?.count ?? track.pointCount)} fixes</div>
             </div>`;
           popupRef.current = new mapboxgl.Popup({
             closeButton: false,
@@ -226,53 +222,13 @@ function FlightLogMap({ tracks }: { tracks: LoadedTrack[] }) {
 
   if (!MAPBOX_TOKEN) {
     return (
-      <div
-        className="flex h-full items-center justify-center rounded-[18px] text-sm"
-        style={{ background: "var(--glass-2)", color: "var(--t-tertiary)" }}
-      >
-        NEXT_PUBLIC_MAPBOX_TOKEN nije postavljen.
+      <div className="flex h-full items-center justify-center text-[length:var(--fs-meta)] text-[color:var(--ink-3)]">
+        NEXT_PUBLIC_MAPBOX_TOKEN is not set.
       </div>
     );
   }
 
-  return (
-    <div className="relative h-full w-full">
-      <div ref={containerRef} className="h-full w-full rounded-[18px] overflow-hidden" />
-      {tracks.length === 0 && ready && (
-        <div
-          className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-[18px]"
-          style={{ background: "rgba(5,7,20,0.55)" }}
-        >
-          <svg className="size-10 opacity-20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden>
-            <path d="M3 3l18 18M10.5 10.677A4 4 0 0 0 8 14c0 2.21 1.79 4 4 4a4 4 0 0 0 3.323-1.5M6.343 6.343A8 8 0 0 0 4 12c0 4.418 3.582 8 8 8a8 8 0 0 0 5.657-2.343M9 3.532A8 8 0 0 1 20 12a7.96 7.96 0 0 1-.468 2.694" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span className="text-sm" style={{ color: "var(--t-tertiary)" }}>
-            Odaberi avion iz liste za prikaz rute
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// StatCard
-// ---------------------------------------------------------------------------
-
-function StatCard({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div
-      className="rounded-[14px] border px-4 py-3"
-      style={{ background: "var(--glass-3)", borderColor: "var(--glass-stroke)" }}
-    >
-      <div className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: "var(--t-tertiary)" }}>
-        {label}
-      </div>
-      <div className="mt-1 text-xl font-semibold tabular-nums" style={{ color: "var(--t-primary)" }}>
-        {typeof value === "number" ? fmtNumber(value) : value}
-      </div>
-    </div>
-  );
+  return <div ref={containerRef} className="h-full w-full" />;
 }
 
 // ---------------------------------------------------------------------------
@@ -287,9 +243,11 @@ export default function FlightLogPage() {
   const [stats, setStats] = useState<StatsData | null>(null);
   const [listData, setListData] = useState<{ rows: AircraftListRow[]; total: number } | null>(null);
 
-  const [selected, setSelected] = useState<string[]>([]);
+  /** Boja seriji ostaje uz avion dok je odabran, i kad se drugi ukloni. */
+  const [selected, setSelected] = useState<{ id: string; color: string; fixes: number }[]>([]);
   const [loadedTracks, setLoadedTracks] = useState<Record<string, LoadedTrack>>({});
   const [trackLoading, setTrackLoading] = useState<Set<string>>(new Set());
+  const [limitHit, setLimitHit] = useState(false);
 
   // Debounced search — also resets page (async callback avoids set-state-in-effect)
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -353,28 +311,34 @@ export default function FlightLogPage() {
   }, [daysBack]);
 
   const toggleSelect = useCallback((row: AircraftListRow) => {
-    setSelected((prev) => {
-      if (prev.includes(row.icao24)) {
-        return prev.filter((id) => id !== row.icao24);
-      }
-      if (prev.length >= 10) return prev;
-      const color = TRACK_COLORS[prev.length % TRACK_COLORS.length];
-      // Kick off track load if not already cached
-      loadTrack(row.icao24, color, row.last_callsign ?? null);
-      return [...prev, row.icao24];
-    });
-  }, [loadTrack]);
+    if (selected.some((s) => s.id === row.icao24)) {
+      setSelected(selected.filter((s) => s.id !== row.icao24));
+      setLimitHit(false);
+      return;
+    }
+    const color = TRACK_COLORS.find((c) => !selected.some((s) => s.color === c));
+    if (!color) {
+      setLimitHit(true);
+      return;
+    }
+    setSelected([...selected, { id: row.icao24, color, fixes: row.position_count }]);
+    loadTrack(row.icao24, color, row.last_callsign ?? null);
+  }, [selected, loadTrack]);
 
   const deselect = useCallback((icao24: string) => {
-    setSelected((prev) => prev.filter((id) => id !== icao24));
+    setSelected((prev) => prev.filter((s) => s.id !== icao24));
+    setLimitHit(false);
   }, []);
 
-  const clearAll = useCallback(() => setSelected([]), []);
+  const clearAll = useCallback(() => {
+    setSelected([]);
+    setLimitHit(false);
+  }, []);
 
-  const activeTracks: LoadedTrack[] = selected
-    .map((id) => loadedTracks[id] ?? null)
-    .filter((t): t is LoadedTrack => t !== null)
-    .map((t, i) => ({ ...t, color: TRACK_COLORS[i % TRACK_COLORS.length] }));
+  const activeTracks: LoadedTrack[] = selected.flatMap(({ id, color }) => {
+    const track = loadedTracks[id];
+    return track ? [{ ...track, color }] : [];
+  });
 
   const rows = listData?.rows ?? [];
   const totalItems = listData?.total ?? 0;
@@ -392,316 +356,268 @@ export default function FlightLogPage() {
     return clamped;
   }, [totalPages, page]);
 
+  const top = stats?.topCallsigns[0];
+
   return (
-    <div
-      className="min-h-dvh w-full overflow-x-hidden px-4 py-8 sm:px-6 lg:px-8"
-      style={{ backgroundColor: "var(--bg-0)" }}
-    >
+    <div className="flex h-dvh min-h-[520px] flex-col bg-[color:var(--ground)] max-md:h-auto max-md:min-h-dvh">
       {/* Popup style injected globally */}
-      <style>{`.mapboxgl-popup-content{background:rgba(10,14,31,0.96)!important;border:1px solid rgba(255,255,255,0.12)!important;border-radius:10px!important;padding:10px 14px!important;box-shadow:0 8px 24px rgba(0,0,0,0.6)!important}.mapboxgl-popup-tip{display:none!important}`}</style>
+      <style>{`.fllog-popup .mapboxgl-popup-content{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r-panel);padding:10px 14px}.fllog-popup .mapboxgl-popup-tip{display:none}`}</style>
 
-      <div className="mx-auto max-w-screen-2xl">
+      <PageTopBar current="log">
+        <span className="flex h-[38px] items-center gap-2 rounded-[var(--r-ctl)] border border-[color:var(--hair)] bg-[color:var(--panel)] px-3 text-[length:var(--fs-meta)] font-semibold text-[color:var(--ink-2)]">
+          <span aria-hidden className="size-2 rounded-full bg-[color:var(--live)]" />
+          Local receivers logging
+        </span>
+      </PageTopBar>
 
-        {/* ── Header ─────────────────────────────────────────────── */}
-        <header
-          className="relative overflow-hidden rounded-[22px] border p-6 shadow-[0_20px_80px_rgba(0,0,0,0.45)] backdrop-blur-[28px]"
-          style={{ background: "var(--glass-2)", borderColor: "var(--glass-stroke-strong)" }}
-        >
-          <div
-            className="pointer-events-none absolute left-6 right-6 top-0 h-[1.5px] rounded-full"
-            style={{ background: "linear-gradient(90deg,var(--sky) 0%,rgba(96,165,250,0.3) 50%,transparent 100%)" }}
-            aria-hidden
-          />
-          <div className="flex items-center gap-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={appPath("/logo.png")} alt="LunaPic logo" width={36} height={36} decoding="async" className="h-9 w-auto object-contain" />
-            <span className="mt-title text-xl leading-none">LunaPic</span>
+      <main className="grid min-h-0 flex-1 grid-cols-[656px_minmax(0,1fr)] max-[1280px]:grid-cols-[560px_minmax(0,1fr)] max-md:block">
+        <section aria-labelledby="log-h" className="flex min-h-0 flex-col border-r border-[color:var(--hair)] max-md:border-r-0">
+          <div className="px-6 pt-5 max-md:px-4">
+            <h1 id="log-h" className="text-[length:var(--fs-display)] font-extrabold leading-[1.1] tracking-[-0.015em]">
+              Flight log
+            </h1>
+            <p className="mt-1 text-[color:var(--ink-2)]">Local ADS-B log of captured aircraft and routes.</p>
           </div>
-          <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h1 className="mt-title text-3xl font-semibold tracking-tight sm:text-4xl">
-                Flight Log
-              </h1>
-              <p className="mt-1 text-sm" style={{ color: "var(--t-secondary)" }}>
-                Lokalni ADS-B log — pregled snimljenih aviona i ruta
-              </p>
-            </div>
-            <Link
-              href="/"
-              className="mt-toolbar-btn inline-flex items-center gap-1.5 px-3 text-sm"
-              style={{ color: "var(--t-secondary)" }}
-            >
-              <svg className="size-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-                <path d="M10 3L5 8l5 5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              Planner
-            </Link>
-          </div>
-        </header>
 
-        {/* ── Stats strip ──────────────────────────────────────────── */}
-        {stats && (
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatCard label="Ukupno pozicija" value={stats.total} />
-            <StatCard label="Zadnjih 24h" value={stats.last24h} />
-            <StatCard label="Jedinstveni ICAO" value={stats.uniqueIcao} />
-            <StatCard
+          <dl className="mx-6 mt-4 grid grid-cols-4 rounded-[var(--r-panel)] border border-[color:var(--hair)] bg-[color:var(--panel)] max-md:mx-4 max-md:grid-cols-2">
+            <SummaryCell label="Positions" value={stats ? fmtNumber(stats.total) : "—"} />
+            <SummaryCell label="Last 24 h" value={stats ? fmtNumber(stats.last24h) : "—"} />
+            <SummaryCell label="Aircraft" value={stats ? fmtNumber(stats.uniqueIcao) : "—"} />
+            <SummaryCell
               label="Top callsign"
-              value={stats.topCallsigns[0] ? `${stats.topCallsigns[0].callsign} (${fmtNumber(stats.topCallsigns[0].count)})` : "—"}
+              value={top ? top.callsign : "—"}
+              detail={top ? fmtNumber(top.count) : undefined}
             />
+          </dl>
+
+          <div className="flex items-center justify-between gap-3 px-6 pt-3.5 max-md:flex-wrap max-md:px-4">
+            <div className="mt-seg" role="group" aria-label="Period">
+              {RANGE_OPTS.map(({ days, label }) => (
+                <button
+                  key={days}
+                  type="button"
+                  aria-pressed={daysBack === days}
+                  onClick={() => { setDaysBack(days); setPage(0); }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <label className="mt-field !min-h-[38px] w-[232px] text-[color:var(--ink-3)] max-md:w-full">
+              <SearchIcon />
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search aircraft"
+                aria-label="Search aircraft"
+                autoComplete="off"
+                spellCheck={false}
+                className="h-full min-w-0 flex-1 bg-transparent text-[length:var(--fs-body)] text-[color:var(--ink)] outline-none placeholder:text-[color:var(--ink-3)] max-md:text-[16px]"
+              />
+            </label>
           </div>
-        )}
 
-        {/* ── Controls ─────────────────────────────────────────────── */}
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          {/* Time range pills */}
-          {([1, 7, 30, 90] as const).map((d) => (
-            <button
-              key={d}
-              type="button"
-              onClick={() => { setDaysBack(d); setPage(0); }}
-              className="rounded-[10px] border px-3 py-1.5 text-xs font-semibold transition-colors"
-              style={daysBack === d
-                ? { background: "var(--sky-soft)", borderColor: "var(--sky-line)", color: "var(--sky)" }
-                : { background: "var(--glass-3)", borderColor: "var(--glass-stroke)", color: "var(--t-tertiary)" }}
-            >
-              {d === 1 ? "24h" : d === 7 ? "7 dana" : d === 30 ? "30 dana" : "90 dana"}
-            </button>
-          ))}
-
-          {/* Search */}
-          <div className="ml-auto">
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="ICAO, callsign, reg…"
-              autoComplete="off"
-              spellCheck={false}
-              className="rounded-[10px] border px-3 py-1.5 text-sm outline-none transition w-48"
-              style={{
-                background: "var(--glass-3)",
-                borderColor: "var(--glass-stroke-strong)",
-                color: "var(--t-primary)",
-              }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = "var(--sky-line)"; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = "var(--glass-stroke-strong)"; }}
-            />
-          </div>
-        </div>
-
-        {/* ── Selected chips ───────────────────────────────────────── */}
-        {selected.length > 0 && (
-          <div className="mt-4 flex flex-wrap items-center gap-1.5">
-            {selected.map((id, idx) => {
-              const color = TRACK_COLORS[idx % TRACK_COLORS.length];
-              const track = loadedTracks[id];
-              return (
+          {selected.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 px-6 pt-3 max-md:px-4">
+              {selected.map(({ id, color }) => (
                 <span
                   key={id}
-                  className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold"
-                  style={{ background: `${color}18`, borderColor: `${color}50`, color }}
+                  className="inline-flex h-[30px] items-center gap-2 rounded-full border-[1.5px] pl-2.5 pr-1.5 text-[length:var(--fs-meta)] font-bold"
+                  style={{ borderColor: color }}
                 >
-                  <span
-                    className="inline-block size-2 rounded-full shrink-0"
-                    style={{ background: color }}
-                    aria-hidden
-                  />
-                  {track?.callsign ?? id.toUpperCase()}
+                  <i aria-hidden className="size-2.5 rounded-full" style={{ background: color }} />
+                  {loadedTracks[id]?.callsign ?? id.toUpperCase()}
                   <button
                     type="button"
                     onClick={() => deselect(id)}
-                    className="ml-0.5 opacity-60 hover:opacity-100 transition-opacity"
-                    aria-label={`Ukloni ${id}`}
+                    className="grid size-[22px] place-items-center rounded-full text-[color:var(--ink-2)] transition-colors duration-150 [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color:var(--panel-2)]"
+                    aria-label={`Remove ${loadedTracks[id]?.callsign ?? id.toUpperCase()}`}
                   >
-                    ×
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                      <path d="M6 6l12 12M18 6 6 18" />
+                    </svg>
                   </button>
                 </span>
-              );
-            })}
-            {selected.length > 1 && (
-              <button
-                type="button"
-                onClick={clearAll}
-                className="rounded-full border px-2.5 py-1 text-xs transition-colors"
-                style={{ borderColor: "var(--glass-stroke)", color: "var(--t-tertiary)" }}
-              >
-                Očisti sve
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* ── Main split layout ────────────────────────────────────── */}
-        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-
-          {/* Left: aircraft table */}
-          <div>
-            <div
-              className="rounded-[18px] border overflow-hidden"
-              style={{ background: "var(--glass-1)", borderColor: "var(--glass-stroke)" }}
-            >
-              <div
-                className="pointer-events-none h-[1.5px] w-full"
-                style={{ background: "linear-gradient(90deg,var(--sky) 0%,rgba(96,165,250,0.2) 60%,transparent 100%)" }}
-                aria-hidden
-              />
-
-              {/* Table header */}
-              <div
-                className="grid grid-cols-[2fr_2fr_1.5fr_1fr_1.5fr_1.5fr] gap-2 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.15em]"
-                style={{ color: "var(--t-tertiary)", borderBottom: "1px solid var(--glass-stroke)" }}
-              >
-                <span>ICAO / Reg</span>
-                <span>Callsign / Type</span>
-                <span className="text-right">Pozicije</span>
-                <span className="hidden sm:block text-right">Prva</span>
-                <span className="text-right">Zadnja</span>
-                <span className="hidden md:block">Route</span>
-              </div>
-
-              {/* Rows */}
-              <div className="divide-y" style={{ borderColor: "var(--glass-stroke)" }}>
-                {listLoading ? (
-                  <div className="py-10 text-center text-sm" style={{ color: "var(--t-tertiary)" }}>
-                    Učitavam…
-                  </div>
-                ) : rows.length === 0 ? (
-                  <div className="py-10 text-center text-sm" style={{ color: "var(--t-tertiary)" }}>
-                    Nema zapisa za odabrani period.
-                  </div>
-                ) : rows.map((row) => {
-                  const isSelected = selected.includes(row.icao24);
-                  const colorIdx = selected.indexOf(row.icao24);
-                  const color = isSelected ? TRACK_COLORS[colorIdx % TRACK_COLORS.length] : undefined;
-                  const isLoading = trackLoading.has(row.icao24);
-
-                  return (
-                    <button
-                      key={row.icao24}
-                      type="button"
-                      onClick={() => toggleSelect(row)}
-                      className="grid w-full grid-cols-[2fr_2fr_1.5fr_1fr_1.5fr_1.5fr] gap-2 px-4 py-2.5 text-left text-sm transition-colors hover:bg-white/[0.04]"
-                      style={isSelected
-                        ? { background: `${color}12`, borderLeft: `2px solid ${color}` }
-                        : { borderLeft: "2px solid transparent" }}
-                      title={isSelected ? "Klikni za uklanjanje iz mape" : "Klikni za prikaz na mapi"}
-                    >
-                      {/* ICAO / Reg */}
-                      <div>
-                        <div
-                          className="font-mono text-xs font-semibold"
-                          style={{ color: isSelected ? color : "var(--t-primary)" }}
-                        >
-                          {row.icao24.toUpperCase()}
-                          {isLoading && (
-                            <span className="ml-1.5 inline-block h-2.5 w-2.5 animate-spin rounded-full border-2 border-current border-t-transparent align-middle" />
-                          )}
-                        </div>
-                        <div className="text-[11px]" style={{ color: "var(--t-tertiary)" }}>
-                          {row.registration || "—"}
-                          {row.source && (
-                            <span className="ml-1 opacity-70">· {sourceLabel(row.source)}</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Callsign / Type */}
-                      <div>
-                        <div className="text-xs font-semibold" style={{ color: "var(--t-primary)" }}>
-                          {row.last_callsign || "—"}
-                        </div>
-                        <div className="text-[11px]" style={{ color: "var(--t-tertiary)" }}>
-                          {row.description || row.aircraft_type || "—"}
-                        </div>
-                      </div>
-
-                      {/* Position count */}
-                      <div className="text-right tabular-nums text-xs" style={{ color: "var(--t-secondary)" }}>
-                        {fmtNumber(row.position_count)}
-                      </div>
-
-                      {/* First seen */}
-                      <div className="hidden sm:block text-right text-[11px]" style={{ color: "var(--t-tertiary)" }}>
-                        {fmtDate(row.first_seen)}
-                      </div>
-
-                      {/* Last seen */}
-                      <div className="text-right text-[11px]" style={{ color: "var(--t-tertiary)" }}>
-                        {fmtDate(row.last_seen)}
-                      </div>
-
-                      {/* Route (Avionix Nano only — dispečerski izvedeno, ne autoritativno) */}
-                      <div className="hidden md:block truncate text-[11px]" style={{ color: "var(--t-tertiary)" }} title={row.origin || row.destination ? `${row.origin ?? "?"} → ${row.destination ?? "?"}` : undefined}>
-                        {row.origin || row.destination ? `${row.origin ?? "?"} → ${row.destination ?? "?"}` : "—"}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div
-                  className="flex items-center justify-between px-4 py-3"
-                  style={{ borderTop: "1px solid var(--glass-stroke)" }}
+              ))}
+              {selected.length > 1 && (
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  className="px-1.5 py-1 text-[length:var(--fs-meta)] font-semibold text-[color:var(--ink-3)] underline underline-offset-[3px]"
                 >
-                  <span className="flex items-center gap-1.5 text-xs" style={{ color: "var(--t-tertiary)" }}>
-                    {fmtNumber(totalItems)} aviona · stranica
-                    <input
-                      key={page}
-                      type="text"
-                      inputMode="numeric"
-                      aria-label="Idi na stranicu"
-                      defaultValue={page + 1}
-                      onChange={(e) => { e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, ""); }}
-                      onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-                      onBlur={(e) => { e.currentTarget.value = String(commitPageInput(e.currentTarget.value)); }}
-                      onFocus={(e) => e.currentTarget.select()}
-                      className="w-11 rounded-[6px] border px-1.5 py-0.5 text-center outline-none"
-                      style={{ background: "var(--glass-3)", borderColor: "var(--glass-stroke-strong)", color: "var(--t-primary)" }}
-                    />
-                    /{totalPages}
-                  </span>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      disabled={page === 0}
-                      onClick={() => setPage((p) => p - 1)}
-                      className="rounded-[8px] border px-3 py-1 text-xs transition-colors disabled:opacity-30"
-                      style={{ background: "var(--glass-3)", borderColor: "var(--glass-stroke)", color: "var(--t-secondary)" }}
-                    >
-                      ←
-                    </button>
-                    <button
-                      type="button"
-                      disabled={page >= totalPages - 1}
-                      onClick={() => setPage((p) => p + 1)}
-                      className="rounded-[8px] border px-3 py-1 text-xs transition-colors disabled:opacity-30"
-                      style={{ background: "var(--glass-3)", borderColor: "var(--glass-stroke)", color: "var(--t-secondary)" }}
-                    >
-                      →
-                    </button>
-                  </div>
-                </div>
+                  Clear all
+                </button>
+              )}
+              {limitHit && (
+                <span role="status" className="text-[length:var(--fs-meta)] text-[color:var(--ink-2)]">
+                  Up to {TRACK_COLORS.length} tracks at a time.
+                </span>
               )}
             </div>
+          )}
 
-            {/* List count when no pagination needed */}
-            {totalPages <= 1 && totalItems > 0 && (
-              <p className="mt-2 px-1 text-xs" style={{ color: "var(--t-tertiary)" }}>
-                {fmtNumber(totalItems)} avion{totalItems === 1 ? "" : "a"} u periodu
+          <div className="mt-3.5 flex min-h-0 flex-1 flex-col border-t border-[color:var(--hair)]">
+            <div className={`${ROW_GRID} h-9 shrink-0 border-b border-[color:var(--hair-soft)] bg-[color:var(--panel)] text-[length:var(--fs-label)] font-bold text-[color:var(--ink-3)] max-md:hidden`}>
+              <span />
+              <span>Aircraft</span>
+              <span>Flight</span>
+              <span className="text-right">Fixes</span>
+              <span>Last seen</span>
+              <span className="max-[1280px]:hidden">Route</span>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto max-md:overflow-visible">
+              {listLoading ? (
+                <p className="px-6 py-7 text-[color:var(--ink-2)]">Loading…</p>
+              ) : rows.length === 0 ? (
+                <p className="px-6 py-7 text-[color:var(--ink-2)]">
+                  {debouncedSearch
+                    ? `No aircraft match "${debouncedSearch}" in this period.`
+                    : "No aircraft logged in this period."}
+                </p>
+              ) : rows.map((row) => {
+                const series = selected.find((s) => s.id === row.icao24);
+                const route = row.origin || row.destination ? `${row.origin ?? "?"} → ${row.destination ?? "?"}` : null;
+                return (
+                  <button
+                    key={row.icao24}
+                    type="button"
+                    onClick={() => toggleSelect(row)}
+                    aria-pressed={series != null}
+                    className={`${ROW_GRID} min-h-[54px] w-full border-b border-[color:var(--hair-soft)] py-1.5 text-left transition-colors duration-150 max-md:min-h-[62px] max-md:grid-cols-[16px_1fr_auto] max-md:gap-y-0.5 ${
+                      series ? "bg-[color:var(--panel-2)]" : "[@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color:var(--panel)]"
+                    }`}
+                  >
+                    <span
+                      aria-hidden
+                      className="size-3.5 rounded-full border-[3px] max-md:row-span-2"
+                      style={{
+                        borderColor: series?.color ?? "var(--ink-3)",
+                        background: series?.color ?? "var(--ground)",
+                      }}
+                    />
+                    <span className="min-w-0 max-md:order-3">
+                      <b className="block text-[length:var(--fs-body)] font-extrabold max-md:inline max-md:text-[length:var(--fs-meta)] max-md:font-semibold max-md:text-[color:var(--ink-2)]">
+                        {row.icao24.toUpperCase()}
+                        {trackLoading.has(row.icao24) && (
+                          <span className="ml-1.5 inline-block size-2.5 animate-spin rounded-full border-2 border-current border-t-transparent align-middle" />
+                        )}
+                      </b>
+                      <small className="block truncate text-[length:var(--fs-label)] font-medium text-[color:var(--ink-3)] max-md:hidden">
+                        {row.registration || "—"}
+                        {row.source ? ` · ${sourceLabel(row.source)}` : ""}
+                      </small>
+                    </span>
+                    <span className="min-w-0 max-md:order-1">
+                      <b className="block truncate font-bold max-md:font-extrabold">{row.last_callsign || "—"}</b>
+                      <small className="block truncate text-[length:var(--fs-label)] font-medium text-[color:var(--ink-3)] max-md:hidden">
+                        {row.description || row.aircraft_type || "—"}
+                      </small>
+                    </span>
+                    <span className="text-right font-bold max-md:order-2">{fmtNumber(row.position_count)}</span>
+                    <span className="min-w-0 max-md:order-4 max-md:text-right">
+                      <b className="block text-[length:var(--fs-meta)] font-bold">{fmtDate(row.last_seen)}</b>
+                      <small className="block text-[length:var(--fs-label)] font-medium text-[color:var(--ink-3)] max-md:hidden">
+                        since {fmtDay(row.first_seen)}
+                      </small>
+                    </span>
+                    <span
+                      className={`truncate text-[length:var(--fs-meta)] max-[1280px]:hidden ${route ? "font-semibold text-[color:var(--ink-2)]" : "text-[color:var(--ink-3)]"}`}
+                      title={route ?? undefined}
+                    >
+                      {route ?? "—"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="shrink-0 border-t border-[color:var(--hair)] bg-[color:var(--panel)] px-6 pb-3 pt-2.5 max-md:px-4">
+              <p className="mb-2 text-[length:var(--fs-label)] text-[color:var(--ink-3)]">
+                Route comes from the Avionix dispatcher. It is a guess for reference and is not used in predictions.
               </p>
+              <div className="flex items-center justify-between gap-3 text-[length:var(--fs-meta)] text-[color:var(--ink-2)]">
+                <span className="inline-flex items-center gap-2">
+                  {fmtNumber(totalItems)} aircraft
+                  {totalPages > 1 && (
+                    <>
+                      <span aria-hidden>·</span>page
+                      <input
+                        key={page}
+                        type="text"
+                        inputMode="numeric"
+                        aria-label="Go to page"
+                        defaultValue={page + 1}
+                        onChange={(e) => { e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, ""); }}
+                        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                        onBlur={(e) => { e.currentTarget.value = String(commitPageInput(e.currentTarget.value)); }}
+                        onFocus={(e) => e.currentTarget.select()}
+                        className="h-8 w-[52px] rounded-[var(--r-ctl)] border border-[color:var(--hair)] bg-[color:var(--ground)] text-center font-bold text-[color:var(--ink)] outline-none focus:border-[color:var(--observer)] max-md:text-[16px]"
+                      />
+                      of {fmtNumber(totalPages)}
+                    </>
+                  )}
+                </span>
+                {totalPages > 1 && (
+                  <span className="flex gap-2">
+                    <button type="button" disabled={page === 0} onClick={() => setPage((p) => p - 1)} className="mt-btn mt-btn-sm w-[42px] !px-0" aria-label="Previous page">
+                      ←
+                    </button>
+                    <button type="button" disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)} className="mt-btn mt-btn-sm w-[42px] !px-0" aria-label="Next page">
+                      →
+                    </button>
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section aria-label="Tracks on the map" className="relative min-h-0 min-w-0 overflow-hidden bg-[color:var(--land)] max-md:h-[360px]">
+          <FlightLogMap tracks={activeTracks} />
+          <div className="absolute left-4 top-4 w-[300px] rounded-[var(--r-panel)] border border-[color:var(--hair)] bg-[color:var(--panel)] px-3.5 py-3 max-md:inset-x-2 max-md:bottom-2 max-md:top-auto max-md:w-auto">
+            <h2 className="mb-1.5 text-[length:var(--fs-meta)] font-bold text-[color:var(--ink-2)]">Tracks on the map</h2>
+            {selected.length === 0 ? (
+              <p className="text-[length:var(--fs-meta)] text-[color:var(--ink-3)]">Select a row to draw its track.</p>
+            ) : (
+              <ul className="flex flex-col gap-1.5">
+                {selected.map(({ id, color, fixes }) => (
+                  <li key={id} className="flex items-center gap-2.5 text-[length:var(--fs-meta)]">
+                    <i aria-hidden className="h-1.5 w-[26px] rounded-[3px]" style={{ background: color }} />
+                    <b className="font-extrabold">{loadedTracks[id]?.callsign ?? id.toUpperCase()}</b>
+                    <span className="ml-auto text-[color:var(--ink-3)]">{fmtNumber(fixes)} fixes</span>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
-
-          {/* Right: sticky map */}
-          <div className="lg:sticky lg:top-4" style={{ height: "calc(100dvh - 2rem)" }}>
-            <FlightLogMap tracks={activeTracks} />
-          </div>
-        </div>
-
-      </div>
+        </section>
+      </main>
     </div>
+  );
+}
+
+const ROW_GRID =
+  "grid grid-cols-[16px_1.1fr_1.15fr_0.65fr_1fr_0.95fr] items-center gap-3 px-6 max-[1280px]:grid-cols-[16px_1.1fr_1.1fr_0.6fr_1fr] max-md:px-4";
+
+function SummaryCell({ label, value, detail }: { label: string; value: string; detail?: string }) {
+  return (
+    <div className="min-w-0 border-l border-[color:var(--hair-soft)] px-3.5 py-2.5 first:border-l-0 max-md:[&:nth-child(3)]:border-l-0 max-md:[&:nth-child(n+3)]:border-t">
+      <dt className="text-[length:var(--fs-label)] font-semibold text-[color:var(--ink-3)]">{label}</dt>
+      <dd className="mt-0.5 truncate whitespace-nowrap text-[length:var(--fs-h2)] font-extrabold">
+        {value}
+        {detail ? <small className="ml-1 text-[length:var(--fs-meta)] font-semibold text-[color:var(--ink-2)]">{detail}</small> : null}
+      </dd>
+    </div>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg className="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="11" cy="11" r="7" />
+      <path d="M21 21l-4.3-4.3" />
+    </svg>
   );
 }

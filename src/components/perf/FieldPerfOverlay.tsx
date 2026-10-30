@@ -36,7 +36,7 @@ export function FieldPerfOverlay() {
 
   return (
     <div
-      className="pointer-events-none absolute right-2 top-2 z-20 w-[min(20rem,92vw)] max-h-[40vh] overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-950/92 px-2 py-1.5 font-mono text-[10px] leading-snug text-zinc-300 shadow-lg backdrop-blur"
+      className="pointer-events-none absolute right-2 top-2 z-20 w-[min(20rem,92vw)] max-h-[40vh] overflow-y-auto rounded-lg border border-zinc-700 bg-zinc-950/92 px-2 py-1.5 font-mono text-[10px] leading-snug text-zinc-300"
       aria-label="Field performance"
       data-testid="field-perf-overlay"
     >
