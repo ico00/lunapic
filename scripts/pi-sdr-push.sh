@@ -62,10 +62,16 @@ if ! payload=$(read_payload 2>&1); then
 fi
 
 # Sanity: mora sadržavati `aircraft` polje — inače ne šalji smeće serveru.
-if ! printf '%s' "$payload" | grep -q '"aircraft"'; then
-  echo "odgovor s $SOURCE_URL ne izgleda kao tar1090 JSON" >&2
-  exit 1
-fi
+# Bez pipea na `grep -q`: grep izađe na prvom pogotku, a printf koji još piše
+# veći payload (> 64 KB pipe buffer) dobije EPIPE; uz `pipefail` to je lažni
+# neuspjeh. Više aviona (bolja antena) = veći JSON = točno taj slučaj.
+case "$payload" in
+  *'"aircraft"'*) ;;
+  *)
+    echo "odgovor (${SOURCE_FILE:-${SOURCE_URL:-autodetekcija}}) ne izgleda kao tar1090 JSON" >&2
+    exit 1
+    ;;
+esac
 
 http_code=$(printf '%s' "$payload" | curl -sS -m 20 -o /tmp/lunapic-ingest-resp \
   -w '%{http_code}' \
