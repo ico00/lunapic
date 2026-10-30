@@ -260,6 +260,20 @@ Zasivljenje je **jednom, na redu** (`opacity-60`), ne i na checkboxu — inače 
 množi (0.6 × 0.6). `opacity-60` (a ne `text-zinc-600`) čuva čitljivost naziva i
 radi isto na tekstu i na checkboxu.
 
+### 4a.2b Grupe izvora u panelu Flight source
+
+Redovi su podijeljeni u **dvije grupe**, uvijek ovim redoslijedom (redoslijed je
+u `FlightSourcePanel.tsx`, ne u globalnom `FLIGHT_PROVIDER_COMBO_IDS`):
+
+1. **Local receivers · no delay** — `LunaPic ADS-B`, `Avionix Nano` (vlastiti hardver, push).
+2. **Web APIs · delayed** — `OpenSky`, `adsb.lol`, s jednom bilješkom ispod naslova
+   da se osvježavaju svakih 30 s i kasne za lokalnim prijemnicima.
+
+- Naslov grupe: **`.mt-section-label`** (§ tipografija), uz `px-2.5 pb-0.5`; između
+  grupa jedan separator `border-t border-zinc-700/60` (kao dosad).
+- Bilješka: `text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]`, `px-2.5 pb-1`.
+- Naslovi grupa su statični tekst, ne dio checkbox labela (ne mijenjaju stanje).
+
 ### 4a.3 Combobox trigger hover/fokus
 
 ```

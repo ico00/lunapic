@@ -1,6 +1,5 @@
 "use client";
 
-import { Fragment } from "react";
 import { shellAccentCheckboxClass } from "@/lib/ui/shellComboboxStyles";
 import {
   type LiveFlightFeeds,
@@ -9,9 +8,12 @@ import {
 } from "@/stores/moon-transit-store";
 import {
   AVIONIX_FEED_AVAILABLE,
-  FLIGHT_PROVIDER_COMBO_IDS,
   type FlightProviderId,
 } from "@/types/flight-provider";
+
+/** Spec §4a.2b: lokalni prijemnici na vrhu, web API-ji ispod (uz napomenu o kašnjenju). */
+const LOCAL_SOURCE_IDS = ["localsdr", "avionix"] as const;
+const WEB_SOURCE_IDS = ["opensky", "adsbone"] as const;
 
 function labelForProvider(id: FlightProviderId): string {
   if (id === "adsbone") return "adsb.lol";
@@ -96,93 +98,100 @@ export function FlightSourcePanel({
     liveFlightFeeds.avionix && avionixStatus === "unreachable";
   const openSkyRateLimited =
     liveFlightFeeds.opensky && webFeedStatus.opensky === "rate-limited";
+  const renderRow = (id: FlightProviderId) => {
+    const isLocalSource = id === "localsdr" || id === "avionix";
+    const unavailable = isUnavailable(id);
+    // Nedostupan izvor nikad nije "uključen", čak ni ako bi ga stanje tvrdilo.
+    const feedOn = !unavailable && feedFor(id, liveFlightFeeds);
+    const count = countFor(id, providerFlightCounts);
+    const rowUnreachable =
+      id === "localsdr"
+        ? feedOn && sdrUnreachable
+        : id === "avionix"
+          ? feedOn && avionixUnreachable
+          : false;
+    const badge =
+      !isLocalSource && feedOn
+        ? webBadge(webFeedStatus[id as "opensky" | "adsbone"])
+        : null;
+    return (
+      <label
+        key={id}
+        className={unavailable ? rowDisabledClass : rowClass(feedOn)}
+        title={unavailable ? UNAVAILABLE_TITLE[id] : undefined}
+        aria-disabled={unavailable || undefined}
+      >
+        <input
+          type="checkbox"
+          data-testid={`live-feed-${id}`}
+          checked={feedOn}
+          disabled={unavailable}
+          onChange={(e) =>
+            onLiveFlightFeedsChange(
+              id === "opensky"
+                ? { opensky: e.target.checked }
+                : id === "adsbone"
+                  ? { adsbone: e.target.checked }
+                  : id === "localsdr"
+                    ? { localsdr: e.target.checked }
+                    : { avionix: e.target.checked }
+            )
+          }
+          className={`${shellAccentCheckboxClass}${unavailable ? " disabled:cursor-not-allowed" : ""}`}
+        />
+        <span className="min-w-0 flex-1">{labelForProvider(id)}</span>
+        {badge ? (
+          <span
+            className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[length:var(--fs-label)] font-semibold ${badgeToneClass[badge.tone]}`}
+            data-testid={`web-feed-status-${id}`}
+          >
+            <span
+              className={`inline-block size-1.5 rounded-full ${badgeDotClass[badge.tone]}`}
+              aria-hidden
+            />
+            {badge.label}
+          </span>
+        ) : rowUnreachable ? (
+          <span
+            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-rose-400/40 bg-rose-500/15 px-2 py-0.5 text-[length:var(--fs-label)] font-semibold text-rose-300"
+            data-testid={`${id}-offline`}
+          >
+            <span className="inline-block size-1.5 rounded-full bg-rose-400" aria-hidden />
+            offline
+          </span>
+        ) : (
+          <>
+            {feedOn && count > 0 && (
+              <span className="shrink-0 text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
+                ({count})
+              </span>
+            )}
+            {isLocalSource && feedOn && (
+              <span
+                className="shrink-0 text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]"
+                title="Local receivers outrank the web feeds. Between the two of them, the fresher fix wins; while both are fresh, LunaPic ADS-B leads."
+              >
+                ↑ priority
+              </span>
+            )}
+          </>
+        )}
+      </label>
+    );
+  };
+
   return (
     <div className="flex flex-col gap-0.5">
-      {FLIGHT_PROVIDER_COMBO_IDS.map((id) => {
-        const isLocalSource = id === "localsdr" || id === "avionix";
-        const unavailable = isUnavailable(id);
-        // Nedostupan izvor nikad nije "uključen", čak ni ako bi ga stanje tvrdilo.
-        const feedOn = !unavailable && feedFor(id, liveFlightFeeds);
-        const count = countFor(id, providerFlightCounts);
-        const rowUnreachable =
-          id === "localsdr"
-            ? feedOn && sdrUnreachable
-            : id === "avionix"
-              ? feedOn && avionixUnreachable
-              : false;
-        const badge =
-          !isLocalSource && feedOn
-            ? webBadge(webFeedStatus[id as "opensky" | "adsbone"])
-            : null;
-        return (
-          <Fragment key={id}>
-            {id === "localsdr" && (
-              <div className="my-1 border-t border-zinc-700/60" />
-            )}
-            <label
-              className={unavailable ? rowDisabledClass : rowClass(feedOn)}
-              title={unavailable ? UNAVAILABLE_TITLE[id] : undefined}
-              aria-disabled={unavailable || undefined}
-            >
-              <input
-                type="checkbox"
-                data-testid={`live-feed-${id}`}
-                checked={feedOn}
-                disabled={unavailable}
-                onChange={(e) =>
-                  onLiveFlightFeedsChange(
-                    id === "opensky"
-                      ? { opensky: e.target.checked }
-                      : id === "adsbone"
-                        ? { adsbone: e.target.checked }
-                        : id === "localsdr"
-                          ? { localsdr: e.target.checked }
-                          : { avionix: e.target.checked }
-                  )
-                }
-                className={`${shellAccentCheckboxClass}${unavailable ? " disabled:cursor-not-allowed" : ""}`}
-              />
-              <span className="min-w-0 flex-1">{labelForProvider(id)}</span>
-              {badge ? (
-                <span
-                  className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[length:var(--fs-label)] font-semibold ${badgeToneClass[badge.tone]}`}
-                  data-testid={`web-feed-status-${id}`}
-                >
-                  <span
-                    className={`inline-block size-1.5 rounded-full ${badgeDotClass[badge.tone]}`}
-                    aria-hidden
-                  />
-                  {badge.label}
-                </span>
-              ) : rowUnreachable ? (
-                <span
-                  className="inline-flex shrink-0 items-center gap-1 rounded-full border border-rose-400/40 bg-rose-500/15 px-2 py-0.5 text-[length:var(--fs-label)] font-semibold text-rose-300"
-                  data-testid={`${id}-offline`}
-                >
-                  <span className="inline-block size-1.5 rounded-full bg-rose-400" aria-hidden />
-                  offline
-                </span>
-              ) : (
-                <>
-                  {feedOn && count > 0 && (
-                    <span className="shrink-0 text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
-                      ({count})
-                    </span>
-                  )}
-                  {isLocalSource && feedOn && (
-                    <span
-                      className="shrink-0 text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]"
-                      title="Local receivers outrank the web feeds. Between the two of them, the fresher fix wins; while both are fresh, LunaPic ADS-B leads."
-                    >
-                      ↑ priority
-                    </span>
-                  )}
-                </>
-              )}
-            </label>
-          </Fragment>
-        );
-      })}
+      <p className="mt-section-label px-2.5 pb-0.5">Local receivers · no delay</p>
+      {LOCAL_SOURCE_IDS.map(renderRow)}
+
+      <div className="my-1 border-t border-zinc-700/60" />
+
+      <p className="mt-section-label px-2.5 pb-0.5">Web APIs · delayed</p>
+      <p className="px-2.5 pb-1 text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
+        Refreshed every 30 s and behind the local receivers.
+      </p>
+      {WEB_SOURCE_IDS.map(renderRow)}
 
       {openSkyRateLimited && (
         <div className="mt-1.5 mt-note flex items-start gap-2 !px-2.5 !py-2 !text-[length:var(--fs-label)]">
