@@ -127,9 +127,15 @@ server je jedini vlasnik notifikacija, pa nema dvostrukih alerta.
 ### Izvori letova — kvote i tempo (detalji: `documentation/flight-sources.md`)
 
 Četiri izvora: **OpenSky** (`opensky`), **adsb.lol** (`adsbone` — id je
-povijesni, perzistiran u localStorage, više ne imenuje operatora), **LunaPic
+povijesni, više ne imenuje operatora), **LunaPic
 ADS-B** (`localsdr`, Raspberry Pi) i **Avionix Nano ADS-B** (`avionix`, NanoPi
 Neo — isti push princip kao Pi, vidi nižu sekciju za specifičnost uređaja).
+
+**Zadano (2026-10-30):** uključen je samo LunaPic ADS-B (`localsdr`); OpenSky i
+adsb.lol su opcija koja se pali ručno, a Avionix je na popisu zasivljen, bez
+kvačice i ne može se kliknuti dok je `AVIONIX_FEED_AVAILABLE = false`
+(`src/types/flight-provider.ts`). Odabir se ne pamti — svako učitavanje kreće od
+zadanog. Detalji: `documentation/flight-sources.md` ("Defaults").
 
 Dvije stvari koje se lako slome i ne javljaju se same:
 

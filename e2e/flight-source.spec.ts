@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { E2E_BASE } from "./basePath";
 
 test.describe("flight source", () => {
-  test("Flight source panel toggles OpenSky and adsb.lol live feeds without errors", async ({
+  test("Flight source panel: LunaPic is the default, web feeds are opt-in, Avionix is disabled", async ({
     page,
   }) => {
     const pageErrors: string[] = [];
@@ -22,19 +22,27 @@ test.describe("flight source", () => {
 
     const openSkyFeed = page.getByTestId("live-feed-opensky");
     const adsbOneFeed = page.getByTestId("live-feed-adsbone");
+    const lunaPicFeed = page.getByTestId("live-feed-localsdr");
+    const avionixFeed = page.getByTestId("live-feed-avionix");
     await expect(openSkyFeed).toBeVisible();
     await expect(adsbOneFeed).toBeVisible();
-    await expect(openSkyFeed).toBeChecked();
+    await expect(lunaPicFeed).toBeChecked();
+    await expect(openSkyFeed).not.toBeChecked();
+    await expect(adsbOneFeed).not.toBeChecked();
+
+    // Avionix: na popisu, ali nije uključen i ne može se kliknuti.
+    await expect(avionixFeed).toBeVisible();
+    await expect(avionixFeed).not.toBeChecked();
+    await expect(avionixFeed).toBeDisabled();
+
+    await adsbOneFeed.check();
     await expect(adsbOneFeed).toBeChecked();
 
     await adsbOneFeed.uncheck();
     await expect(adsbOneFeed).not.toBeChecked();
 
-    await adsbOneFeed.check();
-    await expect(adsbOneFeed).toBeChecked();
-
-    await openSkyFeed.uncheck();
-    await expect(openSkyFeed).not.toBeChecked();
+    await openSkyFeed.check();
+    await expect(openSkyFeed).toBeChecked();
 
     expect(pageErrors, pageErrors.join("\n")).toEqual([]);
   });

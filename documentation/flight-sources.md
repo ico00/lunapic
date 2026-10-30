@@ -20,9 +20,28 @@ invisible from the app.
 | LunaPic ADS-B | `localsdr` | own Raspberry Pi (push) | shared token | none (own hardware) |
 | Avionix Nano | `avionix` | own Avionix Nano ADS-B, NanoPi Neo (push) | shared token | none (own hardware) |
 
-The provider id **`adsbone` is historical**. It is persisted in `localStorage`
-(`flightProvider`, `liveFlightFeeds`), so renaming it would need a migration for
-no benefit. Only the user-facing label tracks the actual operator.
+The provider id **`adsbone` is historical**. Only the user-facing label tracks
+the actual operator.
+
+### Defaults (since 2026-10-30)
+
+`liveFlightFeeds` starts as `{ opensky: false, adsbone: false, localsdr: true,
+avionix: false }` (`moon-transit-store.ts`). The own receiver is the default
+source; OpenSky and adsb.lol are opt-in checkboxes. The feed selection is **not
+persisted** — every page load starts from these defaults. Consequences worth
+knowing:
+
+* With only `localsdr` on, `loadFlightsInBounds` queries nothing but the Pi
+  (the web fallback to OpenSky applies only when *no* source at all is enabled),
+  so OpenSky credits are not spent unless someone ticks it.
+* If the Pi stops pushing, the map is empty until a web source is ticked — the
+  "offline" badge and banner on the LunaPic row are the signal.
+* The last enabled source cannot be unticked (`setLiveFlightFeeds` ignores a
+  patch that would leave all four off).
+* **Avionix Nano is shown greyed out, unchecked and not clickable** while
+  `AVIONIX_FEED_AVAILABLE` (`src/types/flight-provider.ts`) is `false`; the store
+  also refuses to turn it on programmatically. Flip the constant to `true` when
+  the device is connected again. The push/ingest side is unchanged.
 
 All four are merged into one aircraft list per tick, keyed by canonical ICAO24,
 in two stages. First the two local hardware sources (`localsdr`, `avionix`) are

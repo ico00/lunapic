@@ -87,7 +87,7 @@ import type { GeoBounds, MapViewState } from "@/types";
 import type { FlightState } from "@/types/flight";
 import type { MapDisplayMode } from "@/types/map-display";
 import type { PhotoSpotOpportunity } from "@/types/photoSpot";
-import type { FlightProviderId } from "@/types/flight-provider";
+import { AVIONIX_FEED_AVAILABLE, type FlightProviderId } from "@/types/flight-provider";
 
 /** Koji live REST izvori su uključeni (ICAO24 se spaja u jedan zapis po zrakoplovu). */
 export type LiveFlightFeeds = {
@@ -342,7 +342,9 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   timeAnchorIsPlanned: false,
   mapView: defaultMapViewState,
   flightProvider: "opensky",
-  liveFlightFeeds: { opensky: true, adsbone: true, localsdr: true, avionix: true },
+  // Vlastiti prijemnik je zadani izvor; web izvori (OpenSky, adsb.lol) su opcija
+  // koja se pali ručno — štedi OpenSky kredite i ne miješa sporije web fixove.
+  liveFlightFeeds: { opensky: false, adsbone: false, localsdr: true, avionix: false },
   flights: [],
   providerFlightCounts: { opensky: 0, adsbone: 0, localsdr: 0, avionix: 0 },
   localsdrStatus: "idle",
@@ -562,7 +564,10 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
         opensky: patch.opensky ?? s.liveFlightFeeds.opensky,
         adsbone: patch.adsbone ?? s.liveFlightFeeds.adsbone,
         localsdr: patch.localsdr ?? s.liveFlightFeeds.localsdr,
-        avionix: patch.avionix ?? s.liveFlightFeeds.avionix,
+        // Nedostupan uređaj se ne može uključiti ni programski (UI ga ionako blokira).
+        avionix: AVIONIX_FEED_AVAILABLE
+          ? (patch.avionix ?? s.liveFlightFeeds.avionix)
+          : false,
       };
       if (!next.opensky && !next.adsbone && !next.localsdr && !next.avionix) {
         return {};

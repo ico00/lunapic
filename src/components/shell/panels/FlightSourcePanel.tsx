@@ -8,6 +8,7 @@ import {
   useMoonTransitStore,
 } from "@/stores/moon-transit-store";
 import {
+  AVIONIX_FEED_AVAILABLE,
   FLIGHT_PROVIDER_COMBO_IDS,
   type FlightProviderId,
 } from "@/types/flight-provider";
@@ -32,6 +33,17 @@ const rowClass = (on: boolean) =>
   on
     ? `${rowBase} bg-sky-500/15 text-sky-200`
     : `${rowBase} text-[color:var(--t-secondary)] hover:bg-zinc-800 hover:text-[color:var(--t-primary)]`;
+// Spec §4a.2a: izvor koji trenutno nije dostupan — zasivljen, bez hovera, ne može se kliknuti.
+const rowDisabledClass =
+  "flex cursor-not-allowed items-center gap-2.5 rounded-md px-2.5 py-2 text-[length:var(--fs-body)] select-none text-[color:var(--t-tertiary)] opacity-60";
+
+const UNAVAILABLE_TITLE: Partial<Record<FlightProviderId, string>> = {
+  avionix: "Avionix Nano is not connected",
+};
+
+function isUnavailable(id: FlightProviderId): boolean {
+  return id === "avionix" && !AVIONIX_FEED_AVAILABLE;
+}
 
 type ProviderCounts = {
   opensky: number;
@@ -88,7 +100,9 @@ export function FlightSourcePanel({
     <div className="flex flex-col gap-0.5">
       {FLIGHT_PROVIDER_COMBO_IDS.map((id) => {
         const isLocalSource = id === "localsdr" || id === "avionix";
-        const feedOn = feedFor(id, liveFlightFeeds);
+        const unavailable = isUnavailable(id);
+        // Nedostupan izvor nikad nije "uključen", čak ni ako bi ga stanje tvrdilo.
+        const feedOn = !unavailable && feedFor(id, liveFlightFeeds);
         const count = countFor(id, providerFlightCounts);
         const rowUnreachable =
           id === "localsdr"
@@ -105,11 +119,16 @@ export function FlightSourcePanel({
             {id === "localsdr" && (
               <div className="my-1 border-t border-zinc-700/60" />
             )}
-            <label className={rowClass(feedOn)}>
+            <label
+              className={unavailable ? rowDisabledClass : rowClass(feedOn)}
+              title={unavailable ? UNAVAILABLE_TITLE[id] : undefined}
+              aria-disabled={unavailable || undefined}
+            >
               <input
                 type="checkbox"
                 data-testid={`live-feed-${id}`}
                 checked={feedOn}
+                disabled={unavailable}
                 onChange={(e) =>
                   onLiveFlightFeedsChange(
                     id === "opensky"
@@ -121,7 +140,7 @@ export function FlightSourcePanel({
                           : { avionix: e.target.checked }
                   )
                 }
-                className={shellAccentCheckboxClass}
+                className={`${shellAccentCheckboxClass}${unavailable ? " disabled:cursor-not-allowed" : ""}`}
               />
               <span className="min-w-0 flex-1">{labelForProvider(id)}</span>
               {badge ? (
