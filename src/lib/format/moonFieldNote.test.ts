@@ -25,8 +25,8 @@ describe("formatMoonFieldNoteText", () => {
     expect(text).toContain("Moon azimuth (from north): 132.52°");
     expect(text).toContain("Moon angular radius: 0.248°");
     expect(text).toContain("Moon illuminated: 100%");
-    expect(text).toContain("Moonrise (UTC day): 20:21:40");
-    expect(text).toContain("Moonset (UTC day): 05:14:25");
+    expect(text).toContain("Moonrise (local): 20:21:40");
+    expect(text).toContain("Moonset (local): 05:14:25");
     expect(text).toContain("Field visibility: Optimal — clear sky window");
     expect(text).toContain("balcony or stand logs");
   });

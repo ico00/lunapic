@@ -174,8 +174,8 @@ export function StreetViewFullscreen({ moon, observer, nowMs, candidates, active
       const isCurrent = Math.abs(s.epochMs - nowMs) < PATH_STEP_MS;
       ctx.beginPath();
       ctx.arc(pt[0], pt[1], isCurrent ? 7 : 4, 0, Math.PI * 2);
-      ctx.fillStyle = isCurrent ? "rgba(251,191,36,1)"
-        : isPast ? "rgba(251,191,36,0.3)" : "rgba(255,220,100,0.75)";
+      ctx.fillStyle = isCurrent ? "rgba(255,178,36,1)"
+        : isPast ? "rgba(255,178,36,0.3)" : "rgba(255,220,100,0.75)";
       ctx.fill();
     }
 
@@ -185,21 +185,21 @@ export function StreetViewFullscreen({ moon, observer, nowMs, candidates, active
       const [mx, my] = moonPt;
       const R = 32;
       const grad = ctx.createRadialGradient(mx, my, R * 0.5, mx, my, R * 2.5);
-      grad.addColorStop(0, "rgba(251,191,36,0.5)");
-      grad.addColorStop(1, "rgba(251,191,36,0)");
+      grad.addColorStop(0, "rgba(255,178,36,0.5)");
+      grad.addColorStop(1, "rgba(255,178,36,0)");
       ctx.beginPath(); ctx.arc(mx, my, R * 2.5, 0, Math.PI * 2);
       ctx.fillStyle = grad; ctx.fill();
       ctx.beginPath(); ctx.arc(mx, my, R, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(251,191,36,0.18)"; ctx.fill();
+      ctx.fillStyle = "rgba(255,178,36,0.18)"; ctx.fill();
       ctx.beginPath(); ctx.arc(mx, my, R, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(251,191,36,0.95)"; ctx.lineWidth = 2.5; ctx.stroke();
-      ctx.strokeStyle = "rgba(251,191,36,0.55)"; ctx.lineWidth = 1; ctx.setLineDash([5, 5]);
+      ctx.strokeStyle = "rgba(255,178,36,0.95)"; ctx.lineWidth = 2.5; ctx.stroke();
+      ctx.strokeStyle = "rgba(255,178,36,0.55)"; ctx.lineWidth = 1; ctx.setLineDash([5, 5]);
       ctx.beginPath();
       ctx.moveTo(mx - R * 2, my); ctx.lineTo(mx + R * 2, my);
       ctx.moveTo(mx, my - R * 2); ctx.lineTo(mx, my + R * 2);
       ctx.stroke(); ctx.setLineDash([]);
       ctx.font = "bold 13px ui-monospace, monospace";
-      ctx.fillStyle = "rgba(251,191,36,0.95)"; ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(255,178,36,0.95)"; ctx.textAlign = "center";
       ctx.fillText("☽ Moon", mx, my + R + 18);
     }
 
@@ -233,8 +233,8 @@ export function StreetViewFullscreen({ moon, observer, nowMs, candidates, active
       if (!pt) return;
       const [ax, ay] = pt;
 
-      const color    = isActive ? "rgba(56,189,248,1)"    : "rgba(167,139,250,0.85)";
-      const colorDim = isActive ? "rgba(56,189,248,0.65)" : "rgba(167,139,250,0.5)";
+      const color    = isActive ? "rgba(255,93,74,1)"    : "rgba(91,149,255,0.85)";
+      const colorDim = isActive ? "rgba(255,93,74,0.65)" : "rgba(91,149,255,0.5)";
 
       // Compute screen rotation from projected future position (15 km ahead)
       let futurePt: [number, number] | null = null;
@@ -283,19 +283,19 @@ export function StreetViewFullscreen({ moon, observer, nowMs, candidates, active
       ctx.translate(ax, ay);
       ctx.rotate(rotRad);
       if (isActive) {
-        ctx.shadowColor = "rgba(56,189,248,0.8)";
+        ctx.shadowColor = "rgba(255,93,74,0.8)";
         ctx.shadowBlur = 12;
         tracePlane(sz);
-        ctx.fillStyle = "rgba(56,189,248,0.25)";
+        ctx.fillStyle = "rgba(255,93,74,0.25)";
         ctx.fill();
-        ctx.strokeStyle = "rgba(56,189,248,1)";
+        ctx.strokeStyle = "rgba(255,93,74,1)";
         ctx.lineWidth = 1.5;
         ctx.stroke();
       } else {
         tracePlane(sz);
-        ctx.fillStyle = "rgba(167,139,250,0.2)";
+        ctx.fillStyle = "rgba(91,149,255,0.2)";
         ctx.fill();
-        ctx.strokeStyle = "rgba(167,139,250,0.8)";
+        ctx.strokeStyle = "rgba(91,149,255,0.8)";
         ctx.lineWidth = 1;
         ctx.stroke();
       }
@@ -322,7 +322,7 @@ export function StreetViewFullscreen({ moon, observer, nowMs, candidates, active
 
     if (moonAlt < 0) {
       ctx.font = "14px ui-monospace, monospace";
-      ctx.fillStyle = "rgba(251,191,36,0.7)"; ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(255,178,36,0.7)"; ctx.textAlign = "center";
       ctx.fillText("Moon below horizon", W / 2, H - 20);
     }
   }, [pov, pathSamples, moonAz, moonAlt, nowMs, status, candidates, activeTransits, observer]);
@@ -347,9 +347,9 @@ export function StreetViewFullscreen({ moon, observer, nowMs, candidates, active
 
       {/* Loading */}
       {status === "loading" && (
-        <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/80 z-[10000]">
+        <div className="absolute inset-0 flex items-center justify-center bg-[color:var(--panel-2)] z-[10000]">
           <div className="flex flex-col items-center gap-3">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-amber-400/40 border-t-amber-400" />
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-[color:var(--hair)] border-t-[color:var(--ink)]" />
             <span className="text-[length:var(--fs-meta)] text-[color:var(--t-secondary)]">Loading Street View…</span>
           </div>
         </div>
@@ -357,7 +357,7 @@ export function StreetViewFullscreen({ moon, observer, nowMs, candidates, active
 
       {/* Unavailable */}
       {status === "unavailable" && (
-        <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/90 z-[10000]">
+        <div className="absolute inset-0 flex items-center justify-center bg-[color:var(--panel-2)] z-[10000]">
           <div className="text-center">
             <div className="mb-2 text-4xl">📍</div>
             <p className="text-[length:var(--fs-body-strong)] font-semibold text-[color:var(--t-primary)]">Street View unavailable</p>

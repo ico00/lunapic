@@ -23,22 +23,22 @@ import type { MoonRiseSetKind, MoonState } from "@/types/moon";
 /** Altitude row dot: red = poor / hidden band, amber = marginal, green = good for field use. */
 function tierDotClass(tier: MoonFieldVisibilityTier): string {
   if (tier === "critical") {
-    return "bg-red-500 shadow-[0_0_0_1px_rgba(255,255,255,0.12)]";
+    return "bg-[color:var(--disc)]";
   }
   if (tier === "caution") {
-    return "bg-amber-400 shadow-[0_0_0_1px_rgba(255,255,255,0.12)]";
+    return "bg-[color:var(--moon)]";
   }
-  return "bg-emerald-500 shadow-[0_0_0_1px_rgba(255,255,255,0.12)]";
+  return "bg-[color:var(--live)]";
 }
 
 function tierLabelClass(tier: MoonFieldVisibilityTier): string {
   if (tier === "critical") {
-    return "text-red-400/95";
+    return "text-[color:var(--disc-text)]";
   }
   if (tier === "caution") {
-    return "text-amber-400/95";
+    return "text-[color:var(--moon)]";
   }
-  return "text-emerald-400/95";
+  return "text-[color:var(--live)]";
 }
 
 function moonRowLabel(icon: ReactNode, text: string) {
@@ -50,20 +50,27 @@ function moonRowLabel(icon: ReactNode, text: string) {
   );
 }
 
-function timeDisplay(
+/** Lokalni sat izlaza/zlaza. Dan bez tog događaja je stvaran slučaj (lunarni dan traje ~24 h 50 min). */
+function riseSetDisplay(
   t: Date | null,
   show: boolean,
   hasMounted: boolean
 ): string {
-  if (t == null || !show || !hasMounted) {
+  if (!show || !hasMounted) {
     return "—";
+  }
+  if (t == null) {
+    return "None today";
   }
   return t.toLocaleTimeString("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
-    second: "2-digit",
     hour12: false,
   });
+}
+
+function riseSetUtcTitle(t: Date | null): string | undefined {
+  return t == null ? undefined : `${t.toISOString().slice(11, 16)} UTC`;
 }
 
 type MoonEphemerisPanelProps = {
@@ -102,30 +109,6 @@ export function MoonEphemerisPanel({
       isBalconyTransitWatchIdeal(moon, observer),
     [showEphemeris, isMoonBelowHorizon, moon, observer]
   );
-  const moonriseNoteText = useMemo(() => {
-    if (moonRiseSetKind === "alwaysUp") {
-      return "Circumpolar (up)";
-    }
-    if (moonRiseSetKind === "alwaysDown") {
-      return "Circumpolar (down)";
-    }
-    return timeDisplay(moonRise, showEphemeris, hasMounted);
-  }, [moonRise, moonRiseSetKind, showEphemeris, hasMounted]);
-
-  const moonsetNoteText = useMemo(() => {
-    if (moonRiseSetKind === "alwaysUp" || moonRiseSetKind === "alwaysDown") {
-      return "—";
-    }
-    return timeDisplay(moonSet, showEphemeris, hasMounted);
-  }, [moonSet, moonRiseSetKind, showEphemeris, hasMounted]);
-
-  const visibilitySummary = useMemo(() => {
-    if (!visibilityAdvice) {
-      return null;
-    }
-    return `${visibilityAdvice.label} — ${visibilityAdvice.message}`;
-  }, [visibilityAdvice]);
-
   const illuminationAdvice = useMemo(() => {
     if (!showEphemeris) return null;
     const pct = moon.illuminationFraction * 100;
@@ -133,14 +116,14 @@ export function MoonEphemerisPanel({
       return {
         label: "Near new moon",
         message: "Moon too dark to photograph — not visible to the naked eye.",
-        colorClass: "text-red-400",
+        colorClass: "text-[color:var(--moon)]",
       };
     }
     if (pct < 20) {
       return {
         label: "Thin crescent",
         message: "Low contrast — hard to locate; best in twilight near horizon.",
-        colorClass: "text-amber-400",
+        colorClass: "text-[color:var(--moon)]",
       };
     }
     return null;
@@ -169,7 +152,7 @@ export function MoonEphemerisPanel({
       <dl className="space-y-2 text-[length:var(--fs-body)]">
         <div className="flex justify-between gap-4">
           {moonRowLabel(<MoonRowIconAltitude />, "Altitude")}
-          <dd className="flex items-center justify-end gap-2 font-mono tabular-nums">
+          <dd className="flex items-center justify-end gap-2 tabular-nums">
             {visibilityAdvice ? (
               <span
                 className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${tierDotClass(
@@ -184,19 +167,19 @@ export function MoonEphemerisPanel({
         </div>
         <div className="flex justify-between gap-4">
           {moonRowLabel(<MoonRowIconAzimuth />, "Azimuth (N)")}
-          <dd className="font-mono tabular-nums">
+          <dd className="tabular-nums">
             {display(formatFixed(moon.azimuthDeg))}°
           </dd>
         </div>
         <div className="flex justify-between gap-4">
           {moonRowLabel(<MoonRowIconAngularRadius />, "Angular radius")}
-          <dd className="font-mono tabular-nums">
+          <dd className="tabular-nums">
             {display(formatFixed(moon.apparentRadius.degrees, 3))}°
           </dd>
         </div>
         <div className="flex justify-between gap-4">
           {moonRowLabel(<MoonRowIconIlluminated />, "Illuminated")}
-          <dd className="font-mono tabular-nums" title="Fraction of the lunar disk lit as seen from Earth (0% = new, 100% = full)">
+          <dd className="tabular-nums" title="Fraction of the lunar disk lit as seen from Earth (0% = new, 100% = full)">
             {display(
               formatFixed(Math.min(1, Math.max(0, moon.illuminationFraction)) * 100, 0)
             )}
@@ -204,27 +187,27 @@ export function MoonEphemerisPanel({
           </dd>
         </div>
         <div className="flex justify-between gap-4">
-          {moonRowLabel(<MoonRowIconMoonrise />, "Moonrise (UTC day)")}
-          <dd className="font-mono tabular-nums" suppressHydrationWarning>
+          {moonRowLabel(<MoonRowIconMoonrise />, "Moonrise")}
+          <dd className="tabular-nums" title={riseSetUtcTitle(moonRise)} suppressHydrationWarning>
             {moonRiseSetKind === "alwaysUp"
               ? "Circumpolar (up)"
               : moonRiseSetKind === "alwaysDown"
                 ? "Circumpolar (down)"
-                : timeDisplay(moonRise, showEphemeris, hasMounted)}
+                : riseSetDisplay(moonRise, showEphemeris, hasMounted)}
           </dd>
         </div>
         <div className="flex justify-between gap-4">
-          {moonRowLabel(<MoonRowIconMoonset />, "Moonset (UTC day)")}
-          <dd className="font-mono tabular-nums" suppressHydrationWarning>
+          {moonRowLabel(<MoonRowIconMoonset />, "Moonset")}
+          <dd className="tabular-nums" title={riseSetUtcTitle(moonSet)} suppressHydrationWarning>
             {moonRiseSetKind === "alwaysUp" || moonRiseSetKind === "alwaysDown"
               ? "—"
-              : timeDisplay(moonSet, showEphemeris, hasMounted)}
+              : riseSetDisplay(moonSet, showEphemeris, hasMounted)}
           </dd>
         </div>
       </dl>
       {visibilityAdvice ? (
         <div
-          className="mt-3 border-t border-white/[0.08] pt-3 space-y-1.5"
+          className="mt-3 border-t border-[color:var(--hair-soft)] pt-3 space-y-1.5"
           aria-live="polite"
         >
           <p className="mt-section-label">
@@ -242,10 +225,10 @@ export function MoonEphemerisPanel({
               <span
                 className={`font-semibold ${
                   cloudCoverPercent >= 80
-                    ? "text-red-400"
+                    ? "text-[color:var(--moon)]"
                     : cloudCoverPercent >= 40
-                      ? "text-amber-400"
-                      : "text-emerald-400"
+                      ? "text-[color:var(--moon)]"
+                      : "text-[color:var(--live)]"
                 }`}
               >
                 {cloudCoverPercent}%

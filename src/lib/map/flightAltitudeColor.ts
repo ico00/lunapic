@@ -6,7 +6,7 @@ const ATC_FLIGHTS_DOT_LAYER_ID = "atc-flights-dot-layer";
 
 /**
  * Boja zrakoplova na karti prema **baro/geo visini** (GeoJSON `altitudeMeters`, m).
- * **Shot-feasible** (`isShotFeasible`) uvijek **mint** (`#34d399`, token `--mint` u `globals.css`).
+ * **Shot-feasible** (`isShotFeasible`) uvijek **live zeleno** (`#34d17f`, token `--live` u `globals.css`).
  *
  * Skala po ft bandovima (nisko → visoko): crvena → narančasta → zlatna → zelena → plava → ljubičasta,
  * usklađena s {@link ALTITUDE_BANDS} i {@link FLIGHT_ALTITUDE_LEGEND_STOPS}.
@@ -23,7 +23,7 @@ export function flightFeatureColorMapboxExpression(): unknown[] {
   return [
     "case",
     ["boolean", ["get", "isShotFeasible"], false],
-    "#34d399",
+    "#34d17f",
     [
       "interpolate",
       ["linear"],
@@ -73,7 +73,7 @@ export function flightFeatureFlatColorMapboxExpression(): unknown[] {
   return [
     "case",
     ["boolean", ["get", "isShotFeasible"], false],
-    "#34d399",
+    "#34d17f",
     "#8b90a8",
   ];
 }

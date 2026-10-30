@@ -57,8 +57,8 @@ function ElevationGapLabel({ gap }: { gap: number }) {
   const abs = Math.abs(gap);
   const sign = gap >= 0 ? "+" : "−";
   const label = `Δalt ${sign}${formatFixed(abs, 2)}°`;
-  const color = abs <= 0.26 ? "text-emerald-400" : abs <= 1.5 ? "text-amber-400" : "text-[color:var(--t-tertiary)]";
-  return <span className={`font-mono text-[length:var(--fs-meta)] font-medium ${color}`}>{label}</span>;
+  const color = abs <= 0.26 ? "text-[color:var(--disc-text)]" : abs <= 1.5 ? "text-[color:var(--observer-text)]" : "text-[color:var(--t-tertiary)]";
+  return <span className={`text-[length:var(--fs-meta)] font-medium ${color}`}>{label}</span>;
 }
 
 const COMPASS_POINTS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"] as const;
@@ -161,14 +161,14 @@ export function TransitForecastPanel() {
       {/* Upcoming opportunities — forward forecast from historical schedule regularity */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <span className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.14em] text-[color:var(--t-tertiary)]">
+          <span className="mt-section-label">
             Upcoming opportunities
           </span>
           <button
             type="button"
             onClick={runCalendarScan}
             disabled={calendarBusy}
-            className="rounded-full border border-white/10 px-3 py-1 text-[length:var(--fs-label)] text-[color:var(--t-secondary)] disabled:opacity-40 hover:border-white/20 hover:text-[color:var(--t-primary)] transition"
+            className="rounded-full border border-[color:var(--hair-soft)] px-3 py-1 text-[length:var(--fs-label)] text-[color:var(--t-secondary)] disabled:opacity-40 hover:border-[color:var(--ink-3)] hover:text-[color:var(--t-primary)] transition"
           >
             {calendarBusy ? "Scanning…" : "Scan next 14 d"}
           </button>
@@ -179,7 +179,7 @@ export function TransitForecastPanel() {
         </p>
 
         {calendarError && (
-          <p className="text-[length:var(--fs-label)] text-rose-300">Scan failed — try again.</p>
+          <p className="text-[length:var(--fs-label)] text-[color:var(--disc-text)]">Scan failed — try again.</p>
         )}
 
         {calendarEntries !== null && !calendarError && (
@@ -197,21 +197,17 @@ export function TransitForecastPanel() {
                         setFlightLogSelectedCallsign(ev.callsign);
                         setFlightLogSelected(null);
                       }}
-                      className="flex w-full items-center gap-2 py-1.5 text-left text-[length:var(--fs-label)] hover:bg-white/[0.04] transition rounded-md px-1.5"
+                      className="flex w-full items-center gap-2 py-1.5 text-left text-[length:var(--fs-label)] hover:bg-[color:var(--panel-2)] transition rounded-[var(--r-ctl)] px-1.5"
                       title="Show route on map"
                     >
                       <span
-                        className={`shrink-0 rounded-full px-2 py-0.5 text-[length:var(--fs-meta)] font-semibold ${
-                          ev.kind === "transit"
-                            ? "bg-emerald-500/15 text-emerald-300 border border-emerald-400/30"
-                            : "bg-sky-500/10 text-sky-300 border border-sky-400/25"
-                        }`}
+                        className={`mt-chip shrink-0 ${ev.kind === "transit" ? "mt-chip-disc" : "mt-chip-observer"}`}
                       >
                         {ev.kind === "transit" ? "DISC" : "NEAR"}
                       </span>
-                      <span className="font-mono text-[color:var(--t-primary)]">{ev.callsign}</span>
+                      <span className="text-[color:var(--t-primary)]">{ev.callsign}</span>
                       {lowConfidence && (
-                        <span className="shrink-0 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[length:var(--fs-meta)] font-semibold text-amber-300/90">
+                        <span className="mt-chip shrink-0">
                           LOW CONF
                         </span>
                       )}
@@ -238,19 +234,19 @@ export function TransitForecastPanel() {
                         setFlightLogSelectedCallsign(ev.callsign);
                         setFlightLogSelected(null);
                       }}
-                      className="flex w-full items-center gap-2 py-1.5 text-left text-[length:var(--fs-label)] hover:bg-white/[0.04] transition rounded-md px-1.5"
+                      className="flex w-full items-center gap-2 py-1.5 text-left text-[length:var(--fs-label)] hover:bg-[color:var(--panel-2)] transition rounded-[var(--r-ctl)] px-1.5"
                       title="Show route on map"
                     >
                       <span
                         className={`shrink-0 rounded-full px-2 py-0.5 text-[length:var(--fs-meta)] font-semibold ${
                           ev.inFrame
-                            ? "bg-violet-500/15 text-violet-300 border border-violet-400/30"
-                            : "bg-white/[0.05] text-[color:var(--t-tertiary)] border border-white/10"
+                            ? "mt-chip mt-chip-observer"
+                            : "mt-chip"
                         }`}
                       >
                         {ev.inFrame ? "IN FRAME" : "OUT OF FRAME"}
                       </span>
-                      <span className="font-mono text-[color:var(--t-primary)]">{ev.callsign}</span>
+                      <span className="text-[color:var(--t-primary)]">{ev.callsign}</span>
                       <span className="ml-auto flex items-center gap-2 text-right text-[color:var(--t-tertiary)]">
                         {fmtNextPass(ev.estimateMs)}
                         <ElevationGapLabel gap={ev.elevationGapDeg} />
@@ -269,16 +265,16 @@ export function TransitForecastPanel() {
       </div>
 
       {/* Where to stand — solves the ground point instead of fixing the observer */}
-      <div className="flex flex-col gap-2 border-t border-white/[0.08] pt-3">
+      <div className="flex flex-col gap-2 border-t border-[color:var(--hair-soft)] pt-3">
         <div className="flex items-center justify-between">
-          <span className="text-[length:var(--fs-label)] font-semibold uppercase tracking-[0.14em] text-[color:var(--t-tertiary)]">
+          <span className="mt-section-label">
             Where to stand
           </span>
           <button
             type="button"
             onClick={runSpotScan}
             disabled={spotBusy}
-            className="rounded-full border border-white/10 px-3 py-1 text-[length:var(--fs-label)] text-[color:var(--t-secondary)] disabled:opacity-40 hover:border-white/20 hover:text-[color:var(--t-primary)] transition"
+            className="rounded-full border border-[color:var(--hair-soft)] px-3 py-1 text-[length:var(--fs-label)] text-[color:var(--t-secondary)] disabled:opacity-40 hover:border-[color:var(--ink-3)] hover:text-[color:var(--t-primary)] transition"
           >
             {spotBusy ? "Solving…" : "Find spots"}
           </button>
@@ -301,10 +297,10 @@ export function TransitForecastPanel() {
             step={1}
             value={minCoverage}
             onChange={(e) => setMinCoverage(parseInt(e.target.value, 10))}
-            className="h-1.5 w-full min-w-0 flex-1 accent-sky-500"
+            className="h-1.5 w-full min-w-0 flex-1 accent-[color:var(--ink)]"
             aria-label="Minimum aircraft coverage of the Moon, percent"
           />
-          <span className="w-10 shrink-0 text-right font-mono text-[length:var(--fs-meta)] tabular-nums text-[color:var(--t-secondary)]">
+          <span className="w-10 shrink-0 text-right text-[length:var(--fs-meta)] tabular-nums text-[color:var(--t-secondary)]">
             {minCoverage}%
           </span>
         </label>
@@ -320,8 +316,8 @@ export function TransitForecastPanel() {
               onClick={() => setMaxSpotKm(km)}
               className={`rounded-full border px-2.5 py-0.5 text-[length:var(--fs-meta)] transition ${
                 maxSpotKm === km
-                  ? "border-sky-400/40 bg-sky-500/15 text-sky-200"
-                  : "border-white/10 text-[color:var(--t-tertiary)] hover:border-white/20"
+                  ? "border-[color:var(--observer)] bg-[color:var(--panel-2)] text-[color:var(--observer-text)]"
+                  : "border-[color:var(--hair-soft)] text-[color:var(--t-tertiary)] hover:border-[color:var(--ink-3)]"
               }`}
             >
               {km} km
@@ -330,7 +326,7 @@ export function TransitForecastPanel() {
         </div>
 
         {spotError && (
-          <p className="text-[length:var(--fs-label)] text-rose-300">Scan failed — try again.</p>
+          <p className="text-[length:var(--fs-label)] text-[color:var(--disc-text)]">Scan failed — try again.</p>
         )}
 
         {spotData && !spotError && (
@@ -351,7 +347,7 @@ export function TransitForecastPanel() {
             <>
               <p className="text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">
                 Nothing reaches {minCoverage}% within {maxSpotKm} km. Best any scheduled pass can
-                reach from anywhere: <span className="font-mono tabular-nums">{spotData.bestCoveragePercent}%</span>
+                reach from anywhere: <span className="tabular-nums">{spotData.bestCoveragePercent}%</span>
                 {" "}— coverage is capped by altitude, so a jet at cruise cannot fill half a Moon.
               </p>
               {spotData.closest.length > 0 && (
@@ -395,38 +391,38 @@ function PhotoSpotRow({
 }) {
   // Bigger is better here, so the palette runs the same way: emerald once the
   // silhouette covers half the disk (including the >100 % cases where it covers
-  // all of it), amber for the thin end of the band, neutral below it — only
+  // all of it), observer for the thin end of the band, neutral below it — only
   // reachable via the `closest` near-miss list, which ignores the threshold.
   const coverageTone =
     spot.coveragePercent >= 50
-      ? "border-emerald-400/30 bg-emerald-500/15 text-emerald-300"
+      ? "mt-chip-live"
       : spot.coveragePercent >= 25
-        ? "border-amber-400/25 bg-amber-500/10 text-amber-300"
-        : "border-white/10 bg-white/[0.05] text-[color:var(--t-tertiary)]";
+        ? "mt-chip-observer"
+        : "";
 
   return (
     <li>
       <button
         type="button"
         onClick={() => onSelect(selected ? null : spot)}
-        className={`flex w-full flex-col gap-0.5 rounded-md px-1.5 py-1.5 text-left transition ${
-          selected ? "bg-sky-500/15" : "hover:bg-white/[0.04]"
+        className={`flex w-full flex-col gap-0.5 rounded-[var(--r-ctl)] px-1.5 py-1.5 text-left transition ${
+          selected ? "bg-[color:var(--panel-2)]" : "hover:bg-[color:var(--panel-2)]"
         }`}
         title="Show the spot and its shadow track on the map"
       >
         <span className="flex w-full items-center gap-2 text-[length:var(--fs-label)]">
           <span
-            className={`shrink-0 rounded-full border px-2 py-0.5 font-mono text-[length:var(--fs-meta)] font-semibold tabular-nums ${coverageTone}`}
+            className={`mt-chip shrink-0 ${coverageTone}`}
           >
             {Math.round(spot.coveragePercent)}%
           </span>
           <span
-            className={`font-mono ${selected ? "text-sky-200" : "text-[color:var(--t-primary)]"}`}
+            className={`${selected ? "text-[color:var(--observer-text)]" : "text-[color:var(--t-primary)]"}`}
           >
             {spot.callsign}
           </span>
           {spot.confidence !== "high" && (
-            <span className="shrink-0 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[length:var(--fs-meta)] font-semibold text-amber-300/90">
+            <span className="mt-chip shrink-0">
               {spot.confidence === "low" ? "LOW CONF" : "MED CONF"}
             </span>
           )}

@@ -59,7 +59,7 @@ function ensureLayers(map: mapboxgl.Map) {
         // dashed lines about two different objects, indistinguishable at a
         // glance. Amber now means only "the aircraft's own motion" on this map.
         // Long dashes are the second cue, so the two never rely on colour alone.
-        "line-color": "rgba(52,211,153,0.75)",
+        "line-color": "rgba(52,209,127,0.75)",
         "line-width": 2,
         "line-dasharray": [5, 3],
       },
@@ -96,8 +96,8 @@ function ensureLayers(map: mapboxgl.Map) {
       source: LIVE_SHADOW_SOURCE,
       filter: ["==", ["get", "kind"], "tolerance"],
       paint: {
-        "fill-color": "rgba(52,211,153,0.35)", // emerald-400 — where to stand
-        "fill-outline-color": "rgba(52,211,153,0.9)",
+        "fill-color": "rgba(52,209,127,0.35)", // --live — where to stand
+        "fill-outline-color": "rgba(52,209,127,0.9)",
       },
     });
   }
@@ -109,7 +109,7 @@ function ensureLayers(map: mapboxgl.Map) {
       filter: ["==", ["get", "kind"], "spot"],
       paint: {
         "circle-radius": 5,
-        "circle-color": "#34d399",
+        "circle-color": "#34d17f",
         "circle-stroke-width": 2,
         "circle-stroke-color": "rgba(255,255,255,0.85)",
       },

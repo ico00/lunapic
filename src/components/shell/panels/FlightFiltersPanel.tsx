@@ -159,7 +159,7 @@ export function FlightFiltersPanel({
           value={searchQuery}
           onChange={(e) => onSearchQueryChange(e.target.value)}
           placeholder="callsign, airline, type, ICAO24..."
-          className="mt-1.5 h-11 w-full rounded-2xl border border-white/[0.10] bg-white/[0.04] px-3.5 text-[16px] text-[color:var(--t-primary)] outline-none ring-inset placeholder:text-[color:var(--t-tertiary)] focus:ring-2 focus:ring-violet-500/35"
+          className="mt-1.5 h-[42px] w-full rounded-[var(--r-ctl)] border border-[color:var(--hair)] bg-[color:var(--ground)] px-3.5 text-[16px] text-[color:var(--t-primary)] outline-none placeholder:text-[color:var(--t-tertiary)] focus:ring-2 focus:ring-violet-500/35"
           data-testid="flight-filter-search-input"
         />
       </label>
@@ -201,7 +201,7 @@ export function FlightFiltersPanel({
             onSearchQueryChange("");
             onSelectedAircraftTypesChange([]);
           }}
-          className="h-9 rounded-full border border-white/[0.10] bg-white/[0.05] px-4 text-[length:var(--fs-meta)] font-semibold text-[color:var(--t-secondary)] transition hover:border-white/[0.20] hover:bg-white/[0.10]"
+          className="h-9 rounded-full border border-[color:var(--hair-soft)] bg-[color:var(--panel-2)] px-4 text-[length:var(--fs-meta)] font-semibold text-[color:var(--t-secondary)] transition hover:border-[color:var(--ink-3)] hover:bg-[color:var(--panel-2)]"
         >
           Clear all
         </button>

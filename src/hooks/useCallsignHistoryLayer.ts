@@ -36,7 +36,7 @@ function ensureSessionsLayer(map: mapboxgl.Map) {
     type: "line",
     source: CALLSIGN_SESSIONS_SOURCE,
     paint: {
-      "line-color": "rgba(56,189,248,0.5)",   // sky-400 at 50 %
+      "line-color": "rgba(91,149,255,0.5)",   // --observer at 50 %
       "line-width": 1.8,
       "line-blur": 0.4,
     },

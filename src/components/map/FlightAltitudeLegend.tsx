@@ -73,7 +73,7 @@ export function FlightAltitudeLegend() {
   return (
     <div
       data-testid="flight-altitude-legend"
-      className={`pointer-events-none relative flex min-w-0 flex-1 flex-col gap-1.5 mt-glass-elevated rounded-[var(--r-xl)] px-3 py-2 text-[length:var(--fs-meta)] leading-normal text-[color:var(--t-secondary)] max-md:min-h-0 max-md:gap-1 max-md:py-1.5 max-md:pr-2.5 md:w-80 md:gap-1.5 md:py-2 md:pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] md:absolute md:bottom-[6.25rem] md:left-[300px] md:z-10 ${selectedFlightId != null ? "max-md:hidden" : ""}`}
+      className={`pointer-events-none relative flex min-w-0 flex-1 flex-col gap-1.5 mt-glass-elevated rounded-[var(--r-panel)] px-3 py-2 text-[length:var(--fs-meta)] leading-normal text-[color:var(--t-secondary)] max-md:min-h-0 max-md:gap-1 max-md:py-1.5 max-md:pr-2.5 md:w-80 md:gap-1.5 md:py-2 md:pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] md:absolute md:bottom-[6.25rem] md:left-[300px] md:z-10 ${selectedFlightId != null ? "max-md:hidden" : ""}`}
     >
       {/* Row: checkbox + unit toggle */}
       <div className="pointer-events-auto flex min-w-0 items-start gap-2 sm:items-center">
@@ -95,18 +95,13 @@ export function FlightAltitudeLegend() {
           role="group"
           aria-label="Altitude legend tick unit"
         >
-          <div className="inline-flex rounded-[var(--r-sm)] border border-[color:var(--glass-stroke)] bg-[color:var(--glass-1)] p-0.5 shadow-[var(--shadow-1)]">
+          <div className="mt-seg mt-seg-sm">
             {(["ft", "km"] as const).map((u) => {
               const active = flightAltitudeLegendUnit === u;
               return (
                 <button
                   key={u}
                   type="button"
-                  className={
-                    active
-                      ? "min-w-[2.25rem] rounded-md border border-sky-400/30 bg-sky-500/15 px-2 py-0.5 text-[length:var(--fs-label)] font-semibold uppercase tracking-wide text-sky-200 shadow-[0_0_0_1px_rgba(56,189,248,0.12)]"
-                      : "min-w-[2.25rem] rounded-md px-2 py-0.5 text-[length:var(--fs-label)] font-semibold uppercase tracking-wide text-[color:var(--t-tertiary)] transition hover:bg-white/[0.05] hover:text-[color:var(--t-secondary)]"
-                  }
                   aria-pressed={active}
                   onClick={() => setFlightAltitudeLegendUnit(u)}
                   data-testid={`flight-altitude-legend-unit-${u}`}
@@ -125,7 +120,7 @@ export function FlightAltitudeLegend() {
         <div
           aria-live="polite"
           aria-atomic
-          className={`pointer-events-none absolute bottom-full z-20 mb-2 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-[var(--r-md)] border border-[color:var(--glass-stroke)] bg-[color:var(--glass-2)] px-2.5 py-1 text-[length:var(--fs-label)] shadow-[var(--shadow-2)] backdrop-blur-md transition-all duration-200 ${tooltipVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"}`}
+          className={`pointer-events-none absolute bottom-full z-20 mb-2 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-[var(--r-panel)] border border-[color:var(--hair-soft)] bg-[color:var(--panel)] px-2.5 py-1 text-[length:var(--fs-label)] transition-all duration-200 ${tooltipVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"}`}
           style={{ left: `clamp(4rem, ${thumbPct}%, calc(100% - 4rem))` }}
         >
           <span
@@ -145,13 +140,13 @@ export function FlightAltitudeLegend() {
       >
         {/* Neutral gray fill for the "All" zone */}
         <div
-          className="absolute top-0 bottom-0 left-0 rounded-l-md bg-white/10"
+          className="absolute top-0 bottom-0 left-0 rounded-l-md bg-[color:var(--panel-2)]"
           style={{ width: `${(1 / SLIDER_MAX) * 100}%` }}
           aria-hidden
         />
         {/* Gradient background — starts at band 1 ("0"), not at "All" */}
         <div
-          className="absolute top-0 bottom-0 right-0 rounded-md ring-1 ring-inset ring-white/[0.08]"
+          className="absolute top-0 bottom-0 right-0 rounded-[var(--r-ctl)] ring-1 ring-white/[0.08]"
           style={{
             left: `${(1 / SLIDER_MAX) * 100}%`,
             background: flightAltitudeLegendGradientCss(),
@@ -161,7 +156,7 @@ export function FlightAltitudeLegend() {
         {/* Active band inset border */}
         {activeBand && (
           <div
-            className="pointer-events-none absolute top-0 bottom-0 right-0 rounded-md"
+            className="pointer-events-none absolute top-0 bottom-0 right-0 rounded-[var(--r-ctl)]"
             style={{
               left: `${(1 / SLIDER_MAX) * 100}%`,
               boxShadow: `inset 0 0 0 2px ${activeBand.color}`,
@@ -184,28 +179,28 @@ export function FlightAltitudeLegend() {
             [&::-webkit-slider-thumb]:w-5
             [&::-webkit-slider-thumb]:rounded-full
             [&::-webkit-slider-thumb]:bg-white
-            [&::-webkit-slider-thumb]:shadow-[0_1px_4px_rgba(0,0,0,0.45),0_0_0_1px_rgba(0,0,0,0.12)]
+            [&::-webkit-slider-thumb]:
             [&::-moz-range-track]:bg-transparent
             [&::-moz-range-thumb]:h-5
             [&::-moz-range-thumb]:w-5
             [&::-moz-range-thumb]:rounded-full
             [&::-moz-range-thumb]:border-none
             [&::-moz-range-thumb]:bg-white
-            [&::-moz-range-thumb]:shadow-[0_1px_4px_rgba(0,0,0,0.45),0_0_0_1px_rgba(0,0,0,0.12)]"
+            [&::-moz-range-thumb]:"
           aria-label="Filter flights by altitude band. 0 = All, 1–6 = specific band."
           data-testid="altitude-band-slider"
         />
       </div>
 
       {/* Tick labels */}
-      <div className="flex items-center gap-2 font-mono text-[length:var(--fs-label)] leading-none tabular-nums" aria-hidden>
+      <div className="flex items-center gap-2 text-[length:var(--fs-label)] leading-none tabular-nums" aria-hidden>
         {/* "All" — separate from the numerical scale */}
         <span
           className={`shrink-0 transition-colors ${altitudeBandIndex === 0 ? "font-bold text-[color:var(--t-primary)]" : "text-[color:var(--t-tertiary)]"}`}
         >
           All
         </span>
-        <div className="h-3 w-px shrink-0 bg-white/20" />
+        <div className="h-3 w-px shrink-0 bg-[color:var(--panel-2)]" />
         {/* Numerical band ticks */}
         <div
           className="grid flex-1"

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { placeStationLabels } from "./MoonTimeLine";
+import { placeStationLabels, stationLabelShiftPx } from "./MoonTimeLine";
 
 // Traka od 480 px; "Now" na početku zauzima ~[-3, 18] px.
 const TRACK = 480;
@@ -41,5 +41,16 @@ describe("placeStationLabels", () => {
       NOW_AT_START,
     );
     expect(rows).toEqual(["below", "below"]);
+  });
+});
+
+describe("stationLabelShiftPx", () => {
+  it("leaves a label alone while it fits inside the frame", () => {
+    expect(stationLabelShiftPx(150, 80, 300)).toBe(0);
+  });
+
+  it("pulls a label back in at either edge of a narrow phone track", () => {
+    expect(stationLabelShiftPx(3, 98, 290)).toBe(28);
+    expect(stationLabelShiftPx(287, 98, 290)).toBe(-28);
   });
 });

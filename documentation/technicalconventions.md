@@ -6,7 +6,7 @@ Conventions for anyone extending this codebase: patterns, tooling, and safe-chan
 
 - **User-facing UI copy is English** (see `layout`, `HomePageClient`, field components, map overlay strings).
 - **Comments** in code may be Croatian or English; prefer **English** for public APIs and `architecture.md` / this file. Inline comments that explain a tricky formula can stay in the author’s language.
-- **Locale for dates/numbers in UI** — datetime shown to the user (e.g. simulated anchor in `TimeSliderPanel`) uses **`en-GB`** so the calendar reads **dd/mm/yyyy** with **`hour12: false`** (24-hour clock). Use the same pattern elsewhere for consistency.
+- **Locale for dates/numbers in UI** — datetime shown to the user (e.g. the simulated time on the time line) uses **`en-GB`** so the calendar reads **dd/mm/yyyy** with **`hour12: false`** (24-hour clock). Use the same pattern elsewhere for consistency.
 
 ## TypeScript
 
@@ -30,7 +30,7 @@ Before relying on “classic” Next 12 patterns, read `**AGENTS.md`** (Next 16 
 
 ## Combobox (dropdown) pattern
 
-For **any new discrete choice** in the main shell / sidebar (and generally anywhere a `ShellSectionCard` or other clipped container would cut off a native menu), **do not use** a bare HTML `<select>`.
+For **any new discrete choice** in the main shell / sidebar (and generally anywhere a clipped container would cut off a native menu), **do not use** a bare HTML `<select>`.
 
 1. **Follow the existing combobox implementation** — shared classes live in [`src/lib/ui/shellComboboxStyles.ts`](../src/lib/ui/shellComboboxStyles.ts) (`shellComboboxTriggerClass`, `shellComboboxListboxPortalClass`, `shellGlassPanelClass`, `shellAccentCheckboxClass`). Reference implementations: [`FlightProviderSelect.tsx`](../src/components/shell/FlightProviderSelect.tsx) (flight source), [`CameraPresetSelect.tsx`](../src/components/shell/CameraPresetSelect.tsx) (camera body preset), and [`CameraSensorSelect.tsx`](../src/components/shell/CameraSensorSelect.tsx) (sensor type; supports `disabled` when a **fixed** preset locks the format).  
    - **Trigger:** `<button type="button">` — use **`shellComboboxTriggerClass`** (zinc border/fill, **blue** hover ring `hover:border-blue-500/35`, `focus:ring-blue-500/25`), full width, fixed height `h-9`, trailing chevron SVG that rotates when open.  

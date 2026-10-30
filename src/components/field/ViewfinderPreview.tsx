@@ -459,7 +459,7 @@ export function ViewfinderPreview({
 
   return (
     <div className={className}>
-      <div className="relative w-full overflow-hidden rounded-lg border border-zinc-800/80 bg-black">
+      <div className="relative w-full overflow-hidden rounded-[var(--r-ctl)] border border-[color:var(--hair-soft)] bg-[color:var(--ground-deep)]">
         <div className="relative w-full" style={{ aspectRatio: "3 / 2" }}>
           <svg
             viewBox={`0 0 ${SENSOR_WIDTH_PX} ${SENSOR_HEIGHT_PX}`}
@@ -718,20 +718,15 @@ export function ViewfinderPreview({
             );
           })() : null}
         </div>
-        <div className="flex justify-center border-t border-zinc-800/80 bg-black/85 px-2 py-2">
+        <div className="flex justify-center border-t border-[color:var(--hair-soft)] bg-[color:var(--ground-deep)] px-2 py-2">
           <div
-            className="inline-flex rounded-md border border-zinc-600/70 bg-zinc-900/90 p-0.5 shadow-inner ring-1 ring-inset ring-zinc-800/80"
+            className="mt-seg"
             role="group"
             aria-label="Viewfinder scale mode"
           >
             <button
               type="button"
-              className={
-                showReferenceSensorScale
-                  ? "min-w-[4.6rem] rounded px-2 py-0.5 text-[length:var(--fs-label)] font-semibold uppercase tracking-wide text-zinc-900 shadow-sm bg-zinc-100"
-                  : "min-w-[4.6rem] rounded px-2 py-0.5 text-[length:var(--fs-label)] font-semibold uppercase tracking-wide text-[color:var(--t-tertiary)] transition hover:bg-zinc-800/90 hover:text-[color:var(--t-secondary)]"
-              }
-              aria-pressed={showReferenceSensorScale}
+                            aria-pressed={showReferenceSensorScale}
               onClick={() => {
                 setShowReferenceSensorScale(true);
               }}
@@ -740,12 +735,7 @@ export function ViewfinderPreview({
             </button>
             <button
               type="button"
-              className={
-                !showReferenceSensorScale
-                  ? "min-w-[4.6rem] rounded px-2 py-0.5 text-[length:var(--fs-label)] font-semibold uppercase tracking-wide text-zinc-900 shadow-sm bg-zinc-100"
-                  : "min-w-[4.6rem] rounded px-2 py-0.5 text-[length:var(--fs-label)] font-semibold uppercase tracking-wide text-[color:var(--t-tertiary)] transition hover:bg-zinc-800/90 hover:text-[color:var(--t-secondary)]"
-              }
-              aria-pressed={!showReferenceSensorScale}
+                            aria-pressed={!showReferenceSensorScale}
               onClick={() => {
                 setShowReferenceSensorScale(false);
               }}
@@ -755,11 +745,11 @@ export function ViewfinderPreview({
           </div>
         </div>
       </div>
-      <details className="mt-1.5 rounded-md border border-zinc-800/70 bg-black/30 px-2 py-1.5 text-[color:var(--t-tertiary)]">
+      <details className="mt-1.5 rounded-[var(--r-ctl)] border border-[color:var(--hair-soft)] bg-[color:var(--ground-deep)] px-2 py-1.5 text-[color:var(--t-tertiary)]">
         <summary className="cursor-pointer select-none text-[length:var(--fs-label)] font-medium text-[color:var(--t-secondary)]">
           Viewfinder details
         </summary>
-        <p className="mt-1.5 font-mono text-[length:var(--fs-meta)] text-[color:var(--t-secondary)]">
+        <p className="mt-1.5 text-[length:var(--fs-meta)] text-[color:var(--t-secondary)]">
           Viewfinder: moon 0.5° = {moonDiameterPx.toFixed(0)} px
           {showReferenceSensorScale
             ? ` (Full frame: ${cameraFrameWidthPx}×${cameraFrameHeightPx} at current focal),`
@@ -789,7 +779,6 @@ export function ViewfinderPreview({
           top: var(--viewfinder-plane-top-pct, 50%);
           transform: translate(-50%, -50%) rotate(var(--viewfinder-plane-rotation-deg));
           opacity: 0.9;
-          filter: drop-shadow(0 0 4px #facc15) drop-shadow(0 0 10px rgba(250, 204, 21, 0.55));
         }
         .viewfinder-plane-static-layer {
           display: block;
@@ -800,7 +789,6 @@ export function ViewfinderPreview({
           top: 50%;
           transform: translate(-50%, -50%) rotate(var(--viewfinder-plane-rotation-deg));
           opacity: 0.85;
-          filter: drop-shadow(0 0 3px rgba(250, 204, 21, 0.55));
         }
         .viewfinder-plane-ghost-layer {
           display: block;

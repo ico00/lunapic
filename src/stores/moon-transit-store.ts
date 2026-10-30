@@ -188,7 +188,7 @@ type MoonTransitState = {
   setCameraFrameWidthPx: (widthPx: number) => void;
   setCameraFrameHeightPx: (heightPx: number) => void;
   /**
-   * Suncalc: izlaz / zlaz (UTC kalendaru dan u syncu) i polarna stanja
+   * Izlaz / zlaz za lokalni kalendarski dan (astronomy-engine) i polarna stanja
    * (`alwaysUp` / `alwaysDown` imaju `rise` / `set` = null).
    */
   moonRise: Date | null;
@@ -202,8 +202,8 @@ type MoonTransitState = {
   /** Pomak u ms naprijed od sidra (maks. civilni dan). */
   setTimeOffsetMs: (offsetMs: number) => void;
   /**
-   * Broj povećava u `syncTimeToNow` i kad klizač prijeđe u drugi UTC kalendar dan
-   * (`setTimeOffsetMs`), da `useAstronomySync` ponovno učita suncalc za taj dan.
+   * Broj povećava u `syncTimeToNow` i kad klizač prijeđe u drugi lokalni kalendarski dan
+   * (`setTimeOffsetMs`), da `useAstronomySync` ponovno izračuna izlaz i zlaz za taj dan.
    */
   ephemerisRefetchKey: number;
   /**
@@ -213,7 +213,7 @@ type MoonTransitState = {
   /**
    * Napreduje `timeAnchorMs` i `referenceEpochMs` na `Date.now()` samo
    * kada je `timeOffsetMs === 0` (live mode). Ne dira `ephemerisRefetchKey`
-   * osim ako prijeđemo UTC kalendarski dan.
+   * osim ako prijeđemo lokalni kalendarski dan.
    */
   tickLiveTime: () => void;
   setMapView: (next: Partial<MapViewState>) => void;
@@ -319,13 +319,9 @@ function clampCameraFramePx(n: number): number {
   );
 }
 
-function utcCalendarDayStartMs(t: number): number {
+function localCalendarDayStartMs(t: number): number {
   const d = new Date(t);
-  return Date.UTC(
-    d.getUTCFullYear(),
-    d.getUTCMonth(),
-    d.getUTCDate()
-  );
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 }
 
 function clampLatencySkew(ms: number): number {
@@ -412,7 +408,7 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
     const ref = anchor + o;
     const prevRef = s.referenceEpochMs;
     const shouldRefetchEphemeris =
-      prevRef > 0 && utcCalendarDayStartMs(ref) !== utcCalendarDayStartMs(prevRef);
+      prevRef > 0 && localCalendarDayStartMs(ref) !== localCalendarDayStartMs(prevRef);
     set({
       timeAnchorMs: s.timeAnchorMs,
       timeOffsetMs: ref - anchor,
@@ -473,7 +469,7 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
     const prevRef = s.referenceEpochMs;
     const crossedDay =
       prevRef > 0 &&
-      utcCalendarDayStartMs(now) !== utcCalendarDayStartMs(prevRef);
+      localCalendarDayStartMs(now) !== localCalendarDayStartMs(prevRef);
     set({
       timeAnchorMs: now,
       referenceEpochMs: now,

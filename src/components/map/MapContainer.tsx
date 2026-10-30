@@ -16,6 +16,8 @@ import { useSelectedFlightTrail } from "@/hooks/useSelectedFlightTrail";
 import { useMapFlightPick } from "@/hooks/useMapFlightPick";
 import { useMapFlightAltitudeColorsPaint } from "@/hooks/useMapFlightAltitudeColorsPaint";
 import { useMapGeoJsonSync } from "@/hooks/useMapGeoJsonSync";
+import { useIsMdUp } from "@/hooks/useMediaQuery";
+import { useMapBottomInset } from "@/hooks/useMapBottomInset";
 import { useMapDisplayMode } from "@/hooks/useMapDisplayMode";
 import { useMapMoonHorizonDeemphasis } from "@/hooks/useMapMoonHorizonDeemphasis";
 import { useMapObserverRadiusSync } from "@/hooks/useMapObserverRadiusSync";
@@ -49,6 +51,8 @@ export type MapContainerProps = {
   fieldSoundsEnabled?: boolean;
   /** Mobile shell: hide selected-aircraft Mapbox popup while a bottom sheet is open. */
   suppressSelectedAircraftPopup?: boolean;
+  /** Telefon: px od dna karte koje zauzima ploča "Next transit"; 0 = nema pomaka. */
+  mobileBottomInsetPx?: number;
   flightFilterCriteria: FlightFilterCriteria;
 };
 
@@ -57,6 +61,7 @@ export function MapContainer({
   isGolden = false,
   fieldSoundsEnabled = false,
   suppressSelectedAircraftPopup = false,
+  mobileBottomInsetPx = 0,
   flightFilterCriteria,
 }: MapContainerProps) {
   const flights = useExtrapolatedFlightsForMap();
@@ -242,14 +247,16 @@ export function MapContainer({
   const moonBelowHorizon = !isMoonVisibleFromMoonState(moon);
   useMapMoonHorizonDeemphasis(mapRef, mapReadyTick, moonBelowHorizon);
   useMapObserverRadiusSync(mapRef, mapReadyTick, observer.lat, observer.lng);
+  useMapBottomInset(mapRef, mapReadyTick, mobileBottomInsetPx);
+  const isWide = useIsMdUp();
 
   if (!hasMapboxToken) {
     return (
       <div
         data-testid="map-missing-token"
-        className="flex h-full items-center justify-center bg-gradient-to-b from-black via-zinc-900 to-black px-4 text-center text-[length:var(--fs-meta)] text-amber-300/90 ring-1 ring-inset ring-zinc-700"
+        className="flex h-full items-center justify-center bg-[color:var(--land)] px-4 text-center text-[length:var(--fs-meta)] text-[color:var(--ink-2)]"
       >
-        Set <code className="mx-1 rounded bg-zinc-800 px-1.5 py-0.5">NEXT_PUBLIC_MAPBOX_TOKEN</code> in
+        Set <code className="mx-1 rounded bg-[color:var(--panel-2)] px-1.5 py-0.5">NEXT_PUBLIC_MAPBOX_TOKEN</code> in
         .env.local
       </div>
     );
@@ -262,12 +269,15 @@ export function MapContainer({
     >
       <div ref={elRef} className="h-full w-full" />
       {mapDisplayMode === "atc" ? (
-        <div className="pointer-events-none absolute inset-0 z-[8] bg-gradient-to-b from-sky-500/18 via-blue-700/22 to-indigo-950/30 mix-blend-screen" />
+        <div className="pointer-events-none absolute inset-0 z-[8] bg-[color:var(--observer)]/10" />
       ) : null}
-      <div className="pointer-events-none md:contents max-md:fixed max-md:bottom-[var(--mobile-overlay-bottom)] max-md:left-3 max-md:right-3 max-md:z-[76] max-md:flex max-md:items-stretch max-md:gap-2">
-        <MapDisplayModeLayersControl />
-        <FlightAltitudeLegend />
-      </div>
+      {/* Telefon: isti elementi otvaraju se iz grupe Feeds (spec §2b.7). */}
+      {isWide ? (
+        <>
+          <MapDisplayModeLayersControl />
+          <FlightAltitudeLegend />
+        </>
+      ) : null}
       <FieldPerfOverlay />
       <SelectedAircraftMapPopup
         mapRef={mapRef}

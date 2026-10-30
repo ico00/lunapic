@@ -4,9 +4,7 @@
    LunaPic: sustav "transit dijagram" (redizajn v2)
    Izvor istine: documentation/ui-generator-technical-spec.md §2b.
    Ravne neprozirne plohe na tamnoplavoj podlozi, bez blura, sjaja i
-   gradijenata. Stari nazivi tokena (--t-*, --glass-*, --sky, --mint,
-   --rose, --aurora) ostaju kao aliasi novih vrijednosti dok se
-   komponente ne prebace na nove nazive.
+   gradijenata. `--t-*` ostaju kao zamjenski nazivi za `--ink*` (AGENTS.md).
    ============================================================ */
 
 :root {
@@ -35,24 +33,8 @@
   --s3: #eef3fa;
 
   /* — Zamjenski nazivi (legacy aliasi) ———————————— */
-  --bg-0: var(--ground);
-  --bg-1: var(--land);
-  --bg-2: var(--panel);
   --background: var(--ground);
   --foreground: var(--ink);
-  --mt-accent-blue: var(--observer);
-  --mt-accent-yellow: var(--moon);
-  --mt-surface: var(--panel);
-  --mt-glow-a: transparent;
-  --mt-glow-b: transparent;
-  --mt-glow-c: transparent;
-
-  --glass-1: var(--panel);
-  --glass-2: var(--panel);
-  --glass-3: var(--panel-2);
-  --glass-stroke: var(--hair-soft);
-  --glass-stroke-strong: var(--hair);
-  --glass-highlight: transparent;
 
   --t-primary: var(--ink);
   --t-secondary: var(--ink-2);
@@ -62,16 +44,7 @@
   --moon: #ffb224;          /* samo Mjesec: zraka, faza, rise/set, traka vidljivosti */
   --moon-soft: rgba(255, 178, 36, 0.14);
   --moon-line: rgba(255, 178, 36, 0.35);
-  --sky: var(--observer);
-  --sky-soft: rgba(91, 149, 255, 0.14);
-  --sky-line: rgba(91, 149, 255, 0.32);
-  --aurora: var(--observer);
-  --aurora-soft: rgba(91, 149, 255, 0.14);
-  --mint: var(--live);
   --mint-soft: rgba(52, 209, 127, 0.16);
-  --mint-line: rgba(52, 209, 127, 0.32);
-  --rose: var(--disc);
-  --rose-soft: rgba(255, 93, 74, 0.16);
 
   /* Checkbox — tamna kvačica na svijetloj ispuni */
   --mt-checkbox-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%230a0a0a' d='M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z'/%3E%3C/svg%3E");
@@ -93,38 +66,24 @@
   /* — Oblik: ploča 10px, kontrola 6px, pill 999px ————— */
   --r-panel: 10px;
   --r-ctl: 6px;
-  --r-sm: 6px;
-  --r-md: 10px;
-  --r-lg: 10px;
-  --r-xl: 10px;
   --r-pill: 999px;
-
-  --shadow-1: none;
-  --shadow-2: none;
-  --shadow-glow-moon: none;
 
   --ease-ui: cubic-bezier(0.23, 1, 0.32, 1);
 
-  /* — Touch targeti ——————————————————————— */
-  --target-min: 48px;
-  --target-comfort: 56px;
-
   /* — Mobilni bottom layout (jedino mjesto gdje se SAI računa) —————————
-     Dok (pt-2 + h-14 + pb-max(0.75rem,SAI)) = 4rem + max(0.75rem, SAI).
-     Sve komponente iznad doka referenciraju ove varijable umjesto da svaka
+     Traka grupa (6px + 52px + 6px + SAI) = 4rem + SAI.
+     Sve komponente iznad trake referenciraju ove varijable umjesto da svaka
      zasebno dodaje env(safe-area-inset-bottom) — to je uzrokovalo duple
      pomake na pravim uređajima s home indicatorom.
   ——————————————————————————————————————————————————————————————————————— */
-  --mobile-dock-h: calc(4rem + max(0.75rem, env(safe-area-inset-bottom, 0px)));
-  --mobile-ribbon-bottom: calc(var(--mobile-dock-h) + 0.25rem);
-  --mobile-overlay-bottom: calc(var(--mobile-ribbon-bottom) + 3.25rem);
+  --mobile-dock-h: calc(4rem + env(safe-area-inset-bottom, 0px));
+  --mobile-overlay-bottom: calc(var(--mobile-dock-h) + 0.5rem);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-overpass), "Segoe UI", system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains-mono);
 
   /* Zinc skala preboji se u emajl-plavu da sve postojeće bg-zinc-* / text-zinc-*
      klase prate novu podlogu bez diranja svake komponente. */
@@ -308,6 +267,59 @@ body {
   .mt-note-disc { --note: var(--disc); }
   .mt-note-observer { --note: var(--observer); }
 
+  /* — Značka stanja (spec §2b.5): pill, ispuna miješana s --panel, tekst u boji
+       stanja. Bez modifikatora je neutralna. Tag (26px, puna ispuna) je za klasu
+       prolaza na ploči; značka je za redove popisa i statuse. — */
+  .mt-chip {
+    --chip: var(--ink-3);
+    --chip-ink: var(--ink-2);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 22px;
+    padding: 0 8px;
+    border-radius: var(--r-pill);
+    border: 1px solid color-mix(in srgb, var(--chip) 55%, var(--panel));
+    background: color-mix(in srgb, var(--chip) 12%, var(--panel));
+    color: var(--chip-ink);
+    font-size: var(--fs-label);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .mt-chip-live { --chip: var(--live); --chip-ink: var(--live); }
+  .mt-chip-disc { --chip: var(--disc); --chip-ink: var(--disc-text); }
+  .mt-chip-observer { --chip: var(--observer); --chip-ink: var(--observer-text); }
+  .mt-chip-moon { --chip: var(--moon); --chip-ink: var(--moon); }
+
+  /* — Segmentirani prekidač (spec §2b.5): aktivan segment je porculan — */
+  .mt-seg {
+    display: inline-flex;
+    overflow: hidden;
+    border-radius: var(--r-ctl);
+    border: 1px solid var(--hair);
+  }
+  .mt-seg button {
+    min-height: 36px;
+    padding: 0 14px;
+    color: var(--ink-3);
+    font-size: var(--fs-meta);
+    font-weight: 700;
+    transition: background-color 150ms var(--ease-ui), color 150ms var(--ease-ui);
+  }
+  .mt-seg button[aria-pressed="true"] {
+    background: var(--ink);
+    color: var(--ground);
+  }
+  .mt-seg-sm button {
+    min-height: 24px;
+    padding: 0 10px;
+    font-size: var(--fs-label);
+  }
+  .mt-seg button:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: -2px;
+  }
+
   /* — Brand "LunaPic": puna porculanska boja, bez gradijenta — */
   .mt-title {
     font-family: var(--font-overpass), system-ui, sans-serif;
@@ -315,22 +327,6 @@ body {
     color: var(--ink);
   }
 
-  .mt-subtitle {
-    @apply text-pretty;
-    color: var(--ink-3);
-    font-size: var(--fs-meta);
-  }
-
-  /* — Gornja traka (desktop) i bočne trake — */
-  .mt-chrome-bar {
-    border-bottom: 1px solid var(--hair);
-    background: var(--ground);
-  }
-
-  .mt-side-rail {
-    border-color: var(--hair);
-    background: var(--ground);
-  }
 
   /* — Gumbi u alatnim trakama — */
   .mt-toolbar-btn {
@@ -376,18 +372,6 @@ body {
     @apply cursor-not-allowed opacity-40;
   }
 
-  .mt-toolbar-btn-primary {
-    border-color: var(--live);
-    color: var(--live);
-  }
-
-  @media (hover: hover) and (pointer: fine) {
-    .mt-toolbar-btn-primary:hover {
-      border-color: var(--live);
-      background: var(--mint-soft);
-    }
-  }
-
   /* — Naslov sekcije: sentence case, bez uppercase razmaka — */
   .mt-section-label {
     font-size: var(--fs-meta);
@@ -395,11 +379,6 @@ body {
     color: var(--ink-2);
   }
 
-  .mt-section-label-emerald {
-    font-size: var(--fs-meta);
-    font-weight: 700;
-    color: var(--ink);
-  }
 
   /* — Naslovi panela / sheet headera — */
   .mt-panel-title {
@@ -409,30 +388,7 @@ body {
     color: var(--ink);
   }
 
-  /* — Body text u panelima — */
-  .mt-panel-body {
-    font-size: var(--fs-body);
-    line-height: 1.55;
-    color: var(--ink-2);
-  }
 
-  .mt-meta {
-    font-size: var(--fs-meta);
-    color: var(--ink-3);
-  }
-
-  /* — Brojčani / data tekst: isti font, poravnate brojke — */
-  .mt-data {
-    font-size: var(--fs-body-strong);
-    font-weight: 700;
-    color: var(--ink);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .mt-data-moon  { color: var(--moon); }
-  .mt-data-sky   { color: var(--observer-text); }
-  .mt-data-mint  { color: var(--live); }
-  .mt-data-rose  { color: var(--disc-text); }
 
   /* — Native select polja u bočnoj traci / mobile decku — */
   .mt-app-root aside select,
@@ -452,16 +408,6 @@ body {
     outline-offset: 2px;
     border-color: var(--observer);
   }
-}
-
-/* — Kartice u mobilnim sheetovima — */
-.mt-panel-card {
-  position: relative;
-  overflow: hidden;
-  border-radius: var(--r-panel);
-  padding: 14px;
-  border: 1px solid var(--hair);
-  background: var(--panel);
 }
 
 @keyframes golden-ui-flash {
@@ -579,17 +525,15 @@ body {
 /* ============================================================
    Mapbox NavigationControl — mobile prilagodba pozicije.
    Desktop: `bottom-right` (default kako je dodano u useMoonTransitMap).
-   Mobile: bottom-right kut sukobljava s TimeRibbon-om, FlightAltitudeLegend-om
-   i mobilnim dockom — pa premjestimo cijeli `.mapboxgl-ctrl-bottom-right` kontejner
-   ispod focus-on-me dugmeta (stack desno gore: 2 × h-11 + gap-2 + safe-area-top).
+   Mobile: dno karte zauzimaju ploča i traka grupa, pa cijeli
+   `.mapboxgl-ctrl-bottom-right` kontejner ide gore desno, ispod gumba
+   „Focus on me” (gornja traka 3.5rem + 0.5rem + gumb 42px + 0.5rem).
    ============================================================ */
 @media (max-width: 767px) {
   .mapboxgl-ctrl-bottom-right {
     bottom: auto;
     right: 0.5rem;
-    /* max(0.5rem, safe-area) je top inseta gornjeg flex-rowa s dugmetima;
-       + 6rem (visina stack-a: 2 × h-11 = 5.5rem + gap-2 = 0.5rem) + 0.5rem zraka. */
-    top: calc(max(0.5rem, env(safe-area-inset-top, 0px)) + 6.5rem);
+    top: calc(env(safe-area-inset-top, 0px) + 7.125rem);
     flex-direction: column;
     align-items: flex-end;
     gap: 0.25rem;

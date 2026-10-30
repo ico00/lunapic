@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
+import { PageTopBar } from "@/components/shell/PageTopBar";
 
 const proTip = {
   title: "Pro Tip",
@@ -17,12 +17,12 @@ const faqSections: { title: string; items: FaqItem[] }[] = [
       {
         question: "How do I use LunaPic in 60 seconds?",
         answer:
-          "1. Set your observer location — tap the GPS button in the Observer panel, or drag the camera marker on the map to your exact tripod spot.\n\n2. Open Photographer tools and enter your focal length and sensor size. This drives all feasibility scoring and the green/blue aircraft coloring on the map.\n\n3. Choose a live flight source (OpenSky or adsb.lol). Aircraft populate the map within seconds.\n\n4. Watch the Transit Candidates panel. It automatically lists flights that will cross or enter the moon disc from your standpoint. Rows marked ⊙ are full disk transits — the plane will geometrically pass in front of the moon.\n\n5. Select a candidate row. Photographer tools shows a countdown to alignment and a shot-feasibility rating. Active Transits shows a nudge arrow with the direction and distance to walk for the optimal stand.\n\n6. Get there before the countdown hits zero.",
+          "1. Set your observer location — tap the GPS button in the Observer panel, or drag the camera marker on the map to your exact tripod spot.\n\n2. Open Photographer tools and enter your focal length and sensor size. This drives all feasibility scoring and the green shot-feasible aircraft on the map.\n\n3. Choose a live flight source (OpenSky or adsb.lol). Aircraft populate the map within seconds.\n\n4. Watch the Transit Candidates panel. It automatically lists flights that will cross or enter the moon disc from your standpoint. Rows marked ⊙ are full disk transits — the plane will geometrically pass in front of the moon.\n\n5. Select a candidate row. Photographer tools shows a countdown to alignment and a shot-feasibility rating. Active Transits shows a nudge arrow with the direction and distance to walk for the optimal stand.\n\n6. Get there before the countdown hits zero.",
       },
       {
         question: "How do I navigate the interface?",
         answer:
-          "The map fills the entire screen and all controls float on top.\n\nDesktop: a vertical icon rail on the right edge opens side panels — click an icon to expand the panel drawer. A search bar sits centred at the top.\n\nMobile: a dock at the bottom has four quick-access pills — Active, Tracks, Photo, Moon — plus a More button for the remaining panels. Tap any pill to open that panel as a slide-up sheet.\n\nThe observer camera marker is always visible on the map — drag it to reposition.",
+          "The map fills the entire screen and the Next transit board answers when, which aircraft and whether you stand on the line, without opening anything.\n\nDesktop: the menu on the left holds the 12 panels in five groups: Now, Shoot, Sky and place, Feeds and Plan. A panel opens in the same place as the board, and closing it brings the board back. The time line runs along the bottom.\n\nPhone: the bar at the bottom has the same five groups and the board sits above it. Tap a group to see its panels. The time line is under Sky, the map layers and altitude scale are under Feeds.\n\nThe observer marker is always visible on the map — drag it to reposition.",
       },
       {
         question: "How does the Observer point behave, and can I drag it?",
@@ -45,19 +45,19 @@ const faqSections: { title: string; items: FaqItem[] }[] = [
           "It is the moon azimuth from your observer point (compass direction to look). It updates with slider time, so when you scrub time, this line rotates to the moon direction for that instant.",
       },
       {
-        question: "What is the cyan band and pale center line when an aircraft is selected?",
+        question: "What is the blue band and pale center line when an aircraft is selected?",
         answer:
-          "Cyan band + pale center line: the ground strip and zero-offset line (3D line-of-sight, aircraft altitude) for the current slider time only — the direction you move along the ground to line up the hull with the moon's center at your fixed observer. Zoom out if the band is off-screen.",
+          "Blue band + pale center line: the ground strip and zero-offset line (3D line-of-sight, aircraft altitude) for the current slider time only — the direction you move along the ground to line up the hull with the moon's center at your fixed observer. Zoom out if the band is off-screen.",
       },
       {
         question: "Why are some aircraft a different color?",
         answer:
-          "Aircraft colors depend on two settings:\n\nAltitude tint ON (default): each aircraft is colored by altitude — red (ground / approach), orange, gold, green, blue (cruise ~35–45k ft), purple (high / bizjet). Mint green (#34d399) overrides the altitude color for any aircraft that is shot-feasible (both a mathematical transit overlap and optical feasibility for your camera setup).\n\nAltitude tint OFF: all non-feasible aircraft switch to a single neutral grey tone; shot-feasible aircraft stay mint. Toggle the checkbox in the altitude legend on the map.\n\nColors update live as flights, time, and settings change.",
+          "Aircraft colors depend on two settings:\n\nAltitude tint ON (default): each aircraft is colored by altitude — red (ground / approach), orange, gold, green, blue (cruise ~35–45k ft), purple (high / bizjet). Green overrides the altitude color for any aircraft that is shot-feasible (both a mathematical transit overlap and optical feasibility for your camera setup).\n\nAltitude tint OFF: all non-feasible aircraft switch to a single neutral grey tone; shot-feasible aircraft stay green. Toggle the checkbox in the altitude legend on the map.\n\nColors update live as flights, time, and settings change.",
       },
       {
         question: "What does the altitude color bar on the map mean?",
         answer:
-          "The bar is a quick height scale (MSL): map symbols run from light emerald (low) through emerald into sky blue and deep sky at high cruise, by reported baro/geo altitude. Tick labels under the bar default to short kilometre marks (0m, 2k, 4.5k … = 0 m, 2 km, 4.5 km, and so on). km / ft on the same row as the legend title switch ticks to compact thousands of feet (labels only; colors and geometry stay in metres). Mint (#34d399, the app's \"ready / feasible\" accent) still marks shot-feasible aircraft — same meaning as elsewhere on the map, even if that hue appears in the mid-altitude part of the scale. The checkbox beside Aircraft color by altitude (MSL) turns the height scale off so other traffic uses one neutral tone; shot-feasible flights stay highlighted. The 3D aircraft marker also scales a bit with altitude.",
+          "The bar is a quick height scale (MSL): map symbols run from red (low) through orange, gold and green to blue at cruise and purple above it, by reported baro/geo altitude. km / ft on the same row as the legend title switch the tick labels (labels only; colors and geometry stay in metres). Green still marks shot-feasible aircraft — the same meaning as elsewhere on the map, even if that hue appears in the mid-altitude part of the scale. The checkbox beside Aircraft color by altitude (MSL) turns the height scale off so other traffic uses one neutral tone; shot-feasible flights stay highlighted. The 3D aircraft marker also scales a bit with altitude.",
       },
       {
         question: "What is the green transit opportunity corridor?",
@@ -112,7 +112,7 @@ const faqSections: { title: string; items: FaqItem[] }[] = [
       {
         question: "How should I read Moon (nowcast)?",
         answer:
-          "Altitude is moon height above horizon (degrees), azimuth is compass direction from true north, and angular radius is apparent moon size. Illuminated is the percentage of the lunar disk lit as seen from Earth (0% = new moon, 100% = full moon). Visibility Advice flags low-altitude cases where the moon may be technically up but hard to see in practice.\n\nWhen you keep the default balcony observer and the simulated moon lands in a narrow band around a saved reference (height, direction, near-full phase), an Ideal for transit watch callout appears — a cue that conditions match that reference session.\n\nCopy field note copies observer coordinates, ground elevation (m), simulation instant, all numbers, rise/set times, and visibility text to the clipboard.",
+          "Altitude is moon height above horizon (degrees), azimuth is compass direction from true north, and angular radius is apparent moon size. Illuminated is the percentage of the lunar disk lit as seen from Earth (0% = new moon, 100% = full moon). Visibility Advice flags low-altitude cases where the moon may be technically up but hard to see in practice.\n\nWhen you keep the default balcony observer and the simulated moon lands in a narrow band around a saved reference (height, direction, near-full phase), an Ideal for transit watch callout appears — a cue that conditions match that reference session.\n\nMoonrise and Moonset are local times for the day shown on the time line, computed for your observer; hover a time to see it in UTC. On some days the Moon does not rise or set at all, because a lunar day lasts about 24 h 50 min, and the panel then says None today.",
       },
       {
         question: "How does the Compass → Moon panel work?",
@@ -122,7 +122,7 @@ const faqSections: { title: string; items: FaqItem[] }[] = [
       {
         question: "What does Active Transits show?",
         answer:
-          "Active Transits lists aircraft whose azimuth from your observer (corrected for aircraft altitude) is within 0.5° of the moon's azimuth — they are currently on the \"yellow ray\" where a geometric transit is happening. Each row shows callsign and delta azimuth (Δ) in blue.\n\nNudge arrow. Tap a row to select it. A nudge arrow appears below the list showing how many metres to walk and in which compass direction to reach the optimal stand where the transit centres exactly. When you close within 5 m, the arrow is replaced by a green Centered indicator and a short double chime plays.\n\nThe list only populates when moon visibility is in the Optimal tier. If it is empty, no aircraft are on the ray right now.",
+          "Active Transits lists aircraft whose azimuth from your observer (corrected for aircraft altitude) is within 0.5° of the moon's azimuth — they are currently on the amber Moon ray where a geometric transit is happening. Each row shows callsign and delta azimuth (Δ).\n\nNudge arrow. Tap a row to select it. A nudge arrow appears below the list showing how many metres to walk and in which compass direction to reach the optimal stand where the transit centres exactly. When you close within 5 m, the arrow is replaced by a green Centered indicator and a short double chime plays.\n\nThe list only populates when moon visibility is in the Optimal tier. If it is empty, no aircraft are on the ray right now.",
       },
       {
         question: "How do transit alerts and notifications work?",
@@ -137,7 +137,7 @@ const faqSections: { title: string; items: FaqItem[] }[] = [
       {
         question: "How do camera settings affect results?",
         answer:
-          "Focal length and sensor crop (set in Photographer tools) define effective focal length. That value drives optical feasibility scoring and green/blue map filtering, so realistic camera settings are important.",
+          "Focal length and sensor crop (set in Photographer tools) define effective focal length. That value drives optical feasibility scoring and which aircraft turn green on the map, so realistic camera settings are important.",
       },
       {
         question: "What time basis does Photographer tools use?",
@@ -162,7 +162,7 @@ const faqSections: { title: string; items: FaqItem[] }[] = [
       {
         question: "How does Street View work?",
         answer:
-          "Street View is available as a map layer — toggle it from the Layers control on the map. It opens a Google Street View panorama centred on your observer location and adds a live canvas overlay.\n\nOverlay elements: the moon's current position as an amber disc with crosshair; its path over a ±4-hour window (past samples faded, future samples brighter); aircraft silhouettes for transit candidates and active transits. Active transit aircraft (on the \"yellow ray\") appear in cyan with trajectory dots and callsign + altitude; other candidates appear dimmer in purple.\n\nThe panorama auto-rotates to face the moon's azimuth on load. Drag freely to look around — the overlay repaints in sync. A full-screen exit button is available in the top-right corner.\n\nIf no Street View panorama is available within 100 m of your observer, a notice is shown instead. Street View requires a Google Maps API key in the deployment configuration.",
+          "Street View is available as a map layer — toggle it from the Layers control on the map. It opens a Google Street View panorama centred on your observer location and adds a live canvas overlay.\n\nOverlay elements: the moon's current position as an amber disc with crosshair; its path over a ±4-hour window (past samples faded, future samples brighter); aircraft silhouettes for transit candidates and active transits. Active transit aircraft (on the amber Moon ray) appear in red with trajectory dots and callsign + altitude; other candidates appear dimmer in blue.\n\nThe panorama auto-rotates to face the moon's azimuth on load. Drag freely to look around — the overlay repaints in sync. A full-screen exit button is available in the top-right corner.\n\nIf no Street View panorama is available within 100 m of your observer, a notice is shown instead. Street View requires a Google Maps API key in the deployment configuration.",
       },
     ],
   },
@@ -230,13 +230,10 @@ function FaqEntry({
 }) {
   const expanded = isSearchActive || openIdx === idx;
   return (
-    <section
-      className="rounded-xl px-1 py-4 transition-colors"
-      style={expanded ? { background: "var(--glass-highlight)" } : undefined}
-    >
+    <section className="border-t border-[color:var(--hair-soft)] last:border-b">
       <button
         type="button"
-        className="flex w-full cursor-pointer items-start justify-between gap-4 rounded-lg px-2 py-0.5 text-left transition-colors hover:bg-white/[0.04] disabled:cursor-default"
+        className="flex min-h-[52px] w-full items-center justify-between gap-4 py-2.5 text-left text-[length:var(--fs-body)] font-bold transition-colors duration-150 disabled:cursor-default"
         disabled={isSearchActive}
         onClick={() => {
           if (isSearchActive) return;
@@ -245,29 +242,23 @@ function FaqEntry({
         aria-expanded={expanded}
         aria-controls={`faq-answer-${idx}`}
       >
-        <span
-          className="text-base font-semibold leading-7 sm:text-lg"
-          style={{ color: "var(--t-primary)" }}
-        >
-          {isSearchActive ? highlightText(item.question, search) : item.question}
-        </span>
+        <span>{isSearchActive ? highlightText(item.question, search) : item.question}</span>
         {!isSearchActive ? (
-          <span
-            className="mt-0.5 shrink-0 text-xl leading-none transition-colors"
-            style={{
-              color: openIdx === idx ? "var(--moon)" : "var(--t-disabled)",
-            }}
+          <svg
+            className={`h-[18px] w-[18px] shrink-0 text-[color:var(--ink-3)] transition-transform duration-150 ${openIdx === idx ? "rotate-45" : ""}`}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            aria-hidden
           >
-            {openIdx === idx ? "−" : "+"}
-          </span>
+            <path d="M12 5v14M5 12h14" />
+          </svg>
         ) : null}
       </button>
       {expanded ? (
-        <p
-          id={`faq-answer-${idx}`}
-          className="mt-3 whitespace-pre-line px-2 pr-8 text-[15px] leading-relaxed"
-          style={{ color: "var(--t-secondary)" }}
-        >
+        <p id={`faq-answer-${idx}`} className="max-w-[66ch] whitespace-pre-line pb-4 text-[color:var(--ink-2)]">
           {isSearchActive ? highlightText(item.answer, search) : item.answer}
         </p>
       ) : null}
@@ -275,9 +266,17 @@ function FaqEntry({
   );
 }
 
+const sectionAnchor = (title: string) => `faq-${title.toLowerCase().replace(/[^a-z]+/g, "-")}`;
+
+function scrollToAnchor(id: string) {
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  document.getElementById(id)?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+}
+
 export default function AboutPage() {
   const [openIdx, setOpenIdx] = useState(0);
   const [search, setSearch] = useState("");
+  const [tocId, setTocId] = useState("about-intro");
 
   const queryNorm = normalizeSearch(search);
   const isSearchActive = queryNorm.length > 0;
@@ -299,9 +298,6 @@ export default function AboutPage() {
     );
   }, [isSearchActive, queryNorm]);
 
-  const matchCount =
-    matchedFaqs.length + (proTipMatches && isSearchActive ? 1 : 0);
-
   const handleToggle = (idx: number) => {
     setOpenIdx((prev) => (prev === idx ? -1 : idx));
   };
@@ -316,173 +312,107 @@ export default function AboutPage() {
     []
   );
 
-  return (
-    <div
-      className="min-h-dvh w-full overflow-x-hidden px-4 py-10 sm:px-6 lg:px-8"
-      style={{ backgroundColor: "var(--bg-0)" }}
+  const tocItem = (id: string, label: string) => (
+    <button
+      key={id}
+      type="button"
+      aria-current={tocId === id ? "true" : undefined}
+      onClick={() => {
+        setTocId(id);
+        setSearch("");
+        scrollToAnchor(id);
+      }}
+      className={`block h-9 w-full rounded-[var(--r-ctl)] px-2.5 text-left text-[length:var(--fs-body)] transition-colors duration-150 ${
+        tocId === id
+          ? "bg-[color:var(--panel-2)] font-bold text-[color:var(--ink)]"
+          : "font-medium text-[color:var(--ink-2)] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color:var(--panel)] [@media(hover:hover)_and_(pointer:fine)]:hover:text-[color:var(--ink)]"
+      }`}
     >
+      {label}
+    </button>
+  );
+
+  return (
+    <div className="flex h-dvh min-h-[520px] flex-col bg-[color:var(--ground)] max-md:h-auto max-md:min-h-dvh">
       <script
         type="application/ld+json"
         // Safe here: source is local static content, not user-generated.
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqStructuredData) }}
       />
-      <div className="mx-auto max-w-5xl">
+      <PageTopBar current="about" />
 
-        {/* Header card */}
-        <header
-          className="relative overflow-hidden rounded-[22px] border p-7 shadow-[0_20px_80px_rgba(0,0,0,0.45)] backdrop-blur-[28px]"
-          style={{
-            background: "var(--glass-2)",
-            borderColor: "var(--glass-stroke-strong)",
-          }}
-        >
-          <div
-            className="pointer-events-none absolute left-6 right-6 top-0 h-[1.5px] rounded-full"
-            style={{
-              background:
-                "linear-gradient(90deg, var(--moon) 0%, rgba(251,191,36,0.3) 50%, transparent 100%)",
-            }}
-            aria-hidden
-          />
+      <div className="min-h-0 flex-1 overflow-y-auto max-md:overflow-visible">
+        <div className="mx-auto grid max-w-[1100px] grid-cols-[232px_minmax(0,1fr)] items-start gap-14 px-6 pb-16 pt-8 max-[1280px]:grid-cols-[200px_minmax(0,1fr)] max-[1280px]:gap-8 max-md:block max-md:px-4 max-md:pb-12 max-md:pt-5">
+          <nav aria-label="On this page" className="sticky top-6 flex flex-col gap-0.5 max-md:hidden">
+            <h2 className="mb-2 px-2.5 text-[length:var(--fs-meta)] font-bold text-[color:var(--ink-3)]">On this page</h2>
+            {tocItem("about-intro", "Why LunaPic exists")}
+            {faqSections.map((section) => tocItem(sectionAnchor(section.title), section.title))}
+          </nav>
 
-          <div className="flex items-center gap-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/logo.png"
-              alt="LunaPic logo"
-              width={40}
-              height={40}
-              decoding="async"
-              className="h-10 w-auto object-contain"
-            />
-            <span className="mt-title text-2xl leading-none">LunaPic</span>
-          </div>
-          <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl mt-title">
-            About / FAQ
-          </h1>
-          <p
-            className="mt-3 max-w-3xl text-base leading-relaxed"
-            style={{ color: "var(--t-secondary)" }}
-          >
-            Short, practical answers for reading panels, map overlays, and field
-            workflow.
-          </p>
-          <div
-            className="mt-6 rounded-[14px] border px-5 py-5 text-[15px] leading-relaxed"
-            style={{
-              background: "var(--glass-3)",
-              borderColor: "var(--glass-stroke)",
-              color: "var(--t-secondary)",
-            }}
-          >
-            <p>
-              LunaPic is a vibe-code hobbyist pet project built by Ivica Drusany, an amateur
-              photographer with zero knowledge of astronomy and coding with one specific goal in
-              mind: capturing the perfect moon transit shot of an aircraft passing in front of
-              the moon.
+          <article className="min-w-0 max-w-[720px]">
+            <h1 id="about-intro" className="scroll-mt-6 text-[length:var(--fs-display)] font-extrabold leading-[1.1] tracking-[-0.015em]">
+              About / FAQ
+            </h1>
+            <p className="mt-2 max-w-[56ch] text-[length:var(--fs-h2)] text-[color:var(--ink-2)]">
+              Short, practical answers for reading panels, map overlays, and field workflow.
             </p>
-            <p className="mt-3">
-              That kind of shot demands precise timing and positioning that is nearly impossible
-              to eyeball, so this tool was built to take the guesswork out of it.
-            </p>
-            <p className="mt-3">
-              There is no commercial agenda here, just a waste of time and money and to test AI
-              and vibe coding.
-            </p>
-            <p className="mt-3">
-              The app tracks real flight traffic in my area, calculates when an aircraft will
-              geometrically cross the moon as seen from observer standpoint, and guides you to
-              the right spot on the ground, so if you want a perfect shot, prepare to run.
-            </p>
-            <p className="mt-3">
-              If you are an astro-photographer, a plane-spotter, or simply curious you are more
-              than welcome to use LunaPic.
-            </p>
-          </div>
 
-          {/* Name etymology */}
-          <div
-            className="mt-4 rounded-[14px] border px-5 py-4"
-            style={{
-              background: "var(--glass-3)",
-              borderColor: "var(--glass-stroke)",
-            }}
-          >
-            <p
-              className="mb-3 text-[0.65rem] font-semibold uppercase tracking-[0.18em]"
-              style={{ color: "var(--moon)" }}
-            >
-              The name
-            </p>
-            <ul className="space-y-1.5 text-[14px]" style={{ color: "var(--t-secondary)" }}>
-              <li>
-                <span style={{ color: "var(--t-primary)" }}>Lūna</span>
-                {" — Moon in Latin"}
-              </li>
-              <li>
-                <span style={{ color: "var(--t-primary)" }}>Pic</span>
-                {" — Picture in English"}
-              </li>
-              <li>
-                <span style={{ color: "var(--t-primary)" }}>LunaPic</span>
-                {" — a combination that sounds like "}
-                <span style={{ color: "var(--moon)" }}>lunatic</span>
-                {", which for sure we are if we are wasting time on this"}
-              </li>
-            </ul>
-          </div>
-          <div className="mt-5">
-            <Link
-              href="/"
-              className="mt-toolbar-btn inline-flex gap-2 px-4 text-sm"
-              style={{ color: "var(--t-primary)" }}
-            >
-              <svg
-                className="size-4 shrink-0"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                aria-hidden
-              >
-                <path d="M10 3L5 8l5 5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              Back to planner
-            </Link>
-          </div>
-        </header>
+            <div className="mt-7 flex max-w-[66ch] flex-col gap-3.5 text-[color:var(--ink)]">
+              <p>
+                LunaPic is a vibe-code hobbyist pet project built by Ivica Drusany, an amateur
+                photographer with zero knowledge of astronomy and coding with one specific goal in
+                mind: capturing the perfect moon transit shot of an aircraft passing in front of
+                the moon.
+              </p>
+              <p>
+                That kind of shot demands precise timing and positioning that is nearly impossible
+                to eyeball, so this tool was built to take the guesswork out of it.
+              </p>
+              <p>
+                There is no commercial agenda here, just a waste of time and money and to test AI
+                and vibe coding.
+              </p>
+              <p>
+                The app tracks real flight traffic in my area, calculates when an aircraft will
+                geometrically cross the moon as seen from observer standpoint, and guides you to
+                the right spot on the ground, so if you want a perfect shot, prepare to run.
+              </p>
+              <p>
+                If you are an astro-photographer, a plane-spotter, or simply curious you are more
+                than welcome to use LunaPic.
+              </p>
+            </div>
 
-        {/* FAQ main card */}
-        <main
-          className="mt-8 overflow-hidden rounded-[22px] border backdrop-blur-[28px]"
-          style={{
-            background: "var(--glass-1)",
-            borderColor: "var(--glass-stroke)",
-            boxShadow: "var(--shadow-2)",
-          }}
-        >
-          <div
-            className="pointer-events-none h-[1.5px] w-full"
-            style={{
-              background:
-                "linear-gradient(90deg, var(--sky) 0%, rgba(96,165,250,0.25) 60%, transparent 100%)",
-            }}
-            aria-hidden
-          />
+            <dl className="mt-5 grid max-w-[66ch] grid-cols-[96px_1fr] gap-x-4 gap-y-1.5 rounded-[var(--r-panel)] border border-[color:var(--hair)] bg-[color:var(--panel)] px-4 py-3.5 max-md:grid-cols-[80px_1fr]">
+              <dt className="font-extrabold">Lūna</dt>
+              <dd className="text-[color:var(--ink-2)]">Moon in Latin</dd>
+              <dt className="font-extrabold">Pic</dt>
+              <dd className="text-[color:var(--ink-2)]">Picture in English</dd>
+              <dt className="font-extrabold">LunaPic</dt>
+              <dd className="text-[color:var(--ink-2)]">
+                a combination that sounds like{" "}
+                <em className="font-bold not-italic text-[color:var(--moon)]">lunatic</em>, which for
+                sure we are if we are wasting time on this
+              </dd>
+            </dl>
 
-          <div className="p-4 sm:p-6">
-            {/* Title + search row */}
-            <div className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
-              <h2
-                className="text-2xl font-semibold tracking-tight sm:text-3xl"
-                style={{ color: "var(--t-primary)" }}
-              >
-                Frequently asked questions
-              </h2>
-              <div className="w-full shrink-0 sm:max-w-sm">
-                <label htmlFor="about-faq-search" className="sr-only">
-                  Search FAQ and tips
-                </label>
+            {(!isSearchActive || proTipMatches) && (
+              <div className="mt-note mt-note-observer mt-5 max-w-[66ch] !text-[length:var(--fs-body)]">
+                <b className="font-extrabold">
+                  {isSearchActive ? highlightText(proTip.title, search) : proTip.title}
+                </b>
+                <p className="mt-0.5">{isSearchActive ? highlightText(proTip.body, search) : proTip.body}</p>
+              </div>
+            )}
+
+            <div className="sticky top-0 z-[2] mt-9 flex items-center justify-between gap-4 bg-[color:var(--ground)] pb-3 pt-3.5 max-md:top-14 max-md:flex-wrap">
+              <h2 className="text-[length:var(--fs-h1)] font-extrabold">Frequently asked questions</h2>
+              <label className="mt-field !min-h-[38px] w-[280px] text-[color:var(--ink-3)] max-md:w-full">
+                <span className="sr-only">Search FAQ and tips</span>
+                <svg className="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="M21 21l-4.3-4.3" />
+                </svg>
                 <input
                   id="about-faq-search"
                   type="search"
@@ -493,51 +423,17 @@ export default function AboutPage() {
                   placeholder="Search all answers…"
                   autoComplete="off"
                   spellCheck={false}
-                  className="w-full rounded-[12px] border px-3 py-2 text-[16px] outline-none transition"
-                  style={{
-                    background: "var(--glass-3)",
-                    borderColor: "var(--glass-stroke-strong)",
-                    color: "var(--t-primary)",
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = "var(--sky-line)";
-                    e.currentTarget.style.boxShadow =
-                      "0 0 0 2px var(--sky-soft)";
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor =
-                      "var(--glass-stroke-strong)";
-                    e.currentTarget.style.boxShadow = "none";
-                  }}
+                  className="h-full min-w-0 flex-1 bg-transparent text-[length:var(--fs-body)] text-[color:var(--ink)] outline-none placeholder:text-[color:var(--ink-3)] max-md:text-[16px]"
                 />
-                {isSearchActive ? (
-                  <p
-                    className="mt-1.5 text-xs"
-                    style={{ color: "var(--t-tertiary)" }}
-                    aria-live="polite"
-                  >
-                    {matchCount === 0
-                      ? "No matches (searches collapsed FAQ answers too)."
-                      : `${matchCount} section${matchCount === 1 ? "" : "s"} match.`}
-                  </p>
-                ) : null}
-              </div>
+              </label>
             </div>
 
-            {/* FAQ body */}
             {isSearchActive ? (
-              // Flat filtered list
-              <div
-                className="divide-y"
-                style={{ borderColor: "var(--glass-stroke)" }}
-              >
+              <div aria-live="polite">
                 {matchedFaqs.length === 0 && !proTipMatches ? (
-                  <p
-                    className="py-6 text-center text-sm"
-                    style={{ color: "var(--t-tertiary)" }}
-                  >
-                    No results. Try another word — search includes text inside
-                    collapsed FAQ answers.
+                  <p className="py-6 text-[color:var(--ink-2)]">
+                    No answer matches that search. Try a shorter word, for example
+                    &ldquo;corridor&rdquo; or &ldquo;alert&rdquo;.
                   </p>
                 ) : null}
                 {matchedFaqs.map((item, idx) => (
@@ -553,71 +449,28 @@ export default function AboutPage() {
                 ))}
               </div>
             ) : (
-              // Grouped sections
-              <div className="space-y-2">
-                {faqSections.map((section, sIdx) => {
-                  const baseIdx = sectionOffsets[sIdx];
-                  return (
-                    <div key={section.title}>
-                      <div className="px-2 pb-1 pt-5">
-                        <span
-                          className="text-[0.65rem] font-semibold uppercase tracking-[0.18em]"
-                          style={{ color: "var(--sky)" }}
-                        >
-                          {section.title}
-                        </span>
-                      </div>
-                      <div
-                        className="divide-y"
-                        style={{ borderColor: "var(--glass-stroke)" }}
-                      >
-                        {section.items.map((item, iIdx) => (
-                          <FaqEntry
-                            key={item.question}
-                            item={item}
-                            idx={baseIdx + iIdx}
-                            openIdx={openIdx}
-                            onToggle={handleToggle}
-                            isSearchActive={isSearchActive}
-                            search={search}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              faqSections.map((section, sIdx) => {
+                const baseIdx = sectionOffsets[sIdx];
+                return (
+                  <div key={section.title} id={sectionAnchor(section.title)} className="mt-6 scroll-mt-[72px] max-md:scroll-mt-32">
+                    <h3 className="mb-2 text-[length:var(--fs-h2)] font-extrabold">{section.title}</h3>
+                    {section.items.map((item, iIdx) => (
+                      <FaqEntry
+                        key={item.question}
+                        item={item}
+                        idx={baseIdx + iIdx}
+                        openIdx={openIdx}
+                        onToggle={handleToggle}
+                        isSearchActive={isSearchActive}
+                        search={search}
+                      />
+                    ))}
+                  </div>
+                );
+              })
             )}
-
-            {/* Pro Tip */}
-            {(!isSearchActive || proTipMatches) && (
-              <section
-                className="mt-6 rounded-[14px] border px-4 py-4"
-                style={{
-                  background: "var(--moon-soft)",
-                  borderColor: "var(--moon-line)",
-                }}
-              >
-                <h2
-                  className="text-xs font-semibold uppercase tracking-[0.2em]"
-                  style={{ color: "var(--moon)" }}
-                >
-                  {isSearchActive
-                    ? highlightText(proTip.title, search)
-                    : proTip.title}
-                </h2>
-                <p
-                  className="mt-2 text-[15px] leading-relaxed"
-                  style={{ color: "var(--t-secondary)" }}
-                >
-                  {isSearchActive
-                    ? highlightText(proTip.body, search)
-                    : proTip.body}
-                </p>
-              </section>
-            )}
-          </div>
-        </main>
+          </article>
+        </div>
       </div>
     </div>
   );

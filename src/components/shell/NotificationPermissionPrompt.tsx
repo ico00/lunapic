@@ -80,7 +80,7 @@ export function NotificationPermissionPrompt({ supported, onAllow }: Props) {
     >
       <button
         type="button"
-        className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-[color:var(--ground-deep)]/80"
         aria-label="Dismiss"
         onClick={() => snoozeDays(3)}
       />

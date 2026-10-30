@@ -30,14 +30,14 @@ function feedFor(id: FlightProviderId, feeds: LiveFlightFeeds): boolean {
 }
 
 const rowBase =
-  "flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 text-[length:var(--fs-body)] select-none transition-colors";
+  "flex cursor-pointer items-center gap-2.5 rounded-[var(--r-ctl)] px-2.5 py-2 text-[length:var(--fs-body)] select-none transition-colors";
 const rowClass = (on: boolean) =>
   on
-    ? `${rowBase} bg-sky-500/15 text-sky-200`
-    : `${rowBase} text-[color:var(--t-secondary)] hover:bg-zinc-800 hover:text-[color:var(--t-primary)]`;
+    ? `${rowBase} bg-[color:var(--panel-2)] text-[color:var(--ink)]`
+    : `${rowBase} text-[color:var(--t-secondary)] hover:bg-[color:var(--panel-2)] hover:text-[color:var(--t-primary)]`;
 // Spec §4a.2a: izvor koji trenutno nije dostupan — zasivljen, bez hovera, ne može se kliknuti.
 const rowDisabledClass =
-  "flex cursor-not-allowed items-center gap-2.5 rounded-md px-2.5 py-2 text-[length:var(--fs-body)] select-none text-[color:var(--t-tertiary)] opacity-60";
+  "flex cursor-not-allowed items-center gap-2.5 rounded-[var(--r-ctl)] px-2.5 py-2 text-[length:var(--fs-body)] select-none text-[color:var(--t-tertiary)] opacity-60";
 
 const UNAVAILABLE_TITLE: Partial<Record<FlightProviderId, string>> = {
   avionix: "Avionix Nano is not connected",
@@ -76,13 +76,10 @@ function webBadge(
   return null;
 }
 
-const badgeToneClass = {
-  amber:
-    "border-amber-400/40 bg-amber-500/15 text-amber-300",
-  rose: "border-rose-400/40 bg-rose-500/15 text-rose-300",
-} as const;
+/** Kvar izvora nije stanje Mjeseca, pa nije amber: spor izvor je neutralan, pad je disc. */
+const badgeToneClass = { amber: "mt-chip", rose: "mt-chip mt-chip-disc" } as const;
 
-const badgeDotClass = { amber: "bg-amber-400", rose: "bg-rose-400" } as const;
+const badgeDotClass = { amber: "bg-[color:var(--ink-3)]", rose: "bg-[color:var(--disc)]" } as const;
 
 export function FlightSourcePanel({
   liveFlightFeeds,
@@ -153,10 +150,10 @@ export function FlightSourcePanel({
           </span>
         ) : rowUnreachable ? (
           <span
-            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-rose-400/40 bg-rose-500/15 px-2 py-0.5 text-[length:var(--fs-label)] font-semibold text-rose-300"
+            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[color:var(--disc)] bg-[color:var(--panel-2)] px-2 py-0.5 text-[length:var(--fs-label)] font-semibold text-[color:var(--disc-text)]"
             data-testid={`${id}-offline`}
           >
-            <span className="inline-block size-1.5 rounded-full bg-rose-400" aria-hidden />
+            <span className="inline-block size-1.5 rounded-full bg-[color:var(--disc)]" aria-hidden />
             offline
           </span>
         ) : (
@@ -185,7 +182,7 @@ export function FlightSourcePanel({
       <p className="mt-section-label px-2.5 pb-0.5">Local receivers · no delay</p>
       {LOCAL_SOURCE_IDS.map(renderRow)}
 
-      <div className="my-1 border-t border-zinc-700/60" />
+      <div className="my-1 border-t border-[color:var(--hair)]" />
 
       <p className="mt-section-label px-2.5 pb-0.5">Web APIs · delayed</p>
       <p className="px-2.5 pb-1 text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
@@ -211,8 +208,8 @@ export function FlightSourcePanel({
             <path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
           </svg>
           <span>
-            LunaPic ADS-B prijemnik nedostupan — provjeri Raspberry Pi i Tailscale Funnel.
-            Prikazuju se samo ostali uključeni izvori.
+            LunaPic ADS-B receiver unreachable. Check the Raspberry Pi. Only the other
+            enabled sources are shown.
           </span>
         </div>
       )}
@@ -226,8 +223,8 @@ export function FlightSourcePanel({
             <path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
           </svg>
           <span>
-            Avionix Nano prijemnik nedostupan — provjeri uređaj. Prikazuju se
-            samo ostali uključeni izvori.
+            Avionix Nano receiver unreachable. Check the device. Only the other enabled
+            sources are shown.
           </span>
         </div>
       )}

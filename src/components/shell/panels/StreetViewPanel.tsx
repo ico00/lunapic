@@ -222,9 +222,9 @@ export function StreetViewPanel({ moon, observer, nowMs, candidates, activeTrans
       ctx.beginPath();
       ctx.arc(pt[0], pt[1], radius, 0, Math.PI * 2);
       ctx.fillStyle = isCurrent
-        ? `rgba(251, 191, 36, 1)`
+        ? `rgba(255, 178, 36, 1)`
         : isPast
-        ? `rgba(251, 191, 36, ${alpha})`
+        ? `rgba(255, 178, 36, ${alpha})`
         : `rgba(255, 220, 100, ${alpha})`;
       ctx.fill();
     }
@@ -237,8 +237,8 @@ export function StreetViewPanel({ moon, observer, nowMs, candidates, activeTrans
 
       // Outer glow
       const grad = ctx.createRadialGradient(mx, my, R * 0.5, mx, my, R * 2.2);
-      grad.addColorStop(0, "rgba(251,191,36,0.45)");
-      grad.addColorStop(1, "rgba(251,191,36,0)");
+      grad.addColorStop(0, "rgba(255,178,36,0.45)");
+      grad.addColorStop(1, "rgba(255,178,36,0)");
       ctx.beginPath();
       ctx.arc(mx, my, R * 2.2, 0, Math.PI * 2);
       ctx.fillStyle = grad;
@@ -247,18 +247,18 @@ export function StreetViewPanel({ moon, observer, nowMs, candidates, activeTrans
       // Moon disk fill
       ctx.beginPath();
       ctx.arc(mx, my, R, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(251, 191, 36, 0.18)";
+      ctx.fillStyle = "rgba(255, 178, 36, 0.18)";
       ctx.fill();
 
       // Moon disk border
       ctx.beginPath();
       ctx.arc(mx, my, R, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(251, 191, 36, 0.95)";
+      ctx.strokeStyle = "rgba(255, 178, 36, 0.95)";
       ctx.lineWidth = 2;
       ctx.stroke();
 
       // Crosshair lines
-      ctx.strokeStyle = "rgba(251, 191, 36, 0.6)";
+      ctx.strokeStyle = "rgba(255, 178, 36, 0.6)";
       ctx.lineWidth = 1;
       ctx.setLineDash([4, 4]);
       ctx.beginPath();
@@ -271,7 +271,7 @@ export function StreetViewPanel({ moon, observer, nowMs, candidates, activeTrans
 
       // "Moon" label
       ctx.font = "bold 11px ui-monospace, monospace";
-      ctx.fillStyle = "rgba(251, 191, 36, 0.95)";
+      ctx.fillStyle = "rgba(255, 178, 36, 0.95)";
       ctx.textAlign = "center";
       ctx.fillText("☽ Moon", mx, my + R + 14);
     }
@@ -293,51 +293,51 @@ export function StreetViewPanel({ moon, observer, nowMs, candidates, activeTrans
 
       if (isActive) {
         // Active transit: bright sky-blue with glow
-        ctx.shadowColor = "rgba(56,189,248,0.8)";
+        ctx.shadowColor = "rgba(255,93,74,0.8)";
         ctx.shadowBlur = 12;
         ctx.beginPath();
         ctx.arc(ax, ay, 10, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(56,189,248,0.25)";
+        ctx.fillStyle = "rgba(255,93,74,0.25)";
         ctx.fill();
         ctx.beginPath();
         ctx.arc(ax, ay, 10, 0, Math.PI * 2);
-        ctx.strokeStyle = "rgba(56,189,248,1)";
+        ctx.strokeStyle = "rgba(255,93,74,1)";
         ctx.lineWidth = 2;
         ctx.stroke();
         ctx.shadowBlur = 0;
         // ✈ symbol
         ctx.font = "bold 13px serif";
-        ctx.fillStyle = "rgba(56,189,248,1)";
+        ctx.fillStyle = "rgba(255,93,74,1)";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText("✈", ax, ay);
         ctx.textBaseline = "alphabetic";
         // label below
         ctx.font = "bold 10px ui-monospace, monospace";
-        ctx.fillStyle = "rgba(56,189,248,0.95)";
+        ctx.fillStyle = "rgba(255,93,74,0.95)";
         ctx.fillText(label, ax, ay + 18);
         ctx.font = "9px ui-monospace, monospace";
-        ctx.fillStyle = "rgba(56,189,248,0.7)";
+        ctx.fillStyle = "rgba(255,93,74,0.7)";
         ctx.fillText(`${altFt.toLocaleString()} ft`, ax, ay + 28);
       } else {
         // Candidate: dim violet
         ctx.beginPath();
         ctx.arc(ax, ay, 7, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(167,139,250,0.15)";
+        ctx.fillStyle = "rgba(91,149,255,0.15)";
         ctx.fill();
         ctx.beginPath();
         ctx.arc(ax, ay, 7, 0, Math.PI * 2);
-        ctx.strokeStyle = "rgba(167,139,250,0.7)";
+        ctx.strokeStyle = "rgba(91,149,255,0.7)";
         ctx.lineWidth = 1.5;
         ctx.stroke();
         ctx.font = "10px serif";
-        ctx.fillStyle = "rgba(167,139,250,0.9)";
+        ctx.fillStyle = "rgba(91,149,255,0.9)";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText("✈", ax, ay);
         ctx.textBaseline = "alphabetic";
         ctx.font = "9px ui-monospace, monospace";
-        ctx.fillStyle = "rgba(167,139,250,0.75)";
+        ctx.fillStyle = "rgba(91,149,255,0.75)";
         ctx.fillText(label, ax, ay + 14);
       }
     };
@@ -352,7 +352,7 @@ export function StreetViewPanel({ moon, observer, nowMs, candidates, activeTrans
     // --- Horizon hint if moon is below canvas ---
     if (moonAlt < 0) {
       ctx.font = "12px ui-monospace, monospace";
-      ctx.fillStyle = "rgba(251,191,36,0.6)";
+      ctx.fillStyle = "rgba(255,178,36,0.6)";
       ctx.textAlign = "center";
       ctx.fillText("Moon below horizon", W / 2, H - 16);
     }
@@ -366,11 +366,11 @@ export function StreetViewPanel({ moon, observer, nowMs, candidates, activeTrans
   return (
     <div className="flex flex-col gap-3">
       {/* Info row */}
-      <div className="flex items-center justify-between font-mono text-[length:var(--fs-label)] tabular-nums text-[color:var(--t-tertiary)]">
+      <div className="flex items-center justify-between text-[length:var(--fs-label)] tabular-nums text-[color:var(--t-tertiary)]">
         <span>
-          Az <span className="text-amber-300">{moonAz.toFixed(1)}°</span>
+          Az <span className="text-[color:var(--moon)]">{moonAz.toFixed(1)}°</span>
           {" · "}
-          Alt <span className="text-amber-300">{moonAlt.toFixed(1)}°</span>
+          Alt <span className="text-[color:var(--moon)]">{moonAlt.toFixed(1)}°</span>
         </span>
         {moon && (
           <span className="text-[color:var(--t-secondary)]">
@@ -382,18 +382,18 @@ export function StreetViewPanel({ moon, observer, nowMs, candidates, activeTrans
       </div>
 
       {/* Panorama + canvas overlay */}
-      <div className="relative overflow-hidden rounded-2xl" style={{ height: 340 }}>
+      <div className="relative overflow-hidden rounded-[var(--r-panel)]" style={{ height: 340 }}>
         {status === "loading" && (
-          <div className="absolute inset-0 flex items-center justify-center bg-zinc-900/80 z-10">
+          <div className="absolute inset-0 flex items-center justify-center bg-[color:var(--panel-2)] z-10">
             <div className="flex flex-col items-center gap-2">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-amber-400/40 border-t-amber-400" />
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-[color:var(--hair)] border-t-[color:var(--ink)]" />
               <span className="text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">Loading Street View…</span>
             </div>
           </div>
         )}
 
         {status === "unavailable" && (
-          <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-zinc-900/90 z-10">
+          <div className="absolute inset-0 flex items-center justify-center rounded-[var(--r-panel)] bg-[color:var(--panel-2)] z-10">
             <div className="text-center">
               <div className="mb-1 text-[length:var(--fs-h1)]">📍</div>
               <p className="text-[length:var(--fs-body)] font-medium text-[color:var(--t-secondary)]">Street View unavailable</p>

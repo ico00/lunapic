@@ -502,8 +502,8 @@ export function ArSkyCameraPanel() {
             {/* Uputa za kalibraciju — prikazuje se samo kad je calibrating=true */}
             {calibrating && (
               <div className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 flex flex-col items-center gap-3 px-6">
-                <div className="rounded-2xl border border-amber-400/60 bg-black/85 px-4 py-3 text-center text-[length:var(--fs-meta)] font-semibold text-amber-200 backdrop-blur-md">
-                  Tapni gdje stvarno vidiš Mjesec u kameri
+                <div className="rounded-[var(--r-panel)] border border-[color:var(--moon)] bg-[color:var(--ground-deep)]/85 px-4 py-3 text-center text-[length:var(--fs-meta)] font-semibold text-[color:var(--moon)]">
+                  Tap where you actually see the Moon in the camera
                 </div>
                 <div className="text-3xl opacity-60 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">+</div>
               </div>
@@ -511,7 +511,7 @@ export function ArSkyCameraPanel() {
 
             {/* Info kartica gore — prikazuje se samo kad korisnik tapne callsign */}
             {!calibrating && infoMarker ? (
-              <div className="absolute left-3 right-3 top-[max(0.75rem,env(safe-area-inset-top))] rounded-[var(--r-xl)] border border-white/[0.14] bg-black/80 backdrop-blur-md overflow-hidden">
+              <div className="absolute left-3 right-3 top-[max(0.75rem,env(safe-area-inset-top))] rounded-[var(--r-panel)] border border-[color:var(--hair)] bg-[color:var(--ground-deep)]/85 overflow-hidden">
                 <SelectedAircraftPopupContent
                   flight={infoMarker.flight}
                   onDismiss={() => setInfoFlightId(null)}
@@ -530,8 +530,8 @@ export function ArSkyCameraPanel() {
                   }}
                   className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border px-2 py-0.5 text-[length:var(--fs-label)] font-semibold ${
                     marker.isSelected
-                      ? "border-amber-400/90 bg-amber-400/20 text-amber-300"
-                      : "border-sky-400/80 bg-sky-500/15 text-sky-200"
+                      ? "border-[color:var(--moon)] bg-[color:var(--ground-deep)]/85 text-[color:var(--moon)]"
+                      : "border-[color:var(--observer)] bg-[color:var(--ground-deep)]/85 text-[color:var(--observer-text)]"
                   }`}
                   style={{ left: marker.x, top: marker.y }}
                 >
@@ -550,13 +550,13 @@ export function ArSkyCameraPanel() {
                 }}
                 className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-md border px-1.5 py-0.5 text-[length:var(--fs-label)] ${
                   marker.isSelected
-                    ? "border-amber-400/90 bg-amber-400/20 text-amber-200"
-                    : "border-sky-400/80 bg-sky-500/15 text-sky-200"
+                    ? "border-[color:var(--moon)] bg-[color:var(--ground-deep)]/85 text-[color:var(--moon)]"
+                    : "border-[color:var(--observer)] bg-[color:var(--ground-deep)]/85 text-[color:var(--observer-text)]"
                 }`}
                 style={{ left: marker.x, top: marker.y }}
               >
                 <span
-                  className="inline-block text-[0.7rem]"
+                  className="inline-block text-[length:var(--fs-label)]"
                   style={{ transform: `rotate(${marker.angleDeg}deg)` }}
                 >
                   ▲
@@ -573,7 +573,7 @@ export function ArSkyCameraPanel() {
                 <span className="text-2xl leading-none drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
                   ○
                 </span>
-                <span className="rounded border border-amber-400/60 bg-black/60 px-1.5 py-0.5 text-[0.6rem] font-semibold tracking-wide text-amber-300 backdrop-blur-sm">
+                <span className="rounded border border-[color:var(--moon)] bg-[color:var(--ground-deep)]/85 px-1.5 py-0.5 text-[length:var(--fs-label)] font-semibold tracking-wide text-[color:var(--moon)]">
                   Moon
                 </span>
               </div>
@@ -585,19 +585,19 @@ export function ArSkyCameraPanel() {
                 style={{ left: moonOffscreenArrow.x, top: moonOffscreenArrow.y }}
               >
                 <span
-                  className="text-[length:var(--fs-body-strong)] leading-none text-amber-300 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]"
+                  className="text-[length:var(--fs-body-strong)] leading-none text-[color:var(--moon)] drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]"
                   style={{ transform: `rotate(${moonOffscreenArrow.angleDeg}deg)` }}
                 >
                   ▲
                 </span>
-                <span className="rounded border border-amber-400/60 bg-black/60 px-1 py-0.5 text-[0.55rem] font-semibold text-amber-300 backdrop-blur-sm">
+                <span className="rounded border border-[color:var(--moon)] bg-[color:var(--ground-deep)]/85 px-1 py-0.5 text-[length:var(--fs-label)] font-semibold text-[color:var(--moon)]">
                   Moon
                 </span>
               </div>
             ) : null}
 
             {/* Dijagnostički red — kurs, nagib, starost podataka */}
-            <div className="absolute bottom-[calc(4rem+2.5rem+0.5rem)] left-3 right-3 flex items-center justify-between gap-1 rounded-xl border border-white/[0.08] bg-black/55 px-2 py-1 text-[0.5rem] font-mono text-[color:var(--t-secondary)] backdrop-blur-sm">
+            <div className="absolute bottom-[calc(4rem+2.5rem+0.5rem)] left-3 right-3 flex items-center justify-between gap-1 rounded-[var(--r-panel)] border border-[color:var(--hair)] bg-[color:var(--ground-deep)]/85 px-2 py-1 text-[0.5rem] text-[color:var(--t-secondary)]">
               <span>
                 {cameraAzimuthDeg != null
                   ? `↑ ${Math.round(cameraAzimuthDeg)}°`
@@ -609,8 +609,8 @@ export function ArSkyCameraPanel() {
               <span>
                 {newestFlightMs > 0
                   ? Math.round((renderNowMs - newestFlightMs) / 1000) < 120
-                    ? <span className="text-emerald-400">{Math.round((renderNowMs - newestFlightMs) / 1000)}s</span>
-                    : <span className="text-rose-300">{Math.round((renderNowMs - newestFlightMs) / 60000)}m staro</span>
+                    ? <span className="text-[color:var(--live)]">{Math.round((renderNowMs - newestFlightMs) / 1000)}s</span>
+                    : <span className="text-[color:var(--disc-text)]">{Math.round((renderNowMs - newestFlightMs) / 60000)}m old</span>
                   : "–"}
               </span>
               <span className="text-[color:var(--t-tertiary)]">
@@ -620,7 +620,7 @@ export function ArSkyCameraPanel() {
 
             {/* Kompas — dolje desno */}
             <div className="absolute bottom-16 right-3 flex flex-col items-center gap-1">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/[0.18] bg-black/65 backdrop-blur-md">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[color:var(--hair)] bg-[color:var(--ground-deep)]/85">
                 <div
                   className="relative flex h-full w-full items-center justify-center"
                   style={{
@@ -629,22 +629,22 @@ export function ArSkyCameraPanel() {
                       : undefined,
                   }}
                 >
-                  <span className="absolute top-1 text-[0.5rem] font-bold text-amber-300">N</span>
+                  <span className="absolute top-1 text-[0.5rem] font-bold text-[color:var(--moon)]">N</span>
                   <span className="absolute bottom-1 text-[0.45rem] text-[color:var(--t-tertiary)]">S</span>
                   <span className="absolute left-1 text-[0.45rem] text-[color:var(--t-tertiary)]">W</span>
                   <span className="absolute right-1 text-[0.45rem] text-[color:var(--t-tertiary)]">E</span>
-                  <div className="h-5 w-[2px] rounded-full bg-gradient-to-b from-amber-300 to-zinc-600" />
+                  <div className="h-5 w-[2px] rounded-full bg-[color:var(--moon)]" />
                 </div>
               </div>
               {/* Accuracy badge — shows compass reliability */}
               {pose.compassAccuracyDeg != null && (
                 <span
-                  className={`rounded px-1 py-0.5 text-[0.5rem] font-semibold leading-none backdrop-blur-sm ${
+                  className={`rounded px-1 py-0.5 text-[0.5rem] font-semibold leading-none ${
                     pose.compassAccuracyDeg <= 10
-                      ? "border border-emerald-500/50 bg-black/60 text-emerald-400"
+                      ? "border border-[color:var(--live)] bg-[color:var(--ground-deep)]/85 text-[color:var(--live)]"
                       : pose.compassAccuracyDeg <= 20
-                        ? "border border-amber-400/60 bg-black/60 text-amber-300"
-                        : "border border-rose-500/60 bg-black/70 text-rose-300"
+                        ? "border border-[color:var(--moon)] bg-[color:var(--ground-deep)]/85 text-[color:var(--moon)]"
+                        : "border border-[color:var(--disc)] bg-[color:var(--ground-deep)]/85 text-[color:var(--disc-text)]"
                   }`}
                 >
                   ±{Math.round(pose.compassAccuracyDeg)}°
@@ -654,8 +654,8 @@ export function ArSkyCameraPanel() {
 
             {/* Compass interference warning — hidden when aircraft info card is open */}
             {!infoMarker && pose.compassAccuracyDeg != null && pose.compassAccuracyDeg > 15 && (
-              <div className="absolute left-3 right-3 top-[max(0.75rem,env(safe-area-inset-top))] mt-1 rounded-2xl border border-rose-500/50 bg-black/80 px-3 py-2 text-[length:var(--fs-label)] text-rose-200 backdrop-blur-md">
-                ⚠️ Kompas netočan (±{Math.round(pose.compassAccuracyDeg)}°) — magnetska smetnja. Udalji se od metalnih konstrukcija radi točnog AR prikaza.
+              <div className="absolute left-3 right-3 top-[max(0.75rem,env(safe-area-inset-top))] mt-1 rounded-[var(--r-panel)] border border-[color:var(--disc)] bg-[color:var(--ground-deep)]/85 px-3 py-2 text-[length:var(--fs-label)] text-[color:var(--disc-text)]">
+                Compass unreliable (±{Math.round(pose.compassAccuracyDeg)}°): magnetic interference. Move away from metal structures for an accurate AR view.
               </div>
             )}
 
@@ -664,7 +664,7 @@ export function ArSkyCameraPanel() {
               <button
                 type="button"
                 onClick={() => setShowAllNearbyFlights((prev) => !prev)}
-                className="flex-1 rounded-xl border border-white/[0.12] bg-black/70 px-2 py-2 text-[length:var(--fs-label)] text-[color:var(--t-primary)] backdrop-blur-md"
+                className="flex-1 rounded-[var(--r-panel)] border border-[color:var(--hair)] bg-[color:var(--ground-deep)]/85 px-2 py-2 text-[length:var(--fs-label)] text-[color:var(--t-primary)]"
               >
                 {showAllNearbyFlights ? "Only focused" : "All nearby"}
               </button>
@@ -680,12 +680,12 @@ export function ArSkyCameraPanel() {
                     setCalibrating(true);
                   }
                 }}
-                className={`flex-1 rounded-xl border px-2 py-2 text-[length:var(--fs-label)] font-semibold backdrop-blur-md ${
+                className={`flex-1 rounded-[var(--r-panel)] border px-2 py-2 text-[length:var(--fs-label)] font-semibold ${
                   calibrating
-                    ? "border-amber-400/70 bg-amber-500/20 text-amber-200"
+                    ? "border-[color:var(--moon)] bg-[color:var(--ground-deep)]/85 text-[color:var(--moon)]"
                     : calibrationOffsetDeg !== 0
-                      ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-200"
-                      : "border-white/[0.12] bg-black/70 text-[color:var(--t-primary)]"
+                      ? "border-[color:var(--live)] bg-[color:var(--ground-deep)]/85 text-[color:var(--live)]"
+                      : "border-[color:var(--hair)] bg-[color:var(--ground-deep)]/85 text-[color:var(--t-primary)]"
                 }`}
               >
                 {calibrating ? "Odustani" : calibrationOffsetDeg !== 0 ? `Cal ${calibrationOffsetDeg > 0 ? "+" : ""}${Math.round(calibrationOffsetDeg)}°` : "Cal ☽"}
@@ -693,14 +693,14 @@ export function ArSkyCameraPanel() {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="flex-1 rounded-xl border border-rose-400/45 bg-rose-500/20 px-2 py-2 text-[length:var(--fs-label)] font-semibold text-rose-100 backdrop-blur-md"
+                className="flex-1 rounded-[var(--r-panel)] border border-[color:var(--disc)] bg-[color:var(--ground-deep)]/85 px-2 py-2 text-[length:var(--fs-label)] font-semibold text-[color:var(--disc-text)]"
               >
                 Close AR
               </button>
             </div>
 
             {cameraError || orientationError ? (
-              <div className="absolute left-3 right-3 top-24 rounded-2xl border border-rose-500/50 bg-black/80 px-3 py-2 text-[length:var(--fs-label)] text-rose-200 backdrop-blur-md">
+              <div className="absolute left-3 right-3 top-24 rounded-[var(--r-panel)] border border-[color:var(--disc)] bg-[color:var(--ground-deep)]/85 px-3 py-2 text-[length:var(--fs-label)] text-[color:var(--disc-text)]">
                 {cameraError || orientationError}
               </div>
             ) : null}

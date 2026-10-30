@@ -418,12 +418,12 @@ export function useMoonTransitMap(
         v.setAttribute("data-transit-sight", "");
         v.setAttribute("aria-hidden", "true");
         v.className =
-          "pointer-events-none absolute left-1/2 top-1/2 h-6 w-px -translate-x-1/2 -translate-y-1/2 bg-yellow-400/90 shadow-[0_0_3px_rgba(59,130,246,0.6)]";
+          "pointer-events-none absolute left-1/2 top-1/2 h-6 w-px -translate-x-1/2 -translate-y-1/2 bg-[color:var(--moon)]";
         const h = document.createElement("div");
         h.setAttribute("data-transit-sight", "");
         h.setAttribute("aria-hidden", "true");
         h.className =
-          "pointer-events-none absolute left-1/2 top-1/2 h-px w-6 -translate-x-1/2 -translate-y-1/2 bg-yellow-400/90 shadow-[0_0_3px_rgba(59,130,246,0.6)]";
+          "pointer-events-none absolute left-1/2 top-1/2 h-px w-6 -translate-x-1/2 -translate-y-1/2 bg-[color:var(--moon)]";
         disc.appendChild(v);
         disc.appendChild(h);
       }
@@ -446,10 +446,10 @@ export function useMoonTransitMap(
       return;
     }
     if (observerLocationLocked) {
-      disc.classList.add("ring-2", "ring-blue-500/50");
+      disc.classList.add("ring-2", "ring-[color:var(--observer)]");
       disc.classList.remove("cursor-grab", "active:cursor-grabbing");
     } else {
-      disc.classList.remove("ring-2", "ring-blue-500/50");
+      disc.classList.remove("ring-2", "ring-[color:var(--observer)]");
       disc.classList.add("cursor-grab", "active:cursor-grabbing");
     }
   }, [observerLocationLocked]);

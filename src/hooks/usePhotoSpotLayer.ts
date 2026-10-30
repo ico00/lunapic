@@ -47,7 +47,7 @@ function ensureLayers(map: mapboxgl.Map) {
         // Matches the live centerline: emerald for the whole "stand here"
         // family (spot, tolerance ellipse, and the track the spot sweeps), so
         // amber is left to mean the aircraft's own predicted motion.
-        "line-color": "rgba(52,211,153,0.75)",
+        "line-color": "rgba(52,209,127,0.75)",
         "line-width": 2,
         "line-dasharray": [5, 3],
       },
@@ -61,8 +61,8 @@ function ensureLayers(map: mapboxgl.Map) {
       source: PHOTO_SPOT_SOURCE,
       filter: ["==", ["get", "kind"], "spread"],
       paint: {
-        "fill-color": "rgba(56,189,248,0.10)", // sky-400 — uncertainty, not a target
-        "fill-outline-color": "rgba(56,189,248,0.35)",
+        "fill-color": "rgba(91,149,255,0.10)", // --observer — uncertainty, not a target
+        "fill-outline-color": "rgba(91,149,255,0.35)",
       },
     });
   }
@@ -73,8 +73,8 @@ function ensureLayers(map: mapboxgl.Map) {
       source: PHOTO_SPOT_SOURCE,
       filter: ["==", ["get", "kind"], "tolerance"],
       paint: {
-        "fill-color": "rgba(52,211,153,0.35)", // emerald-400
-        "fill-outline-color": "rgba(52,211,153,0.9)",
+        "fill-color": "rgba(52,209,127,0.35)", // --live
+        "fill-outline-color": "rgba(52,209,127,0.9)",
       },
     });
   }
@@ -86,7 +86,7 @@ function ensureLayers(map: mapboxgl.Map) {
       filter: ["==", ["get", "kind"], "spot"],
       paint: {
         "circle-radius": 6,
-        "circle-color": "#34d399",
+        "circle-color": "#34d17f",
         "circle-stroke-width": 2,
         "circle-stroke-color": "rgba(255,255,255,0.9)",
       },

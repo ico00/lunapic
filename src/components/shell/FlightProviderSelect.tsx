@@ -195,7 +195,7 @@ export function FlightProviderSelect({
                 <li
                   role="separator"
                   aria-hidden
-                  className="mx-2 my-1 border-t border-zinc-700/60"
+                  className="mx-2 my-1 border-t border-[color:var(--hair)]"
                 />
               )}
               <li
