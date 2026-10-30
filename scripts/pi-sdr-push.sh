@@ -15,6 +15,10 @@
 #   INGEST_URL=https://tvoja-domena/LunaPic/api/localsdr/ingest
 #   SDR_INGEST_TOKEN=<isti token kao u cPanel env varijablama>
 #
+# Šalje gzip (oko 6× manje podataka uz push svakih 5 s). VAŽNO pri nadogradnji:
+# prvo deploy servera koji razumije gzip, tek onda ova skripta — stari server
+# odbija gzip kao neispravan JSON.
+#
 # Izvor podataka — jedno od (prvo pronađeno pobjeđuje):
 #   SOURCE_FILE=/run/readsb/aircraft.json    # preferirano: bez HTTP-a i bez auth
 #   SOURCE_URL=http://user:pass@127.0.0.1/tar1090/data/aircraft.json
@@ -73,10 +77,10 @@ case "$payload" in
     ;;
 esac
 
-http_code=$(printf '%s' "$payload" | curl -sS -m 20 -o /tmp/lunapic-ingest-resp \
+http_code=$(printf '%s' "$payload" | gzip -c | curl -sS -m 20 -o /tmp/lunapic-ingest-resp \
   -w '%{http_code}' \
   -X POST "$INGEST_URL" \
-  -H "Content-Type: application/json" \
+  -H "Content-Type: application/gzip" \
   -H "x-sdr-token: ${SDR_INGEST_TOKEN}" \
   --data-binary @-) || {
   echo "POST na $INGEST_URL nije uspio" >&2

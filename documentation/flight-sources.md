@@ -124,8 +124,10 @@ was one service under two hostnames, so both died together.
 ## LunaPic ADS-B (Raspberry Pi)
 
 **Push is the production path.** The Pi POSTs `aircraft.json` to
-`/api/localsdr/ingest` every 15 s (`x-sdr-token`), the route writes
+`/api/localsdr/ingest` gzipped every ~5 s (`x-sdr-token`), the route writes
 `data/sdr-snapshot.json`, and readers treat a snapshot older than 60 s as dead.
+The `server.js` poller and transit scan follow at 5 s, while `positions` keeps its
+~15 s density (`MIN_LOG_INTERVAL_MS`) so the log does not grow three times faster.
 Pull from `LOCAL_SDR_URL` is a fallback used in local dev on the same network.
 Full rationale in [AGENTS.md](../AGENTS.md).
 
@@ -171,7 +173,7 @@ push is the only path that works there.
 | Timer | Interval | Sources |
 | --- | --- | --- |
 | web | 30 s (`LIVE_AUTO_REFRESH_MS`) | OpenSky, adsb.lol |
-| SDR | 10 s (`LOCALSDR_AUTO_REFRESH_MS`) | localsdr only, via `loadFlightsInBounds(bounds, { only: "localsdr" })` |
+| SDR | 5 s (`LOCALSDR_AUTO_REFRESH_MS`) | localsdr only, via `loadFlightsInBounds(bounds, { only: "localsdr" })` |
 | Avionix | 10 s (`AVIONIX_AUTO_REFRESH_MS`) | avionix only, via `loadFlightsInBounds(bounds, { only: "avionix" })` |
 
 **All three stop while the tab is hidden** and restart with one immediate

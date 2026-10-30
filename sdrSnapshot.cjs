@@ -20,7 +20,7 @@ const path = require("node:path");
 
 const SNAPSHOT_FILE = path.join(process.cwd(), "data", "sdr-snapshot.json");
 
-/** Snapshot stariji od ovoga smatramo mrtvim (Pi šalje svakih ~15 s). */
+/** Snapshot stariji od ovoga smatramo mrtvim (Pi šalje svakih ~5 s). */
 const SNAPSHOT_STALE_AFTER_MS = 60_000;
 
 /** @returns {{ receivedAt: number, body: string }|null} */
@@ -42,7 +42,7 @@ function readSdrSnapshot() {
 
 /**
  * Atomičan upis (tmp + rename) — čitatelj nikad ne vidi napola zapisan JSON,
- * što je bitno jer se piše svakih 15 s dok ga rute čitaju.
+ * što je bitno jer se piše svakih ~5 s dok ga rute čitaju.
  * @param {string} body
  */
 function writeSdrSnapshot(body) {

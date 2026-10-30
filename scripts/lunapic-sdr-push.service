@@ -1,6 +1,6 @@
 [Unit]
 Description=LunaPic — pošalji ADS-B snapshot serveru
-# Bez mreže nema smisla pokušavati; timer će svejedno ponoviti za 15 s.
+# Bez mreže nema smisla pokušavati; timer će svejedno ponoviti za 5 s.
 After=network-online.target
 Wants=network-online.target
 

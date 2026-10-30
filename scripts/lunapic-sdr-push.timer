@@ -1,11 +1,11 @@
 [Unit]
-Description=LunaPic — pošalji ADS-B snapshot svakih 15 s
+Description=LunaPic — pošalji ADS-B snapshot svakih 5 s
 
 [Timer]
 # Prvi pokušaj 30 s nakon boota (da se dump1090/readsb stigne podići).
 OnBootSec=30s
-OnUnitActiveSec=15s
-AccuracySec=1s
+OnUnitActiveSec=5s
+AccuracySec=100ms
 Unit=lunapic-sdr-push.service
 
 [Install]

@@ -27,6 +27,23 @@ function flight(
 describe("screenTransitCandidates", () => {
   const observer = { lat: 45.8, lng: 15.95, groundHeightMeters: 0 };
 
+  it("zadano odbacuje avion dalji od 100 km, a pozivatelj smije proširiti doseg", () => {
+    const moon: MoonState = {
+      altitudeDeg: 10,
+      azimuthDeg: 0,
+      distanceKm: 380_000,
+      apparentRadius: { degrees: 0.25 },
+      phaseFraction: 0.3,
+      illuminationFraction: 0.5,
+    };
+    // ~150 km sjeverno od promatrača.
+    const far = flight("far", 47.15, 15.95, 10_000);
+    expect(screenTransitCandidates(observer, moon, [far], 0, 0)).toEqual([]);
+    expect(
+      screenTransitCandidates(observer, moon, [far], 0, 0, 185_000).map((c) => c.flight.id)
+    ).toEqual(["far"]);
+  });
+
   it("empty list → []", () => {
     const moon: MoonState = {
       altitudeDeg: 40,

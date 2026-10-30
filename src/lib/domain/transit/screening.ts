@@ -9,6 +9,7 @@ import { destinationByAzimuthMeters, geodeticToEcef } from "../geometry/wgs84";
 const DEFAULT_AIRCRAFT_ANGULAR_RADIUS_DEG = 0.01;
 const TYPICAL_FUSELAGE_LENGTH_M = 40;
 const APPROACH_LOOKAHEAD_SEC = 30;
+/** Zadani doseg: avion je bitan samo ako je već blizu (trenutno preklapanje). */
 const MAX_SLANT_RANGE_METERS = 100_000;
 
 /**
@@ -67,13 +68,16 @@ function aircraftApparentRadiusDeg(
  * Returns flights sorted by angular distance to the moon center, with
  * a flag when they overlap the two discs in the sky.
  * wallNowMs + latencySkewMs: used to extrapolate stale ADS-B positions.
+ * maxSlantMeters: širi ga samo predviđanje budućeg tranzita, koje onda samo
+ * mora provjeriti udaljenost u trenutku poravnanja.
  */
 export function screenTransitCandidates(
   observer: GroundObserver,
   moon: MoonState,
   flights: readonly FlightState[],
   wallNowMs: number,
-  latencySkewMs: number
+  latencySkewMs: number,
+  maxSlantMeters: number = MAX_SLANT_RANGE_METERS
 ): readonly TransitCandidate[] {
   const moonR = moon.apparentRadius.degrees;
   const out: TransitCandidate[] = [];
@@ -89,7 +93,7 @@ export function screenTransitCandidates(
     if (h == null) {
       continue;
     }
-    if (slantRangeMeters(observer, flight.position.lat, flight.position.lng, h) > MAX_SLANT_RANGE_METERS) {
+    if (slantRangeMeters(observer, flight.position.lat, flight.position.lng, h) > maxSlantMeters) {
       continue;
     }
 

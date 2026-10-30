@@ -184,7 +184,12 @@ async function fetchTar1090Meta(icao24) {
   }
 }
 
-const POLL_INTERVAL_MS = 15_000;
+/**
+ * Ritam čitanja snapshota i server-side transit scana. Pi šalje svakih ~5 s, a
+ * potvrda alerta traži dva različita fixa — sporiji poll izravno krade vrijeme
+ * upozorenja. Upis u bazu ima svoj, sporiji ritam (`MIN_LOG_INTERVAL_MS`).
+ */
+const POLL_INTERVAL_MS = 5_000;
 const FT_TO_M = 0.3048;
 const KNOTS_TO_MPS = 0.514444;
 /**
@@ -223,6 +228,13 @@ function parseAvionixTimestampMs(raw, nowMs = Date.now()) {
 }
 const MIN_MOVE_M = 120;
 const MAX_GAP_MS = 90_000;
+/**
+ * Najmanji razmak dva upisa istog aviona u `positions`. `MIN_MOVE_M` sam ne
+ * čuva gustoću loga: avion na krstarenju prijeđe 120 m u sekundi, pa bi svaki
+ * tick poll-a postao novi redak i baza bi rasla 3× brže, a s njom i cijena
+ * forecast ruta. Izvan ovog razmaka vrijedi isto što i prije (~15 s).
+ */
+const MIN_LOG_INTERVAL_MS = 15_000;
 
 /**
  * Retention za flight-log — **OPT-IN, default ISKLJUČEN**.
@@ -360,7 +372,7 @@ async function startFlightLogger() {
   // Dijagnostika: uzastopni neuspjesi prema Piju. Bez ovoga se u cPanel logu
   // nije vidjelo ništa — feed bi tiho utihnuo i UI bi samo javio "offline".
   let sdrFailStreak = 0;
-  const SDR_FAIL_LOG_EVERY = 4; // ~1 min pri POLL_INTERVAL_MS = 15 s
+  const SDR_FAIL_LOG_EVERY = Math.round(60_000 / POLL_INTERVAL_MS); // ~1 min
 
   function noteSdrFailure(reason) {
     sdrFailStreak += 1;
@@ -588,6 +600,7 @@ async function startFlightLogger() {
 
       const prev = lastSeen.get(icao24);
       if (prev) {
+        if (logged_at - prev.logged_at < MIN_LOG_INTERVAL_MS) continue;
         const moved = haversineM(prev.lat, prev.lng, lat, lng);
         if (moved < MIN_MOVE_M && logged_at - prev.logged_at < MAX_GAP_MS) continue;
       }
@@ -668,6 +681,7 @@ async function startFlightLogger() {
 
         const prev = lastSeen.get(icao24);
         if (prev) {
+          if (logged_at - prev.logged_at < MIN_LOG_INTERVAL_MS) continue;
           const moved = haversineM(prev.lat, prev.lng, lat, lng);
           if (moved < MIN_MOVE_M && logged_at - prev.logged_at < MAX_GAP_MS) continue;
         }

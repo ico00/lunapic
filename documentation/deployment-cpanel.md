@@ -114,7 +114,7 @@ INTERNAL_SCAN_TOKEN=<openssl rand -hex 32>
 - **`NEXT_PUBLIC_SITE_URL`** — javni URL aplikacije s basePathom. **Kritično pod Passengerom:** `server.js` poller ne može doseći app preko `127.0.0.1:PORT` (Passenger ne veže TCP port), pa `triggerTransitScan` gađa ovaj javni URL. Ako fali ili nema basePath → trigger ide krivo/padne. (Override: `SCAN_TRIGGER_URL`.) Ista varijabla služi i za SEO canonical/sitemap.
 - **`INTERNAL_SCAN_TOKEN`** — dijeljena tajna kojom poller autentificira poziv na `/api/transit/scan` (header `x-internal-token`). Generiraj `openssl rand -hex 32`. Bez nje scan vraća **403** i poller tiho odustaje. Mora biti **stvaran slučajan string** — ne placeholder poput `<openssl rand -hex 32>`.
 - **Ovisi i o `LOCAL_SDR_URL` ili `AVIONIX_INGEST_TOKEN`/`AVIONIX_URL`** (gore) — poller je heartbeat koji okida scan i pokreće se čim JEDAN od ta dva izvora ima nešto konfigurirano. Bez ijednog aktivnog lokalnog izvora nema pozadinskih alerta.
-- **Provjera da radi:** u `~/access-logs/<domena>-ssl_log` traži `POST /<base>/api/transit/scan ... "node"` — treba se pojavljivati ~svakih 15 s sa statusom `200` (user-agent `node` = poller, ne browser).
+- **Provjera da radi:** u `~/access-logs/<domena>-ssl_log` traži `POST /<base>/api/transit/scan ... "node"` — treba se pojavljivati ~svakih 5 s sa statusom `200` (user-agent `node` = poller, ne browser).
 
 ### `touch tmp/restart.txt` vs. full restart
 

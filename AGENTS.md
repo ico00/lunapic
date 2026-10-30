@@ -39,8 +39,12 @@ Svaki filter se primjenjuje redom. Ako let padne na bilo kojoj provjeri, **isklj
 1. moon.altitudeDeg < 5°
    → prazan niz (useTransitCandidates + useActiveTransits)
 
-2. Trenutna slant udaljenost > 100 km  [screening.ts: MAX_SLANT_RANGE_METERS = 100_000]
-   → isključen iz svega
+2. Trenutna slant udaljenost > 185 km  [flightFilterBounds.ts: TRANSIT_SCREENING_RADIUS_KM;
+   computeTransitCandidates: TRANSIT_SCREENING_SLANT_METERS]
+   → isključen iz kandidata
+   (100 km + 300 s pri 270 m/s ≈ 181 km; ostali pozivatelji screeninga —
+   shot feasibility i zvuk — zadržavaju zadanih 100 km,
+   screening.ts: MAX_SLANT_RANGE_METERS)
 
 3. Let se UDALJAVA od Mjeseca (30s lookahead)  [screening.ts: APPROACH_LOOKAHEAD_SEC = 30]
    → isključen iz svega
@@ -58,8 +62,10 @@ Svaki filter se primjenjuje redom. Ako let padne na bilo kojoj provjeri, **isklj
 5. |elevationGapAtAlignmentDeg| > halfVerticalFOV  (kamera-specifično)
    → isključen (neće stati u kadar)
 
-6. futureSlantMeters > 100 km  [useTransitCandidates: MAX_TRANSIT_SLANT_METERS = 100_000]
+6. futureSlantMeters > 100 km  [computeTransitCandidates: MAX_TRANSIT_SLANT_METERS = 100_000]
    → isključen iz SVEGA — tranzit se predviđa predaleko od promatrača
+   (ovo je fotografska granica; korak 2 smije biti širi jer avion do
+   poravnanja još leti prema nama)
 
 7. Klasifikacija preživjelih:
    willTransit = |elevationGapAtAlignmentDeg| ≤ moonApparentRadius + aircraftAngularRadius
@@ -144,7 +150,7 @@ Dvije stvari koje se lako slome i ne javljaju se same:
   dnevno po IP-u umjesto 4000. Krediti se troše **po zahtjevu**; preostalo stanje
   vraća se u `X-MoonTransit-OpenSky-Credits`.
 * **Tempo je budžet, ne preferencija.** Web izvori 30 s
-  (`LIVE_AUTO_REFRESH_MS`), Pi 10 s (`LOCALSDR_AUTO_REFRESH_MS`), Avionix
+  (`LIVE_AUTO_REFRESH_MS`), Pi 5 s (`LOCALSDR_AUTO_REFRESH_MS`), Avionix
   10 s (`AVIONIX_AUTO_REFRESH_MS`), **sva tri stanu dok je tab skriven** —
   `useMoonTransitMap.ts`. Ne spajati ih natrag u jedan interval: prije je
   uključen Pi checkbox dizao i OpenSky na 10 s i trošio dnevnu kvotu za ~sat
@@ -228,11 +234,19 @@ teče, a aviona tamo nema”.
 
 ### Kako ADS-B podaci s Pija dolaze do servera (push, ne pull)
 
-**Produkcija — Pi šalje.** Pi svakih 15 s (systemd timer) POST-a svoj
-`aircraft.json` na `/api/localsdr/ingest` (auth: `x-sdr-token` =
+**Produkcija — Pi šalje.** Pi svakih ~5 s (systemd timer) POST-a svoj
+`aircraft.json` kao gzip na `/api/localsdr/ingest` (auth: `x-sdr-token` =
 `SDR_INGEST_TOKEN`). Ruta validira da je tar1090 JSON i atomično zapiše
 `data/sdr-snapshot.json`. Čitaju ga `/api/localsdr/aircraft` i `server.js`
 poller; snapshot stariji od 60 s smatra se mrtvim.
+
+**Ritam 5 s (2026-10-30).** Prije je Pi slao svakih ~16 s, a potvrda alerta traži
+dva različita fixa, pa je samo ritam odgađao alert za barem toliko. Poller i
+server-side scan sada rade na 5 s, klijent također. **Upis u `positions` ostaje
+na ~15 s** (`MIN_LOG_INTERVAL_MS` u `server.js`): `MIN_MOVE_M` to ne čuva, jer
+avion prijeđe 120 m u sekundi, pa bi baza inače rasla 3× brže. Ne slati samo
+avione blizu promatrača radi uštede — flight log i forecast koriste puni doseg.
+Gzip je zato jedina ušteda (~10 KB umjesto ~63 KB po snimku).
 
 **Zašto push:** ranije je server **povlačio** podatke s Pija preko Tailscale
 Funnela. To zahtijeva da Pi bude javno dostupan — Funnel → javni DNS → cert →
@@ -522,13 +536,20 @@ Rating u `PhotographerToolsPanel`:
 
 - **Vizualni prsten**: 80 km (iscrtava `useMapObserverRadiusSync`) — "vrijedi promatrati"
 - **API query radius**: 100 km (OpenSky bbox, `openSkyStyleQueryRegion.ts`)
-- **Filter zadržavanja**: `viewport ∪ disk 100 km` (`flightFilterBounds.ts`) —
+- **Filter zadržavanja**: `viewport ∪ disk 185 km` (`flightFilterBounds.ts`) —
   **svi** izvori, uključujući lokalne prijemnike i retenciju
   (`mergeFlightsWithOpenSkyRetention`)
-- **Screening filter**: 100 km (trenutna slant udaljenost aviona)
-- **Transit-at-alignment filter**: 100 km (buduća slant udaljenost pri predviđenom poravnanju)
+- **Screening filter kandidata**: 185 km (trenutna slant udaljenost aviona)
+- **Transit-at-alignment filter**: 100 km (buduća slant udaljenost pri predviđenom poravnanju) — **ovo je granica fotografiranja**
 
 Sve vrijednosti su namjerno različite. Ne miješati ih.
+
+Zašto je screening širi od granice tranzita (2026-10-30): s dosegom vlastitog
+prijemnika ~370 km filter od 100 km nepotrebno je rezao upozorenje. Avion
+ulazi u 100 km prekasno — tranzit na 90 km bio je vidljiv ~45 s unaprijed, na
+60 km ~3 min, iako predviđanje vrijedi 300 s. Prošireni disk ne pušta udaljenije
+tranzite: korak 6 i dalje odbacuje sve što bi se dogodilo dalje od 100 km.
+Web izvori i dalje dohvaćaju 100 km; dalje avione donosi samo lokalni prijemnik.
 
 Filter zadržavanja **ne smije** biti goli viewport. Do 2026-08-25 su web izvori
 filtrirali po uniji, a `localsdr`/`avionix` su dobivali samo `q.bounds`:
