@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { flightFilterBounds } from "./flightFilterBounds";
+import { flightFilterBounds, TRANSIT_SCREENING_RADIUS_KM } from "./flightFilterBounds";
+import { MAX_ALIGNMENT_LOOKAHEAD_SEC } from "@/lib/domain/geometry/lineOfSightKinematics";
 import { flightsFromLocalSdrResponse } from "@/lib/flight/localsdr/parseLocalSdrAircraft";
 
 /** Zumirani viewport oko promatrača — ~5 km široko. */
@@ -17,6 +18,16 @@ describe("flightFilterBounds", () => {
     const b = flightFilterBounds({ bounds: ZOOMED_VIEWPORT, observer: OBSERVER });
     expect(b.north).toBeGreaterThan(ZOOMED_VIEWPORT.north + 0.5);
     expect(b.south).toBeLessThan(ZOOMED_VIEWPORT.south - 0.5);
+  });
+
+  it("doseže avion koji do tranzita na 100 km stigne unutar horizonta predviđanja", () => {
+    const fastCruiseMps = 270;
+    expect(TRANSIT_SCREENING_RADIUS_KM).toBeGreaterThanOrEqual(
+      100 + (MAX_ALIGNMENT_LOOKAHEAD_SEC * fastCruiseMps) / 1000
+    );
+    // ~150 km sjeverno od promatrača: izvan starih 100 km, unutar novog diska.
+    const b = flightFilterBounds({ bounds: ZOOMED_VIEWPORT, observer: OBSERVER });
+    expect(b.north).toBeGreaterThan(OBSERVER.lat + 1.35);
   });
 
   it("nikad ne odsijeca ono što je viewport već pokrivao", () => {

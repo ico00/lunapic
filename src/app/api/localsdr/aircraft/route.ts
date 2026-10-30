@@ -84,7 +84,9 @@ let cachedBody: string | null = null;
 let cacheExpiresAt = 0;
 
 export async function GET(req: Request) {
-  const reject = rejectIfRateLimited(req, 20, 60_000, "localsdr/aircraft");
+  // Jedan vidljiv tab troši 12/min (poll 5 s), a mobitel i laptop na istoj mreži
+  // dijele IP. Push grana samo čita datoteku, pa viši limit ništa ne stoji.
+  const reject = rejectIfRateLimited(req, 40, 60_000, "localsdr/aircraft");
   if (reject) return reject;
 
   // 1) Push smjer (produkcija): Pi šalje snapshot na `/api/localsdr/ingest`.

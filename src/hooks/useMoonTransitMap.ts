@@ -5,6 +5,7 @@ import { createObserverMarkerElement } from "@/lib/map/observerMarkerElement";
 import { queryTerrainElevationMeters } from "@/lib/map/mapboxTerrainElevation";
 import { registerMoonTransitLayers } from "@/lib/map/registerMoonTransitLayers";
 import type { IFlightProvider } from "@/types";
+import { TRANSIT_SCREENING_RADIUS_KM } from "@/lib/flight/flightFilterBounds";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useObserverStore } from "@/stores/observer-store";
 import mapboxgl from "mapbox-gl";
@@ -22,11 +23,11 @@ const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 // OpenSky charges credits per request (400/day anonymous, 4000 registered), so
 // this cadence is a hard budget line, not a preference.
 const LIVE_AUTO_REFRESH_MS = 30_000;
-// Local SDR (dump1090/readsb) updates every ~1 s on the Pi; server-side cache is 10 s.
-// Polling at 10 s gives fresh positions and keeps position jumps small.
+// Local SDR (dump1090/readsb) updates every ~1 s on the Pi and pushes every ~5 s.
+// Polling at 5 s matches that push; slower polling just adds to the fix age.
 // Runs on its own timer: before, this interval drove *every* source, so turning
 // the Pi on silently tripled OpenSky usage and burned the daily quota in ~1 h.
-const LOCALSDR_AUTO_REFRESH_MS = 10_000;
+const LOCALSDR_AUTO_REFRESH_MS = 5_000;
 // Avionix Nano ADS-B — isti princip kao localsdr, vlastiti timer.
 const AVIONIX_AUTO_REFRESH_MS = 10_000;
 
@@ -226,7 +227,7 @@ export function useMoonTransitMap(
 
   useEffect(() => {
     useMoonTransitStore.getState().pruneFlightsToObserverRadius(
-      observer.lat, observer.lng, 100
+      observer.lat, observer.lng, TRANSIT_SCREENING_RADIUS_KM
     );
     onBoundsRefresh();
   }, [observer.lat, observer.lng, onBoundsRefresh, mapReadyTick]);

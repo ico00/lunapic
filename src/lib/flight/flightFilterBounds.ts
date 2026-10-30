@@ -4,11 +4,20 @@ import type { FlightQuery } from "@/types/flight";
 import type { GeoBounds } from "@/types/geo";
 
 /**
- * Isti disk koji `openSkyStyleRegionAndFilterBounds` traži od web izvora i koji
- * `pruneFlightsToObserverRadius` koristi kao granicu — vidi AGENTS.md
- * („Krug na mapi”).
+ * Disk koji `openSkyStyleRegionAndFilterBounds` traži od web izvora — vidi
+ * AGENTS.md („Krug na mapi”). Web upit namjerno ostaje na 100 km: širi bbox
+ * troši kredite, a dalje avione ionako donosi vlastiti prijemnik.
  */
 export const FLIGHT_OBSERVER_RADIUS_KM = 100;
+
+/**
+ * Do kuda se avion zadržava i razmatra kao budući tranzit: 100 km (granica
+ * samog tranzita, `MAX_TRANSIT_SLANT_METERS`) + 300 s pri 270 m/s
+ * (`MAX_ALIGNMENT_LOOKAHEAD_SEC`, brži krstareći s leđnim vjetrom) ≈ 181 km.
+ * Avion s tog ruba stigne do tranzita na 100 km unutar horizonta predviđanja.
+ * Ovo nije granica fotografiranja — ona ostaje 100 km u trenutku tranzita.
+ */
+export const TRANSIT_SCREENING_RADIUS_KM = 185;
 
 export function unionGeoBounds(a: GeoBounds, b: GeoBounds): GeoBounds {
   return {
@@ -35,6 +44,6 @@ export function flightFilterBounds(q: FlightQuery): GeoBounds {
   const obs = q.observer ?? centerOfBounds(q.bounds);
   return unionGeoBounds(
     q.bounds,
-    geoBoundsAroundPointKm(obs.lat, obs.lng, FLIGHT_OBSERVER_RADIUS_KM)
+    geoBoundsAroundPointKm(obs.lat, obs.lng, TRANSIT_SCREENING_RADIUS_KM)
   );
 }

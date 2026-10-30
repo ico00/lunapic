@@ -6,6 +6,7 @@ import {
   type CameraSensorType,
 } from "@/lib/domain/geometry/shotFeasibility";
 import { screenTransitCandidates } from "@/lib/domain/transit/screening";
+import { TRANSIT_SCREENING_RADIUS_KM } from "@/lib/flight/flightFilterBounds";
 import type { GroundObserver } from "@/types/geo";
 import type { FlightState } from "@/types/flight";
 import type { TransitCandidate } from "@/types/transit";
@@ -16,6 +17,13 @@ import type { TransitCandidate } from "@/types/transit";
  * Matches the 100 km screening limit (the visual map ring is 80 km).
  */
 export const MAX_TRANSIT_SLANT_METERS = 100_000;
+
+/**
+ * Predfiltar po TRENUTNOJ udaljenosti. Širi je od granice tranzita jer avion do
+ * poravnanja još leti prema nama; fotografsku granicu čuva
+ * `MAX_TRANSIT_SLANT_METERS` nad `futureSlantMeters`.
+ */
+export const TRANSIT_SCREENING_SLANT_METERS = TRANSIT_SCREENING_RADIUS_KM * 1000;
 
 export type ComputeTransitCandidatesArgs = {
   readonly observer: GroundObserver;
@@ -59,7 +67,14 @@ export function computeTransitCandidates({
   }
   // Pola vertikalnog FOV-a: ako je elevation gap unutar ove granice, oboje stanu u kadar.
   const halfFovDeg = verticalFovDeg(focalLengthMm, sensorType) / 2;
-  const screened = screenTransitCandidates(observer, moon, flights, wallNowMs, latencySkewMs);
+  const screened = screenTransitCandidates(
+    observer,
+    moon,
+    flights,
+    wallNowMs,
+    latencySkewMs,
+    TRANSIT_SCREENING_SLANT_METERS
+  );
   const enriched: TransitCandidate[] = [];
   const rawById = new Map(flights.map((f) => [f.id, f]));
   for (const c of screened) {
