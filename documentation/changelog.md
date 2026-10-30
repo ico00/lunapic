@@ -6,6 +6,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 where version bumps are made for releases (currently `0.x`).
 
+## [2026-10-30] — Own receiver at its final site: earlier, more accurate alerts
+
+See also: **[flight-sources.md](flight-sources.md)** for sources and cadence, and `AGENTS.md` for the measurements behind each threshold.
+
+The receiver now reaches ~350 km and is the default source, so the limits built around web feeds no longer applied. Entries between 2026-08-20 and this one are in the git history only.
+
+### Added
+
+- **Notification when the receiver goes silent** (#58). After 5 minutes without new data every push subscriber is told, and told again when data returns. `receiverWatchdog.cjs` compares the snapshot's `now` field, so `readsb` dying while the push keeps running is caught too.
+- **Runway in use at LDZA** (#61). The Runway planning panel reads runway 04 or 22 from low traffic on the extended centreline in the last hour, and says which plan line applies. Replayed over 70 days of the log, 70 % of samples with traffic were decided. It has not been compared with METAR or ATIS.
+- **Aircraft type on the server** (#60). `aircraftIndexLookup.cjs` fills type and registration from the OpenSky index, because the Pi's feed has neither. About 72 % of new log rows carry them. Historical rows are not backfilled.
+
+### Changed
+
+- **Candidates up to 5 minutes ahead** (#57). Inbound aircraft are screened out to 185 km. A transit predicted at 90 km used to appear about 45 s ahead. Transits predicted beyond 100 km are still dropped.
+- **Feed every ~5 s** (#57). Pi push, poller, server scan and client moved from 10–16 s to 5 s, so the two fixes an alert needs arrive sooner. The Pi sends gzip (~63 KB → ~10.5 KB per snapshot), and the position log keeps its ~15 s density.
+- **Climb and descent in prediction** (#59). The alignment solver uses the vertical rate: at 1000+ ft/min the median height error at 60 s falls from 457 m to 47 m. Such aircraft count as a disc transit only within 120 s, because height is not reliable further ahead.
+- **Push alerts use the real aircraft length** (#60) instead of the 40 m default, and ADS-B category now shows as a label.
+
+### Fixed
+
+- **Offline badge never lit up for the Pi** (#58). `/api/localsdr/aircraft` returned 200 with an empty list when no fresh snapshot existed, which the client read as an empty sky. It now returns 503.
+
+### Operations
+
+- `readsb` on the Pi had no receiver location set. It now does, through `/etc/systemd/system/readsb.service.d/location.conf`, because the Pi runs its own build and ignores `/etc/default/readsb`.
+- Deploy order for #57: the server first, then the Pi, because an older server rejects gzip.
+
 ## [2026-08-20] — Live flight sources: dead upstreams, OpenSky auth, visible failure
 
 See also: **[flight-sources.md](flight-sources.md)** — the new authority on sources, quotas and cadence.
