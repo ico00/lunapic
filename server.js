@@ -634,6 +634,7 @@ async function startFlightLogger() {
         geoAltitudeMeters: alt_geom_m,
         groundSpeedMps: speed_mps,
         trackDeg: track_deg,
+        verticalRateFpm: vert_rate_fpm,
         timestamp: logged_at,
         providerId: "localsdr",
       });
@@ -715,6 +716,7 @@ async function startFlightLogger() {
           geoAltitudeMeters: null,
           groundSpeedMps: speed_mps,
           trackDeg: track_deg,
+          verticalRateFpm: vert_rate_fpm,
           timestamp: logged_at,
           providerId: "avionix",
         });

@@ -1,3 +1,4 @@
+import { predictedVerticalRateMps } from "@/lib/flight/extrapolateFlightPosition";
 import { solveAzimuthAlignment, getAlignmentMoonPosition } from "./azimuthAlignment";
 import type { GroundObserver } from "@/types";
 import type { FlightState } from "@/types/flight";
@@ -13,6 +14,15 @@ import {
 import { horizontalToPoint } from "./horizontal";
 import { angularSeparationDeg } from "./sky-separation";
 import { geodeticToEcef } from "./wgs84";
+
+/**
+ * Dalje od ovoga visina aviona koji se penje ili spušta nije dovoljno točna da
+ * bi se tvrdilo da prolazi preko diska. Produkcijski log (2026-10-30): pri
+ * ≥1000 ft/min greška visine je na 120 s medijan 142 m (≈0.27° na 30 km, koliko
+ * i polumjer Mjeseca), a na 240 s već 459 m. Takav let ostaje "In frame" i bez
+ * alerta dok se ne približi.
+ */
+const MAX_VERTICAL_PREDICTION_SEC = 120;
 
 /**
  * Kinematika tlocrta (ENU): slant, |d(azimuta očišta)/dt|, °/s i rad/s.
@@ -56,6 +66,7 @@ export function photographerPack(
     | "geoAltitudeMeters"
     | "groundSpeedMps"
     | "trackDeg"
+    | "verticalRateFpm"
   >,
   moon: MoonState,
   at: Date,
@@ -112,9 +123,10 @@ export function photographerPack(
   const acAz = hObs.azimuthDeg;
   const moAz = moon.azimuthDeg;
   const gapDeg = signedAzimuthGapDeg(acAz, moAz);
+  const verticalRateMps = predictedVerticalRateMps(flight);
   const alignment = solveAzimuthAlignment({
     observer, position: flight.position, altitudeMeters: h, speedMps: v,
-    trackDeg: tr, atMs: at.getTime(),
+    trackDeg: tr, atMs: at.getTime(), verticalRateMps,
   });
   const timeToAlignmentSec = alignment?.timeSec ?? null;
   const L = extra.airlinerLengthMeters ?? 40;
@@ -141,7 +153,7 @@ export function photographerPack(
       { altitudeDeg: moonFuture.altitudeDeg, azimuthDeg: moonFuture.azimuthDeg }
     );
     const pObs = geodeticToEcef(observer.lat, observer.lng, observer.groundHeightMeters);
-    const pFut = geodeticToEcef(futurePos.lat, futurePos.lng, h);
+    const pFut = geodeticToEcef(futurePos.lat, futurePos.lng, alignment.altitudeMeters);
     const futureSlant = Math.hypot(
       pFut.x - pObs.x,
       pFut.y - pObs.y,
@@ -152,8 +164,11 @@ export function photographerPack(
     elevationGapAtAlignmentDeg = acFuture.altitudeDeg - moonFuture.altitudeDeg;
     separationAtAlignmentDeg = sep;
     // Elevation is meaningful only after the solver verifies azimuth alignment.
-    willActuallyTransit =
+    const crossesDisc =
       Math.abs(elevationGapAtAlignmentDeg) <= moonFuture.apparentRadius.degrees + dAcFuture / 2;
+    const heightIsReliable =
+      verticalRateMps === 0 || alignment.timeSec <= MAX_VERTICAL_PREDICTION_SEC;
+    willActuallyTransit = crossesDisc && heightIsReliable;
   }
 
   return {

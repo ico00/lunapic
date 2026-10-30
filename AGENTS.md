@@ -98,7 +98,26 @@ konstantna čak ni na ravnoj putanji. Ne vraćati taj linearni model za
 klasifikaciju. Zadane vrijednosti 200 m/s i 90° nisu dokaz za predviđanje;
 `photographerPack` bez poznatog konačnog smjera/brzine vraća null.
 Kandidati se prikazuju odmah; potvrda iz neovisnih fixova odgađa samo alert.
-Uspon/spuštanje i buduće skretanje još nisu modelirani u ovom solveru.
+
+**Uspon i spuštanje (2026-10-30).** Solver projicira visinu konstantnom
+vertikalnom brzinom (`predictedVerticalRateMps`, `extrapolateFlightPosition.ts`);
+ispod `LEVEL_FLIGHT_MAX_FPM` = 300 ft/min visina se drži, jer je to u ravnom letu
+šum. Mjereno na 12 h produkcijskog loga (105 000 redaka), greška visine, medijan:
+
+| Lookahead | ≥1000 ft/min, stalna visina | ≥1000 ft/min, linearno | Ravan let, stalna visina |
+|---|---|---|---|
+| 30 s | 236 m | 16 m | 0 m |
+| 60 s | 457 m | 47 m | 0 m |
+| 120 s | 846 m | 142 m | 8 m |
+| 240 s | 1524 m | 459 m | 8 m |
+
+Na 30 km 136 m je polumjer Mjeseca, pa linearni model vrijedi do oko 120 s. Zato
+avion koji se penje ili spušta dobiva `willActuallyTransit` tek unutar
+`MAX_VERTICAL_PREDICTION_SEC` = **120 s**; ranije je u "In frame" i bez alerta.
+Isto vrijedi za scan na serveru, pa `server.js` mora slati `verticalRateFpm`.
+Kapica na 90 s nije pomogla (p90 bolji, medijan gori). Prijelaz na ciljanu visinu
+(`nav_altitude_mcp`) i buduće skretanje još nisu modelirani; ciljana visina nije
+u logu, pa se ne može provjeriti unatrag.
 
 ### Dvije izvedbe iste detekcije (klijent + server)
 
