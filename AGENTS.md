@@ -514,6 +514,16 @@ Regresijski test u `runwayShadowPlan.test.ts` uspoređuje točke s ručnim KML-o
 za 28.10.2026 07:20 (unutar 60 m). Stanje: `runwayPlanLines` /
 `runwayPlanFocusMs` u storeu, panel ih objavljuje i briše pri zatvaranju;
 sloj `useRunwayPlanLayer`.
+Panel pokazuje i **stazu u upotrebi sada** (`detectRunwayInUse`,
+`runwayInUse.ts`, `/api/flight-log/runway-in-use`, keš 60 s): iz zadnjih 60 min loga
+broji avione nisko na produženoj osi (do 1000 m AGL, 15 km uzduž, 1.5 km poprečno,
+track ±15°). Slijetanje i polijetanje na istoj stazi lete istim trackom, pa track
+sam daje stazu: sjeveroistok je 04, jugozapad 22. Odluka traži barem 2 aviona i
+75 % udjela, inače je `null` ("unclear"). Provjereno na 70 dana loga (2026-10-30):
+od 6813 desetominutnih uzoraka s prometom odlučeno je 70 %, staza 22 u 27 % odluka,
+55 promjena staze. Neodlučeno su gotovo uvijek sati s jednim avionom. Stroži pragovi
+(800 m, 600 m AGL, 85 %) ne mijenjaju broj promjena, pa one nisu šum. Točnost nije
+uspoređena s METAR-om ili ATIS-om. Odgovor vrijedi samo za sada, ne za planirani dan.
 Panel nudi i pregled „Days with the Moon up” (`runwayPlanDays.ts`): po danu prozori
 u kojima je Mjesec ≥ `CAUTION_BELOW_DEG` (12°, sada exportan) i osvijetljenost; ne zna
 stazu u upotrebi (vjetar), pa ne ocjenjuje 04 nasuprot 22. Zadani prikaz karte je

@@ -20,6 +20,7 @@
 import { Database } from "node-sqlite3-wasm";
 import path from "node:path";
 import fs from "node:fs";
+import type { RunwayUseSample } from "@/lib/domain/geometry/runwayInUse";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -623,6 +624,36 @@ export async function getPositionsInBounds(
         [fromMs, toMs, latMin, latMax, lngMin, lngMax]
       )
     ) as unknown as ScanPositionRow[];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Recent low fixes around LDZA for `detectRunwayInUse`. The box and height are
+ * only a coarse cut for the query; the detector applies the exact geometry.
+ */
+export async function getRunwayUseSamples(
+  fromMs: number,
+  toMs: number
+): Promise<RunwayUseSample[]> {
+  const db = openReadDb();
+  if (!db) return [];
+  try {
+    return withBusyRetry(() =>
+      db.all(
+        `SELECT icao24, lat, lng,
+                COALESCE(alt_geom_m, alt_baro_m) AS altM,
+                track_deg AS trackDeg,
+                logged_at AS loggedAt
+         FROM positions
+         WHERE logged_at >= ? AND logged_at <= ?
+           AND lat BETWEEN 45.6 AND 45.9 AND lng BETWEEN 15.85 AND 16.3
+           AND track_deg IS NOT NULL
+           AND COALESCE(alt_geom_m, alt_baro_m) < 1300`,
+        [fromMs, toMs]
+      )
+    ) as unknown as RunwayUseSample[];
   } catch {
     return [];
   }
