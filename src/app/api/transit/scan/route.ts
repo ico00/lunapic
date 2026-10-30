@@ -2,6 +2,7 @@ import { confirmedCandidateIds, type CandidateConfirmationState } from "@/lib/do
 import { NextResponse } from "next/server";
 import { computeActiveTransits } from "@/lib/domain/transit/computeActiveTransits";
 import { computeTransitCandidates } from "@/lib/domain/transit/computeTransitCandidates";
+import { resolveAircraftDimensionsByTypecode } from "@/lib/flight/aircraftTypeDimensions";
 import {
   readSubs,
   type PushSubscriptionRecord,
@@ -54,6 +55,14 @@ function pruneState(activeEndpoints: Set<string>): void {
   }
 }
 
+/** Stvarna duljina aviona ulazi u `willTransit`; bez tipa ostaje default 40 m. */
+function withTypeDimensions(f: FlightState): FlightState {
+  const dimensions = resolveAircraftDimensionsByTypecode(f.aircraftType);
+  return dimensions
+    ? { ...f, lengthMeters: dimensions.lengthMeters, wingspanMeters: dimensions.wingspanMeters }
+    : f;
+}
+
 function sanitizeTag(raw: string): string {
   const t = raw.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 48);
   return t || "lunapic-transit";
@@ -80,7 +89,7 @@ export async function POST(req: Request) {
   let flights: FlightState[];
   try {
     const parsed = (await req.json()) as { flights?: FlightState[] };
-    flights = Array.isArray(parsed.flights) ? parsed.flights : [];
+    flights = (Array.isArray(parsed.flights) ? parsed.flights : []).map(withTypeDimensions);
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }

@@ -1,4 +1,25 @@
 /**
+ * ADS-B oznaka kategorije iz `readsb` (`A3`, `B1`, `C2`) u OpenSky brojčani kod iz
+ * tablice niže. `A0`/`B0`/`C0` ("nema podatka") i ostalo vraćaju null.
+ */
+export function adsbEmitterCategoryFromDesignator(
+  designator: string | null | undefined
+): number | null {
+  const m = /^([ABC])([1-7])$/.exec((designator ?? "").trim().toUpperCase());
+  if (!m) {
+    return null;
+  }
+  const n = Number(m[2]);
+  if (m[1] === "A") {
+    return n + 1;
+  }
+  if (m[1] === "B") {
+    return n + 8;
+  }
+  return n <= 5 ? n + 15 : null;
+}
+
+/**
  * OpenSky state vector index 17 — `category` (s `extended=1` na `/states/all`).
  * @see https://openskynetwork.github.io/opensky-api/rest.html
  */
