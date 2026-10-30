@@ -31,15 +31,18 @@ export function solveAzimuthAlignment(args: {
   speedMps: number;
   trackDeg: number;
   atMs: number;
+  /** Constant climb (+) or descent (-), m/s. */
+  verticalRateMps?: number;
 }) {
-  const { observer, position, altitudeMeters, speedMps, trackDeg, atMs } = args;
-  if (![position.lat, position.lng, altitudeMeters, speedMps, trackDeg, atMs].every(Number.isFinite) || speedMps < 1) return null;
+  const { observer, position, altitudeMeters, speedMps, trackDeg, atMs, verticalRateMps = 0 } = args;
+  if (![position.lat, position.lng, altitudeMeters, speedMps, trackDeg, atMs, verticalRateMps].every(Number.isFinite) || speedMps < 1) return null;
   const evaluate = (timeSec: number) => {
     const futurePosition = destinationByAzimuthMeters(position.lat, position.lng, trackDeg, speedMps * timeSec);
-    const aircraft = horizontalToPoint(observer, futurePosition.lat, futurePosition.lng, altitudeMeters);
+    const futureAltitudeMeters = Math.max(0, altitudeMeters + verticalRateMps * timeSec);
+    const aircraft = horizontalToPoint(observer, futurePosition.lat, futurePosition.lng, futureAltitudeMeters);
     const moon = getAlignmentMoonPosition(atMs + timeSec * 1000, observer);
     const gap = signedAzimuthGapDeg(aircraft.azimuthDeg, moon.azimuthDeg);
-    return { timeSec, position: futurePosition, aircraft, moon, gap, residual: Math.sin(gap * Math.PI / 180) };
+    return { timeSec, position: futurePosition, altitudeMeters: futureAltitudeMeters, aircraft, moon, gap, residual: Math.sin(gap * Math.PI / 180) };
   };
   let left = evaluate(0);
   if (Math.abs(left.gap) <= ALIGNMENT_RESIDUAL_DEG) return left;

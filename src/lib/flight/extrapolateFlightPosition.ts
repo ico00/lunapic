@@ -16,8 +16,32 @@ export const MAX_LEAD_SEC = 40;
  */
 export const EXTRAPOLATION_FALLBACK_SPEED_MPS = 200;
 
+const FPM_TO_MPS = 0.00508;
+
 /**
- * Pomak OpenSky / ručni: ‚gurni‛ zrakoplov naprijed u vremenu (pozicija duž traga).
+ * Ispod ovoga se avion računa kao da leti ravno. Javljena brzina u ravnom letu
+ * je šum: na produkcijskom logu (2026-10-30, 12 h) zadržavanje visine griješi
+ * medijan 8 m na 120 s, a linearna projekcija tog šuma 8–52 m (p90).
+ */
+export const LEVEL_FLIGHT_MAX_FPM = 300;
+
+/**
+ * Vertikalna brzina za predviđanje, m/s (0 u ravnom letu ili kad nije poznata).
+ * Isti log: pri ≥1000 ft/min greška visine na 60 s pada s medijana 457 m na 47 m.
+ */
+export function predictedVerticalRateMps(
+  f: Pick<FlightState, "verticalRateFpm">
+): number {
+  const fpm = f.verticalRateFpm;
+  if (fpm == null || !Number.isFinite(fpm) || Math.abs(fpm) < LEVEL_FLIGHT_MAX_FPM) {
+    return 0;
+  }
+  return fpm * FPM_TO_MPS;
+}
+
+/**
+ * Pomak OpenSky / ručni: ‚gurni‛ zrakoplov naprijed u vremenu (pozicija duž traga
+ * i visina prema vertikalnoj brzini).
  */
 export function extrapolateFlightForDisplay(
   f: FlightState,
@@ -31,11 +55,20 @@ export function extrapolateFlightForDisplay(
   if (dt < 0.1 || v < 1 || tr == null || !Number.isFinite(tr)) {
     return f;
   }
+  const leadSec = Math.min(MAX_LEAD_SEC, dt);
   const p = destinationByAzimuthMeters(
     f.position.lat,
     f.position.lng,
     tr,
-    v * Math.min(MAX_LEAD_SEC, dt)
+    v * leadSec
   );
-  return { ...f, position: p };
+  const climbMeters = predictedVerticalRateMps(f) * leadSec;
+  return {
+    ...f,
+    position: p,
+    baroAltitudeMeters:
+      f.baroAltitudeMeters == null ? f.baroAltitudeMeters : f.baroAltitudeMeters + climbMeters,
+    geoAltitudeMeters:
+      f.geoAltitudeMeters == null ? f.geoAltitudeMeters : f.geoAltitudeMeters + climbMeters,
+  };
 }

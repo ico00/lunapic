@@ -94,3 +94,52 @@ describe("azimuth wrap and opposite ray", () => {
     } finally { spy.mockRestore(); }
   });
 });
+
+describe("vertical rate at alignment", () => {
+  const FPM_TO_MPS = 0.00508;
+
+  /** Same transit, flown by an aircraft that reaches the crossing height by climbing. */
+  function climbingTransit(timeSec: number, fpm: number) {
+    const level = realTransit(timeSec);
+    return {
+      ...level,
+      geoAltitudeMeters: level.geoAltitudeMeters - fpm * FPM_TO_MPS * timeSec,
+      verticalRateFpm: fpm,
+    };
+  }
+
+  it("finds the transit of a climbing aircraft that constant height would miss", () => {
+    const flight = climbingTransit(60, 1500);
+    const pack = photographerPack(observer, flight, moon, at)!;
+    expect(pack.willActuallyTransit).toBe(true);
+    expect(Math.abs(pack.elevationGapAtAlignmentDeg!)).toBeLessThan(0.01);
+
+    const heldLevel = photographerPack(observer, { ...flight, verticalRateFpm: null }, moon, at)!;
+    expect(heldLevel.willActuallyTransit).toBe(false);
+  });
+
+  it("uses the height at alignment for the future slant range", () => {
+    const flight = climbingTransit(60, 1500);
+    const pack = photographerPack(observer, flight, moon, at)!;
+    const heldLevel = photographerPack(observer, { ...flight, verticalRateFpm: null }, moon, at)!;
+    expect(pack.futureSlantMeters!).toBeGreaterThan(heldLevel.futureSlantMeters!);
+  });
+
+  it("does not call a disc transit from a climb further ahead than the height is known", () => {
+    const pack = photographerPack(observer, climbingTransit(180, 1500), moon, at)!;
+    expect(Math.abs(pack.elevationGapAtAlignmentDeg!)).toBeLessThan(0.05);
+    expect(pack.willActuallyTransit).toBe(false);
+  });
+
+  it("keeps a level aircraft classified at the same long lead", () => {
+    const pack = photographerPack(observer, realTransit(180), moon, at)!;
+    expect(pack.willActuallyTransit).toBe(true);
+  });
+
+  it("treats a small reported rate as level flight", () => {
+    const flight = { ...realTransit(180), verticalRateFpm: 200 };
+    const pack = photographerPack(observer, flight, moon, at)!;
+    expect(pack.willActuallyTransit).toBe(true);
+    expect(Math.abs(pack.elevationGapAtAlignmentDeg!)).toBeLessThan(0.05);
+  });
+});

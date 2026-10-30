@@ -201,11 +201,13 @@ export function withBorrowedKinematics(
   const groundSpeedMps = base.groundSpeedMps ?? donor.groundSpeedMps;
   const baroAltitudeMeters = base.baroAltitudeMeters ?? donor.baroAltitudeMeters;
   const geoAltitudeMeters = base.geoAltitudeMeters ?? donor.geoAltitudeMeters;
+  const verticalRateFpm = base.verticalRateFpm ?? donor.verticalRateFpm;
   if (
     trackDeg === base.trackDeg &&
     groundSpeedMps === base.groundSpeedMps &&
     baroAltitudeMeters === base.baroAltitudeMeters &&
-    geoAltitudeMeters === base.geoAltitudeMeters
+    geoAltitudeMeters === base.geoAltitudeMeters &&
+    verticalRateFpm === base.verticalRateFpm
   ) {
     return base;
   }
@@ -215,6 +217,7 @@ export function withBorrowedKinematics(
     groundSpeedMps,
     baroAltitudeMeters,
     geoAltitudeMeters,
+    verticalRateFpm,
   };
 }
 
