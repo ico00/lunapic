@@ -1,5 +1,6 @@
 "use client";
 
+import { RunwayInUseNote, useRunwayInUse } from "@/components/shell/panels/RunwayInUseNote";
 import { ShellSelect, type ShellSelectOption } from "@/components/shell/ShellSelect";
 import {
   computeBestPlanningDays,
@@ -183,6 +184,7 @@ export function PlanningPanel() {
     const days = computeBestPlanningDays(now, DAYS_AHEAD);
     return { now, dates: buildDateOptions(now), days, window: firstUsefulWindow(days, now) ?? defaultWindow(now) };
   });
+  const runwayInUse = useRunwayInUse();
   const [guideHidden, setGuideHidden] = useState(readGuideHidden);
   const [allDays, setAllDays] = useState(false);
   const [date, setDate] = useState(initial.window.date);
@@ -271,6 +273,7 @@ export function PlanningPanel() {
         <p className="text-[length:var(--fs-meta)] text-[color:var(--t-secondary)]">
           Where to stand so an A320 on final or climb-out crosses the Moon at the chosen time.
         </p>
+        <RunwayInUseNote status={runwayInUse} />
         {guideHidden ? null : (
           <ol className="list-decimal space-y-1 rounded-xl border border-sky-400/25 bg-sky-500/[0.07] py-2 pl-7 pr-3 text-[length:var(--fs-meta)] text-[color:var(--t-secondary)]">
             <li>
@@ -287,7 +290,8 @@ export function PlanningPanel() {
               (dots: 4–12 km, label: aircraft size in Moon widths).
             </li>
             <li>
-              Which runway is in use depends on the wind — check live traffic that day.
+              Which runway is in use depends on the wind. The status above is for right now, so
+              check it again on the day.
             </li>
           </ol>
         )}
