@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 where version bumps are made for releases (currently `0.x`).
 
+## [2026-10-31] — Alert cooldown and push hardening
+
+### Fixed
+
+- **Active transit alert no longer goes missing after a candidate alert.** Both shared one 2-minute cooldown per flight, so an aircraft announced shortly before its transit never got the active alert, in the app or as a push. The cooldown is now kept per alert kind (`alertCooldown.ts`). After an active transit, no candidate alert follows.
+- **Push subscriptions survive an interrupted write.** `writeSubs` now writes a temp file and renames it. A half-written file used to read as empty, and the next subscribe would have replaced every other subscription.
+
+### Removed
+
+- **`POST /api/push/send`.** Nothing called it, and its `Origin` check could be faked outside a browser, so anyone could send a notification to all subscribers.
+
 ## [2026-10-30] — Phone: one tap to the main panels
 
 Phone feedback on the redesign: the group menu hid what used to be one tap away.

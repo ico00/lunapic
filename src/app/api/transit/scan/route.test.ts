@@ -45,4 +45,25 @@ describe("server candidate alert confirmation", () => {
     mocks.candidates.mockReturnValue([candidate(11000)]); await POST(request());
     expect(mocks.send).not.toHaveBeenCalled();
   });
+  it("still pushes the active transit right after its candidate alert", async () => {
+    const {POST} = await import("./route");
+    mocks.candidates.mockReturnValue([candidate(1000)]); await POST(request());
+    vi.setSystemTime(210000); mocks.candidates.mockReturnValue([candidate(11000)]); await POST(request());
+    expect(mocks.send).toHaveBeenCalledTimes(1);
+    vi.setSystemTime(255000);
+    mocks.candidates.mockReturnValue([]);
+    mocks.active.mockReturnValue([{flight, separationDeg:0.3}]);
+    await POST(request());
+    expect(mocks.send).toHaveBeenCalledTimes(2);
+    expect(mocks.send.mock.calls[1]![1]).toMatchObject({urgent:true});
+  });
+  it("does not announce a candidate after its active transit", async () => {
+    const {POST} = await import("./route");
+    mocks.active.mockReturnValue([{flight, separationDeg:0.3}]); await POST(request());
+    expect(mocks.send).toHaveBeenCalledTimes(1);
+    mocks.active.mockReturnValue([]);
+    mocks.candidates.mockReturnValue([candidate(1000)]); await POST(request());
+    vi.setSystemTime(210000); mocks.candidates.mockReturnValue([candidate(11000)]); await POST(request());
+    expect(mocks.send).toHaveBeenCalledTimes(1);
+  });
 });

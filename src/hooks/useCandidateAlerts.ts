@@ -6,12 +6,17 @@ import {
 } from "@/lib/audio/fieldAudio";
 import type { ActiveTransitRow } from "@/hooks/useActiveTransits";
 import type { TransitCandidate } from "@/types";
+import {
+  canAlertActive,
+  canAlertCandidate,
+  stampActiveAlert,
+  stampCandidateAlert,
+  type AlertCooldowns,
+} from "@/lib/domain/transit/alertCooldown";
 import { confirmedCandidateIds, type CandidateConfirmationState } from "@/lib/domain/transit/candidateConfirmation";
 import { useObserverStore } from "@/stores/observer-store";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
 import { useCallback, useEffect, useRef, useState } from "react";
-
-const COOLDOWN_MS = 2 * 60 * 1000;
 
 export type AlertInfo = {
   flightId: string;
@@ -50,18 +55,9 @@ export function useCandidateAlerts({
   const sensor = useMoonTransitStore((s) => s.cameraSensorType);
   const planned = useMoonTransitStore((s) => s.timeAnchorIsPlanned);
   const context = `${observer.lat}|${observer.lng}|${observer.groundHeightMeters}|${focal}|${sensor}|${planned}`;
-  const cooldownMap = useRef<Map<string, number>>(new Map());
+  const cooldowns = useRef<AlertCooldowns>(new Map());
 
   const clearAlert = useCallback(() => setLatestAlert(null), []);
-
-  function isCooled(id: string): boolean {
-    const last = cooldownMap.current.get(id) ?? 0;
-    return Date.now() - last >= COOLDOWN_MS;
-  }
-
-  function stamp(id: string) {
-    cooldownMap.current.set(id, Date.now());
-  }
 
   useEffect(() => {
     if (!enabled || previousContext.current !== context) {
@@ -78,19 +74,17 @@ export function useCandidateAlerts({
     for (const row of activeTransits) {
       const id = row.flight.id;
       if (lastActiveIds.current.has(id)) continue;
-      if (!isCooled(id)) continue;
+      if (!canAlertActive(cooldowns.current, id, Date.now())) continue;
 
       const callsign = row.flight.callSign?.trim() || id;
       const separation = row.separationDeg;
 
-      stamp(id);
+      stampActiveAlert(cooldowns.current, id, Date.now());
 
       // In-app UX only (audio + toast) for the visible tab. Background / screen-off
       // notifications are owned by the server-side scan (/api/transit/scan).
       if (audioEnabled) playActiveTransitAlert();
-      /* eslint-disable react-hooks/set-state-in-effect -- alert state is driven by external flight data changes */
       setLatestAlert({ flightId: id, callsign, separationDeg: separation, isActive: true, nudgeLine: row.nudgeLine });
-      /* eslint-enable react-hooks/set-state-in-effect */
     }
 
     // --- New candidates (only disc-transit predictions, not "in frame" only) ---
@@ -98,12 +92,12 @@ export function useCandidateAlerts({
       const id = c.flight.id;
       if (lastCandidateIds.current.has(id)) continue;
       if (currentActiveIds.has(id)) continue; // active transit already handled above
-      if (!isCooled(id)) continue;
+      if (!canAlertCandidate(cooldowns.current, id, Date.now())) continue;
 
       const callsign = c.flight.callSign?.trim() || id;
       const separation = c.separationDeg;
 
-      stamp(id);
+      stampCandidateAlert(cooldowns.current, id, Date.now());
 
       if (audioEnabled) playTransitCandidateAlert();
       setLatestAlert({ flightId: id, callsign, separationDeg: separation, isActive: false, nudgeLine: null });

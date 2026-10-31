@@ -1,11 +1,13 @@
 /**
  * Datotečna pohrana Web Push pretplata (`data/push-subscriptions.json`).
  *
- * Dijeli je `api/push/subscribe` (piše/briše) i `api/push/send` (čita + čisti
- * istekle endpointe). Samo Node server kontekst — nikad klijent.
+ * Dijeli je `api/push/subscribe` (piše/briše) i `webPush` (čita + čisti istekle
+ * endpointe). Samo Node server kontekst — nikad klijent.
  *
  * NAPOMENA: read-modify-write nije atomičan; kod istovremenih subscribe poziva
  * teoretski je moguć race. Prihvatljivo za osobni deployment s malo uređaja.
+ * Sam upis jest atomičan: napola zapisan JSON `readSubs` čita kao `{}`, pa bi
+ * idući subscribe prepisao datoteku i izbrisao sve ostale pretplate.
  */
 
 import fs from "node:fs";
@@ -47,5 +49,7 @@ export function readSubs(): Record<string, PushSubscriptionRecord> {
 export function writeSubs(subs: Record<string, PushSubscriptionRecord>): void {
   const dir = path.dirname(SUBS_FILE);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(SUBS_FILE, JSON.stringify(subs, null, 2), "utf8");
+  const tmp = `${SUBS_FILE}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(subs, null, 2), "utf8");
+  fs.renameSync(tmp, SUBS_FILE);
 }
