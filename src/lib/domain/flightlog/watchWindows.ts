@@ -1,11 +1,11 @@
 import type { RoutePoint } from "@/lib/db/flightLogDb";
-import { getMoonPosition } from "@/lib/domain/astro/moon";
+import { getMoonState, getSunAltitudeDeg } from "@/lib/domain/astro/moon";
 import { CAUTION_BELOW_DEG } from "@/lib/domain/astro/moonFieldVisibilityAdvice";
 import { yieldToEventLoop } from "@/lib/domain/flightlog/passForecast";
 import { horizontalToPoint } from "@/lib/domain/geometry/horizontal";
 import { geodeticToEcef } from "@/lib/domain/geometry/wgs84";
 import type { GroundObserver } from "@/types/geo";
-import type { MoonPosition } from "@/types";
+import type { MoonPosition, MoonState } from "@/types";
 
 /**
  * "Best times to watch": kroz koliko aviona uobičajeno prolazi dio neba na kojem
@@ -24,8 +24,17 @@ const HOUR_MS = 3_600_000;
 const SLOT_MS = 30 * 60_000;
 /** Širina Mjeseca s avionom: prolaz kroz ćeliju od 2° pogodi disk u tom omjeru. */
 const MOON_CROSSING_WIDTH_DEG = 0.55;
-const BEST_SHARE = 0.1;
-const GOOD_SHARE = 0.25;
+/** Građanski sumrak: iznad toga je nebo presvijetlo za siluetu aviona na Mjesecu. */
+const MAX_SUN_ALTITUDE_DEG = -6;
+/** Avion se vidi samo na osvijetljenom dijelu diska. */
+const MIN_MOON_ILLUMINATION = 0.2;
+/**
+ * Očekivani tranziti u polusatu. Pragovi su stalni, a ne rang unutar prozora: u
+ * dva tjedna oko mladog Mjeseca inače i prazan polusat ispadne "najbolji".
+ * Mjereno na 659 polusatova: ≥0.08 je 10 % vremena, ≥0.05 je 23 % vremena.
+ */
+const BEST_MIN_EXPECTED = 0.08;
+const GOOD_MIN_EXPECTED = 0.05;
 
 const toRad = (deg: number) => (deg * Math.PI) / 180;
 
@@ -127,7 +136,7 @@ export type WatchWindow = {
 type Slot = {
   startMs: number;
   expectedTransits: number;
-  moon: MoonPosition;
+  moon: MoonState;
   rating: WatchRating | null;
 };
 
@@ -137,7 +146,7 @@ export type WatchSlotsArgs = {
   readonly toMs: number;
 };
 
-/** Polusati s Mjesecom iznad praga; rang je među svima njima, prazni uključeni. */
+/** Polusati u kojima se Mjesec može snimiti: dovoljno visoko, osvijetljen i na tamnom nebu. */
 export function watchSlots(
   density: SkyDensity,
   { observer, nowMs, toMs }: WatchSlotsArgs
@@ -145,29 +154,36 @@ export function watchSlots(
   const slots: Slot[] = [];
   for (let startMs = Math.floor(nowMs / SLOT_MS) * SLOT_MS; startMs < toMs; startMs += SLOT_MS) {
     const midMs = startMs + SLOT_MS / 2;
-    const moon = getMoonPosition(
-      new Date(midMs),
-      observer.lat,
-      observer.lng,
-      observer.groundHeightMeters
-    );
+    const at = new Date(midMs);
+    const { lat, lng, groundHeightMeters } = observer;
+    const moon = getMoonState(at, lat, lng, groundHeightMeters);
     if (moon.altitudeDeg < CAUTION_BELOW_DEG) continue;
+    if (moon.illuminationFraction < MIN_MOON_ILLUMINATION) continue;
+    if (getSunAltitudeDeg(at, lat, lng, groundHeightMeters) > MAX_SUN_ALTITUDE_DEG) continue;
     const passesPerDay = densityAround(density, moon, hourBin(midMs)) / WATCH_HISTORY_DAYS;
+    const expectedTransits =
+      passesPerDay * (SLOT_MS / (HOUR_BIN * HOUR_MS)) * (MOON_CROSSING_WIDTH_DEG / CELL_DEG);
     slots.push({
       startMs,
       moon,
-      rating: null,
-      expectedTransits:
-        passesPerDay * (SLOT_MS / (HOUR_BIN * HOUR_MS)) * (MOON_CROSSING_WIDTH_DEG / CELL_DEG),
+      expectedTransits,
+      rating:
+        expectedTransits >= BEST_MIN_EXPECTED
+          ? "best"
+          : expectedTransits >= GOOD_MIN_EXPECTED
+            ? "good"
+            : null,
     });
   }
-  const ranked = [...slots].sort((a, b) => b.expectedTransits - a.expectedTransits);
-  const bestCount = Math.ceil(ranked.length * BEST_SHARE);
-  const goodCount = Math.ceil(ranked.length * GOOD_SHARE);
-  ranked.slice(0, goodCount).forEach((slot, index) => {
-    if (slot.expectedTransits > 0) slot.rating = index < bestCount ? "best" : "good";
-  });
   return slots;
+}
+
+/** Cijelo razdoblje: dva tjedna oko mladog Mjeseca nemaju skoro ništa za snimiti. */
+export function summarizeWatchSlots(slots: readonly Slot[]) {
+  return {
+    usableHours: (slots.length * SLOT_MS) / HOUR_MS,
+    expectedTransits: Number(slots.reduce((s, x) => s + x.expectedTransits, 0).toFixed(1)),
+  };
 }
 
 /** Spaja uzastopne dobre polusate u termine koje se isplati navesti. */

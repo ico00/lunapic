@@ -590,23 +590,31 @@ bez novog mjerenja.
 
 Predvidljiv je **promet po nebu**. "Best times to watch" (`watchWindows.ts`, ruta
 `/api/flight-log/watch-windows`) broji prolaze zadnjih 30 dana kroz ćelije neba
-2°×2° po dvosatnom razdoblju dana (UTC), 3×3 izglađeno, pa za svaki polusat s
-Mjesecom ≥12° računa očekivane tranzite. Mjereno za Mjesec ≥12° i avion ≤80 km:
+2°×2° po dvosatnom razdoblju dana (UTC), 3×3 izglađeno, pa za svaki polusat računa
+očekivane tranzite. Računaju se samo polusati u kojima se Mjesec može snimiti:
+visina ≥12°, osvijetljen ≥20 %, Sunce ≤−6°; avion ≤80 km.
 
-| | Udio tranzita, gustoća | Isto, samo po satu |
-|---|---|---|
-| Najboljih 10 % polusatova (`BEST`) | 26 % | 13 % |
-| Najboljih 25 % polusatova (+ `GOOD`) | 48 % | 34 % |
+⚠️ Prva izvedba (PR #68) nije filtrirala Sunce ni mijenu pa je preporučivala podne
+uz nevidljiv Mjesec, a rang unutar 14 dana zvao je i prazne termine "najboljima".
+Zato su pragovi stalni: `BEST` ≥0.08, `GOOD` ≥0.05 po polusatu.
 
-Brojevi gustoće su iz samog `watchWindows.ts`, s rangom unutar svakih 14 dana kao u
-aplikaciji; s rangom kroz svih 84 dana bilo bi 28 % i 54 %. Stupac "samo po satu"
-računat je kroz svih 84 dana. Ukupno predviđeno 88, stvarno 85, dakle oko jedan
-upotrebljiv tranzit dnevno. Po
-danima je slabo (Spearman 0.32, najboljih 25 % dana drži 29 %), jer Mjesec svake
-noći prijeđe i guste i prazne dijelove neba. Baza dakle kaže kada u noći gledati,
-a slabo koju noć; konkretan avion daje samo živi sustav, 5 min unaprijed.
-Mjereno je za zadanu lokaciju. Pragovi ćelija, 30 dana i 80 km dio su mjerenja:
-promjena traži novi backtest.
+Mjereno na 84 dana, 659 polusatova i 26 tranzita na vidljivom Mjesecu:
+
+| Polusati | Vrijeme | Tranziti | Unutar 1° (90) |
+|---|---|---|---|
+| `BEST` | 10 % | 23 % | 51 % |
+| `BEST` + `GOOD` | 23 % | 54 % (90 % CI 38-69) | 70 % |
+| Model samo po satu, najboljih 25 % | 25 % | 42 % | 33 % |
+
+U `BEST`/`GOOD` terminu tranzit stiže oko jednom u 5 sati, a izvan njih jednom u
+21 sat. Pragovi su izabrani na istim podacima na kojima su mjereni.
+
+Najjači signal je **zbroj po razdoblju**: očekivano prema stvarno 7.4/9, 7.7/7 i
+9.1/10 u tri dobra razdoblja te 0.7/0, 0.4/0 i 0.1/0 u tri slaba. Ukupno 25.4
+prema 26. Dva tjedna oko mladog Mjeseca nemaju skoro ništa, pa panel uvijek
+ispisuje zbroj. Mjereno je za zadanu lokaciju. Pragovi filtra, ćelija, 30 dana i
+80 km dio su mjerenja: promjena traži novi backtest. Dnevni Mjesec namjerno nije
+uključen, iako se dobro osvijetljen može snimiti i danju.
 
 "Where to stand" je i dalje iz rasporeda: 454 mjesta, 2 pogotka. Računa svaki dan
 prozora, a ravna procjena sjene prvo odbaci prolaze čija sjena ne prolazi blizu

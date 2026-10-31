@@ -1,5 +1,5 @@
 import type { RoutePoint } from "@/lib/db/flightLogDb";
-import { getMoonPosition } from "@/lib/domain/astro/moon";
+import { getMoonPosition, getMoonState, getSunAltitudeDeg } from "@/lib/domain/astro/moon";
 import { horizontalToPoint } from "@/lib/domain/geometry/horizontal";
 import { destinationByAzimuthMeters } from "@/lib/domain/geometry/wgs84";
 
@@ -19,6 +19,22 @@ export function instantWithHighMoon(dayIndex: number): number {
   const dayStart = Math.floor(forecastNowMs / DAY_MS) * DAY_MS + dayIndex * DAY_MS;
   for (let t = dayStart; ; t += 3_600_000) {
     if (moonAt(t).altitudeDeg > 35) return t;
+  }
+}
+
+/** Prvi pun sat od sada u kojem je Mjesec visoko, osvijetljen i na tamnom nebu. */
+export function instantWithVisibleMoon(): number {
+  const { lat, lng, groundHeightMeters } = forecastObserver;
+  for (let t = Math.ceil(forecastNowMs / 3_600_000) * 3_600_000; ; t += 3_600_000) {
+    const at = new Date(t);
+    const moon = getMoonState(at, lat, lng, groundHeightMeters);
+    if (
+      moon.altitudeDeg > 35 &&
+      moon.illuminationFraction > 0.3 &&
+      getSunAltitudeDeg(at, lat, lng, groundHeightMeters) < -12
+    ) {
+      return t;
+    }
   }
 }
 

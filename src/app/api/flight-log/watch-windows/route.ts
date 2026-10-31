@@ -3,6 +3,7 @@ import { dbVersionKey, getAllCallsignSessions, type RoutePoint } from "@/lib/db/
 import {
   buildSkyDensity,
   mergeWatchWindows,
+  summarizeWatchSlots,
   WATCH_HISTORY_DAYS,
   watchSlots,
 } from "@/lib/domain/flightlog/watchWindows";
@@ -46,11 +47,14 @@ export async function GET(req: NextRequest) {
   }
 
   const density = await buildSkyDensity(sessionsByCallsign, observer);
-  const windows = mergeWatchWindows(
-    watchSlots(density, { observer, nowMs, toMs: nowMs + FORECAST_DAYS * DAY_MS })
-  );
+  const slots = watchSlots(density, { observer, nowMs, toMs: nowMs + FORECAST_DAYS * DAY_MS });
 
-  const body = JSON.stringify({ windows, historyDays: WATCH_HISTORY_DAYS, forecastDays: FORECAST_DAYS });
+  const body = JSON.stringify({
+    windows: mergeWatchWindows(slots),
+    summary: summarizeWatchSlots(slots),
+    historyDays: WATCH_HISTORY_DAYS,
+    forecastDays: FORECAST_DAYS,
+  });
   bodyCache.set(cacheKey, body);
   return new NextResponse(body, { headers: JSON_HEADERS });
 }
