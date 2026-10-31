@@ -146,8 +146,13 @@ Koriste ih dvije strane s **identičnim pragovima**:
    izravno → alerti rade i kad je ekran ugašen / app u pozadini. Ovisi o aktivnom
    SDR feedu (vidi niže) i konfiguriranom VAPID-u; inače tiho isključeno.
 
-Klijent **ne** šalje push (uklonjena `document.hidden → /api/push/send` grana) —
-server je jedini vlasnik notifikacija, pa nema dvostrukih alerta.
+Klijent **ne** šalje push — server je jedini vlasnik notifikacija, pa nema
+dvostrukih alerta. Neautentificirana ruta `/api/push/send` je uklonjena
+(2026-10-31), jer je Origin provjera lažljiva, a nitko je nije zvao.
+
+Cooldown alerta (`alertCooldown.ts`, 2 min po letu, klijent i server) odvojen je
+po tipu: candidate alert ne smije utišati active transit koji slijedi, a nakon
+active tranzita candidate alert se više ne šalje.
 
 ### Izvori letova — kvote i tempo (detalji: `documentation/flight-sources.md`)
 

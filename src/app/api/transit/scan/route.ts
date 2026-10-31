@@ -1,3 +1,10 @@
+import {
+  canAlertActive,
+  canAlertCandidate,
+  stampActiveAlert,
+  stampCandidateAlert,
+  type AlertCooldowns,
+} from "@/lib/domain/transit/alertCooldown";
 import { confirmedCandidateIds, type CandidateConfirmationState } from "@/lib/domain/transit/candidateConfirmation";
 import { NextResponse } from "next/server";
 import { computeActiveTransits } from "@/lib/domain/transit/computeActiveTransits";
@@ -22,7 +29,6 @@ export const dynamic = "force-dynamic";
  * Push izravno — neovisno o tome je li ijedan tab otvoren.
  */
 
-const COOLDOWN_MS = 2 * 60 * 1000;
 const DEFAULT_CAMERA: SubscriptionCamera = {
   focalLengthMm: 600,
   sensorType: "fullFrame",
@@ -33,7 +39,7 @@ type EndpointState = {
   context: string;
   lastCandidateIds: Set<string>;
   lastActiveIds: Set<string>;
-  stamps: Map<string, number>;
+  stamps: AlertCooldowns;
 };
 
 /** Per-endpoint dedup/cooldown — mirror klijentskih refova u useCandidateAlerts. */
@@ -140,9 +146,6 @@ export async function POST(req: Request) {
       st.lastCandidateIds.clear();
       st.context = context;
     }
-    const isCooled = (id: string) =>
-      nowMs - (st.stamps.get(id) ?? 0) >= COOLDOWN_MS;
-    const stamp = (id: string) => st.stamps.set(id, nowMs);
 
     const currentCandidateIds = confirmedCandidateIds(st.confirmation, candidates, nowMs);
     const currentActiveIds = new Set(actives.map((r) => r.flight.id));
@@ -153,9 +156,9 @@ export async function POST(req: Request) {
     // --- Active transits (priority) ---
     for (const row of actives) {
       const id = row.flight.id;
-      if (st.lastActiveIds.has(id) || !isCooled(id)) continue;
+      if (st.lastActiveIds.has(id) || !canAlertActive(st.stamps, id, nowMs)) continue;
       const callsign = row.flight.callSign?.trim() || id;
-      stamp(id);
+      stampActiveAlert(st.stamps, id, nowMs);
       messages.push({
         title: "LunaPic — active transit!",
         body: `${callsign} is crossing the moon now (${row.separationDeg.toFixed(2)}°)`,
@@ -167,11 +170,15 @@ export async function POST(req: Request) {
     // --- New disc-transit candidates ---
     for (const c of candidates.filter((c) => currentCandidateIds.has(c.flight.id))) {
       const id = c.flight.id;
-      if (st.lastCandidateIds.has(id) || currentActiveIds.has(id) || !isCooled(id)) {
+      if (
+        st.lastCandidateIds.has(id) ||
+        currentActiveIds.has(id) ||
+        !canAlertCandidate(st.stamps, id, nowMs)
+      ) {
         continue;
       }
       const callsign = c.flight.callSign?.trim() || id;
-      stamp(id);
+      stampCandidateAlert(st.stamps, id, nowMs);
       messages.push({
         title: "LunaPic — transit candidate",
         body: `${callsign} approaching moon (${c.separationDeg.toFixed(2)}°)`,

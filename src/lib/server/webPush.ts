@@ -1,7 +1,7 @@
 /**
  * Shared Web Push sender — jedini izvor VAPID konfiguracije i 410/404 expiry
- * cleanupa. Dijele ga `api/push/send` (broadcast) i `api/transit/scan`
- * (server-side detekcija). Samo Node server kontekst.
+ * cleanupa. Dijele ga `api/transit/scan` (server-side detekcija) i
+ * `api/push/receiver-status`. Samo Node server kontekst.
  */
 
 import webpush from "web-push";
