@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 where version bumps are made for releases (currently `0.x`).
 
+## [2026-10-31] — Best times to watch
+
+Tested on 84 days of the flight log, predicting each period from earlier data only.
+
+### Changed
+
+- **Best times to watch replaces Upcoming opportunities.** The list of flights is gone: of 216 predicted flights, one actually crossed the Moon. The panel now shows when the Moon crosses the busiest part of your sky over the next 14 days, how many transits to expect, and where to look. The top 10 % of half-hours held 26 % of the real transits. The Candidates panel still names the actual aircraft 5 minutes ahead.
+
 ## [2026-10-31] — Forecasts cover the whole 14 days
 
 ### Fixed

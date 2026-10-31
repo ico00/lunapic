@@ -444,7 +444,7 @@ export async function getRoutesByCallsign(
 
 /**
  * All passes in the window, grouped by callsign (not truncated / recency
- * capped) — used by the transit-calendar forecast, which needs the *full*
+ * capped) — used by the flight-log forecasts, which need the *full*
  * historical session set per callsign to fit a schedule, not just the most
  * recent N passes globally. Includes `alt_geom_m` (geometric altitude,
  * preferred over `alt_baro_m` for closest-approach geometry — same

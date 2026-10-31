@@ -8,30 +8,21 @@ import { useObserverStore } from "@/stores/observer-store";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * Prognoza tranzita (grupa Plan): idućih 14 dana iz pravilnosti rasporeda u
- * flight-logu ("Upcoming opportunities") i obrnuti problem — gdje stati da
- * redoviti let prođe preko diska ("Where to stand"). Do 2026-10-29 je bilo
- * dio FlightLogPanela; podaci dolaze iz loga, ali pitanje je planersko.
- * Ne ovisi o odabiru u tablici loga, samo o promatraču i kameri.
+ * Prognoza tranzita (grupa Plan): najbolji termini za gledanje iz gustoće prometa
+ * po nebu ("Best times to watch") i obrnuti problem — gdje stati da redoviti let
+ * prođe preko diska ("Where to stand"). Do 2026-10-29 je bilo dio FlightLogPanela;
+ * podaci dolaze iz loga, ali pitanje je planersko. Ne ovisi o odabiru u tablici
+ * loga, samo o promatraču.
  */
 
-/** Mirror of the transit-calendar API entry shape. */
-interface UpcomingOpportunity {
-  callsign: string;
-  estimateMs: number;
-  stdMinutes: number;
-  sessionCount: number;
-  kind: "transit" | "near";
-  minSeparationDeg: number;
-  elevationGapDeg: number;
-  inFrame: boolean;
+type WatchWindow = {
+  startMs: number;
+  endMs: number;
+  rating: "best" | "good";
+  expectedTransits: number;
   moonAltDeg: number;
-  trackSpreadM: number;
-}
-
-/** Mirror of the transit-calendar API `closest` fallback shape — same as
- *  UpcomingOpportunity minus `kind` (these never cleared NEAR_TOL_DEG). */
-type UpcomingClosest = Omit<UpcomingOpportunity, "kind">;
+  moonAzDeg: number;
+};
 
 /**
  * Coverage slider bounds — a **floor**, never a ceiling.
@@ -48,22 +39,6 @@ const DEFAULT_MIN_COVERAGE_PERCENT = 25;
 const DEFAULT_MAX_SPOT_KM = 25;
 const SPOT_DISTANCE_OPTS = [5, 15, 25, 50] as const;
 
-const LOW_CONFIDENCE_STD_MINUTES = 15;
-const LOW_CONFIDENCE_SESSION_COUNT = 5;
-/** Same limit as the `maxSpreadKm` default of "Where to stand". */
-const LOW_CONFIDENCE_TRACK_SPREAD_M = 2500;
-
-/** Same Δalt formatting + color thresholds as the live Photographer/Candidates
- *  tool's ElevationGapBadge (TransitCandidatesPanel.tsx) — reused here so the
- *  forecast speaks the same visual language as the live "in frame" check. */
-function ElevationGapLabel({ gap }: { gap: number }) {
-  const abs = Math.abs(gap);
-  const sign = gap >= 0 ? "+" : "−";
-  const label = `Δalt ${sign}${formatFixed(abs, 2)}°`;
-  const color = abs <= 0.26 ? "text-[color:var(--disc-text)]" : abs <= 1.5 ? "text-[color:var(--observer-text)]" : "text-[color:var(--t-tertiary)]";
-  return <span className={`text-[length:var(--fs-meta)] font-medium ${color}`}>{label}</span>;
-}
-
 const COMPASS_POINTS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"] as const;
 
 /** 8-point compass label for a true bearing — "2.4 km SE" reads faster than "134°". */
@@ -75,64 +50,57 @@ function fmtDistance(meters: number): string {
   return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1)} km`;
 }
 
-/**
- * "today 14:23", "tomorrow 09:41", or "Fri 6 Nov 14:23" in the viewer's
- * locale/timezone. The date matters: the forecast spans two of each weekday.
- */
-function fmtNextPass(estimateMs: number): string {
-  const d = new Date(estimateMs);
+const fmtTime = (ms: number) =>
+  new Date(ms).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+
+/** "today", "tomorrow" or "Fri 6 Nov" in the viewer's locale/timezone. */
+function fmtDay(ms: number): string {
+  const d = new Date(ms);
   const now = new Date();
-  const time = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-  if (d.toDateString() === now.toDateString()) return `today ${time}`;
+  if (d.toDateString() === now.toDateString()) return "today";
   const tomorrow = new Date(now);
   tomorrow.setDate(now.getDate() + 1);
-  if (d.toDateString() === tomorrow.toDateString()) return `tomorrow ${time}`;
-  const date = d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
-  return `${date} ${time}`;
+  if (d.toDateString() === tomorrow.toDateString()) return "tomorrow";
+  return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+}
+
+/** The date matters: the forecast spans two of each weekday. */
+function fmtNextPass(estimateMs: number): string {
+  return `${fmtDay(estimateMs)} ${fmtTime(estimateMs)}`;
 }
 
 export function TransitForecastPanel() {
-  const setFlightLogSelected = useMoonTransitStore((s) => s.setFlightLogSelected);
-  const setFlightLogSelectedCallsign = useMoonTransitStore((s) => s.setFlightLogSelectedCallsign);
-  const cameraFocalLengthMm = useMoonTransitStore((s) => s.cameraFocalLengthMm);
-  const cameraSensorType = useMoonTransitStore((s) => s.cameraSensorType);
   const observer = useObserverStore((s) => s.observer);
 
-  const [calendarBusy, setCalendarBusy] = useState(false);
-  const [calendarEntries, setCalendarEntries] = useState<UpcomingOpportunity[] | null>(null);
-  const [calendarClosest, setCalendarClosest] = useState<UpcomingClosest[]>([]);
-  const [calendarError, setCalendarError] = useState(false);
+  const [watchBusy, setWatchBusy] = useState(false);
+  const [watchWindows, setWatchWindows] = useState<WatchWindow[] | null>(null);
+  const [watchError, setWatchError] = useState(false);
   /** True once the user has run the scan at least once — gates the
    *  location-change auto-rescan below so it doesn't fire on mount. */
-  const calendarScannedRef = useRef(false);
+  const watchScannedRef = useRef(false);
 
-  const runCalendarScan = useCallback(() => {
-    calendarScannedRef.current = true;
-    setCalendarBusy(true);
-    setCalendarError(false);
+  const runWatchScan = useCallback(() => {
+    watchScannedRef.current = true;
+    setWatchBusy(true);
+    setWatchError(false);
     const params = new URLSearchParams({
       lat: String(observer.lat),
       lng: String(observer.lng),
       heightM: String(observer.groundHeightMeters ?? 0),
-      focalLengthMm: String(cameraFocalLengthMm),
-      sensorType: cameraSensorType,
     });
-    fetch(appPath(`/api/flight-log/transit-calendar?${params}`), { cache: "no-store" })
+    fetch(appPath(`/api/flight-log/watch-windows?${params}`), { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((d: { entries: UpcomingOpportunity[]; closest: UpcomingClosest[] }) => {
-        setCalendarEntries(d.entries ?? []);
-        setCalendarClosest(d.closest ?? []);
-      })
-      .catch(() => setCalendarError(true))
-      .finally(() => setCalendarBusy(false));
-  }, [observer, cameraFocalLengthMm, cameraSensorType]);
+      .then((d: { windows: WatchWindow[] }) => setWatchWindows(d.windows ?? []))
+      .catch(() => setWatchError(true))
+      .finally(() => setWatchBusy(false));
+  }, [observer]);
 
-  // Re-run the calendar scan automatically when the observer's location
-  // changes, but only after the user has scanned at least once — otherwise
-  // this would fire an unwanted request the moment the panel mounts.
+  // Re-run automatically when the observer's location changes, but only after
+  // the user has scanned at least once — otherwise this would fire an unwanted
+  // request the moment the panel mounts.
   useEffect(() => {
-    if (calendarScannedRef.current) {
-      runCalendarScan();
+    if (watchScannedRef.current) {
+      runWatchScan();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [observer.lat, observer.lng, observer.groundHeightMeters]);
@@ -165,110 +133,64 @@ export function TransitForecastPanel() {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Upcoming opportunities — forward forecast from historical schedule regularity */}
+      {/* Best times to watch — from how busy the Moon's part of the sky usually is */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="mt-section-label">
-            Upcoming opportunities
+            Best times to watch
           </span>
           <button
             type="button"
-            onClick={runCalendarScan}
-            disabled={calendarBusy}
+            onClick={runWatchScan}
+            disabled={watchBusy}
             className="rounded-full border border-[color:var(--hair-soft)] px-3 py-1 text-[length:var(--fs-label)] text-[color:var(--t-secondary)] disabled:opacity-40 hover:border-[color:var(--ink-3)] hover:text-[color:var(--t-primary)] transition"
           >
-            {calendarBusy ? "Scanning…" : "Scan next 14 d"}
+            {watchBusy ? "Scanning…" : "Scan next 14 d"}
           </button>
         </div>
 
         <p className="text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">
-          Statistical forecast from past regularity. A schedule a few minutes off misses the Moon, so these are possible passes, not predictions. Confirm with the live pipeline on the day.
+          When the Moon crosses the part of your sky with the most air traffic, based on the last
+          30 days. It cannot name a flight: Candidates warns you about the actual aircraft 5 minutes
+          ahead.
         </p>
 
-        {calendarError && (
+        {watchError && (
           <p className="text-[length:var(--fs-label)] text-[color:var(--disc-text)]">Scan failed — try again.</p>
         )}
 
-        {calendarEntries !== null && !calendarError && (
-          calendarEntries.length > 0 ? (
+        {watchWindows !== null && !watchError && (
+          watchWindows.length > 0 ? (
             <ul className="flex max-h-48 flex-col divide-y divide-white/[0.05] overflow-y-auto">
-              {calendarEntries.map((ev) => {
-                const lowConfidence =
-                  ev.stdMinutes > LOW_CONFIDENCE_STD_MINUTES ||
-                  ev.sessionCount < LOW_CONFIDENCE_SESSION_COUNT ||
-                  ev.trackSpreadM > LOW_CONFIDENCE_TRACK_SPREAD_M;
-                return (
-                  <li key={`${ev.callsign}-${ev.estimateMs}`}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFlightLogSelectedCallsign(ev.callsign);
-                        setFlightLogSelected(null);
-                      }}
-                      className="flex w-full items-center gap-2 py-1.5 text-left text-[length:var(--fs-label)] hover:bg-[color:var(--panel-2)] transition rounded-[var(--r-ctl)] px-1.5"
-                      title="Show route on map"
-                    >
-                      <span
-                        className={`mt-chip shrink-0 ${ev.kind === "transit" ? "mt-chip-disc" : "mt-chip-observer"}`}
-                      >
-                        {ev.kind === "transit" ? "POSSIBLE" : "NEAR"}
-                      </span>
-                      <span className="text-[color:var(--t-primary)]">{ev.callsign}</span>
-                      {lowConfidence && (
-                        <span className="mt-chip shrink-0">
-                          LOW CONF
-                        </span>
-                      )}
-                      <span className="ml-auto text-right text-[color:var(--t-tertiary)]">
-                        {fmtNextPass(ev.estimateMs)}
-                        <span className="ml-2 tabular-nums">±{ev.stdMinutes}m</span>
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
+              {watchWindows.map((w) => (
+                <li
+                  key={w.startMs}
+                  className="flex w-full items-center gap-2 px-1.5 py-1.5 text-[length:var(--fs-label)]"
+                >
+                  <span className={`mt-chip shrink-0 ${w.rating === "best" ? "mt-chip-live" : "mt-chip-observer"}`}>
+                    {w.rating === "best" ? "BEST" : "GOOD"}
+                  </span>
+                  <span className="text-[color:var(--t-primary)]">
+                    {fmtDay(w.startMs)} {fmtTime(w.startMs)}–{fmtTime(w.endMs)}
+                  </span>
+                  <span className="ml-auto shrink-0 text-right tabular-nums text-[color:var(--t-tertiary)]">
+                    ~{formatFixed(w.expectedTransits, 1)} · {compassPoint(w.moonAzDeg)} {w.moonAltDeg}°
+                  </span>
+                </li>
+              ))}
             </ul>
-          ) : calendarClosest.length > 0 ? (
-            <>
-              <p className="text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">
-                No disk transit — closest predicted passes for your current camera:
-              </p>
-              <ul className="flex max-h-48 flex-col divide-y divide-white/[0.05] overflow-y-auto">
-                {calendarClosest.map((ev) => (
-                  <li key={`${ev.callsign}-${ev.estimateMs}`}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFlightLogSelectedCallsign(ev.callsign);
-                        setFlightLogSelected(null);
-                      }}
-                      className="flex w-full items-center gap-2 py-1.5 text-left text-[length:var(--fs-label)] hover:bg-[color:var(--panel-2)] transition rounded-[var(--r-ctl)] px-1.5"
-                      title="Show route on map"
-                    >
-                      <span
-                        className={`shrink-0 rounded-full px-2 py-0.5 text-[length:var(--fs-meta)] font-semibold ${
-                          ev.inFrame
-                            ? "mt-chip mt-chip-observer"
-                            : "mt-chip"
-                        }`}
-                      >
-                        {ev.inFrame ? "IN FRAME" : "OUT OF FRAME"}
-                      </span>
-                      <span className="text-[color:var(--t-primary)]">{ev.callsign}</span>
-                      <span className="ml-auto flex items-center gap-2 text-right text-[color:var(--t-tertiary)]">
-                        {fmtNextPass(ev.estimateMs)}
-                        <ElevationGapLabel gap={ev.elevationGapDeg} />
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </>
           ) : (
             <p className="text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
-              No regular flights with a predicted moon pass in this period.
+              No time in this period with the Moon above 12° on a busy part of the sky.
             </p>
           )
+        )}
+
+        {watchWindows !== null && watchWindows.length > 0 && !watchError && (
+          <p className="text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">
+            ~ is how many transits to expect in that time, then where the Moon is. BEST is the top
+            10 % of half-hours, GOOD the top 25 %.
+          </p>
         )}
       </div>
 
