@@ -22,8 +22,9 @@ export interface ClosestApproach {
   slantM: number;
 }
 
-export interface NextApproachPrediction {
-  estimateMs: number;
+export interface PredictedApproaches {
+  /** Every predicted closest approach in the window, soonest first. */
+  estimatesMs: number[];
   stdMinutes: number;
   /** UTC weekdays (0 = Sun) the callsign was observed on. */
   weekdays: number[];
@@ -59,12 +60,15 @@ export function closestApproachInSession(
  * Circular-mean time-of-day prediction anchored on each session's
  * closest-approach timestamp — the moment that actually matters for a transit
  * — rather than the session's overall mid-time.
+ *
+ * Returns every pass in the window, not just the next one: the Moon moves ~13°
+ * a day, so a flight that misses it tonight can cross it four days from now.
  */
-export function predictNextApproach(
+export function predictApproachesInWindow(
   approaches: readonly ClosestApproach[],
   nowMs: number,
-  searchDays = 32
-): NextApproachPrediction | null {
+  toMs: number
+): PredictedApproaches | null {
   let sx = 0;
   let sy = 0;
   for (const a of approaches) {
@@ -84,14 +88,15 @@ export function predictNextApproach(
   const weekdays = [...new Set(approaches.map((a) => new Date(a.timeMs).getUTCDay()))].sort();
   const useWeekdays = n >= 4 && weekdays.length < 7;
 
+  const estimatesMs: number[] = [];
   const todayStart = Math.floor(nowMs / DAY_MS) * DAY_MS;
-  for (let d = 0; d < searchDays; d++) {
-    const candidate = todayStart + d * DAY_MS + meanDayMs;
+  for (let candidate = todayStart + meanDayMs; candidate <= toMs; candidate += DAY_MS) {
     if (candidate <= nowMs) continue;
     if (useWeekdays && !weekdays.includes(new Date(candidate).getUTCDay())) continue;
-    return { estimateMs: candidate, stdMinutes: Math.round(stdMinutes), weekdays };
+    estimatesMs.push(candidate);
   }
-  return null;
+  if (estimatesMs.length === 0) return null;
+  return { estimatesMs, stdMinutes: Math.round(stdMinutes), weekdays };
 }
 
 /** One session plus the instant its track is aligned on. */

@@ -576,7 +576,35 @@ kriva:
   sporiji).
 
 Stanje nakon svega (produkcija, cold, svjež cache ključ): `photo-spots` ~4.0 s,
-`transit-calendar` ~2.5 s, keširano 0.10–0.14 s.
+`transit-calendar` ~2.5 s, keširano 0.10–0.14 s. Ti su brojevi iz vremena kad se
+računao samo idući prelet, vidi niže.
+
+### Prognoze gledaju svaki dan prozora (2026-10-31)
+
+Do 2026-10-31 su obje rute gledale samo **prvi idući prelet**: let koji večeras
+promaši Mjesec nije se više provjeravao, iako se Mjesec pomiče ~13° dnevno, a UI
+je obećavao 14 dana. `transit-calendar` je k tome gledao jednu točku, trenutak
+najbližeg prolaza pored promatrača, a tranzit se događa 30-90 s prije ili poslije.
+
+* `predictApproachesInWindow` vraća sve prelete u prozoru.
+* `transit-calendar` traži minimum duž srednje putanje `closestApproachOnArc`
+  (`sky-separation.ts`). Ravan segment leta je veliki krug na nebu, pa je minimum
+  između uzoraka točan. Bez toga 15-sekundni uzorci preskaču disk: na 30 km avion
+  između njih prijeđe ~6.6°.
+* `DISC` je u prognozi postao `POSSIBLE`. Raspored koji griješi 5 min pomiče
+  Mjesec 1.25°, više od cijelog diska, pa ovo nije predviđanje tranzita. Mjesec je
+  tu namjerno po minuti (`createMinuteMoon`), jer raspored ionako griješi za minute.
+* `photo-spots` bi 14 dana solvera trajalo predugo, pa ravna procjena sjene prvo
+  odbaci prolaze čija sjena ne prolazi blizu promatrača. Margina je 25 % duljine
+  sjene (`FLAT_SHADOW_ERROR_FRACTION`), jer sfera pomiče sjenu za `d³ / 2Rh`.
+  Provjereno na sintetičkih 1500 pozivnih znakova: popis mjesta identičan punom
+  rješavanju, 3.2 s umjesto 8.0 s. Popis ima gornju granicu od 100 najvećih
+  aviona, a ne najranijih, inače bi opet nestali kasniji dani.
+* Petlje prepuštaju event loop svakih 100 pozivnih znakova, jer isti proces vrti
+  flight-log poller i server-side scan.
+
+Logika je u `transitCalendarForecast.ts` i `photoSpotForecast.ts`; rute samo čitaju
+parametre, bazu i cache. Vrijeme na produkciji treba ponovno izmjeriti nakon deploya.
 
 ## Shot feasibility — zelena ikona na mapi
 

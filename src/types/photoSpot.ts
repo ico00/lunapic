@@ -47,7 +47,10 @@ export interface PhotoSpotOpportunity {
 }
 
 export interface PhotoSpotsResponse {
+  /** The largest aircraft in the window, soonest first. */
   spots: PhotoSpotOpportunity[];
+  /** All passes that cleared the filters, of which `spots` may hold only the best. */
+  matchedSpotCount: number;
   /** Nearest near-misses, only when `spots` is empty. */
   closest: PhotoSpotOpportunity[];
   /**
