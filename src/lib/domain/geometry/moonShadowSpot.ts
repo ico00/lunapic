@@ -237,24 +237,3 @@ export function solveMoonShadowSpot(args: SolveMoonShadowSpotArgs): MoonShadowSp
     residualDeg: toDeg(residualRad),
   };
 }
-
-/**
- * Best coverage this aircraft can ever reach, from anywhere on the ground.
- *
- * The shadow spot is always `height / sin(moonAltitude)` away in slant range,
- * so coverage peaks when the Moon is overhead and falls off with `sin`. Used
- * to tell the photographer *up front* that a 50 % target is unreachable for a
- * jet at cruise (40 m span at 11 km tops out near 42 %) instead of returning
- * an empty list with no explanation.
- */
-export function maxCoveragePercentForAltitude(
-  heightAboveGroundMeters: number,
-  moonAltitudeDeg: number,
-  wingspanMeters: number = DEFAULT_WINGSPAN_M
-): number {
-  if (heightAboveGroundMeters <= 0 || moonAltitudeDeg <= 0) {
-    return 0;
-  }
-  const slant = heightAboveGroundMeters / Math.sin(toRad(moonAltitudeDeg));
-  return moonCoveragePercent(aircraftAngularSizeDeg(wingspanMeters, slant));
-}

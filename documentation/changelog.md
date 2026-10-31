@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 where version bumps are made for releases (currently `0.x`).
 
+## [2026-10-31] — Where to stand removed
+
+### Removed
+
+- **Where to stand.** It solved a ground spot from each flight's schedule, but flights do not repeat closely enough: of 454 spots tested on 84 days of the log, 2 would have worked. Best times to watch is now the only forecast. The live stand-here line for a selected aircraft and Runway planning are unchanged.
+
 ## [2026-10-31] — Best times to watch: only a Moon you can shoot
 
 ### Fixed

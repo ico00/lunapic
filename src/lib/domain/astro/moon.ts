@@ -17,7 +17,7 @@ const MOON_MEAN_RADIUS_KM = 1737.4;
  * Sun). `solveMoonShadowSpot` evaluates the Moon once per Newton step over
  * tens of thousands of candidate points per request and reads only altitude,
  * azimuth and apparent radius, so paying for phase there was pure waste —
- * measured at 846 ms, a third of a cold `photo-spots` request.
+ * measured at 846 ms, a third of a cold forecast request.
  *
  * Same inputs and same arithmetic as `getMoonState`; the fields it returns are
  * bit-identical.

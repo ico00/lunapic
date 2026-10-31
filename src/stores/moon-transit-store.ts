@@ -86,7 +86,6 @@ import { useObserverStore } from "@/stores/observer-store";
 import type { GeoBounds, MapViewState } from "@/types";
 import type { FlightState } from "@/types/flight";
 import type { MapDisplayMode } from "@/types/map-display";
-import type { PhotoSpotOpportunity } from "@/types/photoSpot";
 import { AVIONIX_FEED_AVAILABLE, type FlightProviderId } from "@/types/flight-provider";
 
 /** Koji live REST izvori su uključeni (ICAO24 se spaja u jedan zapis po zrakoplovu). */
@@ -266,8 +265,6 @@ type MoonTransitState = {
    * marker, its tolerance ellipse and the shadow path on the main map. The
    * panel owns the fetch; the map layer only renders what is selected.
    */
-  photoSpotSelected: PhotoSpotOpportunity | null;
-  setPhotoSpotSelected: (spot: PhotoSpotOpportunity | null) => void;
   /**
    * LDZA runway planner lines computed by the Planning panel. The panel owns
    * the inputs and the computation; the map layer only renders these (cleared
@@ -521,8 +518,6 @@ export const useMoonTransitStore = create<MoonTransitState>((set, get) => ({
   setFlightLogNextPass: (p) => set({ flightLogNextPass: p }),
   flightLogAltitude: null,
   setFlightLogAltitude: (a) => set({ flightLogAltitude: a }),
-  photoSpotSelected: null,
-  setPhotoSpotSelected: (spot) => set({ photoSpotSelected: spot }),
   runwayPlanLines: [],
   runwayPlanFocusMs: null,
   setRunwayPlanLines: (lines) => set({ runwayPlanLines: lines }),

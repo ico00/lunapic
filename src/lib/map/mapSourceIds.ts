@@ -65,25 +65,6 @@ export const AIRPORT_RUNWAY_PAVEMENT_LAYER_ID = "airport-runway-pavement-layer";
 export const AIRPORT_RUNWAY_LABEL_SOURCE = "airport-runway-label-geo";
 export const AIRPORT_RUNWAY_LABEL_LAYER_ID = "airport-runway-label-layer";
 
-/**
- * "Stand here" photo-spot forecast picked in the Flight log panel: the spot
- * itself with its tolerance ellipse and historical-spread circle, plus the
- * ground track the spot sweeps during the pass.
- */
-export const PHOTO_SPOT_SOURCE = "photo-spot-geo";
-/** Historical track scatter (widest, faintest — how much of a lottery this is). */
-export const PHOTO_SPOT_SPREAD_LAYER_ID = "photo-spot-spread-layer";
-/** Where you must actually stand (tens of metres, elongated toward the Moon). */
-export const PHOTO_SPOT_TOLERANCE_LAYER_ID = "photo-spot-tolerance-layer";
-export const PHOTO_SPOT_POINT_LAYER_ID = "photo-spot-point-layer";
-export const PHOTO_SPOT_LABEL_LAYER_ID = "photo-spot-label-layer";
-export const PHOTO_SPOT_PATH_SOURCE = "photo-spot-path-geo";
-export const PHOTO_SPOT_PATH_LAYER_ID = "photo-spot-path-layer";
-
-/**
- * LDZA runway planner (Planning panel): per planned instant, the ground line on
- * which a virtual approach/departure aircraft sits on the Moon's disk.
- */
 export const RUNWAY_PLAN_SOURCE = "runway-plan-geo";
 export const RUNWAY_PLAN_LINE_LAYER_ID = "runway-plan-line-layer";
 export const RUNWAY_PLAN_LINE_DEPARTURE_LAYER_ID = "runway-plan-line-departure-layer";

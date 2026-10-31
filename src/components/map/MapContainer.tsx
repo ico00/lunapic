@@ -8,7 +8,6 @@ import { FieldPerfOverlay } from "@/components/perf/FieldPerfOverlay";
 import { useExtrapolatedFlightsForMap } from "@/hooks/useExtrapolatedFlightsForMap";
 import { useAirportRunwayLayer } from "@/hooks/useAirportRunwayLayer";
 import { useCallsignHistoryLayer } from "@/hooks/useCallsignHistoryLayer";
-import { usePhotoSpotLayer } from "@/hooks/usePhotoSpotLayer";
 import { useRunwayPlanLayer } from "@/hooks/useRunwayPlanLayer";
 import { useSelectedFlightShadowTrack } from "@/hooks/useSelectedFlightShadowTrack";
 import { useFlightHistoryLayers } from "@/hooks/useFlightHistoryLayers";
@@ -209,7 +208,6 @@ export function MapContainer({
   useAirportRunwayLayer(mapRef, mapReadyTick);
   useSelectedFlightTrail(mapRef, mapReadyTick);
   useCallsignHistoryLayer(mapRef, mapReadyTick);
-  usePhotoSpotLayer(mapRef, mapReadyTick);
   useRunwayPlanLayer(mapRef, mapReadyTick);
   useSelectedFlightShadowTrack(mapRef, mapReadyTick, {
     observer,

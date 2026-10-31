@@ -1,15 +1,47 @@
 import type { LiveShadowTrack } from "@/lib/domain/geometry/liveShadowTrack";
+import { destinationByAzimuthMeters } from "@/lib/domain/geometry/wgs84";
 import type { Feature, FeatureCollection } from "geojson";
-import { buildToleranceEllipseRing } from "./photoSpotFeatures";
 
 /**
  * Map geometry for the live "stand here" centerline of the selected aircraft.
  *
- * Same visual language as the forecast spot (emerald = where to stand, amber =
- * time), with one addition the forecast does not need: minute ticks along the
- * line. Without them the line reads as a place, and it is not — it is a place
+ * Emerald = where to stand, amber = time, with minute ticks along the line.
+ * Without them the line reads as a place, and it is not — it is a place
  * *per instant*, sweeping past at the aircraft's ground speed.
  */
+
+const ELLIPSE_SEGMENTS = 72;
+
+/**
+ * Closed ring for the tolerance ellipse: semi-minor across the Moon's azimuth,
+ * semi-major along it, since stepping toward or away from the Moon barely
+ * changes the line of sight while stepping sideways changes it directly.
+ */
+export function buildToleranceEllipseRing(
+  lat: number,
+  lng: number,
+  moonAzimuthDeg: number,
+  crossTrackMeters: number,
+  alongTrackMeters: number,
+  segments = ELLIPSE_SEGMENTS
+): [number, number][] {
+  const ring: [number, number][] = [];
+  for (let i = 0; i <= segments; i += 1) {
+    const t = (i / segments) * 2 * Math.PI;
+    // Local frame: +along = toward the Moon, +cross = 90° right of it.
+    const along = alongTrackMeters * Math.cos(t);
+    const cross = crossTrackMeters * Math.sin(t);
+    const stepped = destinationByAzimuthMeters(lat, lng, moonAzimuthDeg, along);
+    const p = destinationByAzimuthMeters(
+      stepped.lat,
+      stepped.lng,
+      (moonAzimuthDeg + 90) % 360,
+      cross
+    );
+    ring.push([p.lng, p.lat]);
+  }
+  return ring;
+}
 
 const TICK_INTERVAL_SEC = 60;
 

@@ -428,9 +428,7 @@ coverage% = 11459 · wingspan[m] · sin(moonAlt) / h[m]
 | A380 (79.8 m) | 11 km | 83 % | Mjesec ≥ 37° |
 | A320 na prilazu | 900 m | >400 % | trivijalno |
 
-Zato `/api/flight-log/photo-spots` **uvijek** vraća `bestCoveragePercent` —
-prazna lista na pragu od 50 % je činjenica o nebu, ne bug. `maxCoveragePercentForAltitude()`
-je ista računica kao pomoćna funkcija.
+Prazan rezultat na pragu od 50 % je dakle činjenica o nebu, ne bug.
 
 ### Tolerancija je elipsa, ne krug
 
@@ -441,27 +439,13 @@ Da avion ostane na disku, promatrač smije odstupiti:
 Zato je upotrebljiva površina elipsa izdužena prema Mjesecu. Isti razlog zbog
 kojeg postoje trake `standCorridorQuads`.
 
-### Dva potrošača istog solvera
+### Potrošači istog solvera
 
-1. **Planer (B)** — `/api/flight-log/photo-spots`. Iz `callsignSchedule.ts`
-   (circular-mean raspored + closest approach) računa
-   točku na tlu za **srednju putanju u vremenski poravnatim koordinatama**
-   (`meanTrackAroundApproach`). Izlaz nosi i `trackSpreadM` — povijesno
-   rasipanje same rute; kad je puno veće od `crossTrackToleranceM`, prognoza
-   imenuje kvart, ne parkirno mjesto. Filteri: `MIN_AIRCRAFT_AGL_M = 300`
-   (slijetanja i taxi ruše ravnu-podlogu pretpostavku), `MIN_SOLVED_SAMPLES = 5`,
-   `maxSpreadKm` (default 2.5). `minCoveragePercent` je **samo donja granica** —
-   avion širi od diska Mjeseca (prilazni promet redovito prelazi 150 %) je
-   željeni rezultat, ne outlier; ništa ne filtrira pokrivenost odozgo.
+"Where to stand" (`/api/flight-log/photo-spots`) je uklonjen 2026-10-31: tražio je
+točku na tlu za raspored pojedinog leta, a od 454 mjesta na 84 dana pogodile su 2.
+Ostaju Live i Planer za LDZA (niže).
 
-   ⚠️ `meanTrackAroundApproach` **fiksira populaciju sesija** (one koje pokrivaju
-   sidro) i prozor skraćuje na prvoj rupi. Prosjek „onih sesija koje baš tamo
-   imaju podatke” daje diskontinuiranu krivulju: kad jedna sesija ispadne a
-   druga uđe, prosjek skoči za razmak između njih — a sjena je udaljena
-   `h / tan(moonAlt)`, pa pri Mjesecu na 7° 1 km pomaka prosjeka postane 8 km
-   skoka u odgovoru. Viđeno u produkciji 2026-08-21 (skok od 13 km u jednom
-   15 s uzorku + šiljak od 7 km tamo-natrag).
-2. **Live (A)** — `liveShadowTrack.ts` + `useSelectedFlightShadowTrack`. Za
+**Live** — `liveShadowTrack.ts` + `useSelectedFlightShadowTrack`. Za
    **odabrani** avion crta centralnu liniju idućih 300 s (isti horizont kao
    `MAX_ALIGNMENT_LOOKAHEAD_SEC` — dalje dead-reckoning laže). Točka putuje
    brzinom aviona (~15 km/min), pa ovo nije mjesto na koje se stigne odvesti
@@ -471,7 +455,7 @@ kojeg postoje trake `standCorridorQuads`.
 
 ### Cijena forecast ruta — cache, indeks, ANALYZE (2026-08-21)
 
-`photo-spots` i `watch-windows` su **skupe po pozivu** i keširane. Sve tri
+`watch-windows` je **skupa po pozivu** i keširana. Sve tri
 stvari niže su naučene u produkciji; svaka je jednom već bila tiho slomljena.
 
 **1. Cache ključ ne smije pratiti datoteku.** `dbVersionKey()`
@@ -522,7 +506,7 @@ Avion se postavlja na 3–15 km (korak 0.5) od praga 04 duž produžene osi; sva
 točka je `solveMoonShadowSpot` s `groundHeightMeters = LDZA_ELEVATION_M` (107).
 Pozicija stajanja **uzduž linije određuje na kojoj udaljenosti od staze avion
 prelazi Mjesec** — zato su markeri na 4/6/8/10/12 km. Prag pokrivenosti je samo
-donja granica (kao u photo-spots). Profili su **pretpostavke**, ne mjerenja:
+donja granica. Profili su **pretpostavke**, ne mjerenja:
 stvarni avion odstupa (vjetar, ATC, masa), pa je plan lokacije, ne garancija.
 Regresijski test u `runwayShadowPlan.test.ts` uspoređuje točke s ručnim KML-om
 za 28.10.2026 07:20 (unutar 60 m). Stanje: `runwayPlanLines` /
@@ -560,10 +544,9 @@ Cache Mjeseca ima ~23 % pogodaka i to je **strukturno**: vrijeme se ne smije
 bucketirati (Mjesec se giba ~0.25°/min), a svaki uzorak je na svom trenutku.
 Optimizira se cijena promašaja, ne hit rate.
 
-### Gdje ide vrijeme u `photo-spots` (profil, ne pretpostavka)
+### Mjeriti prije optimizacije
 
-Prije bilo kakve optimizacije — izmjeri. Dva puta je intuicija ovdje bila
-kriva:
+Dva puta je intuicija u forecast rutama bila kriva:
 
 * Newton petlja u `solveMoonShadowSpot` vrti se **0.69 iteracija po pozivu**
   (33 795 poziva, 23 405 iteracija) — većina izađe prije petlje, na pragu
@@ -574,8 +557,8 @@ kriva:
   I/O-bound (disk usporediv), solver je čisti CPU (dijeljeni vCPU višestruko
   sporiji).
 
-Stanje nakon svega (produkcija, cold, svjež cache ključ): `photo-spots` ~7.2 s
-(14 dana, 2026-10-31), keširano 0.10–0.14 s.
+Stanje (produkcija, cold, svjež cache ključ): `watch-windows` ~8.6 s, keširano ~0.1 s
+(2026-10-31).
 
 ### Što baza može predvidjeti (mjereno 2026-10-31)
 
@@ -616,15 +599,9 @@ ispisuje zbroj. Mjereno je za zadanu lokaciju. Pragovi filtra, ćelija, 30 dana 
 80 km dio su mjerenja: promjena traži novi backtest. Dnevni Mjesec namjerno nije
 uključen, iako se dobro osvijetljen može snimiti i danju.
 
-"Where to stand" je i dalje iz rasporeda: 454 mjesta, 2 pogotka. Računa svaki dan
-prozora, a ravna procjena sjene prvo odbaci prolaze čija sjena ne prolazi blizu
-promatrača. Margina je 25 % duljine sjene (`FLAT_SHADOW_ERROR_FRACTION`), jer sfera
-pomiče sjenu za `d³ / 2Rh`. Provjereno na sintetičkih 1500 pozivnih znakova: popis
-identičan punom rješavanju, 3.2 s umjesto 8.0 s. Mjesec je tu po minuti
-(`createMinuteMoon`), jer raspored ionako griješi za minute. Popis ima gornju
-granicu od 100 najvećih aviona, a ne najranijih, inače bi nestali kasniji dani.
-Petlje prepuštaju event loop svakih 100 pozivnih znakova, jer isti proces vrti
-flight-log poller i server-side scan.
+"Where to stand" (točka na tlu za raspored pojedinog leta) iz istog je razloga
+uklonjen: 454 mjesta, 2 pogotka. `buildSkyDensity` prepušta event loop svakih 100
+pozivnih znakova, jer isti proces vrti flight-log poller i server-side scan.
 
 ## Shot feasibility — zelena ikona na mapi
 
