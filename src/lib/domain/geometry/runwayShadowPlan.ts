@@ -16,7 +16,7 @@ import { LDZA_RUNWAY_04_22_LINE } from "@/lib/map/airportRunwayConfig";
  *
  * Profili su pretpostavka, ne mjerenje: stvarni avion odstupa od 3° (vjetar,
  * ATC), a odlazni gradijent ovisi o tipu i masi. Zato je rezultat plan za
- * lokaciju, ne garancija — vidi `trackSpreadM` kod forecasta iz povijesti.
+ * lokaciju, ne garancija.
  */
 
 /** Visina aerodroma LDZA iznad razine mora (m). Teren oko staze se ne modelira. */

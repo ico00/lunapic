@@ -308,7 +308,7 @@ const PASS_GAP_MS = 20 * 60_000;
  * Splits a callsign-ordered, time-ordered row stream into passes: a new pass
  * starts on a callsign change, a time gap over 20 min, or a >25 km coverage
  * jump. Shared by `getRoutesByCallsign` (per-pass features) and
- * `getAllCallsignSessions` (per-callsign session lists for schedule
+ * `getAllCallsignSessions` (per-callsign session lists for the sky density
  * prediction) so the two never drift apart on what counts as "one flight".
  */
 function groupPositionsIntoPasses(

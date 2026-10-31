@@ -14,14 +14,6 @@ function moonAt(atMs: number) {
   return getMoonPosition(new Date(atMs), lat, lng, groundHeightMeters);
 }
 
-/** Prvi pun sat na `dayIndex`-ti dan od sada u kojem je Mjesec visoko. */
-export function instantWithHighMoon(dayIndex: number): number {
-  const dayStart = Math.floor(forecastNowMs / DAY_MS) * DAY_MS + dayIndex * DAY_MS;
-  for (let t = dayStart; ; t += 3_600_000) {
-    if (moonAt(t).altitudeDeg > 35) return t;
-  }
-}
-
 /** Prvi pun sat od sada u kojem je Mjesec visoko, osvijetljen i na tamnom nebu. */
 export function instantWithVisibleMoon(): number {
   const { lat, lng, groundHeightMeters } = forecastObserver;

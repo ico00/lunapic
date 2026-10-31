@@ -20,7 +20,7 @@ import { getMoonPosition } from "./moon";
  * Caches `MoonPosition`, not `MoonState`: every consumer here is a geometry
  * solver reading altitude/azimuth/apparent radius, and phase costs ~67 % of a
  * full ephemeris evaluation. Time cannot be bucketed, so the hit rate is
- * inherently poor (measured 23 % over a `photo-spots` scan — each sample sits
+ * inherently poor (measured 23 % over a forecast scan — each sample sits
  * at its own instant); what actually pays off is making each miss cheaper.
  */
 export type MoonStateAt = (

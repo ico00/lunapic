@@ -3,7 +3,7 @@ import { getMoonState } from "@/lib/domain/astro/moon";
 import { horizontalToPoint } from "./horizontal";
 import { angularSeparationDeg } from "./sky-separation";
 import { destinationByAzimuthMeters } from "./wgs84";
-import { maxCoveragePercentForAltitude, solveMoonShadowSpot } from "./moonShadowSpot";
+import { solveMoonShadowSpot } from "./moonShadowSpot";
 
 /** Zagreb-ish observer region; the instant is only used via the ephemeris. */
 const AT_MS = Date.UTC(2026, 4, 23, 19, 30, 0);
@@ -107,22 +107,5 @@ describe("solveMoonShadowSpot", () => {
         groundHeightMeters: 120,
       })
     ).toBeNull();
-  });
-});
-
-describe("maxCoveragePercentForAltitude", () => {
-  it("caps a 40 m airliner at cruise well under half a Moon diameter", () => {
-    // 11 km, Moon overhead — the best case that altitude can ever produce.
-    expect(maxCoveragePercentForAltitude(11_000, 90)).toBeCloseTo(41.7, 0);
-    expect(maxCoveragePercentForAltitude(11_000, 30)).toBeCloseTo(20.8, 0);
-  });
-
-  it("clears 50 % for approach traffic", () => {
-    expect(maxCoveragePercentForAltitude(900, 30)).toBeGreaterThan(50);
-  });
-
-  it("clears 50 % for a widebody only with a high Moon", () => {
-    expect(maxCoveragePercentForAltitude(11_000, 20, 79.8)).toBeLessThan(50);
-    expect(maxCoveragePercentForAltitude(11_000, 45, 79.8)).toBeGreaterThan(50);
   });
 });

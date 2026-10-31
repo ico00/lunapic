@@ -1,7 +1,6 @@
 import type { RoutePoint } from "@/lib/db/flightLogDb";
 import { getMoonState, getSunAltitudeDeg } from "@/lib/domain/astro/moon";
 import { CAUTION_BELOW_DEG } from "@/lib/domain/astro/moonFieldVisibilityAdvice";
-import { yieldToEventLoop } from "@/lib/domain/flightlog/passForecast";
 import { horizontalToPoint } from "@/lib/domain/geometry/horizontal";
 import { geodeticToEcef } from "@/lib/domain/geometry/wgs84";
 import type { GroundObserver } from "@/types/geo";
@@ -21,6 +20,7 @@ const MAX_FIX_GAP_MS = 45_000;
 const CELL_DEG = 2;
 const HOUR_BIN = 2;
 const HOUR_MS = 3_600_000;
+const YIELD_EVERY_CALLSIGNS = 100;
 const SLOT_MS = 30 * 60_000;
 /** Širina Mjeseca s avionom: prolaz kroz ćeliju od 2° pogodi disk u tom omjeru. */
 const MOON_CROSSING_WIDTH_DEG = 0.55;
@@ -98,8 +98,11 @@ export async function buildSkyDensity(
   const density = new Map<string, number>();
   let callsignIndex = 0;
   for (const sessions of sessionsByCallsign.values()) {
-    await yieldToEventLoop(callsignIndex);
+    // Traje sekundama, a isti proces vrti flight-log poller i server-side scan.
     callsignIndex += 1;
+    if (callsignIndex % YIELD_EVERY_CALLSIGNS === 0) {
+      await new Promise((resolve) => setImmediate(resolve));
+    }
     for (const session of sessions) {
       for (const key of passCells(skyFixes(session, observer))) {
         density.set(key, (density.get(key) ?? 0) + 1);
