@@ -26,6 +26,7 @@ interface UpcomingOpportunity {
   elevationGapDeg: number;
   inFrame: boolean;
   moonAltDeg: number;
+  trackSpreadM: number;
 }
 
 /** Mirror of the transit-calendar API `closest` fallback shape — same as
@@ -49,6 +50,8 @@ const SPOT_DISTANCE_OPTS = [5, 15, 25, 50] as const;
 
 const LOW_CONFIDENCE_STD_MINUTES = 15;
 const LOW_CONFIDENCE_SESSION_COUNT = 5;
+/** Same limit as the `maxSpreadKm` default of "Where to stand". */
+const LOW_CONFIDENCE_TRACK_SPREAD_M = 2500;
 
 /** Same Δalt formatting + color thresholds as the live Photographer/Candidates
  *  tool's ElevationGapBadge (TransitCandidatesPanel.tsx) — reused here so the
@@ -72,7 +75,10 @@ function fmtDistance(meters: number): string {
   return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1)} km`;
 }
 
-/** "today 14:23", "tomorrow 09:41", or "Fri 14:23" in the viewer's locale/timezone. */
+/**
+ * "today 14:23", "tomorrow 09:41", or "Fri 6 Nov 14:23" in the viewer's
+ * locale/timezone. The date matters: the forecast spans two of each weekday.
+ */
 function fmtNextPass(estimateMs: number): string {
   const d = new Date(estimateMs);
   const now = new Date();
@@ -81,7 +87,8 @@ function fmtNextPass(estimateMs: number): string {
   const tomorrow = new Date(now);
   tomorrow.setDate(now.getDate() + 1);
   if (d.toDateString() === tomorrow.toDateString()) return `tomorrow ${time}`;
-  return `${d.toLocaleDateString(undefined, { weekday: "short" })} ${time}`;
+  const date = d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+  return `${date} ${time}`;
 }
 
 export function TransitForecastPanel() {
@@ -175,7 +182,7 @@ export function TransitForecastPanel() {
         </div>
 
         <p className="text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">
-          Statistical forecast from past regularity — not a live prediction. Confirm with the live pipeline on the day.
+          Statistical forecast from past regularity. A schedule a few minutes off misses the Moon, so these are possible passes, not predictions. Confirm with the live pipeline on the day.
         </p>
 
         {calendarError && (
@@ -188,7 +195,8 @@ export function TransitForecastPanel() {
               {calendarEntries.map((ev) => {
                 const lowConfidence =
                   ev.stdMinutes > LOW_CONFIDENCE_STD_MINUTES ||
-                  ev.sessionCount < LOW_CONFIDENCE_SESSION_COUNT;
+                  ev.sessionCount < LOW_CONFIDENCE_SESSION_COUNT ||
+                  ev.trackSpreadM > LOW_CONFIDENCE_TRACK_SPREAD_M;
                 return (
                   <li key={`${ev.callsign}-${ev.estimateMs}`}>
                     <button
@@ -203,7 +211,7 @@ export function TransitForecastPanel() {
                       <span
                         className={`mt-chip shrink-0 ${ev.kind === "transit" ? "mt-chip-disc" : "mt-chip-observer"}`}
                       >
-                        {ev.kind === "transit" ? "DISC" : "NEAR"}
+                        {ev.kind === "transit" ? "POSSIBLE" : "NEAR"}
                       </span>
                       <span className="text-[color:var(--t-primary)]">{ev.callsign}</span>
                       {lowConfidence && (
@@ -331,18 +339,26 @@ export function TransitForecastPanel() {
 
         {spotData && !spotError && (
           spotData.spots.length > 0 ? (
-            <ul className="flex max-h-56 flex-col divide-y divide-white/[0.05] overflow-y-auto">
-              {spotData.spots.map((spot) => (
-                <PhotoSpotRow
-                  key={`${spot.callsign}-${spot.atMs}`}
-                  spot={spot}
-                  selected={
-                    selectedSpot?.callsign === spot.callsign && selectedSpot?.atMs === spot.atMs
-                  }
-                  onSelect={setPhotoSpotSelected}
-                />
-              ))}
-            </ul>
+            <>
+              {spotData.matchedSpotCount > spotData.spots.length && (
+                <p className="text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">
+                  Largest {spotData.spots.length} of {spotData.matchedSpotCount} passes. Raise the
+                  minimum coverage to narrow the list.
+                </p>
+              )}
+              <ul className="flex max-h-56 flex-col divide-y divide-white/[0.05] overflow-y-auto">
+                {spotData.spots.map((spot) => (
+                  <PhotoSpotRow
+                    key={`${spot.callsign}-${spot.atMs}`}
+                    spot={spot}
+                    selected={
+                      selectedSpot?.callsign === spot.callsign && selectedSpot?.atMs === spot.atMs
+                    }
+                    onSelect={setPhotoSpotSelected}
+                  />
+                ))}
+              </ul>
+            </>
           ) : (
             <>
               <p className="text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">

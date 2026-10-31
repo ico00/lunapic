@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 where version bumps are made for releases (currently `0.x`).
 
+## [2026-10-31] — Forecasts cover the whole 14 days
+
+### Fixed
+
+- **Transit forecast checks every day of the window.** Both forecasts only looked at a flight's next pass, so a regular flight that missed the Moon tonight was never checked again. The Moon moves about 13° a day, so the same flight can cross it days later.
+- **Upcoming opportunities follows the whole pass.** It used to check one point, the closest approach to you, and missed transits 30–90 s before or after it.
+
+### Changed
+
+- **Upcoming opportunities shows POSSIBLE instead of DISC.** A schedule a few minutes off moves the Moon by more than its whole disk, so these are possible passes. A flight whose track wanders between days is also marked low confidence.
+- **Where to stand lists the 100 largest aircraft** when more passes match, and says how many matched.
+- **Forecast dates.** Passes more than a day ahead now show the date as well as the weekday, because the forecast spans two of each weekday.
+
 ## [2026-10-31] — Live flights always use the real Moon
 
 ### Fixed
