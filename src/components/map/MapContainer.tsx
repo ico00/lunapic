@@ -26,17 +26,16 @@ import { useMoonTransitMap } from "@/hooks/useMoonTransitMap";
 import { useSelectedFlightTrajectoryFeature } from "@/hooks/useSelectedFlightTrajectoryFeature";
 import { useSelectedAircraftStandCorridorFeatures } from "@/hooks/useSelectedAircraftStandCorridorFeatures";
 import { useTransitOpportunityCorridorFeatures } from "@/hooks/useTransitOpportunityCorridorFeatures";
-import { useMoonStateComputed } from "@/hooks/useTransitCandidates";
+import { useLiveMoonState, useMoonStateComputed } from "@/hooks/useTransitCandidates";
 import { useTransitFieldSounds } from "@/hooks/useTransitFieldSounds";
 import { isMoonVisibleFromMoonState } from "@/lib/domain/astro/moonVisibility";
 import { type CameraSensorType } from "@/lib/domain/geometry/shotFeasibility";
-import { computeShotFeasibleFlightIds } from "@/lib/domain/transit/computeShotFeasibleFlightIds";
-import { computeConfirmedTransitFlightIds } from "@/lib/domain/transit/computeConfirmedTransitFlightIds";
 import { type FlightFilterCriteria, filterFlightsByCriteria } from "@/lib/flight/flightSearch";
 import { ALTITUDE_BANDS } from "@/lib/map/flightAltitudeColor";
 import { fieldPerfRecord, isFieldPerfEnabled } from "@/lib/perf/fieldPerf";
 import type { IFlightProvider } from "@/types";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
+import { useTransitComputedStore } from "@/stores/transit-computed-store";
 import { useObserverStore } from "@/stores/observer-store";
 import { useWallNowMs } from "@/hooks/useWallNowMs";
 import type { CorridorVolumeCustomLayer } from "@/lib/map/CorridorVolumeCustomLayer";
@@ -69,14 +68,17 @@ export function MapContainer({
   // Display positions must not trigger screening on every animation frame.
   const rawFlights = useMoonTransitStore((s) => s.flights);
   const observer = useObserverStore((s) => s.observer);
+  // Mjesec s klizača je prikaz; uz žive letove ide stvarni Mjesec.
   const moon = useMoonStateComputed();
+  const liveMoon = useLiveMoonState();
+  const shotFeasibleFlightIds = useTransitComputedStore((s) => s.shotFeasibleFlightIds);
+  const confirmedTransitFlightIds = useTransitComputedStore((s) => s.confirmedTransitFlightIds);
   const referenceEpochMs = useMoonTransitStore((s) => s.referenceEpochMs);
   const selectedFlightId = useMoonTransitStore((s) => s.selectedFlightId);
   const transitCenterlineOverlay = useMoonTransitStore((s) => s.transitCenterlineOverlay);
   const setSelectedFlightId = useMoonTransitStore((s) => s.setSelectedFlightId);
   const cameraFocalLengthMm = useMoonTransitStore((s) => s.cameraFocalLengthMm);
   const cameraSensorType = useMoonTransitStore((s) => s.cameraSensorType);
-  const openSkyLatencySkewMs = useMoonTransitStore((s) => s.openSkyLatencySkewMs);
   const mapDisplayMode = useMoonTransitStore((s) => s.mapDisplayMode);
   const altitudeBandIndex = useMoonTransitStore((s) => s.altitudeBandIndex);
 
@@ -136,48 +138,21 @@ export function MapContainer({
     return () => ro.disconnect();
   }, [elRef]);
   const wallNowMs = useWallNowMs();
-  const shotFeasibleFlightIds = useMemo(
-    () =>
-      computeShotFeasibleFlightIds(
-        observer,
-        moon,
-        rawFlights,
-        wallNowMs,
-        openSkyLatencySkewMs,
-        cameraFocalLengthMm,
-        cameraSensorType as CameraSensorType
-      ),
-    [cameraFocalLengthMm, cameraSensorType, rawFlights, moon, observer, openSkyLatencySkewMs, wallNowMs]
-  );
-  const confirmedTransitFlightIds = useMemo(
-    () =>
-      computeConfirmedTransitFlightIds(
-        observer,
-        moon,
-        rawFlights,
-        new Date(referenceEpochMs > 0 ? referenceEpochMs : wallNowMs),
-        wallNowMs,
-        openSkyLatencySkewMs
-      ),
-    [rawFlights, moon, observer, openSkyLatencySkewMs, referenceEpochMs, wallNowMs]
-  );
 
   useTransitFieldSounds({
     enabled: fieldSoundsEnabled,
     selectedFlightId,
     observer,
-    moon,
+    moon: liveMoon,
     flights: rawFlights,
-    cameraFocalLengthMm,
-    cameraSensorType: cameraSensorType as CameraSensorType,
   });
   const { fillFeatures: standCorridorFeatures, spineFeature: standSpineFeature } =
     useSelectedAircraftStandCorridorFeatures({
       selectedFlightId,
       extrapolatedFlights: filteredFlights,
       observer,
-      moonAltitudeDeg: moon.altitudeDeg,
-      moonAzimuthDeg: moon.azimuthDeg,
+      moonAltitudeDeg: liveMoon.altitudeDeg,
+      moonAzimuthDeg: liveMoon.azimuthDeg,
     });
   const transitOpportunityCorridorFeatures = useTransitOpportunityCorridorFeatures({
     observer,

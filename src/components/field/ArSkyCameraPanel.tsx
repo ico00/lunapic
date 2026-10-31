@@ -82,7 +82,6 @@ export function ArSkyCameraPanel() {
   const flights = useMoonTransitStore((s) => s.flights);
   const selectedFlightId = useMoonTransitStore((s) => s.selectedFlightId);
   const setSelectedFlightId = useMoonTransitStore((s) => s.setSelectedFlightId);
-  const referenceEpochMs = useMoonTransitStore((s) => s.referenceEpochMs);
   const openSkyLatencySkewMs = useMoonTransitStore((s) => s.openSkyLatencySkewMs);
   const candidates = useTransitCandidates();
 
@@ -148,14 +147,13 @@ export function ArSkyCameraPanel() {
         }
       }
     }
-    const at = Math.max(renderNowMs, referenceEpochMs);
     return orderedIds
       .map((id) => byId.get(id))
       .filter((f): f is FlightState => f != null)
       .map((flight) => {
         const extrapolated = extrapolateFlightForDisplay(
           flight,
-          at,
+          renderNowMs,
           openSkyLatencySkewMs
         );
         const marker = markerFromFlight(observer, extrapolated);
@@ -171,7 +169,6 @@ export function ArSkyCameraPanel() {
     flights,
     observer,
     openSkyLatencySkewMs,
-    referenceEpochMs,
     renderNowMs,
     selectedFlightId,
     showAllNearbyFlights,

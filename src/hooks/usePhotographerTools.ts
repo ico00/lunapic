@@ -1,4 +1,4 @@
-import { useMoonStateComputed } from "@/hooks/useTransitCandidates";
+import { useLiveMoonState } from "@/hooks/useTransitCandidates";
 import { GeometryEngine } from "@/lib/domain/geometry/geometryEngine";
 import { isMoonVisibleFromMoonState } from "@/lib/domain/astro/moonVisibility";
 import { extrapolateFlightForDisplay } from "@/lib/flight/extrapolateFlightPosition";
@@ -50,12 +50,11 @@ export function usePhotographerTools() {
   const observer = useObserverStore((s) => s.observer);
   const selectedId = useMoonTransitStore((s) => s.selectedFlightId);
   const flights = useMoonTransitStore((s) => s.flights);
-  const refEpoch = useMoonTransitStore((s) => s.referenceEpochMs);
   const latencySkewMs = useMoonTransitStore((s) => s.openSkyLatencySkewMs);
   const cameraFocalLengthMm = useMoonTransitStore((s) => s.cameraFocalLengthMm);
   const cameraSensorType = useMoonTransitStore((s) => s.cameraSensorType);
   const timeAnchorIsPlanned = useMoonTransitStore((s) => s.timeAnchorIsPlanned);
-  const moon = useMoonStateComputed();
+  const moon = useLiveMoonState();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => {
@@ -66,20 +65,15 @@ export function usePhotographerTools() {
     };
   }, []);
 
-  const at = useMemo(
-    () => new Date(refEpoch),
-    [refEpoch]
-  );
-
   // Pack computation runs every 100 ms (driven by `now`).
   // Previously this caused 20 getMoonState calls/s and froze the main thread.
   // Now getMoonState is cached (10 s buckets in astroService), so each 100 ms tick
   // costs ~0.2 ms instead of ~10 ms — cheap enough to keep `now` in deps.
   //
-  // Keeping `now` (= real wall clock) for flight extrapolation is REQUIRED for
-  // cross-device synchronisation: refEpoch drifts independently on each device
-  // (tickLiveTime fires at different absolute times), so using at.getTime() would
-  // give different countdowns on mobile vs desktop for the same flight.
+  // Keeping `now` (= real wall clock) for both the flight and the Moon is REQUIRED
+  // for cross-device synchronisation: `referenceEpochMs` drifts independently on
+  // each device and follows the time slider, so it would give different countdowns
+  // on mobile vs desktop for the same flight.
   const result = useMemo(() => {
     // Planning mode: countdown i feasibility rade nad ŽIVIM letovima — za
     // budući datum su besmisleni, pa se alat gasi s objašnjenjem.
@@ -107,7 +101,7 @@ export function usePhotographerTools() {
       };
     }
     const flight = extrapolateFlightForDisplay(raw, now, latencySkewMs);
-    const pack = GeometryEngine.photographerPack(observer, flight, moon, at, {
+    const pack = GeometryEngine.photographerPack(observer, flight, moon, new Date(now), {
       airlinerLengthMeters: flight.lengthMeters ?? undefined,
     });
     const shot = evaluateShotFeasibility(observer, flight, {
@@ -119,7 +113,6 @@ export function usePhotographerTools() {
     }
     return { pack, shot, reason: null as null };
   }, [
-    at,
     cameraFocalLengthMm,
     cameraSensorType,
     flights,

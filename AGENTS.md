@@ -125,10 +125,12 @@ Pipeline iznad postoji u **čistim funkcijama** — jedini izvor istine pragova:
 `src/lib/domain/transit/computeTransitCandidates.ts` i `computeActiveTransits.ts`.
 Koriste ih dvije strane s **identičnim pragovima**:
 1. **Klijent** — izračunato **jednom** po ticku u `useSharedTransitComputation`
-   (mount jednom u `useHomeShellOrchestration`) i upisano u dijeljeni store
-   `useTransitComputedStore`; hookovi `useTransitCandidates` / `useActiveTransits`
-   / `useMoonStateComputed` (`src/hooks/useTransitCandidates.ts`,
-   `useActiveTransits.ts`) su samo **selektori** nad tim storeom → in-app audio
+   (`computeTransitSnapshot`, mount jednom u `useHomeShellOrchestration`) i upisano
+   u dijeljeni store `useTransitComputedStore`; hookovi `useTransitCandidates` /
+   `useActiveTransits` / `useMoonStateComputed` / `useLiveMoonState`
+   (`src/hooks/useTransitCandidates.ts`, `useActiveTransits.ts`) su samo
+   **selektori** nad tim storeom, kao i `shotFeasibleFlightIds` i
+   `confirmedTransitFlightIds` za kartu → in-app audio
    i toast dok je tab vidljiv (`useCandidateAlerts`). Prije 2026-07-22 svaka je
    komponenta (MapContainer, FieldOverlaysSection, CompassAimPanel,
    useHomeShellOrchestration, ArSkyCameraPanel) imala vlastiti `useWallNowMs`
@@ -139,6 +141,14 @@ Koriste ih dvije strane s **identičnim pragovima**:
    uvijek slao default (`DEFAULT_ACTIVE_TRANSIT_TOL_DEG` = 0.5°); ako ikad
    zatreba druga tolerancija, treba proširiti store ili računati tu jednu
    instancu zasebno (ne vraćati duplikaciju na sve pozivatelje).
+   **Dva Mjeseca (2026-10-31).** `moon` prati vremenski klizač i planirani datum i
+   služi samo za prikaz. `liveMoon` je stvarni Mjesec u `wallNowMs` i ide uz sve što
+   se uspoređuje sa živim letovima: kandidate, active transits, zelene oznake, alat
+   Photo, ploču Next transit, zvukove i AR. Prije je klijent koristio
+   `referenceEpochMs`, pa je Mjesec kasnio do 30 s (0.125°, `tickLiveTime`), a
+   klizač pomaknut na +4 h uspoređivao je današnje avione s Mjesecom za 4 h i
+   okidao lažne alerte. Klizač namjerno **ne gasi** kandidate, inače bi ostavljen
+   pomaknut utišao prave tranzite; gasi ih samo `timeAnchorIsPlanned`.
 2. **Server** — `server.js` flight-logger poller na svakom ticku POST-a pun
    snapshot letova internoj ruti `/api/transit/scan` (auth: `x-internal-token` =
    `INTERNAL_SCAN_TOKEN`). Ruta računa kandidate **po pretplati** (svaka push

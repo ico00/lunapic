@@ -5,9 +5,8 @@ import {
   destinationByAzimuthMeters,
   initialBearingDeg,
 } from "@/lib/domain/geometry/wgs84";
-import { computeConfirmedTransitFlightIds } from "./computeConfirmedTransitFlightIds";
 import { computeTransitCandidates } from "./computeTransitCandidates";
-import { AstroService } from "@/lib/domain/astro/astroService";
+import { computeTransitSnapshot } from "./computeTransitSnapshot";
 import type { FlightState } from "@/types/flight";
 
 const observer = { lat: 45.8, lng: 15.98, groundHeightMeters: 0 };
@@ -114,6 +113,13 @@ describe("computeTransitCandidates", () => {
 
     const at = lowMoonAt(MOON_UP);
     const args = { ...baseArgs, at, wallNowMs: at.getTime() };
+    const confirmedIds = (flights: FlightState[]) =>
+      computeTransitSnapshot({
+        ...args,
+        flights,
+        referenceEpochMs: at.getTime(),
+        isPlanned: false,
+      }).confirmedTransitFlightIds;
 
     it("javlja tranzit ~4 min unaprijed, dok je avion još 130 km daleko", () => {
       const far = flightTransitingAt(at, 75, 130);
@@ -121,20 +127,14 @@ describe("computeTransitCandidates", () => {
       expect(candidate?.willTransit).toBe(true);
       expect((candidate.prediction!.alignmentAtMs - at.getTime()) / 1000).toBeCloseTo(LEAD_SEC, -1);
 
-      const moon = AstroService.getMoonState(at, observer.lat, observer.lng, 0);
-      expect(
-        computeConfirmedTransitFlightIds(observer, moon, [far], at, at.getTime(), 0)
-      ).toEqual(new Set(["far"]));
+      expect(confirmedIds([far])).toEqual(new Set(["far"]));
     });
 
     it("i dalje odbacuje tranzit koji bi se dogodio dalje od 100 km", () => {
       const tooFar = flightTransitingAt(at, 130, 180);
       expect(computeTransitCandidates({ ...args, flights: [tooFar] })).toEqual([]);
 
-      const moon = AstroService.getMoonState(at, observer.lat, observer.lng, 0);
-      expect(
-        computeConfirmedTransitFlightIds(observer, moon, [tooFar], at, at.getTime(), 0).size
-      ).toBe(0);
+      expect(confirmedIds([tooFar]).size).toBe(0);
     });
   });
 });

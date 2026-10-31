@@ -12,6 +12,12 @@ export function useTransitCandidates() {
   return useTransitComputedStore((s) => s.candidates);
 }
 
+/** Mjesec za prikaz: prati vremenski klizač i planirani datum. */
 export function useMoonStateComputed() {
   return useTransitComputedStore((s) => s.moon);
+}
+
+/** Mjesec sada: za sve što se uspoređuje sa živim letovima. */
+export function useLiveMoonState() {
+  return useTransitComputedStore((s) => s.liveMoon);
 }
