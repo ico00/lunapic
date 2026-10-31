@@ -24,6 +24,8 @@ type WatchWindow = {
   moonAzDeg: number;
 };
 
+type WatchSummary = { usableHours: number; expectedTransits: number };
+
 /**
  * Coverage slider bounds — a **floor**, never a ceiling.
  *
@@ -74,6 +76,7 @@ export function TransitForecastPanel() {
 
   const [watchBusy, setWatchBusy] = useState(false);
   const [watchWindows, setWatchWindows] = useState<WatchWindow[] | null>(null);
+  const [watchSummary, setWatchSummary] = useState<WatchSummary | null>(null);
   const [watchError, setWatchError] = useState(false);
   /** True once the user has run the scan at least once — gates the
    *  location-change auto-rescan below so it doesn't fire on mount. */
@@ -90,7 +93,10 @@ export function TransitForecastPanel() {
     });
     fetch(appPath(`/api/flight-log/watch-windows?${params}`), { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((d: { windows: WatchWindow[] }) => setWatchWindows(d.windows ?? []))
+      .then((d: { windows: WatchWindow[]; summary: WatchSummary }) => {
+        setWatchWindows(d.windows ?? []);
+        setWatchSummary(d.summary);
+      })
       .catch(() => setWatchError(true))
       .finally(() => setWatchBusy(false));
   }, [observer]);
@@ -150,13 +156,20 @@ export function TransitForecastPanel() {
         </div>
 
         <p className="text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">
-          When the Moon crosses the part of your sky with the most air traffic, based on the last
-          30 days. It cannot name a flight: Candidates warns you about the actual aircraft 5 minutes
-          ahead.
+          When the Moon crosses the busiest part of your sky after dark, based on the last 30 days
+          of traffic. It cannot name a flight: Candidates warns you about the actual aircraft 5
+          minutes ahead.
         </p>
 
         {watchError && (
           <p className="text-[length:var(--fs-label)] text-[color:var(--disc-text)]">Scan failed — try again.</p>
+        )}
+
+        {watchSummary && !watchError && (
+          <p className="text-[length:var(--fs-label)] text-[color:var(--t-secondary)]">
+            Next 14 days: the Moon can be shot for {Math.round(watchSummary.usableHours)} h, about{" "}
+            {formatFixed(watchSummary.expectedTransits, 1)} transits expected.
+          </p>
         )}
 
         {watchWindows !== null && !watchError && (
@@ -181,15 +194,16 @@ export function TransitForecastPanel() {
             </ul>
           ) : (
             <p className="text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]">
-              No time in this period with the Moon above 12° on a busy part of the sky.
+              Nothing stands out in this period. In the two weeks around a new Moon it is mostly up
+              in daylight or too thin to show an aircraft.
             </p>
           )
         )}
 
         {watchWindows !== null && watchWindows.length > 0 && !watchError && (
           <p className="text-[length:var(--fs-meta)] text-[color:var(--t-tertiary)]">
-            ~ is how many transits to expect in that time, then where the Moon is. BEST is the top
-            10 % of half-hours, GOOD the top 25 %.
+            ~ is how many transits to expect in that time, then where the Moon is. Dark sky, Moon
+            at least 12° up and 20 % lit, aircraft within 80 km.
           </p>
         )}
       </div>

@@ -47,6 +47,18 @@ export function getMoonPosition(
   };
 }
 
+/** Visina Sunca iznad horizonta, za odluku je li Mjesec na tamnom nebu. */
+export function getSunAltitudeDeg(
+  at: Date,
+  observerLat: number,
+  observerLng: number,
+  observerElevM = 0
+): number {
+  const observer = new Astronomy.Observer(observerLat, observerLng, observerElevM);
+  const eq = Astronomy.Equator(Astronomy.Body.Sun, at, observer, true, true);
+  return Astronomy.Horizon(at, observer, eq.ra, eq.dec, "normal").altitude;
+}
+
 export function getMoonState(
   at: Date,
   observerLat: number,
