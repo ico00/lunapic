@@ -9,8 +9,6 @@ import { geodeticToEcef } from "@/lib/domain/geometry/wgs84";
 import type { MoonPosition } from "@/types";
 import type { GroundObserver } from "@/types/geo";
 
-/** Dijele `transit-calendar` i `photo-spots`: isti raspored, isti prozor putanje. */
-
 export const MAX_SLANT_M = 100_000;
 /** Below this, a callsign's historical passes are too sparse to trust a schedule. */
 export const MIN_QUALIFYING_SESSIONS = 3;

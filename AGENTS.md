@@ -443,10 +443,9 @@ kojeg postoje trake `standCorridorQuads`.
 
 ### Dva potrošača istog solvera
 
-1. **Planer (B)** — `/api/flight-log/photo-spots`. Obrnuti blizanac
-   `transit-calendar`: dijele `callsignSchedule.ts` (circular-mean raspored +
-   closest approach), ali umjesto provjere separacije s balkona računa se
-   točka na tlu za **srednju putanju u vremenski poravnatim koordinatama**
+1. **Planer (B)** — `/api/flight-log/photo-spots`. Iz `callsignSchedule.ts`
+   (circular-mean raspored + closest approach) računa
+   točku na tlu za **srednju putanju u vremenski poravnatim koordinatama**
    (`meanTrackAroundApproach`). Izlaz nosi i `trackSpreadM` — povijesno
    rasipanje same rute; kad je puno veće od `crossTrackToleranceM`, prognoza
    imenuje kvart, ne parkirno mjesto. Filteri: `MIN_AIRCRAFT_AGL_M = 300`
@@ -472,7 +471,7 @@ kojeg postoje trake `standCorridorQuads`.
 
 ### Cijena forecast ruta — cache, indeks, ANALYZE (2026-08-21)
 
-`photo-spots` i `transit-calendar` su **skupe po pozivu** i keširane. Sve tri
+`photo-spots` i `watch-windows` su **skupe po pozivu** i keširane. Sve tri
 stvari niže su naučene u produkciji; svaka je jednom već bila tiho slomljena.
 
 **1. Cache ključ ne smije pratiti datoteku.** `dbVersionKey()`
@@ -575,36 +574,49 @@ kriva:
   I/O-bound (disk usporediv), solver je čisti CPU (dijeljeni vCPU višestruko
   sporiji).
 
-Stanje nakon svega (produkcija, cold, svjež cache ključ): `photo-spots` ~4.0 s,
-`transit-calendar` ~2.5 s, keširano 0.10–0.14 s. Ti su brojevi iz vremena kad se
-računao samo idući prelet, vidi niže.
+Stanje nakon svega (produkcija, cold, svjež cache ključ): `photo-spots` ~7.2 s
+(14 dana, 2026-10-31), keširano 0.10–0.14 s.
 
-### Prognoze gledaju svaki dan prozora (2026-10-31)
+### Što baza može predvidjeti (mjereno 2026-10-31)
 
-Do 2026-10-31 su obje rute gledale samo **prvi idući prelet**: let koji večeras
-promaši Mjesec nije se više provjeravao, iako se Mjesec pomiče ~13° dnevno, a UI
-je obećavao 14 dana. `transit-calendar` je k tome gledao jednu točku, trenutak
-najbližeg prolaza pored promatrača, a tranzit se događa 30-90 s prije ili poslije.
+Do 2026-10-31 panel Transit forecast je imao "Upcoming opportunities": koji će
+redoviti let proći preko Mjeseca, iz rasporeda pozivnih znakova. Izmjereno na
+šest 14-dnevnih razdoblja od 8. 8., s prognozom koja vidi samo prethodnih 30 dana:
+od 216 prognoza ostvarila se **jedna**, a uhvaćena su 2 od 86 stvarnih tranzita
+redovitih letova. U terminu se pojavilo 24 % letova, a oni griješe 16 min
+(medijan), što je 4° Mjeseca. Stroži filtri ostavljaju 2-9 redaka bez pogotka.
+Pojedini let dakle nije predvidljiv, pa je ta prognoza uklonjena. Ne vraćati je
+bez novog mjerenja.
 
-* `predictApproachesInWindow` vraća sve prelete u prozoru.
-* `transit-calendar` traži minimum duž srednje putanje `closestApproachOnArc`
-  (`sky-separation.ts`). Ravan segment leta je veliki krug na nebu, pa je minimum
-  između uzoraka točan. Bez toga 15-sekundni uzorci preskaču disk: na 30 km avion
-  između njih prijeđe ~6.6°.
-* `DISC` je u prognozi postao `POSSIBLE`. Raspored koji griješi 5 min pomiče
-  Mjesec 1.25°, više od cijelog diska, pa ovo nije predviđanje tranzita. Mjesec je
-  tu namjerno po minuti (`createMinuteMoon`), jer raspored ionako griješi za minute.
-* `photo-spots` bi 14 dana solvera trajalo predugo, pa ravna procjena sjene prvo
-  odbaci prolaze čija sjena ne prolazi blizu promatrača. Margina je 25 % duljine
-  sjene (`FLAT_SHADOW_ERROR_FRACTION`), jer sfera pomiče sjenu za `d³ / 2Rh`.
-  Provjereno na sintetičkih 1500 pozivnih znakova: popis mjesta identičan punom
-  rješavanju, 3.2 s umjesto 8.0 s. Popis ima gornju granicu od 100 najvećih
-  aviona, a ne najranijih, inače bi opet nestali kasniji dani.
-* Petlje prepuštaju event loop svakih 100 pozivnih znakova, jer isti proces vrti
-  flight-log poller i server-side scan.
+Predvidljiv je **promet po nebu**. "Best times to watch" (`watchWindows.ts`, ruta
+`/api/flight-log/watch-windows`) broji prolaze zadnjih 30 dana kroz ćelije neba
+2°×2° po dvosatnom razdoblju dana (UTC), 3×3 izglađeno, pa za svaki polusat s
+Mjesecom ≥12° računa očekivane tranzite. Mjereno za Mjesec ≥12° i avion ≤80 km:
 
-Logika je u `transitCalendarForecast.ts` i `photoSpotForecast.ts`; rute samo čitaju
-parametre, bazu i cache. Vrijeme na produkciji treba ponovno izmjeriti nakon deploya.
+| | Udio tranzita, gustoća | Isto, samo po satu |
+|---|---|---|
+| Najboljih 10 % polusatova (`BEST`) | 26 % | 13 % |
+| Najboljih 25 % polusatova (+ `GOOD`) | 48 % | 34 % |
+
+Brojevi gustoće su iz samog `watchWindows.ts`, s rangom unutar svakih 14 dana kao u
+aplikaciji; s rangom kroz svih 84 dana bilo bi 28 % i 54 %. Stupac "samo po satu"
+računat je kroz svih 84 dana. Ukupno predviđeno 88, stvarno 85, dakle oko jedan
+upotrebljiv tranzit dnevno. Po
+danima je slabo (Spearman 0.32, najboljih 25 % dana drži 29 %), jer Mjesec svake
+noći prijeđe i guste i prazne dijelove neba. Baza dakle kaže kada u noći gledati,
+a slabo koju noć; konkretan avion daje samo živi sustav, 5 min unaprijed.
+Mjereno je za zadanu lokaciju. Pragovi ćelija, 30 dana i 80 km dio su mjerenja:
+promjena traži novi backtest.
+
+"Where to stand" je i dalje iz rasporeda: 454 mjesta, 2 pogotka. Računa svaki dan
+prozora, a ravna procjena sjene prvo odbaci prolaze čija sjena ne prolazi blizu
+promatrača. Margina je 25 % duljine sjene (`FLAT_SHADOW_ERROR_FRACTION`), jer sfera
+pomiče sjenu za `d³ / 2Rh`. Provjereno na sintetičkih 1500 pozivnih znakova: popis
+identičan punom rješavanju, 3.2 s umjesto 8.0 s. Mjesec je tu po minuti
+(`createMinuteMoon`), jer raspored ionako griješi za minute. Popis ima gornju
+granicu od 100 najvećih aviona, a ne najranijih, inače bi nestali kasniji dani.
+Petlje prepuštaju event loop svakih 100 pozivnih znakova, jer isti proces vrti
+flight-log poller i server-side scan.
 
 ## Shot feasibility — zelena ikona na mapi
 

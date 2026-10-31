@@ -88,13 +88,10 @@ export type PhotoSpotForecast = Pick<
 >;
 
 /**
- * "Where do I stand?" forecast — the inverse of `transit-calendar`.
- *
- * `transit-calendar` fixes the observer and asks which scheduled callsign will
- * happen to pass across the Moon *from the balcony*. This drops that
- * constraint: for every pass of a callsign with a regular schedule it solves the
- * ground point from which the aircraft would sit on the Moon's disk
- * (`solveMoonShadowSpot`), and reports the ones close enough to drive to.
+ * "Where do I stand?" forecast: for every pass of a callsign with a regular
+ * schedule it solves the ground point from which the aircraft would sit on the
+ * Moon's disk (`solveMoonShadowSpot`), and reports the ones close enough to
+ * drive to.
  *
  * The spot is not static. It sweeps the ground at the aircraft's own ground
  * speed (~200 m/s), so each opportunity carries the whole **shadow path** for
@@ -287,7 +284,7 @@ export async function forecastPhotoSpots(
     .slice(0, MAX_SPOTS)
     .sort((a, b) => a.atMs - b.atMs);
 
-  // Same fallback contract as transit-calendar: when nothing qualifies, show
+  // When nothing qualifies, show
   // the three best near-misses so the panel explains *why* instead of going blank.
   const closest: PhotoSpotOpportunity[] = [];
   if (spots.length === 0) {
