@@ -1,11 +1,10 @@
 import { MoonTransitHoldTone, playShortBeep } from "@/lib/audio/fieldAudio";
-import { computeShotFeasibleFlightIds } from "@/lib/domain/transit/computeShotFeasibleFlightIds";
 import { screenTransitCandidates } from "@/lib/domain/transit/screening";
-import type { CameraSensorType } from "@/lib/domain/geometry/shotFeasibility";
 import type { GroundObserver } from "@/types/geo";
 import type { MoonState } from "@/types/moon";
 import type { FlightState } from "@/types/flight";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
+import { useTransitComputedStore } from "@/stores/transit-computed-store";
 import { useWallNowMs } from "@/hooks/useWallNowMs";
 import { useEffect, useMemo, useRef } from "react";
 
@@ -15,8 +14,6 @@ type UseTransitFieldSoundsArgs = {
   observer: GroundObserver;
   moon: MoonState;
   flights: readonly FlightState[];
-  cameraFocalLengthMm: number;
-  cameraSensorType: CameraSensorType;
 };
 
 /**
@@ -32,41 +29,25 @@ export function useTransitFieldSounds(a: UseTransitFieldSoundsArgs): void {
     observer,
     moon,
     flights,
-    cameraFocalLengthMm,
-    cameraSensorType,
   } = a;
 
   const openSkyLatencySkewMs = useMoonTransitStore((s) => s.openSkyLatencySkewMs);
+  const isPlanned = useMoonTransitStore((s) => s.timeAnchorIsPlanned);
   const wallNowMs = useWallNowMs();
 
-  const shotFeasibleIds = useMemo(
-    () =>
-      !enabled || selectedFlightId == null ? new Set<string>() : computeShotFeasibleFlightIds(
-        observer,
-        moon,
-        flights.filter((f) => f.id === selectedFlightId),
-        wallNowMs,
-        openSkyLatencySkewMs,
-        cameraFocalLengthMm,
-        cameraSensorType
-      ),
-    [enabled, selectedFlightId, observer, moon, flights, wallNowMs, openSkyLatencySkewMs, cameraFocalLengthMm, cameraSensorType]
-  );
-
-  const selectedIsShotFeasible = useMemo(
-    () => selectedFlightId != null && shotFeasibleIds.has(selectedFlightId),
-    [selectedFlightId, shotFeasibleIds]
+  const selectedIsShotFeasible = useTransitComputedStore(
+    (s) => selectedFlightId != null && s.shotFeasibleFlightIds.has(selectedFlightId)
   );
 
   const selectedDiscOverlap = useMemo(() => {
-    if (!enabled || selectedFlightId == null) {
+    if (!enabled || isPlanned || selectedFlightId == null) {
       return false;
     }
     const row = screenTransitCandidates(observer, moon, flights.filter((f) => f.id === selectedFlightId), wallNowMs, openSkyLatencySkewMs).find(
       (x) => x.flight.id === selectedFlightId
     );
     return row?.isPossibleTransit ?? false;
-  }, [enabled, observer, moon, flights, wallNowMs, openSkyLatencySkewMs, selectedFlightId]);
+  }, [enabled, isPlanned, observer, moon, flights, wallNowMs, openSkyLatencySkewMs, selectedFlightId]);
 
   const holdRef = useRef<MoonTransitHoldTone | null>(null);
   const prevGreenRef = useRef(false);

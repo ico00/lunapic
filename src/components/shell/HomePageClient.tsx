@@ -23,7 +23,6 @@ import { MapDisplayModeLayersControl } from "@/components/map/MapDisplayModeLaye
 import { StreetViewFullscreen } from "@/components/map/StreetViewFullscreen";
 import { WeatherOverlay } from "@/components/weather/WeatherOverlay";
 import { useHasMounted } from "@/hooks/useHasMounted";
-import { useWallNowMs } from "@/hooks/useWallNowMs";
 import { useHomeShellOrchestration } from "@/hooks/useHomeShellOrchestration";
 import { useIsMdUp } from "@/hooks/useMediaQuery";
 import { useCandidateAlerts } from "@/hooks/useCandidateAlerts";
@@ -41,11 +40,11 @@ import {
   uniqueAircraftTypeFilterOptions,
   filterFlightsByCriteria,
 } from "@/lib/flight/flightSearch";
-import { computeShotFeasibleFlightIds } from "@/lib/domain/transit/computeShotFeasibleFlightIds";
 import { useObserverStore } from "@/stores/observer-store";
 import type { GroundObserver } from "@/types/geo";
 import type { LiveFlightFeeds } from "@/stores/moon-transit-store";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
+import { useTransitComputedStore } from "@/stores/transit-computed-store";
 import type { MapContainerProps } from "@/components/map/MapContainer";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -902,23 +901,7 @@ export function HomePageClient() {
   );
 
   /* ---- Green zone (shot-feasible) alert ---------------------------------- */
-  const cameraFocalLengthMm = useMoonTransitStore((st) => st.cameraFocalLengthMm);
-  const cameraSensorType = useMoonTransitStore((st) => st.cameraSensorType);
-  const openSkyLatencySkewMsHPC = useMoonTransitStore((st) => st.openSkyLatencySkewMs);
-  const wallNowMsHPC = useWallNowMs();
-  const feasibleFlightIds = useMemo(
-    () =>
-      computeShotFeasibleFlightIds(
-        s.obs,
-        s.moon,
-        flights,
-        wallNowMsHPC,
-        openSkyLatencySkewMsHPC,
-        cameraFocalLengthMm,
-        cameraSensorType
-      ),
-    [s.obs, s.moon, flights, wallNowMsHPC, openSkyLatencySkewMsHPC, cameraFocalLengthMm, cameraSensorType]
-  );
+  const feasibleFlightIds = useTransitComputedStore((st) => st.shotFeasibleFlightIds);
   const greenCount = feasibleFlightIds.size;
   const topGreenCallSign = useMemo(() => {
     if (feasibleFlightIds.size === 0) return null;
@@ -1229,7 +1212,7 @@ export function HomePageClient() {
               selectedFlightId={s.selectedFlightId}
               onSelectFlight={handleSelectFlightFromPanel}
               observer={s.obs}
-              moon={s.moon}
+              moon={s.transitBoardMoon}
               showEphemeris={s.showEphemeris}
               isPlanned={s.isPlanned}
               watchedFlightCount={flights.length}
@@ -1361,7 +1344,7 @@ export function HomePageClient() {
                 selectedFlightId={s.selectedFlightId}
                 onSelectFlight={handleSelectFlightFromPanel}
                 observer={s.obs}
-                moon={s.moon}
+                moon={s.transitBoardMoon}
                 showEphemeris={s.showEphemeris}
                 isPlanned={s.isPlanned}
                 watchedFlightCount={flights.length}
@@ -1404,7 +1387,7 @@ export function HomePageClient() {
                   selectedFlightId={s.selectedFlightId}
                   onSelectFlight={handleSelectFlightFromPanel}
                   observer={s.obs}
-                  moon={s.moon}
+                  moon={s.transitBoardMoon}
                   showEphemeris={s.showEphemeris}
                   isPlanned={s.isPlanned}
                   watchedFlightCount={flights.length}

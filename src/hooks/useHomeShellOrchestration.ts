@@ -7,6 +7,7 @@ import {
 } from "@/hooks/usePhotographerTools";
 import { useSharedTransitComputation } from "@/hooks/useSharedTransitComputation";
 import {
+  useLiveMoonState,
   useMoonStateComputed,
   useTransitCandidates,
 } from "@/hooks/useTransitCandidates";
@@ -55,6 +56,7 @@ export function useHomeShellOrchestration() {
   const selectedFlightId = useMoonTransitStore((s) => s.selectedFlightId);
   const cloudCoverPercent = useWeatherStore((s) => s.cloudCoverPercent);
   const moon = useMoonStateComputed();
+  const liveMoon = useLiveMoonState();
   const isMoonBelowHorizon = useMemo(
     () => !isMoonVisibleFromMoonState(moon),
     [moon]
@@ -153,6 +155,8 @@ export function useHomeShellOrchestration() {
 
   /* ---- Planning date picker (budući datum, lokalna ponoć kao sidro) ---- */
   const isPlanned = useMoonTransitStore((s) => s.timeAnchorIsPlanned);
+  // Ploča prati žive letove; planirani dan ih nema, pa pokazuje njegov Mjesec.
+  const transitBoardMoon = isPlanned ? moon : liveMoon;
   const setTimeAnchorPlanned = useMoonTransitStore((s) => s.setTimeAnchorPlanned);
   // Snapshot pri mountu — samo default za date-picker kad još nije planned, ne treba live-tick.
   const [mountNowMs] = useState(() => Date.now());
@@ -222,6 +226,7 @@ export function useHomeShellOrchestration() {
     providerFlightCounts,
     flightProvider,
     moon,
+    transitBoardMoon,
     isLoading,
     setSelectedFlightId,
     selectedFlightId,

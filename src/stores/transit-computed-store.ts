@@ -1,15 +1,9 @@
 import { AstroService } from "@/lib/domain/astro/astroService";
 import { DEFAULT_OBSERVER_LOCATION } from "@/lib/defaultObserverLocation";
-import type { ActiveTransitRow } from "@/lib/domain/transit/computeActiveTransits";
-import type { MoonState } from "@/types/moon";
-import type { TransitCandidate } from "@/types/transit";
+import type { TransitSnapshot } from "@/lib/domain/transit/computeTransitSnapshot";
 import { create } from "zustand";
 
-export type TransitComputedState = {
-  moon: MoonState;
-  candidates: readonly TransitCandidate[];
-  activeTransits: readonly ActiveTransitRow[];
-};
+export type TransitComputedState = TransitSnapshot;
 
 /**
  * Dijeljeni izračun (Mjesec / transit kandidati / active transits) — jednom po
@@ -23,13 +17,19 @@ export type TransitComputedState = {
  * nad cijelim `flights` nizom — isti posao dupliciran 4-6x, nekoliko puta u
  * sekundi, kontinuirano dok je app otvorena.
  */
-export const useTransitComputedStore = create<TransitComputedState>(() => ({
-  moon: AstroService.getMoonState(
+export const useTransitComputedStore = create<TransitComputedState>(() => {
+  const moon = AstroService.getMoonState(
     new Date(),
     DEFAULT_OBSERVER_LOCATION.lat,
     DEFAULT_OBSERVER_LOCATION.lng,
     DEFAULT_OBSERVER_LOCATION.groundHeightMeters
-  ),
-  candidates: [],
-  activeTransits: [],
-}));
+  );
+  return {
+    moon,
+    liveMoon: moon,
+    candidates: [],
+    activeTransits: [],
+    shotFeasibleFlightIds: new Set(),
+    confirmedTransitFlightIds: new Set(),
+  };
+});

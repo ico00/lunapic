@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 where version bumps are made for releases (currently `0.x`).
 
+## [2026-10-31] — Live flights always use the real Moon
+
+### Fixed
+
+- **Time slider no longer affects live transits.** With the slider moved ahead on today's date, the app compared today's aircraft with the Moon hours later and could raise false alerts. Candidates, alerts, map marks, Photo tools, the Next transit board, field sounds and the AR view now always use the Moon at the real time. The slider still moves the Moon on the map and in the Moon panel.
+- **Live Moon no longer lags.** Candidates used a Moon up to 30 s old, up to 0.125° off, so the client could disagree with the server.
+- **Map marks in planning mode.** The green mark and ring were still computed for live aircraft on a planned date. Both are now off, and the ring always matches "Disk transit" in the Candidates panel.
+
+### Changed
+
+- **Less CPU while the app is open.** The map and the shell reuse the shared result instead of repeating the calculation four times a second. With 80 aircraft a tick takes about half the time.
+
 ## [2026-10-31] — Alert cooldown and push hardening
 
 ### Fixed
