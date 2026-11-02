@@ -348,8 +348,8 @@ export function mountAboutScenes(story: AboutStoryContext): () => void {
     return { renderer, scene, camera, controls, addLabel, run };
   }
   const T = story.t;
-  const L = (n: string, title: string, sub?: string) =>
-    `${n ? `<span class="n">${n}</span>` : ""}<b>${title}</b>${sub ? `<span class="s">${sub}</span>` : ""}`;
+  const L = (title: string, sub?: string) =>
+    `<b>${title}</b>${sub ? `<span class="s">${sub}</span>` : ""}`;
 
   /* =========================================================
    HERO: put signala od aviona do mobitela
@@ -792,27 +792,27 @@ export function mountAboutScenes(story: AboutStoryContext): () => void {
 
     // oznake
     S.addLabel(
-      () => L("01", T("Avion", "Aircraft"), T("javlja GPS položaj", "reports GPS position")),
+      () => L(T("Avion", "Aircraft"), T("javlja GPS položaj", "reports GPS position")),
       plane,
       V(0, 3.2, 0)
     );
     S.addLabel(
-      () => L("03", "LunaPic ADS-B", T("antena · Raspberry Pi", "antenna · Raspberry Pi")),
+      () => L("LunaPic ADS-B", T("antena · Raspberry Pi", "antenna · Raspberry Pi")),
       antTip,
       V(0, 1.6, 0)
     );
     S.addLabel(
-      () => L("04", "OpenSky · adsb.lol", T("javne mreže, po izboru", "public networks, optional")),
+      () => L("OpenSky · adsb.lol", T("javne mreže, po izboru", "public networks, optional")),
       cloud,
       V(0, 3.6, 0)
     );
     S.addLabel(
-      () => L("05", "LunaPic server", T("baza i obrada", "database and processing")),
+      () => L("LunaPic server", T("baza i obrada", "database and processing")),
       serverTop,
       V(0, 2.4, 0)
     );
     S.addLabel(
-      () => L("09", T("Vaš mobitel", "Your phone"), T("karta i obavijesti", "map and alerts")),
+      () => L(T("Vaš mobitel", "Your phone"), T("karta i obavijesti", "map and alerts")),
       phone,
       V(0, 3.9, 0)
     );
@@ -1163,7 +1163,7 @@ export function mountAboutScenes(story: AboutStoryContext): () => void {
       shadow.rotation.x = -Math.PI / 2;
       scene.add(shadow);
       const lbl = addLabel(
-        L("", f.cs, Math.round(f.km) + " km"),
+        L(f.cs, Math.round(f.km) + " km"),
         obj,
         V(0, 1.1, 0),
         hero ? "lead" : "small"

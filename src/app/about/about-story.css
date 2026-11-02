@@ -180,8 +180,6 @@
   background: rgba(12, 18, 34, .72); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, .12); border-radius: 10px; padding: 6px 10px 7px; color: #eaeef7; margin-top: -10px; will-change: transform; }
 .about-story .lbl3d::after { content: ""; position: absolute; left: 50%; bottom: -10px; width: 1px; height: 10px; background: rgba(255, 255, 255, .35); }
-.about-story .lbl3d .n { display: block; font: 500 10px/1 var(--f-mono); color: #ffa94d; letter-spacing: .1em; margin-bottom: 3px; }
-.about-story .lbl3d .n:empty { display: none; }
 .about-story .lbl3d b { display: block; font: 700 12.5px/1.2 var(--f-body); }
 .about-story .lbl3d .s { display: block; font-size: 10.5px; color: #a6b0c6; line-height: 1.3; margin-top: 2px; }
 .about-story .lbl3d.mini { padding: 3px 8px; border-radius: 999px; }
@@ -338,7 +336,6 @@
 .about-story .lbl3d.ok .s { display: block; }
   .about-story .lbl3d { padding: 4px 8px; }
   .about-story .lbl3d b { font-size: 10.5px; }
-  .about-story .lbl3d .n { display: none; }
 }
 
 /* Oznake u sceni dijele klasu .mini s blokovima koda, ali ne smiju imati scrollbar. */
@@ -362,4 +359,22 @@
 @media (max-width: 767px) {
   .about-story nav.chapters { top: calc(56px + env(safe-area-inset-top, 0px)); }
   .about-story section.ch { scroll-margin-top: 120px; }
+  /* Jedan red se pomiče prstom; --fade-* postavlja mountChapterNav. */
+  .about-story nav.chapters ol {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--fade-start, 0px), #000 calc(100% - var(--fade-end, 0px)), transparent);
+    mask-image: linear-gradient(to right, transparent, #000 var(--fade-start, 0px), #000 calc(100% - var(--fade-end, 0px)), transparent);
+  }
+}
+/* Zadnja oznaka zvukova inače izlazi iz stranice za 2-4 px i daje vodoravni scroll. */
+@media (max-width: 860px) {
+  .about-story .sl-ev:last-child { left: auto; right: 0; transform: none; align-items: flex-end; text-align: right; }
+}
+/* Na većim ekranima sva poglavlja moraju biti vidljiva, pa se popis lomi u novi red. */
+@media (min-width: 768px) {
+  .about-story nav.chapters ol { flex-wrap: wrap; gap: 2px; overflow-x: visible; }
+  .about-story nav.chapters a { padding-inline: 8px; gap: 6px; }
+}
+@media (min-width: 768px) and (max-width: 1099px) {
+  .about-story nav.chapters a { padding-inline: 6px; gap: 5px; font-size: 0.78rem; }
+  .about-story section.ch { scroll-margin-top: 110px; }
 }
