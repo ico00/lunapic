@@ -316,7 +316,7 @@ function mountElevationGap({ root, signal, t, onLangChange }: AboutStoryContext)
   return onLangChange(draw);
 }
 
-function mountChapterNav({ root, signal }: AboutStoryContext) {
+function mountChapterNav({ root, signal, onLangChange }: AboutStoryContext) {
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const list = root.querySelector<HTMLElement>("nav.chapters ol");
   const links = [...root.querySelectorAll<HTMLAnchorElement>("nav.chapters a")];
@@ -333,8 +333,20 @@ function mountChapterNav({ root, signal }: AboutStoryContext) {
     }
   }
 
+  /** Na telefonu je popis jedan red: rub koji blijedi pokazuje da ima još poglavlja. */
+  function updateEdgeFades() {
+    if (!list) return;
+    const hiddenRight = list.scrollWidth - list.clientWidth - list.scrollLeft;
+    list.style.setProperty("--fade-start", list.scrollLeft > 1 ? "28px" : "0px");
+    list.style.setProperty("--fade-end", hiddenRight > 1 ? "28px" : "0px");
+  }
+
   window.addEventListener("scroll", markActive, { passive: true, signal });
+  window.addEventListener("resize", updateEdgeFades, { passive: true, signal });
+  list?.addEventListener("scroll", updateEdgeFades, { passive: true, signal });
   markActive();
+  updateEdgeFades();
+  return onLangChange(updateEdgeFades);
 }
 
 /** Spaja sve ne-3D dijelove stranice. Vraća čišćenje za izlazak s rute. */
