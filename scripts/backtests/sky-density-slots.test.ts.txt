@@ -1,0 +1,70 @@
+import { writeFileSync } from "node:fs";
+import { it, vi } from "vitest";
+import { aircraftAngularSizeDeg, DEFAULT_WINGSPAN_M } from "@/lib/domain/geometry/shotFeasibility";
+import { horizontalToPoint } from "@/lib/domain/geometry/horizontal";
+import { geodeticToEcef } from "@/lib/domain/geometry/wgs84";
+import { closestApproachOnArc } from "./zzarc";
+import { createMinuteMoon } from "./passForecast";
+import { buildSkyDensity, WATCH_HISTORY_DAYS, watchSlots } from "./watchWindows";
+
+const DAY = 86_400_000;
+const SLOT = 1_800_000;
+const observer = { lat: 45.82968, lng: 16.06368, groundHeightMeters: 130 };
+const END = Date.UTC(2026, 9, 31, 12);
+const pObs = geodeticToEcef(observer.lat, observer.lng, observer.groundHeightMeters);
+const moonAt = createMinuteMoon(observer);
+
+it("slots", async () => {
+  vi.spyOn(process, "cwd").mockReturnValue(process.env.BT_DIR!);
+  const { getAllCallsignSessions } = await import("@/lib/db/flightLogDb");
+  const rows: { window: number; startMs: number; expected: number; hourTotal: number; disc: number; near1: number }[] = [];
+  for (const d of [84, 70, 56, 42, 28, 14]) {
+    const nowMs = END - d * DAY;
+    const density = await buildSkyDensity(await getAllCallsignSessions(nowMs - WATCH_HISTORY_DAYS * DAY, nowMs), observer);
+    const hourTotals = new Array<number>(12).fill(0);
+    for (const [k, v] of density) hourTotals[Number(k.split(",")[2])]! += v;
+    const slots = watchSlots(density, { observer, nowMs, toMs: nowMs + 14 * DAY });
+    const row = new Map(
+      slots.map((s) => [
+        s.startMs,
+        { window: d, startMs: s.startMs, expected: s.expectedTransits, hourTotal: hourTotals[Math.floor(new Date(s.startMs).getUTCHours() / 2)]!, disc: 0, near1: 0 },
+      ])
+    );
+    const future = await getAllCallsignSessions(nowMs, nowMs + 14 * DAY);
+    for (const sessions of future.values()) {
+      for (const pts of sessions) {
+        const track = pts.flatMap((p) => {
+          if (p.alt_baro_m == null) return [];
+          const e = geodeticToEcef(p.lat, p.lng, p.alt_baro_m);
+          const slant = Math.hypot(e.x - pObs.x, e.y - pObs.y, e.z - pObs.z);
+          if (slant > 80_000) return [];
+          const sky = horizontalToPoint(observer, p.lat, p.lng, p.alt_baro_m);
+          return sky.altitudeDeg >= 10 ? [{ ...sky, t: p.logged_at, slant }] : [];
+        });
+        let best: { sep: number; at: number; disc: number } | null = null;
+        for (let i = 1; i < track.length; i += 1) {
+          const a = track[i - 1]!;
+          const b = track[i]!;
+          if (b.t - a.t > 45_000) continue;
+          if (!row.has(Math.floor((a.t + b.t) / 2 / SLOT) * SLOT)) continue;
+          const moon = moonAt((a.t + b.t) / 2);
+          const { separationDeg, fraction } = closestApproachOnArc(a, b, moon);
+          if (!best || separationDeg < best.sep) {
+            best = {
+              sep: separationDeg,
+              at: a.t + fraction * (b.t - a.t),
+              disc: moon.apparentRadius.degrees + aircraftAngularSizeDeg(DEFAULT_WINGSPAN_M, a.slant + fraction * (b.slant - a.slant)) / 2,
+            };
+          }
+        }
+        if (!best || best.sep > 1) continue;
+        const r = row.get(Math.floor(best.at / SLOT) * SLOT);
+        if (!r) continue;
+        r.near1 += 1;
+        if (best.sep <= best.disc) r.disc += 1;
+      }
+    }
+    rows.push(...row.values());
+  }
+  writeFileSync(`${process.env.BT_DIR}/slots.json`, JSON.stringify(rows));
+}, 1_800_000);

@@ -1,0 +1,334 @@
+import { writeFileSync } from "node:fs";
+import { it, vi } from "vitest";
+import type { RoutePoint } from "@/lib/db/flightLogDb";
+import { getMoonPosition } from "@/lib/domain/astro/moon";
+import { CRITICAL_BELOW_DEG } from "@/lib/domain/astro/moonFieldVisibilityAdvice";
+import { predictApproachesInWindow, type ClosestApproach } from "./callsignSchedule";
+import { callsignPasses, createMinuteMoon, MAX_SLANT_M, MIN_QUALIFYING_SESSIONS } from "./passForecast";
+import { forecastPhotoSpots } from "./photoSpotForecast";
+import { forecastTransitCalendar } from "./transitCalendarForecast";
+import { horizontalToPoint } from "@/lib/domain/geometry/horizontal";
+import { aircraftAngularSizeDeg, DEFAULT_WINGSPAN_M } from "@/lib/domain/geometry/shotFeasibility";
+import { angularSeparationDeg, closestApproachOnArc } from "@/lib/domain/geometry/sky-separation";
+import { geodeticToEcef } from "@/lib/domain/geometry/wgs84";
+import type { GroundObserver } from "@/types/geo";
+
+const DAY = 86_400_000;
+const observer: GroundObserver = { lat: 45.82968, lng: 16.06368, groundHeightMeters: 130 };
+const MAX_SEGMENT_GAP_MS = 45_000;
+const MATCH_WINDOW_MS = 60 * 60_000;
+const END = Date.UTC(2026, 9, 31, 12);
+const CUTOFFS = [84, 70, 56, 42, 28, 14].map((d) => END - d * DAY);
+
+type PassResult = {
+  startMs: number;
+  endMs: number;
+  sepDeg: number; // Infinity if the Moon was never usable
+  atMs: number;
+  discDeg: number;
+  moonAlt: number;
+  slantKm: number;
+};
+
+/** Stvarni najbliži prolaz leta uz Mjesec, iz zapisanih pozicija. */
+function actualPass(
+  points: readonly RoutePoint[],
+  obs: GroundObserver,
+  moonAt: (t: number) => ReturnType<typeof getMoonPosition>
+): PassResult {
+  const pObs = geodeticToEcef(obs.lat, obs.lng, obs.groundHeightMeters);
+  const r: PassResult = {
+    startMs: points[0]!.logged_at,
+    endMs: points[points.length - 1]!.logged_at,
+    sepDeg: Infinity,
+    atMs: 0,
+    discDeg: 0,
+    moonAlt: 0,
+    slantKm: 0,
+  };
+  let prev: { p: RoutePoint; sky: { altitudeDeg: number; azimuthDeg: number }; slant: number } | null = null;
+  for (const p of points) {
+    if (p.alt_baro_m == null) {
+      prev = null;
+      continue;
+    }
+    const e = geodeticToEcef(p.lat, p.lng, p.alt_baro_m);
+    const slant = Math.hypot(e.x - pObs.x, e.y - pObs.y, e.z - pObs.z);
+    if (slant > MAX_SLANT_M) {
+      prev = null;
+      continue;
+    }
+    const sky = horizontalToPoint(obs, p.lat, p.lng, p.alt_baro_m);
+    if (prev && p.logged_at - prev.p.logged_at <= MAX_SEGMENT_GAP_MS) {
+      const moon = moonAt((p.logged_at + prev.p.logged_at) / 2);
+      if (moon.altitudeDeg >= CRITICAL_BELOW_DEG && sky.altitudeDeg > 0 && prev.sky.altitudeDeg > 0) {
+        const { separationDeg, fraction } = closestApproachOnArc(prev.sky, sky, moon);
+        if (separationDeg < r.sepDeg) {
+          const s = prev.slant + fraction * (slant - prev.slant);
+          r.sepDeg = separationDeg;
+          r.atMs = prev.p.logged_at + fraction * (p.logged_at - prev.p.logged_at);
+          r.discDeg = moon.apparentRadius.degrees + aircraftAngularSizeDeg(DEFAULT_WINGSPAN_M, s) / 2;
+          r.moonAlt = moon.altitudeDeg;
+          r.slantKm = s / 1000;
+        }
+      }
+    }
+    prev = { p, sky, slant };
+  }
+  return r;
+}
+
+const nearestPass = (passes: readonly PassResult[] | undefined, atMs: number) => {
+  let best: PassResult | null = null;
+  let bestGap = Infinity;
+  for (const p of passes ?? []) {
+    const gap = atMs < p.startMs ? p.startMs - atMs : atMs > p.endMs ? atMs - p.endMs : 0;
+    if (gap < bestGap) {
+      bestGap = gap;
+      best = p;
+    }
+  }
+  return bestGap <= MATCH_WINDOW_MS ? best : null;
+};
+
+const pct = (n: number, d: number) => (d === 0 ? null : Number(((100 * n) / d).toFixed(2)));
+const median = (v: number[]) => {
+  if (v.length === 0) return null;
+  const s = [...v].sort((a, b) => a - b);
+  return Number(s[Math.floor(s.length / 2)]!.toFixed(2));
+};
+
+type Row = { flew: boolean; sep: number; disc: boolean; timeErrMin: number | null };
+function summarize(rows: readonly Row[]) {
+  const flown = rows.filter((r) => r.flew);
+  const usable = flown.filter((r) => Number.isFinite(r.sep));
+  return {
+    n: rows.length,
+    flew: flown.length,
+    disc: usable.filter((r) => r.disc).length,
+    within1deg: usable.filter((r) => r.sep <= 1).length,
+    within3deg: usable.filter((r) => r.sep <= 3).length,
+    within10deg: usable.filter((r) => r.sep <= 10).length,
+    discPct: pct(usable.filter((r) => r.disc).length, rows.length),
+    within1Pct: pct(usable.filter((r) => r.sep <= 1).length, rows.length),
+    within3Pct: pct(usable.filter((r) => r.sep <= 3).length, rows.length),
+    medianSepDeg: median(usable.map((r) => r.sep)),
+    medianAbsTimeErrMin: median(flown.flatMap((r) => (r.timeErrMin == null ? [] : [Math.abs(r.timeErrMin)]))),
+  };
+}
+
+it(
+  "backtest",
+  async () => {
+    vi.spyOn(process, "cwd").mockReturnValue(process.env.BT_DIR!);
+    const { getAllCallsignSessions } = await import("@/lib/db/flightLogDb");
+    const moonAt = createMinuteMoon(observer);
+
+    const all = {
+      newRows: [] as (Row & { kind: string; good: boolean; seenAny: boolean; strong: boolean; tight: boolean })[],
+      oldRows: [] as Row[],
+      spotRows: [] as (Row & { high: boolean; spreadOk: boolean; slant: number })[],
+      regularPasses: 0,
+      regularDisc: 0,
+      regularW1: 0,
+      regularW3: 0,
+      caught: 0,
+      caughtGood: 0,
+      caughtOld: 0,
+      allPasses: 0,
+      allDisc: 0,
+    };
+    const perCutoff: unknown[] = [];
+
+    for (const nowMs of CUTOFFS) {
+      const toMs = nowMs + 14 * DAY;
+      const hist = await getAllCallsignSessions(nowMs - 30 * DAY, nowMs);
+      const future = await getAllCallsignSessions(nowMs, toMs);
+
+      const actual = new Map<string, PassResult[]>();
+      for (const [cs, sessions] of future) {
+        actual.set(cs, sessions.map((s) => actualPass(s, observer, moonAt)));
+      }
+
+      const regular = new Set<string>();
+      const oldKeys = new Set<string>();
+      const oldRows: Row[] = [];
+      for (const [cs, sessions] of hist) {
+        const { approaches } = callsignPasses(sessions, observer);
+        if (approaches.length < MIN_QUALIFYING_SESSIONS) continue;
+        const pred = predictApproachesInWindow(approaches, nowMs, toMs);
+        if (!pred) continue;
+        regular.add(cs);
+        // Staro ponašanje: samo prvi prelet i jedna točka.
+        const first = pred.estimatesMs[0]!;
+        const mean = (f: (a: ClosestApproach) => number) =>
+          approaches.reduce((s, a) => s + f(a), 0) / approaches.length;
+        const moon = moonAt(first);
+        if (moon.altitudeDeg < CRITICAL_BELOW_DEG) continue;
+        const ac = horizontalToPoint(observer, mean((a) => a.lat), mean((a) => a.lng), mean((a) => a.altM));
+        if (angularSeparationDeg(ac, moon) <= 0.5) {
+          const p = nearestPass(actual.get(cs), first);
+          oldRows.push({
+            flew: p != null,
+            sep: p?.sepDeg ?? Infinity,
+            disc: p != null && p.sepDeg <= p.discDeg,
+            timeErrMin: p && p.atMs ? (p.atMs - first) / 60_000 : null,
+          });
+          oldKeys.add(`${cs}|${new Date(first).toISOString().slice(0, 10)}`);
+        }
+      }
+
+      const { entries } = await forecastTransitCalendar(hist, {
+        observer,
+        nowMs,
+        toMs,
+        halfVerticalFovDeg: 0.6,
+        halfHorizontalFovDeg: 1,
+      });
+      const entryKeys = new Set<string>();
+      const goodKeys = new Set<string>();
+      const newRows = entries.map((e) => {
+        const p = nearestPass(actual.get(e.callsign), e.estimateMs);
+        const good = e.stdMinutes <= 5 && e.trackSpreadM <= 2500;
+        const key = `${e.callsign}|${new Date(e.estimateMs).toISOString().slice(0, 10)}`;
+        entryKeys.add(key);
+        if (good) goodKeys.add(key);
+        return {
+          kind: e.kind,
+          good,
+          seenAny: actual.has(e.callsign),
+          strong: e.sessionCount >= 8 && e.stdMinutes <= 15,
+          tight: e.trackSpreadM <= 5000,
+          flew: p != null,
+          sep: p?.sepDeg ?? Infinity,
+          disc: p != null && p.sepDeg <= p.discDeg,
+          timeErrMin: p && p.atMs ? (p.atMs - e.estimateMs) / 60_000 : null,
+        };
+      });
+
+      // Bazna stopa i odziv: svaki stvarni prelet u prozoru.
+      let regularPasses = 0;
+      let regularDisc = 0;
+      let regularW1 = 0;
+      let regularW3 = 0;
+      let caught = 0;
+      let caughtGood = 0;
+      let caughtOld = 0;
+      let allPasses = 0;
+      let allDisc = 0;
+      for (const [cs, passes] of actual) {
+        for (const p of passes) {
+          if (!Number.isFinite(p.sepDeg)) continue;
+          allPasses += 1;
+          const disc = p.sepDeg <= p.discDeg;
+          if (disc) allDisc += 1;
+          if (!regular.has(cs)) continue;
+          regularPasses += 1;
+          if (p.sepDeg <= 1) regularW1 += 1;
+          if (p.sepDeg <= 3) regularW3 += 1;
+          if (disc) {
+            regularDisc += 1;
+            const key = `${cs}|${new Date(p.atMs).toISOString().slice(0, 10)}`;
+            if (entryKeys.has(key)) caught += 1;
+            if (goodKeys.has(key)) caughtGood += 1;
+            if (oldKeys.has(key)) caughtOld += 1;
+          }
+        }
+      }
+
+      const { spots, matchedSpotCount } = await forecastPhotoSpots(hist, {
+        observer,
+        nowMs,
+        toMs,
+        maxSpotM: 25_000,
+        minCoveragePercent: 25,
+        maxSpreadM: 2500,
+      });
+      const spotRows = spots.map((s) => {
+        const session = (future.get(s.callsign) ?? []).find((pts) => {
+          const a = pts[0]!.logged_at;
+          const b = pts[pts.length - 1]!.logged_at;
+          return s.atMs >= a - MATCH_WINDOW_MS && s.atMs <= b + MATCH_WINDOW_MS;
+        });
+        const spotObserver = { lat: s.lat, lng: s.lng, groundHeightMeters: observer.groundHeightMeters };
+        const p = session ? actualPass(session, spotObserver, createMinuteMoon(spotObserver)) : null;
+        return {
+          high: s.confidence === "high",
+          spreadOk: s.trackSpreadM <= 1000,
+          slant: s.slantKm,
+          flew: p != null,
+          sep: p?.sepDeg ?? Infinity,
+          disc: p != null && p.sepDeg <= p.discDeg,
+          timeErrMin: p && p.atMs ? (p.atMs - s.atMs) / 60_000 : null,
+        };
+      });
+
+      all.newRows.push(...newRows);
+      all.oldRows.push(...oldRows);
+      all.spotRows.push(...spotRows);
+      all.regularPasses += regularPasses;
+      all.regularDisc += regularDisc;
+      all.regularW1 += regularW1;
+      all.regularW3 += regularW3;
+      all.caught += caught;
+      all.caughtGood += caughtGood;
+      all.caughtOld += caughtOld;
+      all.allPasses += allPasses;
+      all.allDisc += allDisc;
+      perCutoff.push({
+        from: new Date(nowMs).toISOString().slice(0, 10),
+        histCallsigns: hist.size,
+        futureCallsigns: future.size,
+        regular: regular.size,
+        allPasses,
+        allDisc,
+        regularPasses,
+        regularDisc,
+        caught,
+        caughtGood,
+        caughtOld,
+        new: summarize(newRows),
+        old: summarize(oldRows),
+        spots: summarize(spotRows),
+        matchedSpotCount,
+      });
+      console.log("CUTOFF", JSON.stringify(perCutoff[perCutoff.length - 1]));
+    }
+
+    const result = {
+      baseRate: {
+        allPasses: all.allPasses,
+        allDisc: all.allDisc,
+        regularPasses: all.regularPasses,
+        regularDisc: all.regularDisc,
+        regularDiscPct: pct(all.regularDisc, all.regularPasses),
+        regularWithin1Pct: pct(all.regularW1, all.regularPasses),
+        regularWithin3Pct: pct(all.regularW3, all.regularPasses),
+      },
+      recall: {
+        actualRegularDisc: all.regularDisc,
+        caught: all.caught,
+        caughtGood: all.caughtGood,
+        caughtOld: all.caughtOld,
+      },
+      newAll: summarize(all.newRows),
+      newPossible: summarize(all.newRows.filter((r) => r.kind === "transit")),
+      newNear: summarize(all.newRows.filter((r) => r.kind === "near")),
+      newGood: summarize(all.newRows.filter((r) => r.good)),
+      newRest: summarize(all.newRows.filter((r) => !r.good)),
+      newSeenAny: all.newRows.filter((r) => r.seenAny).length,
+      newStrong: summarize(all.newRows.filter((r) => r.strong)),
+      newStrongTight: summarize(all.newRows.filter((r) => r.strong && r.tight)),
+      newTight: summarize(all.newRows.filter((r) => r.tight)),
+      old: summarize(all.oldRows),
+      spots: summarize(all.spotRows),
+      spotsHigh: summarize(all.spotRows.filter((r) => r.high)),
+      spotsTightTrack: summarize(all.spotRows.filter((r) => r.spreadOk)),
+      spotsLowAircraft: summarize(all.spotRows.filter((r) => r.slant <= 10)),
+      perCutoff,
+    };
+    writeFileSync(`${process.env.BT_DIR}/result.json`, JSON.stringify(result, null, 1));
+    console.log("RESULT", JSON.stringify({ ...result, perCutoff: undefined }));
+  },
+  1_800_000
+);

@@ -305,28 +305,6 @@ export function SectionIconQuestionMarkCircle(props: IconProps) {
   );
 }
 
-export function SectionIconStreetView(props: IconProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      className={base}
-      aria-hidden
-      {...props}
-    >
-      {/* Panoramic horizon line */}
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 12c0 0 3-3 9-3s9 3 9 3" />
-      {/* Ground ellipse */}
-      <ellipse cx="12" cy="17" rx="7" ry="2.5" />
-      {/* Person / pin */}
-      <circle cx="12" cy="7" r="2" />
-      <path strokeLinecap="round" d="M12 9v3" />
-    </svg>
-  );
-}
-
 export function SectionIconFlightLog(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className={base} aria-hidden {...props}>

@@ -22,7 +22,7 @@ const migrate = require_(path.join(process.cwd(), "flightLogSchema.cjs")).migrat
 
 let tmpDir: string;
 
-/** The read the forecast routes live on — see `getAllCallsignSessions`. */
+/** Callsign-ordered read of a whole window, the plan the covering index exists for. */
 const SESSIONS_SQL = `SELECT callsign, lat, lng,
         COALESCE(alt_geom_m, alt_baro_m) AS alt_baro_m,
         logged_at
@@ -102,9 +102,8 @@ describe("dbVersionKey", () => {
 });
 
 /**
- * The forecast routes read a whole 30-day window (1.6 M+ rows in production),
- * and that read is I/O-bound, not CPU-bound — 81 % of a cold `photo-spots`
- * request was the fetch. What makes it cheap is that
+ * A read of a whole 30-day window (1.6 M+ rows in production) is I/O-bound, not
+ * CPU-bound. What makes it cheap is that
  * `idx_pos_callsign_time_cover` carries every column the query selects, so
  * SQLite never touches the table heap and never sorts. Measured on a
  * production-shaped 2.5 M row log, losing that plan costs 434 MB of reads

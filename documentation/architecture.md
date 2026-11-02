@@ -296,7 +296,6 @@ Key behaviours:
 - **Selection hint chip** — shown at the bottom of the panel when a selection is active; displays "Route history on map: {callsign}" or "Track on map: {icao24}" with an × clear button.
 - **Pagination** — 50 rows per page with Prev / Next buttons (shown only when > 1 page).
 - **Past transits** — retroactive scan of the log against the Moon (`/api/flight-log/transit-history`).
-- "Best times to watch" (`/api/flight-log/watch-windows`) lives in **`TransitForecastPanel.tsx`** (Plan group, id `forecast`). It reads the log but answers a planning question, and it depends only on the observer, not on the table selection.
 
 ### New store fields (Flight Log panel)
 

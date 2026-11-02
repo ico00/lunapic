@@ -1,0 +1,306 @@
+import { writeFileSync } from "node:fs";
+import { it, vi } from "vitest";
+import type { RoutePoint } from "@/lib/db/flightLogDb";
+import { getMoonPosition } from "@/lib/domain/astro/moon";
+import { CRITICAL_BELOW_DEG } from "@/lib/domain/astro/moonFieldVisibilityAdvice";
+import { createMinuteMoon } from "./passForecast";
+const MAX_SLANT_M = 80_000;
+const MIN_MOON_DEG = 12;
+import { horizontalToPoint } from "@/lib/domain/geometry/horizontal";
+import { aircraftAngularSizeDeg, DEFAULT_WINGSPAN_M } from "@/lib/domain/geometry/shotFeasibility";
+import { closestApproachOnArc } from "@/lib/domain/geometry/sky-separation";
+import { geodeticToEcef } from "@/lib/domain/geometry/wgs84";
+import type { GroundObserver } from "@/types/geo";
+
+const DAY = 86_400_000;
+const HOUR = 3_600_000;
+const BIN_MS = 30 * 60_000;
+const CELL_DEG = 2;
+const HOUR_BIN = 2;
+const HISTORY_DAYS = 30;
+const observer: GroundObserver = { lat: 45.82968, lng: 16.06368, groundHeightMeters: 130 };
+const END = Date.UTC(2026, 9, 31, 12);
+const CUTOFFS = [84, 70, 56, 42, 28, 14].map((d) => END - d * DAY);
+const moonAt = createMinuteMoon(observer);
+const pObs = geodeticToEcef(observer.lat, observer.lng, observer.groundHeightMeters);
+
+type Sky = { altitudeDeg: number; azimuthDeg: number };
+type TrackPoint = Sky & { t: number; slant: number };
+
+function skyTrack(points: readonly RoutePoint[]): TrackPoint[] {
+  const out: TrackPoint[] = [];
+  for (const p of points) {
+    if (p.alt_baro_m == null) continue;
+    const e = geodeticToEcef(p.lat, p.lng, p.alt_baro_m);
+    const slant = Math.hypot(e.x - pObs.x, e.y - pObs.y, e.z - pObs.z);
+    if (slant > MAX_SLANT_M) continue;
+    const sky = horizontalToPoint(observer, p.lat, p.lng, p.alt_baro_m);
+    if (sky.altitudeDeg < MIN_MOON_DEG - 2) continue;
+    out.push({ ...sky, t: p.logged_at, slant });
+  }
+  return out;
+}
+
+/** Ćelija neba: azimutna projekcija oko zenita, pa je širina ćelije stalna. */
+function cell(s: Sky): string {
+  const r = 90 - s.altitudeDeg;
+  const az = (s.azimuthDeg * Math.PI) / 180;
+  return `${Math.floor((r * Math.sin(az)) / CELL_DEG)},${Math.floor((r * Math.cos(az)) / CELL_DEG)}`;
+}
+const hourBin = (t: number) => Math.floor(new Date(t).getUTCHours() / HOUR_BIN);
+
+const lerpAz = (a: number, b: number, f: number) => {
+  const d = ((b - a + 540) % 360) - 180;
+  return (a + f * d + 360) % 360;
+};
+
+type Model = {
+  skyHour: Map<string, number>;
+  sky: Map<string, number>;
+  hour: number[];
+  passes: number;
+};
+
+function trainModel(sessions: Iterable<RoutePoint[]>): Model {
+  const m: Model = { skyHour: new Map(), sky: new Map(), hour: new Array(24 / HOUR_BIN).fill(0), passes: 0 };
+  for (const session of sessions) {
+    const track = skyTrack(session);
+    if (track.length < 2) continue;
+    m.passes += 1;
+    const seen = new Set<string>();
+    for (let i = 1; i < track.length; i += 1) {
+      const a = track[i - 1]!;
+      const b = track[i]!;
+      if (b.t - a.t > 45_000) continue;
+      const span = Math.max(Math.abs(b.altitudeDeg - a.altitudeDeg), Math.abs(((b.azimuthDeg - a.azimuthDeg + 540) % 360) - 180));
+      const steps = Math.max(1, Math.ceil(span / (CELL_DEG / 2)));
+      for (let k = 0; k <= steps; k += 1) {
+        const f = k / steps;
+        const c = cell({
+          altitudeDeg: a.altitudeDeg + f * (b.altitudeDeg - a.altitudeDeg),
+          azimuthDeg: lerpAz(a.azimuthDeg, b.azimuthDeg, f),
+        });
+        seen.add(`${c}|${hourBin(a.t + f * (b.t - a.t))}`);
+      }
+    }
+    const cellsOnly = new Set<string>();
+    for (const key of seen) {
+      const [c, h] = key.split("|") as [string, string];
+      m.skyHour.set(key, (m.skyHour.get(key) ?? 0) + 1);
+      cellsOnly.add(c);
+    }
+    for (const c of cellsOnly) m.sky.set(c, (m.sky.get(c) ?? 0) + 1);
+    m.hour[hourBin(track[0]!.t)]! += 1;
+  }
+  return m;
+}
+
+/** Prosjek 3×3 ćelije oko Mjeseca: pojedina ćelija je preuska za 30 dana podataka. */
+function around(map: Map<string, number>, s: Sky, suffix: string): number {
+  const [x, y] = cell(s).split(",").map(Number) as [number, number];
+  let sum = 0;
+  for (let dx = -1; dx <= 1; dx += 1) {
+    for (let dy = -1; dy <= 1; dy += 1) {
+      sum += map.get(`${x + dx},${y + dy}${suffix}`) ?? 0;
+    }
+  }
+  return sum / 9;
+}
+
+/** Stvarni prolazi preko Mjeseca: disk i unutar 1°. */
+function actualEvents(points: readonly RoutePoint[]) {
+  const track = skyTrack(points);
+  let best: { sep: number; at: number; disc: number } | null = null;
+  for (let i = 1; i < track.length; i += 1) {
+    const a = track[i - 1]!;
+    const b = track[i]!;
+    if (b.t - a.t > 45_000) continue;
+    const moon = moonAt((a.t + b.t) / 2);
+    if (moon.altitudeDeg < MIN_MOON_DEG) continue;
+    const { separationDeg, fraction } = closestApproachOnArc(a, b, moon);
+    if (!best || separationDeg < best.sep) {
+      const slant = a.slant + fraction * (b.slant - a.slant);
+      best = {
+        sep: separationDeg,
+        at: a.t + fraction * (b.t - a.t),
+        disc: moon.apparentRadius.degrees + aircraftAngularSizeDeg(DEFAULT_WINGSPAN_M, slant) / 2,
+      };
+    }
+  }
+  return best;
+}
+
+function ranks(v: readonly number[]): number[] {
+  const idx = v.map((x, i) => [x, i] as const).sort((a, b) => a[0] - b[0]);
+  const out = new Array<number>(v.length);
+  for (let i = 0; i < idx.length; ) {
+    let j = i;
+    while (j + 1 < idx.length && idx[j + 1]![0] === idx[i]![0]) j += 1;
+    for (let k = i; k <= j; k += 1) out[idx[k]![1]] = (i + j) / 2;
+    i = j + 1;
+  }
+  return out;
+}
+function pearson(a: readonly number[], b: readonly number[]): number {
+  const ma = a.reduce((s, x) => s + x, 0) / a.length;
+  const mb = b.reduce((s, x) => s + x, 0) / b.length;
+  let n = 0;
+  let da = 0;
+  let db = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    n += (a[i]! - ma) * (b[i]! - mb);
+    da += (a[i]! - ma) ** 2;
+    db += (b[i]! - mb) ** 2;
+  }
+  return da && db ? n / Math.sqrt(da * db) : 0;
+}
+const spearman = (a: readonly number[], b: readonly number[]) => pearson(ranks(a), ranks(b));
+
+function bootstrap(score: readonly number[], truth: readonly number[]) {
+  let seed = 12345;
+  const rnd = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296;
+  const values: number[] = [];
+  for (let b = 0; b < 2000; b += 1) {
+    const s: number[] = [];
+    const t: number[] = [];
+    for (let i = 0; i < score.length; i += 1) {
+      const k = Math.floor(rnd() * score.length);
+      s.push(score[k]!);
+      t.push(truth[k]!);
+    }
+    values.push(spearman(s, t));
+  }
+  values.sort((x, y) => x - y);
+  return [Number(values[50]!.toFixed(2)), Number(values[1949]!.toFixed(2))];
+}
+
+function topShare(score: readonly number[], truth: readonly number[], fraction: number) {
+  const order = score.map((s, i) => [s, i] as const).sort((a, b) => b[0] - a[0]);
+  const n = Math.max(1, Math.round(score.length * fraction));
+  const total = truth.reduce((s, x) => s + x, 0);
+  const got = order.slice(0, n).reduce((s, [, i]) => s + truth[i]!, 0);
+  return { units: n, got, total, sharePct: total ? Number(((100 * got) / total).toFixed(1)) : null };
+}
+
+function report(name: string, scores: Record<string, number[]>, truth: Record<string, number[]>) {
+  const out: Record<string, unknown> = {};
+  for (const [model, score] of Object.entries(scores)) {
+    const row: Record<string, unknown> = {};
+    for (const [t, values] of Object.entries(truth)) {
+      row[t] = {
+        rho: Number(spearman(score, values).toFixed(2)),
+        ci90: bootstrap(score, values),
+        top25: topShare(score, values, 0.25),
+        top10: topShare(score, values, 0.1),
+      };
+    }
+    out[model] = row;
+  }
+  return { name, units: Object.values(scores)[0]!.length, models: out };
+}
+
+it(
+  "density",
+  async () => {
+    vi.spyOn(process, "cwd").mockReturnValue(process.env.BT_DIR!);
+    const { getAllCallsignSessions } = await import("@/lib/db/flightLogDb");
+
+    const bins: {
+      dayIndex: number;
+      density: number;
+      skyOnly: number;
+      hourOnly: number;
+      moonUp: number;
+      disc: number;
+      near1: number;
+      expected: number;
+    }[] = [];
+
+    let dayOffset = 0;
+    for (const nowMs of CUTOFFS) {
+      const hist = await getAllCallsignSessions(nowMs - HISTORY_DAYS * DAY, nowMs);
+      const model = trainModel([...hist.values()].flat());
+      const future = await getAllCallsignSessions(nowMs, nowMs + 14 * DAY);
+
+      const byBin = new Map<number, { disc: number; near1: number }>();
+      for (const sessions of future.values()) {
+        for (const s of sessions) {
+          const e = actualEvents(s);
+          if (!e || e.sep > 1) continue;
+          const key = Math.floor(e.at / BIN_MS);
+          const row = byBin.get(key) ?? { disc: 0, near1: 0 };
+          row.near1 += 1;
+          if (e.sep <= e.disc) row.disc += 1;
+          byBin.set(key, row);
+        }
+      }
+
+      const firstBin = Math.floor(nowMs / BIN_MS);
+      for (let i = 0; i < (14 * DAY) / BIN_MS; i += 1) {
+        const key = firstBin + i;
+        const mid = (key + 0.5) * BIN_MS;
+        const moon = getMoonPosition(new Date(mid), observer.lat, observer.lng, observer.groundHeightMeters);
+        const up = moon.altitudeDeg >= MIN_MOON_DEG;
+        const h = hourBin(mid);
+        const dens = up ? around(model.skyHour, moon, `|${h}`) : 0;
+        const actual = byBin.get(key) ?? { disc: 0, near1: 0 };
+        bins.push({
+          dayIndex: dayOffset + Math.floor((i * BIN_MS) / DAY),
+          density: dens,
+          skyOnly: up ? around(model.sky, moon, "") : 0,
+          hourOnly: up ? model.hour[h]! : 0,
+          moonUp: up ? 1 : 0,
+          disc: actual.disc,
+          near1: actual.near1,
+          // prolazi/2 h kroz ćeliju, dnevno → očekivano u 30 min kroz disk (~0.55°).
+          expected: (dens / HISTORY_DAYS) * (0.5 / HOUR_BIN) * (0.55 / CELL_DEG),
+        });
+      }
+      dayOffset += 14;
+    }
+
+    const upBins = bins.filter((b) => b.moonUp === 1);
+    const days = new Map<number, typeof bins>();
+    for (const b of bins) {
+      const list = days.get(b.dayIndex) ?? [];
+      list.push(b);
+      days.set(b.dayIndex, list);
+    }
+    const dayRows = [...days.values()];
+    const sum = (rows: typeof bins, f: (b: (typeof bins)[number]) => number) =>
+      rows.reduce((s, b) => s + f(b), 0);
+    const col = (f: (b: (typeof bins)[number]) => number) => dayRows.map((r) => sum(r, f));
+
+    const dayReport = report(
+      "days",
+      {
+        density: col((b) => b.density),
+        hourOnly: col((b) => b.hourOnly),
+        skyOnly: col((b) => b.skyOnly),
+        moonUpHours: col((b) => b.moonUp),
+      },
+      { disc: col((b) => b.disc), near1: col((b) => b.near1) }
+    );
+    const binReport = report(
+      "moon-up 30 min bins",
+      {
+        density: upBins.map((b) => b.density),
+        hourOnly: upBins.map((b) => b.hourOnly),
+        skyOnly: upBins.map((b) => b.skyOnly),
+      },
+      { disc: upBins.map((b) => b.disc), near1: upBins.map((b) => b.near1) }
+    );
+
+    const calibration = {
+      expectedDisc: Number(sum(bins, (b) => b.expected).toFixed(1)),
+      actualDisc: sum(bins, (b) => b.disc),
+      actualNear1: sum(bins, (b) => b.near1),
+      days: dayRows.length,
+      daysWithoutMoon: dayRows.filter((r) => sum(r, (b) => b.moonUp) === 0).length,
+    };
+    const result = { calibration, dayReport, binReport };
+    writeFileSync(`${process.env.BT_DIR}/density-useful.json`, JSON.stringify(result, null, 1));
+    console.log("DONE", JSON.stringify(calibration));
+  },
+  1_800_000
+);
