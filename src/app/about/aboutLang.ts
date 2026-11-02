@@ -2,6 +2,11 @@ export type AboutLang = "hr" | "en";
 
 export const ABOUT_LANG_COOKIE = "about-lang";
 
+export const ABOUT_TITLE: Record<AboutLang, string> = {
+  hr: "Od aviona do LunaPica",
+  en: "From Aircraft to LunaPic",
+};
+
 function isAboutLang(value: string | null | undefined): value is AboutLang {
   return value === "hr" || value === "en";
 }

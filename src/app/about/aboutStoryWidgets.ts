@@ -1,4 +1,4 @@
-import { ABOUT_LANG_COOKIE, readAboutLangCookie, type AboutLang } from "./aboutLang";
+import { ABOUT_LANG_COOKIE, ABOUT_TITLE, readAboutLangCookie, type AboutLang } from "./aboutLang";
 
 export type AboutStoryContext = {
   root: HTMLElement;
@@ -359,7 +359,7 @@ export function mountAboutStory(root: HTMLElement): {
 
   function applyLang() {
     root.lang = lang;
-    document.title = context.t("Od aviona do LunaPica", "From Aircraft to LunaPic");
+    document.title = ABOUT_TITLE[lang];
     for (const [selector, attribute, hr, en] of ARIA_LABELS) {
       root.querySelector(selector)?.setAttribute(attribute, context.t(hr, en));
     }
