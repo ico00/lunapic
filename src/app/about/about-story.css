@@ -1,4 +1,10 @@
 /* Stranica About: vlastiti vizualni sustav, sve je pod .about-story (spec §2b.9). */
+/* JetBrains Mono s Google Fontsa nema → ni ✓; bez ovoga ih crta Arial iz next/font fallbacka. */
+@font-face {
+  font-family: "About Symbols";
+  src: local("Menlo Regular"), local("Menlo-Regular"), local("Consolas"), local("DejaVu Sans Mono");
+  unicode-range: U+2190-21FF, U+2400-243F, U+2700-27BF;
+}
 .about-story {
   --bg: #0a0f1c;
   --bg-2: #0f1628;
@@ -15,8 +21,16 @@
   --warn: #ff7a6b;
   --f-display: var(--font-about-display), "Avenir Next", "Segoe UI", sans-serif;
   --f-body: var(--font-about-body), "Avenir Next", "Segoe UI", sans-serif;
-  --f-mono: var(--font-about-mono), ui-monospace, Menlo, Consolas, monospace;
+  --f-mono: "About Symbols", var(--font-about-mono), ui-monospace, Menlo, Consolas, monospace;
   color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  .about-story {
+    --bg: #f3f5fa; --bg-2: #e9edf5; --panel: #ffffff; --panel-2: #f6f8fc;
+    --ink: #121a2c; --muted: #4f5b73; --faint: #8893a8; --line: #d6dcea;
+    --radio: #c66a0e; --data: #0a7f99; --ok: #1f8f50; --moon: #7a8399; --warn: #c8402f;
+    color-scheme: light;
+  }
 }
 
 .about-story * { box-sizing: border-box; }
@@ -50,7 +64,7 @@
   margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
   padding: 10px max(16px, env(safe-area-inset-left, 0px));
   background: color-mix(in srgb, var(--bg) 82%, transparent);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--line);
 }
 .about-story nav.chapters ol { list-style: none; margin: 0 auto; padding: 0; max-width: 1080px; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
@@ -246,7 +260,7 @@
 .about-story .sound-list i { flex: none; width: 10px; height: 10px; border-radius: 50%; transform: translateY(1px); }
 .about-story .s-chime { background: var(--ok); } .about-story .s-hold { background: var(--data); } .about-story .s-beep { background: var(--radio); } .about-story .s-shot { background: var(--ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 25%, transparent); }
 .about-story .tips { margin-top: 6px; }
-.about-story .tips ul { margin: 0; padding-left: 18px; list-style: disc; color: var(--muted); font-size: 0.94rem; display: grid; gap: 6px; }
+.about-story .tips ul { margin: 0; padding-left: 18px; list-style: circle; color: var(--muted); font-size: 0.94rem; display: grid; gap: 6px; }
 
 .about-story .part-break { margin-top: 80px; padding-top: 28px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
 .about-story nav.chapters a b { font-weight: inherit; }
@@ -331,6 +345,13 @@
 .about-story .lbl3d.mini { overflow: visible; }
 
 /* Prilagodbe aplikaciji */
+/* Globalni stilovi tijela aplikacije ne vrijede za ovu stranicu. */
+.about-story { font-variant-numeric: normal; text-rendering: auto; }
+/* Tailwind preflight briše zadane vrijednosti preglednika koje original koristi. */
+.about-story small { font-size: smaller; }
+.about-story input[type="range"] { margin: 2px; }
+.about-story *::before,
+.about-story *::after { box-sizing: content-box; }
 @media (prefers-reduced-motion: no-preference) {
   html:has(.about-story) { scroll-behavior: smooth; }
 }

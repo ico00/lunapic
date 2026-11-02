@@ -8,7 +8,7 @@ import { ABOUT_FAQ } from "./aboutStoryContent";
 const displayFont = Bricolage_Grotesque({
   variable: "--font-about-display",
   subsets: ["latin", "latin-ext"],
-  weight: ["500", "700", "800"],
+  axes: ["opsz"],
 });
 const bodyFont = Manrope({
   variable: "--font-about-body",
@@ -18,7 +18,7 @@ const bodyFont = Manrope({
 const monoFont = JetBrains_Mono({
   variable: "--font-about-mono",
   subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "600"],
 });
 
 const faqStructuredData = {

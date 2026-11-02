@@ -359,6 +359,7 @@ export function mountAboutStory(root: HTMLElement): {
 
   function applyLang() {
     root.lang = lang;
+    document.title = context.t("Od aviona do LunaPica", "From Aircraft to LunaPic");
     for (const [selector, attribute, hr, en] of ARIA_LABELS) {
       root.querySelector(selector)?.setAttribute(attribute, context.t(hr, en));
     }

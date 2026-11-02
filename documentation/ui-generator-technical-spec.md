@@ -143,9 +143,9 @@ Boje imaju **fiksan posao** i ne smiju se koristiti za dekoraciju ni za kategori
 
 ## 2b.9 Stranica About (namjerna iznimka)
 
-`/about` je samostalna ilustrirana priča (vodič za fotografe i put podatka od aviona do karte), ne dio alata. Korisnik je odabrao taj izgled 2026-11-02, pa za nju **ne vrijede** §2b.1, §2b.2, §2b.3 ni §2b.8. Iznimka vrijedi samo unutar `.about-story` (`src/app/about/about-story.css`), a na druge stranice se ne prenosi.
+`/about` je samostalna ilustrirana priča (vodič za fotografe i put podatka od aviona do karte), ne dio alata. Korisnik je odabrao taj izgled 2026-11-02, pa za nju **ne vrijede** §2b.1, §2b.2, §2b.3 ni §2b.8. Stranica mora ostati **1:1 s artifactom** (`claude.ai/artifact/PcDJ1MQGJXNWsbybHZSoJd`); jedini dodatak je `PageTopBar`. Iznimka vrijedi samo unutar `.about-story` (`src/app/about/about-story.css`), a na druge stranice se ne prenosi.
 
-- **Boje:** vlastiti tokeni na `.about-story`: `--bg`, `--panel`, `--ink`, `--muted`, `--line`, `--radio` (narančasto, radio signal), `--data` (cijan, internet), `--ok` (zeleno, stiglo u aplikaciju). Tok podatka uvijek ide tim redom. Stranica je samo tamna, kao i ostatak aplikacije. `--moon` i `--panel` ovdje znače nešto drugo nego u §2b.2.
+- **Boje:** vlastiti tokeni na `.about-story`: `--bg`, `--panel`, `--ink`, `--muted`, `--line`, `--radio` (narančasto, radio signal), `--data` (cijan, internet), `--ok` (zeleno, stiglo u aplikaciju). Tok podatka uvijek ide tim redom. Stranica prati `prefers-color-scheme` (tamna i svijetla), za razliku od ostatka aplikacije, a 3D pozornice su uvijek noćne. `--moon` i `--panel` ovdje znače nešto drugo nego u §2b.2.
 - **Tipografija:** Bricolage Grotesque (naslovi), Manrope (tekst), JetBrains Mono (oznake i brojke), svi preko `next/font`, jer CSP ne dopušta Google Fonts. Uppercase mono oznake iznad naslova su dozvoljene.
 - **Dozvoljeno:** blur iza navigacije i oznaka u 3D sceni, gradijenti u 3D pozornici.
 - **Jezik:** HR i EN, oba u istom HTML-u, prebacuje ih atribut `lang` na `.about-story`. Prvi prikaz bira server iz kolačića `about-lang`, a bez njega iz `Accept-Language`.
