@@ -71,7 +71,7 @@ function fail(msg) {
   process.exit(1);
 }
 
-/** Plan upita koji forecast rute zapravo vrte (`getAllCallsignSessions`). */
+/** Plan upita po pozivnom znaku kroz cijeli prozor, za koji indeks postoji. */
 function sessionPlan(db) {
   return db
     .all(

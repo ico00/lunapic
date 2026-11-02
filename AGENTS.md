@@ -279,7 +279,7 @@ dva različita fixa, pa je samo ritam odgađao alert za barem toliko. Poller i
 server-side scan sada rade na 5 s, klijent također. **Upis u `positions` ostaje
 na ~15 s** (`MIN_LOG_INTERVAL_MS` u `server.js`): `MIN_MOVE_M` to ne čuva, jer
 avion prijeđe 120 m u sekundi, pa bi baza inače rasla 3× brže. Ne slati samo
-avione blizu promatrača radi uštede — flight log i forecast koriste puni doseg.
+avione blizu promatrača radi uštede — flight log koristi puni doseg.
 Gzip je zato jedina ušteda (~10 KB umjesto ~63 KB po snimku).
 
 **Kad Pi utihne (2026-10-30).** Pi je jedini zadani izvor, pa njegov pad gasi i
@@ -453,9 +453,9 @@ Ostaju Live i Planer za LDZA (niže).
    **bucketu od 5 s**, ne na 4 Hz field ticku — vidi CPU incident u sekciji o
    `useSharedTransitComputation`.
 
-### Cijena forecast ruta — cache, indeks, ANALYZE (2026-08-21)
+### Cijena ruta flight-loga — cache, indeks, ANALYZE (2026-08-21)
 
-`watch-windows` je **skupa po pozivu** i keširana. Sve tri
+Čitanje cijelog prozora iz loga je **skupo po pozivu**, pa se keširaju. Sve tri
 stvari niže su naučene u produkciji; svaka je jednom već bila tiho slomljena.
 
 **1. Cache ključ ne smije pratiti datoteku.** `dbVersionKey()`
@@ -469,8 +469,8 @@ stiglo (bulk import preskoči više bucketa odjednom i invalidira odmah), a TTL
 pozivatelja (5–15 min) je strop zastarjelosti i jedini koji u normalnom radu
 uopće okine.
 
-**2. Čitanje je I/O-bound, ne CPU-bound.** `getAllCallsignSessions` čita cijeli
-prozor (default 30 dana ≈ 1.3 M redaka). Nosi ga
+**2. Čitanje je I/O-bound, ne CPU-bound.** Čitanje po pozivnom znaku kroz cijeli
+prozor (30 dana ≈ 1.3 M redaka, `getRoutesByCallsign`). Nosi ga
 `idx_pos_callsign_time_cover(callsign, logged_at, lat, lng, alt_geom_m,
 alt_baro_m)` — **covering**, pa se tablica ne dira i nema sorta. Bez njega:
 105 863 read poziva / 434 MB po zahtjevu; s njim: 36 199 / 148 MB (mjereno na
@@ -546,7 +546,7 @@ Optimizira se cijena promašaja, ne hit rate.
 
 ### Mjeriti prije optimizacije
 
-Dva puta je intuicija u forecast rutama bila kriva:
+Dva puta je intuicija u nekadašnjim forecast rutama bila kriva:
 
 * Newton petlja u `solveMoonShadowSpot` vrti se **0.69 iteracija po pozivu**
   (33 795 poziva, 23 405 iteracija) — većina izađe prije petlje, na pragu
@@ -557,10 +557,12 @@ Dva puta je intuicija u forecast rutama bila kriva:
   I/O-bound (disk usporediv), solver je čisti CPU (dijeljeni vCPU višestruko
   sporiji).
 
-Stanje (produkcija, cold, svjež cache ključ): `watch-windows` ~8.6 s, keširano ~0.1 s
-(2026-10-31).
-
 ### Što baza može predvidjeti (mjereno 2026-10-31)
+
+Panel Transit forecast je **uklonjen** 2026-10-31: korisniku je
+poruka većinu vremena bila nepotrebna. Mjerenja ostaju ovdje, a posljednja verzija
+koda je na commitu `85a1096` (`watchWindows.ts`, `TransitForecastPanel.tsx`). Ako se
+vraća, vrijedi sve niže. Skripte i upute za ponovno mjerenje su u `scripts/backtests/`.
 
 Do 2026-10-31 panel Transit forecast je imao "Upcoming opportunities": koji će
 redoviti let proći preko Mjeseca, iz rasporeda pozivnih znakova. Izmjereno na
@@ -600,8 +602,7 @@ ispisuje zbroj. Mjereno je za zadanu lokaciju. Pragovi filtra, ćelija, 30 dana 
 uključen, iako se dobro osvijetljen može snimiti i danju.
 
 "Where to stand" (točka na tlu za raspored pojedinog leta) iz istog je razloga
-uklonjen: 454 mjesta, 2 pogotka. `buildSkyDensity` prepušta event loop svakih 100
-pozivnih znakova, jer isti proces vrti flight-log poller i server-side scan.
+uklonjen: 454 mjesta, 2 pogotka.
 
 ## Shot feasibility — zelena ikona na mapi
 

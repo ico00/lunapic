@@ -307,9 +307,7 @@ const PASS_GAP_MS = 20 * 60_000;
 /**
  * Splits a callsign-ordered, time-ordered row stream into passes: a new pass
  * starts on a callsign change, a time gap over 20 min, or a >25 km coverage
- * jump. Shared by `getRoutesByCallsign` (per-pass features) and
- * `getAllCallsignSessions` (per-callsign session lists for the sky density
- * prediction) so the two never drift apart on what counts as "one flight".
+ * jump.
  */
 function groupPositionsIntoPasses(
   rows: Iterable<{
@@ -439,46 +437,6 @@ export async function getRoutesByCallsign(
     return result;
   } catch {
     return [];
-  }
-}
-
-/**
- * All passes in the window, grouped by callsign (not truncated / recency
- * capped) — used by the flight-log forecasts, which need the *full*
- * historical session set per callsign to fit a schedule, not just the most
- * recent N passes globally. Includes `alt_geom_m` (geometric altitude,
- * preferred over `alt_baro_m` for closest-approach geometry — same
- * `COALESCE` preference `getPositionsInBounds` uses for the retro scan).
- */
-export async function getAllCallsignSessions(
-  fromMs: number,
-  toMs: number,
-  minPoints = 3
-): Promise<Map<string, RoutePoint[][]>> {
-  const db = openReadDb();
-  if (!db) return new Map();
-  try {
-    const passes = foldPositionsIntoPasses(
-      db,
-      `SELECT callsign, lat, lng,
-                COALESCE(alt_geom_m, alt_baro_m) AS alt_baro_m,
-                logged_at
-         FROM positions
-         WHERE callsign IS NOT NULL AND callsign != ''
-           AND logged_at >= ? AND logged_at <= ?
-         ORDER BY callsign ASC, logged_at ASC`,
-      [fromMs, toMs],
-      minPoints
-    );
-    const byCallsign = new Map<string, RoutePoint[][]>();
-    for (const pass of passes) {
-      const existing = byCallsign.get(pass.callsign);
-      if (existing) existing.push(pass.points);
-      else byCallsign.set(pass.callsign, [pass.points]);
-    }
-    return byCallsign;
-  } catch {
-    return new Map();
   }
 }
 

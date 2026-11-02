@@ -13,7 +13,6 @@ import { ObserverLocationPanel } from "@/components/shell/panels/ObserverLocatio
 import { PhotographerToolsPanel } from "@/components/shell/panels/PhotographerToolsPanel";
 import { PlanningPanel } from "@/components/shell/panels/PlanningPanel";
 import { TransitCandidatesPanel } from "@/components/shell/panels/TransitCandidatesPanel";
-import { TransitForecastPanel } from "@/components/shell/panels/TransitForecastPanel";
 import { MobileMoreList, MobileSheet, MobileTabBar, type MobileView } from "@/components/shell/MobileShell";
 import { MoonTimeLine } from "@/components/shell/MoonTimeLine";
 import { NextTransitBoard } from "@/components/shell/NextTransitBoard";
@@ -1075,9 +1074,6 @@ export function HomePageClient() {
       }
       if (id === "flightlog") {
         return <FlightLogPanel />;
-      }
-      if (id === "forecast") {
-        return <TransitForecastPanel />;
       }
       return <PlanningPanel />;
     },

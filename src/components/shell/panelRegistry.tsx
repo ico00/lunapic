@@ -24,7 +24,6 @@ import {
   SectionIconArrowsRightLeft,
   SectionIconFunnel,
   SectionIconPaperAirplane,
-  SectionIconStreetView,
   SectionIconTime,
 } from "@/components/shell/sectionCategoryIcons";
 
@@ -44,7 +43,6 @@ export type PanelId =
   | "flight"
   | "filters"
   | "flightlog"
-  | "forecast"
   | "planning";
 
 export type PanelDef = {
@@ -152,13 +150,6 @@ export const PANEL_REGISTRY: readonly PanelDef[] = [
     label: "Flight log",
     icon: SectionIconFlightLog,
     wide: true,
-  },
-  {
-    id: "forecast",
-    group: "plan",
-    railLabel: "Transit forecast",
-    label: "Transit forecast",
-    icon: SectionIconStreetView,
   },
   {
     id: "planning",
