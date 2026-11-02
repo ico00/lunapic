@@ -56,6 +56,15 @@
         ],
         "createdAt": "2026-10-28T19:54:51.421Z",
         "reason": "same as the .src.html file"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/app/about/about-story.css"
+        ],
+        "createdAt": "2026-11-02T11:11:41.355Z",
+        "reason": "Claude decided: border-left on .decode and .tip is carried over unchanged from the artifact the user asked to put on /about; spec section 2b.9 exempts this page from the 2b.1 ban"
       }
     ]
   }
