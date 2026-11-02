@@ -1,8 +1,9 @@
+import type { Metadata } from "next";
 import { Bricolage_Grotesque, JetBrains_Mono, Manrope } from "next/font/google";
 import { cookies, headers } from "next/headers";
 import { PageTopBar } from "@/components/shell/PageTopBar";
 import { AboutStory } from "./AboutStory";
-import { ABOUT_LANG_COOKIE, resolveAboutLang } from "./aboutLang";
+import { ABOUT_LANG_COOKIE, ABOUT_TITLE, resolveAboutLang } from "./aboutLang";
 import { ABOUT_FAQ } from "./aboutStoryContent";
 
 const displayFont = Bricolage_Grotesque({
@@ -31,13 +32,22 @@ const faqStructuredData = {
   })),
 };
 
-export default async function AboutPage() {
-  // Server bira jezik da prvi prikaz ne zatreperi s drugog jezika (spec §2b.9).
+async function requestLang() {
   const [cookieStore, headerList] = await Promise.all([cookies(), headers()]);
-  const lang = resolveAboutLang(
+  return resolveAboutLang(
     cookieStore.get(ABOUT_LANG_COOKIE)?.value,
     headerList.get("accept-language")
   );
+}
+
+/** Mora biti ovdje: Next pregazi `document.title` postavljen iz klijenta nakon učitavanja. */
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: { absolute: ABOUT_TITLE[await requestLang()] } };
+}
+
+export default async function AboutPage() {
+  // Server bira jezik da prvi prikaz ne zatreperi s drugog jezika (spec §2b.9).
+  const lang = await requestLang();
 
   return (
     <div className="flex min-h-dvh shrink-0 flex-col">
