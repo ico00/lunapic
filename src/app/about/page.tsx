@@ -1,477 +1,56 @@
-"use client";
-
-import { useMemo, useState, type ReactNode } from "react";
+import { Bricolage_Grotesque, JetBrains_Mono, Manrope } from "next/font/google";
+import { cookies, headers } from "next/headers";
 import { PageTopBar } from "@/components/shell/PageTopBar";
+import { AboutStory } from "./AboutStory";
+import { ABOUT_LANG_COOKIE, resolveAboutLang } from "./aboutLang";
+import { ABOUT_FAQ } from "./aboutStoryContent";
 
-const proTip = {
-  title: "Pro Tip",
-  body: "Keep observer fixed first, then tune focal length and sensor in Photographer tools, and finally use corridor confidence + green-flight candidates together. That sequence gives the most reliable field decisions.",
-} as const;
-
-type FaqItem = { question: string; answer: string };
-
-const faqSections: { title: string; items: FaqItem[] }[] = [
-  {
-    title: "Getting started",
-    items: [
-      {
-        question: "How do I use LunaPic in 60 seconds?",
-        answer:
-          "1. Set your observer location — tap the GPS button in the Observer panel, or drag the camera marker on the map to your exact tripod spot.\n\n2. Open Photographer tools and enter your focal length and sensor size. This drives all feasibility scoring and the green shot-feasible aircraft on the map.\n\n3. Choose a live flight source (OpenSky or adsb.lol). Aircraft populate the map within seconds.\n\n4. Watch the Transit Candidates panel. It automatically lists flights that will cross or enter the moon disc from your standpoint. Rows marked ⊙ are full disk transits — the plane will geometrically pass in front of the moon.\n\n5. Select a candidate row. Photographer tools shows a countdown to alignment and a shot-feasibility rating. Active Transits shows a nudge arrow with the direction and distance to walk for the optimal stand.\n\n6. Get there before the countdown hits zero.",
-      },
-      {
-        question: "How do I navigate the interface?",
-        answer:
-          "The map fills the entire screen and the Next transit board answers when, which aircraft and whether you stand on the line, without opening anything.\n\nDesktop: the menu on the left holds the 12 panels in five groups: Now, Shoot, Sky and place, Feeds and Plan. A panel opens in the same place as the board, and closing it brings the board back. The time line runs along the bottom.\n\nPhone: the bar at the bottom opens Active transits, Candidates, Photographer and Moon with one tap, and More holds every other panel. Above it you always see a one-line Next transit strip (tap it for the full board), the Layers tile, the altitude scale and the time line. GPS, Set my location here and Focus on me are the buttons at the top right.\n\nThe observer marker is always visible on the map — drag it to reposition.",
-      },
-      {
-        question: "How does the Observer point behave, and can I drag it?",
-        answer:
-          "Yes — the camera marker on the map is draggable. Press and hold (or click-drag on desktop) the camera icon and move it to any position. All ephemeris calculations, transit geometry, and corridor math instantly recalculate for the new location.\n\nThe observer point is fixed — it does not follow map pan. That is intentional: the entire app is anchored to this one precise standpoint.\n\nOther ways to set the observer: tap the location button in the Observer panel to use your device's GPS; type coordinates directly; or use \"Set my location here\" to pin the current map view centre as the observer.\n\nConsumer GPS can have several metres of error, so dragging the marker to a precise tripod spot (a rooftop corner, a specific kerb) is often more useful than raw GPS.",
-      },
-      {
-        question: "What does Flight source control?",
-        answer:
-          "Three live sources are available:\n\nOpenSky Network — crowdsourced ADS-B/MLAT, global coverage, free anonymous access with rate limits (429). A free OpenSky account configured in the server environment raises those limits.\n\nadsb.lol — community-run open data network, no API key; rate limits are dynamic, so the app caches responses (~12 s per area) and debounces map moves. Aircraft data is contributed by volunteer feeders.\n\nLunaPic ADS-B — a local receiver (Raspberry Pi running dump1090 or readsb) reachable over your network. No external rate limits; best for low-latency coverage of your exact area when you control the antenna.\n\nAll three are proxied on the server and return traffic for a bounded area around your observer. FlightRadar24 and other aggregators are not wired in — any external map can still differ from the feed you selected (different receivers, MLAT, partners).",
-      },
-    ],
-  },
-  {
-    title: "Map overlays",
-    items: [
-      {
-        question: "What does the long moon line on the map mean?",
-        answer:
-          "It is the moon azimuth from your observer point (compass direction to look). It updates with slider time, so when you scrub time, this line rotates to the moon direction for that instant.",
-      },
-      {
-        question: "What is the blue band and pale center line when an aircraft is selected?",
-        answer:
-          "Blue band + pale center line: the ground strip and zero-offset line (3D line-of-sight, aircraft altitude) for the current slider time only — the direction you move along the ground to line up the hull with the moon's center at your fixed observer. Zoom out if the band is off-screen.",
-      },
-      {
-        question: "Why are some aircraft a different color?",
-        answer:
-          "Aircraft colors depend on two settings:\n\nAltitude tint ON (default): each aircraft is colored by altitude — red (ground / approach), orange, gold, green, blue (cruise ~35–45k ft), purple (high / bizjet). Green overrides the altitude color for any aircraft that is shot-feasible (both a mathematical transit overlap and optical feasibility for your camera setup).\n\nAltitude tint OFF: all non-feasible aircraft switch to a single neutral grey tone; shot-feasible aircraft stay green. Toggle the checkbox in the altitude legend on the map.\n\nColors update live as flights, time, and settings change.",
-      },
-      {
-        question: "What does the altitude color bar on the map mean?",
-        answer:
-          "The bar is a quick height scale (MSL): map symbols run from red (low) through orange, gold and green to blue at cruise and purple above it, by reported baro/geo altitude. km / ft on the same row as the legend title switch the tick labels (labels only; colors and geometry stay in metres). Green still marks shot-feasible aircraft — the same meaning as elsewhere on the map, even if that hue appears in the mid-altitude part of the scale. The checkbox beside Aircraft color by altitude (MSL) turns the height scale off so other traffic uses one neutral tone; shot-feasible flights stay highlighted. The 3D aircraft marker also scales a bit with altitude.",
-      },
-      {
-        question: "What is the green transit opportunity corridor?",
-        answer:
-          "It is an observer-centric map corridor that marks where transit chance is strongest for your current moon geometry and camera setup. Confidence bands show LOW / MEDIUM / HIGH likelihood, and the corridor appears only when moon visibility is in the Optimal tier.",
-      },
-      {
-        question: "Does the corridor guarantee a shot if a plane enters it?",
-        answer:
-          "No. Treat it as a high-quality positioning and timing filter, not a guarantee. Final success still depends on real aircraft track updates, feed latency, exact transit timing, and field conditions.",
-      },
-      {
-        question: "What is the VFR aeronautical chart layer?",
-        answer:
-          "The VFR layer overlays an aeronautical sectional chart on top of the base map — the same visual used by general aviation pilots for visual flight rules navigation. It shows airport symbols, airspace boundaries (Class B/C/D/E), airways, navigation aids (VORs, NDBs), terrain contours, and visual landmarks.\n\nFor moon transit photography, this is mainly useful context: you can quickly see which airports and flight paths are near your observer, which helps anticipate the kinds of traffic (commercial approach routes, GA traffic patterns, training areas) that may cross your field of view.\n\nToggle it from the Layers control on the map. VFR chart tiles are fetched from a third-party tile source and may not always match the most current published charts.",
-      },
-      {
-        question: "What other base map layers are available?",
-        answer:
-          "The Layers control on the map lets you switch between several options:\n\nSatellite — aerial/satellite imagery; useful for scouting a field location and checking for obstructions (trees, buildings) before heading out.\n\nStreet — standard road map; good for navigation.\n\nVFR — aeronautical sectional chart overlay (see the dedicated FAQ entry above).\n\nStreet View — embeds an interactive Google Street View panorama at the observer location with moon and flight overlays (see the Street View FAQ entry).\n\nLayers can be combined (e.g. Street View on top of Satellite) where the UI permits.",
-      },
-    ],
-  },
-  {
-    title: "Transit size & geometry",
-    items: [
-      {
-        question: "Why does the plane look so tiny against the moon in my photos?",
-        answer:
-          "Because of one number only: the straight-line (slant) distance from you to the aircraft. The moon is always about 0.5° across — on a 600 mm full-frame setup it renders at roughly the same ~950 px every night. The plane's share of that disc shrinks linearly with distance.\n\nRule of thumb for a typical airliner (~36–40 m wingspan):\n\n~15 km away → about 25–30% of the moon's diameter — a dramatic, detailed silhouette.\n\n~40 km away → about 11% — clearly a plane, but small.\n\n~80–100 km away → 4–6% — a sliver you may barely notice in the frame.\n\nThe Photographer panel shows this distance live as \"Straight-line distance to plane\", and the coverage percentage above it tells you exactly how big the silhouette will be. If it reads 80+ km, the plane will be tiny no matter what camera you use.",
-      },
-      {
-        question: "What is slant (straight-line) distance?",
-        answer:
-          "It is the length of your actual line of sight to the aircraft — the hypotenuse of the triangle formed by you, the point on the ground below the plane, and the plane. Not the plane's altitude, and not the map distance: light travels the full diagonal from the aircraft to your lens, and that diagonal is what sets the silhouette size.\n\nFor a transit, the aircraft must sit exactly on your sight-line to the moon. Cruising jets all fly on an invisible \"ceiling\" at roughly 11 km, so the distance to a transiting jet is simply where your sight-line pierces that ceiling:\n\nslant ≈ cruise altitude ÷ sin(moon elevation)\n\nLook up steeply (moon high, say 50°) and the line pierces the ceiling almost overhead — about 14 km away. Look shallow (moon at 8°) and the line travels ~78 km before reaching cruise altitude. Same moon, same jet — five times the distance, one fifth the silhouette.",
-      },
-      {
-        question: "If the moon is always the same size, why does moon elevation matter?",
-        answer:
-          "Moon elevation is not a separate factor — it is the mechanism that controls the only factor: plane distance.\n\nThe moon's apparent size barely changes (±7% over a month; a horizon moon is actually ~1.5% smaller than an overhead one — the \"huge moon at the horizon\" is an illusion). What elevation does control is the angle of your sight-line, and therefore how far away a cruise-altitude aircraft must be to cross it. Low moon → shallow line → distant planes → tiny silhouettes. High moon → steep line → close planes → big silhouettes.\n\nThe exception: aircraft that are not at cruise altitude. A plane on approach at 500–3000 m crosses your sight-line close to you regardless of moon elevation. That is why photos of low-flying aircraft in front of a low moon look so spectacular — low moon plus low traffic is the one combination where elevation stops mattering.",
-      },
-      {
-        question: "When do I get the biggest silhouettes?",
-        answer:
-          "Two working strategies:\n\n1. High moon + ordinary cruise traffic. Wait for sessions when the moon is 40°+ above the horizon (check Moon nowcast, or scrub the time slider ahead). A transiting jet is then only 13–16 km away — 25–35% of the disc. The trade-off: the transit corridor on the ground narrows with distance (roughly slant × 0.0087, so ~800 m wide at 90 km but only ~120 m at 14 km), which makes alerts and small repositioning moves matter much more. Use the candidate alerts and the nudge arrow, and be ready to walk.\n\n2. Low moon + airport traffic. Position yourself where an approach or departure path visually crosses the moon. A plane on final at a few km slant can appear as large as the moon disc or bigger. Positioning is metre-precise (the approach path is a fixed line in the sky — you move until it intersects the moon) and the crossing lasts a fraction of a second, so prefocus on the moon and shoot bursts.\n\nThe worst combination is the one that produces most disappointing photos: a low moon with only cruise traffic — every transit is then locked to 70–100 km and physics guarantees a tiny plane. If the Photographer panel shows FAIR with 4–6% coverage, that is what is happening.",
-      },
-    ],
-  },
-  {
-    title: "Panels",
-    items: [
-      {
-        question: "How should I read Moon (nowcast)?",
-        answer:
-          "Altitude is moon height above horizon (degrees), azimuth is compass direction from true north, and angular radius is apparent moon size. Illuminated is the percentage of the lunar disk lit as seen from Earth (0% = new moon, 100% = full moon). Visibility Advice flags low-altitude cases where the moon may be technically up but hard to see in practice.\n\nWhen you keep the default balcony observer and the simulated moon lands in a narrow band around a saved reference (height, direction, near-full phase), an Ideal for transit watch callout appears — a cue that conditions match that reference session.\n\nMoonrise and Moonset are local times for the day shown on the time line, computed for your observer; hover a time to see it in UTC. On some days the Moon does not rise or set at all, because a lunar day lasts about 24 h 50 min, and the panel then says None today.",
-      },
-      {
-        question: "How does the Compass → Moon panel work?",
-        answer:
-          "Goal. Hold the phone flat like a map (screen facing you). The compass rose (ticks + N/E/S/W) rotates with your device heading so cardinals stay lined up with the horizon (best effort from the sensor). The fixed triangle at 12 o'clock marks the top of the phone — your forward direction in the horizontal plane. The amber needle shows the shortest turn from that forward direction to the moon's azimuth: when it points straight up to the triangle, you are aimed correctly.\n\nSensors. On many iPhones, Safari exposes a compass-derived heading; elsewhere the fallback is often alpha (attitude), which can drift. This is a field helper, not survey-grade north.\n\nField use. Prefer open air. Move away from cars, rebar, large steel, and speakers — they skew the magnetic field. If the needle jitters, walk a few steps, re-level the phone, and wait for the value below the disc to settle.\n\nLimits. Azimuth only. It does not tell you moon altitude — use Moon (nowcast) and the map for elevation.",
-      },
-      {
-        question: "What does Active Transits show?",
-        answer:
-          "Active Transits lists aircraft whose azimuth from your observer (corrected for aircraft altitude) is within 0.5° of the moon's azimuth — they are currently on the amber Moon ray where a geometric transit is happening. Each row shows callsign and delta azimuth (Δ).\n\nNudge arrow. Tap a row to select it. A nudge arrow appears below the list showing how many metres to walk and in which compass direction to reach the optimal stand where the transit centres exactly. When you close within 5 m, the arrow is replaced by a green Centered indicator and a short double chime plays.\n\nThe list only populates when moon visibility is in the Optimal tier. If it is empty, no aircraft are on the ray right now.",
-      },
-      {
-        question: "How do transit alerts and notifications work?",
-        answer:
-          "Turn on Transit alerts with the bell icon in the Transit Candidates panel header. You are then warned the moment a flight is predicted to cross the moon disc, or enters an active transit right now.\n\nApp open and on screen: an ATC-style sound (squelch + beep) plays and an in-app banner appears.\n\nScreen off, app in the background, or fully closed: you get a system push notification (banner + vibration). This keeps working even when LunaPic is not open because detection runs on the server — once you subscribe, your observer location and camera settings are remembered server-side and the server keeps checking for transits for you.\n\nFirst time: tapping the bell asks the browser for notification permission — choose Allow. On iPhone, push only works if you add LunaPic to the Home Screen (Share → Add to Home Screen) and open it from there; the alert then uses your phone's system notification sound (iOS does not allow a custom sound or vibration for web notifications).\n\nTurn the bell off to stop notifications. If you move your observer or change your camera, the saved settings update automatically.",
-      },
-      {
-        question: "What is the countdown in Photographer tools?",
-        answer:
-          "It is an estimate of time until the selected plane's direction aligns with the moon direction from your observer. It is meant as a practical shooting aid, not a perfect physical simulation.",
-      },
-      {
-        question: "How do camera settings affect results?",
-        answer:
-          "Focal length and sensor crop (set in Photographer tools) define effective focal length. That value drives optical feasibility scoring and which aircraft turn green on the map, so realistic camera settings are important.",
-      },
-      {
-        question: "What time basis does Photographer tools use?",
-        answer:
-          "Pick a flight from the list or map. The moon position is computed for the current wall-clock time (Sync). The aircraft side extrapolates a little ahead from the latest feed position using reported ground speed and track so the countdown stays usable between feed refreshes; it is not a full flight simulator.",
-      },
-      {
-        question: "What do Field sounds do?",
-        answer:
-          "Turn Sounds on after selecting an aircraft. On iPhone, turn off the silent switch and raise ringer volume; the first Sounds on tap plays a short unlock ping and links Web Audio to your finger (Safari otherwise keeps timer-driven sounds silent). Sync time to now also unlocks the shared audio context quietly.\n\nSounds: a chime when the selected aircraft enters the green map filter; a soft hold tone while it stays in the moon-overlap disc model; countdown beeps when timing data exists.",
-      },
-      {
-        question: "What does OpenSky latency skew do?",
-        answer:
-          "The slider in the Field overlays panel lets you offset aircraft extrapolation relative to wall-clock time to compensate for feed delay. If the app shows a plane slightly behind where it looks in the sky, nudge the skew forward. Moon ephemeris is not affected — only aircraft positions shift.",
-      },
-      {
-        question: "How does AR Sky Camera work?",
-        answer:
-          "AR Sky Camera opens a full-screen live camera view and overlays aircraft position markers locked to where the actual planes are in the sky. Using device orientation sensors (compass + tilt), the app places each callsign label at its correct azimuth and elevation.\n\nThe moon appears as an amber circle. When the moon or any aircraft is off-screen, an edge arrow guides you to rotate toward it. A small radar disc in the bottom-right corner shows all tracked aircraft relative to your current camera heading — useful for spotting traffic behind you.\n\nTap any callsign label to select that flight and open its data card at the top of the screen. Selecting here also highlights it on the main map.\n\nAll nearby mode shows all tracked flights; Only focused limits markers to the selected flight and top transit candidates. If compass heading drifts, point the phone toward a known bearing and tap Recenter.\n\nRequires camera and orientation permissions. On iPhone Safari a compass-derived heading is used; on other browsers the fallback may drift more.",
-      },
-      {
-        question: "How does Street View work?",
-        answer:
-          "Street View is available as a map layer — toggle it from the Layers control on the map. It opens a Google Street View panorama centred on your observer location and adds a live canvas overlay.\n\nOverlay elements: the moon's current position as an amber disc with crosshair; its path over a ±4-hour window (past samples faded, future samples brighter); aircraft silhouettes for transit candidates and active transits. Active transit aircraft (on the amber Moon ray) appear in red with trajectory dots and callsign + altitude; other candidates appear dimmer in blue.\n\nThe panorama auto-rotates to face the moon's azimuth on load. Drag freely to look around — the overlay repaints in sync. A full-screen exit button is available in the top-right corner.\n\nIf no Street View panorama is available within 100 m of your observer, a notice is shown instead. Street View requires a Google Maps API key in the deployment configuration.",
-      },
-    ],
-  },
-];
-
-const allFaqs = faqSections.flatMap((s) => s.items);
+const displayFont = Bricolage_Grotesque({
+  variable: "--font-about-display",
+  subsets: ["latin", "latin-ext"],
+  weight: ["500", "700", "800"],
+});
+const bodyFont = Manrope({
+  variable: "--font-about-body",
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "500", "600", "700"],
+});
+const monoFont = JetBrains_Mono({
+  variable: "--font-about-mono",
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "500", "600"],
+});
 
 const faqStructuredData = {
   "@context": "https://schema.org",
   "@type": "FAQPage",
-  mainEntity: allFaqs.map((item) => ({
+  mainEntity: ABOUT_FAQ.map((item) => ({
     "@type": "Question",
     name: item.question,
-    acceptedAnswer: {
-      "@type": "Answer",
-      text: item.answer.replace(/\*\*/g, ""),
-    },
+    acceptedAnswer: { "@type": "Answer", text: item.answer },
   })),
 };
 
-function normalizeSearch(s: string): string {
-  return s.trim().toLowerCase();
-}
-
-function highlightText(text: string, query: string): ReactNode {
-  const raw = query.trim();
-  if (!raw) return text;
-  const escaped = raw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const re = new RegExp(escaped, "gi");
-  const out: ReactNode[] = [];
-  let last = 0;
-  let k = 0;
-  for (const m of text.matchAll(re)) {
-    const i = m.index ?? 0;
-    if (i > last) out.push(text.slice(last, i));
-    out.push(
-      <mark
-        key={k++}
-        className="rounded-sm px-0.5 text-inherit"
-        style={{ background: "var(--moon-soft)", color: "var(--moon)" }}
-      >
-        {m[0]}
-      </mark>
-    );
-    last = i + m[0].length;
-  }
-  if (last < text.length) out.push(text.slice(last));
-  return out.length > 0 ? out : text;
-}
-
-function FaqEntry({
-  item,
-  idx,
-  openIdx,
-  onToggle,
-  isSearchActive,
-  search,
-}: {
-  item: FaqItem;
-  idx: number;
-  openIdx: number;
-  onToggle: (idx: number) => void;
-  isSearchActive: boolean;
-  search: string;
-}) {
-  const expanded = isSearchActive || openIdx === idx;
-  return (
-    <section className="border-t border-[color:var(--hair-soft)] last:border-b">
-      <button
-        type="button"
-        className="flex min-h-[52px] w-full items-center justify-between gap-4 py-2.5 text-left text-[length:var(--fs-body)] font-bold transition-colors duration-150 disabled:cursor-default"
-        disabled={isSearchActive}
-        onClick={() => {
-          if (isSearchActive) return;
-          onToggle(idx);
-        }}
-        aria-expanded={expanded}
-        aria-controls={`faq-answer-${idx}`}
-      >
-        <span>{isSearchActive ? highlightText(item.question, search) : item.question}</span>
-        {!isSearchActive ? (
-          <svg
-            className={`h-[18px] w-[18px] shrink-0 text-[color:var(--ink-3)] transition-transform duration-150 ${openIdx === idx ? "rotate-45" : ""}`}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            aria-hidden
-          >
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-        ) : null}
-      </button>
-      {expanded ? (
-        <p id={`faq-answer-${idx}`} className="max-w-[66ch] whitespace-pre-line pb-4 text-[color:var(--ink-2)]">
-          {isSearchActive ? highlightText(item.answer, search) : item.answer}
-        </p>
-      ) : null}
-    </section>
-  );
-}
-
-const sectionAnchor = (title: string) => `faq-${title.toLowerCase().replace(/[^a-z]+/g, "-")}`;
-
-function scrollToAnchor(id: string) {
-  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  document.getElementById(id)?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
-}
-
-export default function AboutPage() {
-  const [openIdx, setOpenIdx] = useState(0);
-  const [search, setSearch] = useState("");
-  const [tocId, setTocId] = useState("about-intro");
-
-  const queryNorm = normalizeSearch(search);
-  const isSearchActive = queryNorm.length > 0;
-
-  const matchedFaqs = useMemo(() => {
-    if (!isSearchActive) return allFaqs;
-    return allFaqs.filter(
-      (item) =>
-        item.question.toLowerCase().includes(queryNorm) ||
-        item.answer.toLowerCase().includes(queryNorm)
-    );
-  }, [isSearchActive, queryNorm]);
-
-  const proTipMatches = useMemo(() => {
-    if (!isSearchActive) return true;
-    return (
-      proTip.title.toLowerCase().includes(queryNorm) ||
-      proTip.body.toLowerCase().includes(queryNorm)
-    );
-  }, [isSearchActive, queryNorm]);
-
-  const handleToggle = (idx: number) => {
-    setOpenIdx((prev) => (prev === idx ? -1 : idx));
-  };
-
-  // Pre-compute global offset for each section so FaqEntry gets a stable idx
-  const sectionOffsets = useMemo(
-    () =>
-      faqSections.reduce<number[]>((acc, _, i) => {
-        acc.push(i === 0 ? 0 : acc[i - 1] + faqSections[i - 1].items.length);
-        return acc;
-      }, []),
-    []
-  );
-
-  const tocItem = (id: string, label: string) => (
-    <button
-      key={id}
-      type="button"
-      aria-current={tocId === id ? "true" : undefined}
-      onClick={() => {
-        setTocId(id);
-        setSearch("");
-        scrollToAnchor(id);
-      }}
-      className={`block h-9 w-full rounded-[var(--r-ctl)] px-2.5 text-left text-[length:var(--fs-body)] transition-colors duration-150 ${
-        tocId === id
-          ? "bg-[color:var(--panel-2)] font-bold text-[color:var(--ink)]"
-          : "font-medium text-[color:var(--ink-2)] [@media(hover:hover)_and_(pointer:fine)]:hover:bg-[color:var(--panel)] [@media(hover:hover)_and_(pointer:fine)]:hover:text-[color:var(--ink)]"
-      }`}
-    >
-      {label}
-    </button>
+export default async function AboutPage() {
+  // Server bira jezik da prvi prikaz ne zatreperi s drugog jezika (spec §2b.9).
+  const [cookieStore, headerList] = await Promise.all([cookies(), headers()]);
+  const lang = resolveAboutLang(
+    cookieStore.get(ABOUT_LANG_COOKIE)?.value,
+    headerList.get("accept-language")
   );
 
   return (
-    <div className="flex h-dvh min-h-[520px] flex-col bg-[color:var(--ground)] max-md:h-auto max-md:min-h-dvh">
+    <div className="flex min-h-dvh shrink-0 flex-col">
       <script
         type="application/ld+json"
         // Safe here: source is local static content, not user-generated.
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqStructuredData) }}
       />
       <PageTopBar current="about" />
-
-      <div className="min-h-0 flex-1 overflow-y-auto max-md:overflow-visible">
-        <div className="mx-auto grid max-w-[1100px] grid-cols-[232px_minmax(0,1fr)] items-start gap-14 px-6 pb-16 pt-8 max-[1280px]:grid-cols-[200px_minmax(0,1fr)] max-[1280px]:gap-8 max-md:block max-md:px-4 max-md:pb-12 max-md:pt-5">
-          <nav aria-label="On this page" className="sticky top-6 flex flex-col gap-0.5 max-md:hidden">
-            <h2 className="mb-2 px-2.5 text-[length:var(--fs-meta)] font-bold text-[color:var(--ink-3)]">On this page</h2>
-            {tocItem("about-intro", "Why LunaPic exists")}
-            {faqSections.map((section) => tocItem(sectionAnchor(section.title), section.title))}
-          </nav>
-
-          <article className="min-w-0 max-w-[720px]">
-            <h1 id="about-intro" className="scroll-mt-6 text-[length:var(--fs-display)] font-extrabold leading-[1.1] tracking-[-0.015em]">
-              About / FAQ
-            </h1>
-            <p className="mt-2 max-w-[56ch] text-[length:var(--fs-h2)] text-[color:var(--ink-2)]">
-              Short, practical answers for reading panels, map overlays, and field workflow.
-            </p>
-
-            <div className="mt-7 flex max-w-[66ch] flex-col gap-3.5 text-[color:var(--ink)]">
-              <p>
-                LunaPic is a vibe-code hobbyist pet project built by Ivica Drusany, an amateur
-                photographer with zero knowledge of astronomy and coding with one specific goal in
-                mind: capturing the perfect moon transit shot of an aircraft passing in front of
-                the moon.
-              </p>
-              <p>
-                That kind of shot demands precise timing and positioning that is nearly impossible
-                to eyeball, so this tool was built to take the guesswork out of it.
-              </p>
-              <p>
-                There is no commercial agenda here, just a waste of time and money and to test AI
-                and vibe coding.
-              </p>
-              <p>
-                The app tracks real flight traffic in my area, calculates when an aircraft will
-                geometrically cross the moon as seen from observer standpoint, and guides you to
-                the right spot on the ground, so if you want a perfect shot, prepare to run.
-              </p>
-              <p>
-                If you are an astro-photographer, a plane-spotter, or simply curious you are more
-                than welcome to use LunaPic.
-              </p>
-            </div>
-
-            <dl className="mt-5 grid max-w-[66ch] grid-cols-[96px_1fr] gap-x-4 gap-y-1.5 rounded-[var(--r-panel)] border border-[color:var(--hair)] bg-[color:var(--panel)] px-4 py-3.5 max-md:grid-cols-[80px_1fr]">
-              <dt className="font-extrabold">Lūna</dt>
-              <dd className="text-[color:var(--ink-2)]">Moon in Latin</dd>
-              <dt className="font-extrabold">Pic</dt>
-              <dd className="text-[color:var(--ink-2)]">Picture in English</dd>
-              <dt className="font-extrabold">LunaPic</dt>
-              <dd className="text-[color:var(--ink-2)]">
-                a combination that sounds like{" "}
-                <em className="font-bold not-italic text-[color:var(--moon)]">lunatic</em>, which for
-                sure we are if we are wasting time on this
-              </dd>
-            </dl>
-
-            {(!isSearchActive || proTipMatches) && (
-              <div className="mt-note mt-note-observer mt-5 max-w-[66ch] !text-[length:var(--fs-body)]">
-                <b className="font-extrabold">
-                  {isSearchActive ? highlightText(proTip.title, search) : proTip.title}
-                </b>
-                <p className="mt-0.5">{isSearchActive ? highlightText(proTip.body, search) : proTip.body}</p>
-              </div>
-            )}
-
-            <div className="sticky top-0 z-[2] mt-9 flex items-center justify-between gap-4 bg-[color:var(--ground)] pb-3 pt-3.5 max-md:top-14 max-md:flex-wrap">
-              <h2 className="text-[length:var(--fs-h1)] font-extrabold">Frequently asked questions</h2>
-              <label className="mt-field !min-h-[38px] w-[280px] text-[color:var(--ink-3)] max-md:w-full">
-                <span className="sr-only">Search FAQ and tips</span>
-                <svg className="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <circle cx="11" cy="11" r="7" />
-                  <path d="M21 21l-4.3-4.3" />
-                </svg>
-                <input
-                  id="about-faq-search"
-                  type="search"
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                  }}
-                  placeholder="Search all answers…"
-                  autoComplete="off"
-                  spellCheck={false}
-                  className="h-full min-w-0 flex-1 bg-transparent text-[length:var(--fs-body)] text-[color:var(--ink)] outline-none placeholder:text-[color:var(--ink-3)] max-md:text-[16px]"
-                />
-              </label>
-            </div>
-
-            {isSearchActive ? (
-              <div aria-live="polite">
-                {matchedFaqs.length === 0 && !proTipMatches ? (
-                  <p className="py-6 text-[color:var(--ink-2)]">
-                    No answer matches that search. Try a shorter word, for example
-                    &ldquo;corridor&rdquo; or &ldquo;alert&rdquo;.
-                  </p>
-                ) : null}
-                {matchedFaqs.map((item, idx) => (
-                  <FaqEntry
-                    key={item.question}
-                    item={item}
-                    idx={idx}
-                    openIdx={openIdx}
-                    onToggle={handleToggle}
-                    isSearchActive={isSearchActive}
-                    search={search}
-                  />
-                ))}
-              </div>
-            ) : (
-              faqSections.map((section, sIdx) => {
-                const baseIdx = sectionOffsets[sIdx];
-                return (
-                  <div key={section.title} id={sectionAnchor(section.title)} className="mt-6 scroll-mt-[72px] max-md:scroll-mt-32">
-                    <h3 className="mb-2 text-[length:var(--fs-h2)] font-extrabold">{section.title}</h3>
-                    {section.items.map((item, iIdx) => (
-                      <FaqEntry
-                        key={item.question}
-                        item={item}
-                        idx={baseIdx + iIdx}
-                        openIdx={openIdx}
-                        onToggle={handleToggle}
-                        isSearchActive={isSearchActive}
-                        search={search}
-                      />
-                    ))}
-                  </div>
-                );
-              })
-            )}
-          </article>
-        </div>
-      </div>
+      <AboutStory
+        lang={lang}
+        fontClassName={`${displayFont.variable} ${bodyFont.variable} ${monoFont.variable}`}
+      />
     </div>
   );
 }

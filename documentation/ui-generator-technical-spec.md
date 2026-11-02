@@ -140,6 +140,17 @@ Boje imaju **fiksan posao** i ne smiju se koristiti za dekoraciju ni za kategori
 - Bez kandidata ploča zadržava isti raspored: oznaka `Watching` → naslov „No transit in the next 5 minutes” → prigušena linija do granice predviđanja → visina, azimut i osvijetljenost Mjeseca. Odgovara i kad nema što javiti.
 - Mjesec 5–12° (`caution`): ploča pokazuje `.mt-note` s visinom i upozorenjem o izmaglici.
 - Jezik UI-ja je engleski (§1.1), i na Flight log stranici.
+
+## 2b.9 Stranica About (namjerna iznimka)
+
+`/about` je samostalna ilustrirana priča (vodič za fotografe i put podatka od aviona do karte), ne dio alata. Korisnik je odabrao taj izgled 2026-11-02, pa za nju **ne vrijede** §2b.1, §2b.2, §2b.3 ni §2b.8. Iznimka vrijedi samo unutar `.about-story` (`src/app/about/about-story.css`), a na druge stranice se ne prenosi.
+
+- **Boje:** vlastiti tokeni na `.about-story`: `--bg`, `--panel`, `--ink`, `--muted`, `--line`, `--radio` (narančasto, radio signal), `--data` (cijan, internet), `--ok` (zeleno, stiglo u aplikaciju). Tok podatka uvijek ide tim redom. Stranica je samo tamna, kao i ostatak aplikacije. `--moon` i `--panel` ovdje znače nešto drugo nego u §2b.2.
+- **Tipografija:** Bricolage Grotesque (naslovi), Manrope (tekst), JetBrains Mono (oznake i brojke), svi preko `next/font`, jer CSP ne dopušta Google Fonts. Uppercase mono oznake iznad naslova su dozvoljene.
+- **Dozvoljeno:** blur iza navigacije i oznaka u 3D sceni, gradijenti u 3D pozornici.
+- **Jezik:** HR i EN, oba u istom HTML-u, prebacuje ih atribut `lang` na `.about-story`. Prvi prikaz bira server iz kolačića `about-lang`, a bez njega iz `Accept-Language`.
+- **3D:** `three` se učitava dinamički samo na ovoj ruti. Scene crtaju samo dok su vidljive, a poštuju `prefers-reduced-motion`.
+- **Ostaje isto:** `PageTopBar` (§2b.5) na vrhu, te fokus i ciljevi dodira.
 - **Vremena su lokalna.** Moonrise i Moonset su lokalni sat (HH:MM) za lokalni kalendarski dan simuliranog trenutka, UTC je u tooltipu (`title`). Dan bez izlaza ili zalaska je stvaran slučaj (lunarni dan ~24 h 50 min) i piše „None today”.
 - **Izvor izlaza i zalaska je astronomy-engine** (`moonTimes.ts`), isti kao za položaj Mjeseca. Izmjereno za Zagreb, listopad 2026: stari SunCalc nema paralaksu i davao je izlaz p50 6 min, do 16 min drukčije od visine koju aplikacija prikazuje. Stari prozor UTC dana je na 6 od 31 dana prikazivao događaj susjednog lokalnog dana, pa sama promjena oznake ne bi bila točna.
 
