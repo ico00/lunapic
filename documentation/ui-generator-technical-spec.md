@@ -213,6 +213,24 @@ u `FlightSourcePanel.tsx`, ne u globalnom `FLIGHT_PROVIDER_COMBO_IDS`):
 - Bilješka: `text-[length:var(--fs-label)] text-[color:var(--t-tertiary)]`, `px-2.5 pb-1`.
 - Naslovi grupa su statični tekst, ne dio checkbox labela (ne mijenjaju stanje).
 
+### 4a.2c Stanje LunaPic ADS-B prijemnika (`ReceiverStatusNote`)
+
+Dok je `LunaPic ADS-B` uključen, ispod izvora stoji odgovor na „zašto ne radi”
+iz `/api/localsdr/status` (`diagnoseReceiver`), osvježava se svakih 30 s.
+
+- **Bilješka** `.mt-note.mt-note-disc` (isti oblik kao bivša „receiver unreachable”):
+  podebljan prvi dio kaže što se vidi („No contact with the Raspberry Pi since
+  21:42.”, „The Pi is online, but readsb is not decoding…”), ostatak što to znači
+  i što provjeriti. Pokazuje se kad klijent ne dobiva podatke **ili** kad server
+  zna da su loši (readsb stoji, nema aviona). Ako server ima svjež snimak, a
+  klijent ne, bilješka kaže da je problem između uređaja i servera.
+- **Prekidi · 7 dana**: naslov `.mt-section-label`, ispod grid od tri stupca
+  (`auto auto 1fr`, `gap-x-2`): vrijeme početka `--t-tertiary` (`HH:MM`, raniji
+  dani s `ddd d MMM`, `en-GB`), trajanje desno poravnato, uzrok `--t-primary`
+  s `truncate`. Sve `--fs-label`, `tabular-nums`. Najviše 5 redaka, samo prekidi
+  ≥ 60 s. Detalj (greška, najslabiji signal) je u `title` ćelija.
+- Bez prekida i bez kvara ništa se ne prikazuje.
+
 ---
 
 ## 5. `useObserverStore` (`src/stores/observer-store.ts`)
