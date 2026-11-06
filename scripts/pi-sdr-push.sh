@@ -28,6 +28,17 @@ set -euo pipefail
 : "${INGEST_URL:?INGEST_URL nije postavljen}"
 : "${SDR_INGEST_TOKEN:?SDR_INGEST_TOKEN nije postavljen}"
 
+# Stanje za lunapic-net-watchdog (pi-net-watchdog.sh): mtime `last-ok` = zadnje
+# uspješno slanje, `last-error` = "<epoch> <poruka>" zadnjeg neuspjeha. Watchdog
+# iz toga zna da mreža radi, a slanje ne, i šalje razlog serveru.
+STATE_DIR=/run/lunapic-sdr-push
+mkdir -p "$STATE_DIR" 2>/dev/null || true
+fail() {
+  printf '%s %s\n' "$(date +%s)" "$1" > "$STATE_DIR/last-error" 2>/dev/null || true
+  echo "$1" >&2
+  exit 1
+}
+
 # Uobičajene lokacije na koje readsb/dump1090 pišu aircraft.json.
 DEFAULT_FILES=(
   /run/readsb/aircraft.json
@@ -61,8 +72,7 @@ read_payload() {
 }
 
 if ! payload=$(read_payload 2>&1); then
-  echo "čitanje lokalnog ADS-B izvora nije uspjelo: $payload" >&2
-  exit 1
+  fail "čitanje lokalnog ADS-B izvora nije uspjelo: $payload"
 fi
 
 # Sanity: mora sadržavati `aircraft` polje — inače ne šalji smeće serveru.
@@ -72,8 +82,7 @@ fi
 case "$payload" in
   *'"aircraft"'*) ;;
   *)
-    echo "odgovor (${SOURCE_FILE:-${SOURCE_URL:-autodetekcija}}) ne izgleda kao tar1090 JSON" >&2
-    exit 1
+    fail "odgovor (${SOURCE_FILE:-${SOURCE_URL:-autodetekcija}}) ne izgleda kao tar1090 JSON"
     ;;
 esac
 
@@ -82,14 +91,13 @@ http_code=$(printf '%s' "$payload" | gzip -c | curl -sS -m 20 -o /tmp/lunapic-in
   -X POST "$INGEST_URL" \
   -H "Content-Type: application/gzip" \
   -H "x-sdr-token: ${SDR_INGEST_TOKEN}" \
-  --data-binary @-) || {
-  echo "POST na $INGEST_URL nije uspio" >&2
-  exit 1
+  --data-binary @- 2>"$STATE_DIR/curl-err") || {
+  fail "POST nije uspio: $(head -c 200 "$STATE_DIR/curl-err")"
 }
 
 if [ "$http_code" != "200" ]; then
-  echo "ingest odbio snapshot: HTTP $http_code — $(cat /tmp/lunapic-ingest-resp)" >&2
-  exit 1
+  fail "ingest odbio snapshot: HTTP $http_code — $(head -c 200 /tmp/lunapic-ingest-resp)"
 fi
 
+touch "$STATE_DIR/last-ok"
 exit 0

@@ -292,6 +292,21 @@ Stanje je u memoriji, pa restart tijekom prekida šalje obavijest ponovno.
 `/api/localsdr/aircraft` bez svježeg snimka vraća **503**, kao i Avionix: prije je
 vraćao `200` s praznom listom, pa `offline` oznaka u panelu nikad nije zasvijetlila.
 
+**Zašto Pi ne radi (2026-11-06).** Server tijekom prekida zna samo da snimak ne
+stiže; uzrok zna samo Pi. `scripts/pi-net-watchdog.sh` (timer 15 s) svaki tick
+svrsta u `wifi` / `gateway` / `internet` / `dns` / `server` / `receiver` / `ok`, a
+nakon pokretanja prepozna i `pi-down` (razmak od zadnjeg otkucaja > 60 s). Završen
+prekid sprema u `/var/lib/lunapic-net-watchdog/pending.jsonl` i šalje ga na
+`/api/localsdr/diag` čim veza proradi, uz stanje Pija svakih 60 s (isti token kao
+ingest; `sdrDiag.cjs`, `data/sdr-diag.json`). `/api/localsdr/status`
+(`diagnoseReceiver`) od toga radi odgovor za panel Flight source: `pi-silent`,
+`push-failing`, `receiver-stale`, `no-aircraft`, `ok`, i prekide ≥ 60 s iz zadnjih
+7 dana. Za prekid u tijeku uzrok se ne može znati dok se Pi ne vrati. Wi-Fi restart
+(3 min) i reboot (15 min, 1×/h) rade samo za `wifi`/`gateway`; prekid 5G-a Pi samo
+zapisuje. Instalacija: `scripts/pi-resilience-setup.sh` (uz trajni journal,
+hardverski watchdog i `readsb` stdout u `/dev/null` — bez toga `readsb` puni
+journal s ~40 000 redaka/min i briše povijest za par minuta).
+
 **Zašto push:** ranije je server **povlačio** podatke s Pija preko Tailscale
 Funnela. To zahtijeva da Pi bude javno dostupan — Funnel → javni DNS → cert →
 ingress. Ta se registracija pokazala nestabilnom: javni DNS zapis za
