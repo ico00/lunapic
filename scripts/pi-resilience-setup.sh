@@ -15,6 +15,7 @@
 #        - ruter dostupan, a internet ne (5G pao)    -> samo zapis u log;
 #          reboot Pija tu ništa ne rješava
 #   4. Gasi Wi-Fi power saving.
+#   5. Preusmjerava readsb stdout u /dev/null (inače puni journal).
 #
 # Pokretanje (s Maca):
 #   scp scripts/pi-resilience-setup.sh ico00@100.102.36.63:/tmp/
@@ -174,8 +175,28 @@ if [ -n "$active" ]; then
   echo "  isključeno za vezu \"$active\" (vrijedi od idućeg spajanja na Wi-Fi)"
 fi
 
+# --- 5. readsb ne smije puniti journal ----------------------------------------
+# readsb bez --quiet ispisuje svaku dekodiranu poruku (~40 000 redaka/min na
+# Piju 2026-11-06). S trajnim journalom to je (a) pisanje po SD kartici bez
+# prestanka i (b) rotacija koja briše sve starije od par minuta — pa logovi
+# padova nestanu prije nego ih stignemo pročitati. Greške idu na stderr i ostaju.
+say "readsb: stdout ne ide u journal"
+if systemctl cat readsb >/dev/null 2>&1; then
+  mkdir -p /etc/systemd/system/readsb.service.d
+  cat > /etc/systemd/system/readsb.service.d/99-lunapic-quiet.conf <<'EOF'
+[Service]
+StandardOutput=null
+EOF
+  systemctl daemon-reload
+  systemctl restart readsb
+  echo "  readsb restartan, stdout -> /dev/null"
+else
+  echo "  readsb.service ne postoji — preskačem"
+fi
+
 say "Gotovo. Datoteke:"
 cat <<'EOF'
+  /etc/systemd/system/readsb.service.d/99-lunapic-quiet.conf
   /etc/systemd/journald.conf.d/99-lunapic-persistent.conf
   /etc/systemd/system.conf.d/99-lunapic-watchdog.conf
   /usr/local/bin/lunapic-net-watchdog
