@@ -6,6 +6,7 @@ import type {
   ReceiverDiagnosis,
 } from "@/lib/receiver/receiverDiagnosis";
 import { appPath } from "@/lib/paths/appPath";
+import { uploadFailureKind, type UploadFailureKind } from "@/lib/receiver/uploadFailureKind";
 import { useEffect, useState } from "react";
 
 /** Pi javlja stanje svakih ~60 s, pa češće pitati nema smisla. */
@@ -17,10 +18,28 @@ const CAUSE_LABEL: Record<OutageCause, string> = {
   gateway: "Access point or router not answering",
   internet: "5G / internet down",
   dns: "DNS failure",
-  server: "Pi could not reach the server",
+  // Stvarna oznaka ovisi o grešci — vidi `outageLabel`.
+  server: "Uploads to the server failed",
   receiver: "readsb stopped decoding",
   "pi-down": "Pi was off",
 };
+
+/**
+ * Za `server` oznaka ide po grešci: istek veze znači slabu mrežu, ne pad
+ * servera (18. 11. 2026., nestanak struje u Lekeniku).
+ */
+const UPLOAD_FAILURE_LABEL: Record<UploadFailureKind, string> = {
+  "slow-network": "Uploads timing out · weak network",
+  "no-connection": "Could not connect to the server",
+  "server-error": "Server rejected the data",
+  unknown: "Uploads to the server failed",
+};
+
+function outageLabel(o: PiOutage): string {
+  return o.cause === "server"
+    ? UPLOAD_FAILURE_LABEL[uploadFailureKind(o.detail)]
+    : CAUSE_LABEL[o.cause];
+}
 
 function formatTime(ms: number, nowMs: number): string {
   const d = new Date(ms);
@@ -65,7 +84,13 @@ function explain(
     case "push-failing":
       return {
         lead: `The Pi is online, but its data does not reach the server${since}.`,
-        rest: d.detail ? `Last error: ${d.detail}.` : "The Pi has not reported an error yet.",
+        rest: d.detail
+          ? `Last error: ${d.detail}.${
+              uploadFailureKind(d.detail) === "slow-network"
+                ? " Uploads time out, which usually means a weak or overloaded mobile network, not a server fault."
+                : ""
+            }`
+          : "The Pi has not reported an error yet.",
       };
     case "receiver-stale":
       return {
@@ -104,7 +129,7 @@ function OutageRow({ o, nowMs }: { o: PiOutage; nowMs: number }) {
         {formatDuration(o.end - o.start)}
       </span>
       <span className="min-w-0 truncate text-[color:var(--t-primary)]" title={detail || undefined}>
-        {CAUSE_LABEL[o.cause]}
+        {outageLabel(o)}
       </span>
     </li>
   );
