@@ -8,6 +8,7 @@
 
 import { SELECTED_FLIGHT_TRAIL_SOURCE } from "@/lib/map/mapSourceIds";
 import { appPath } from "@/lib/paths/appPath";
+import { currentFlightTrail } from "@/lib/map/currentFlightTrail";
 import { fitGeoJsonBounds } from "@/lib/map/fitGeoJsonBounds";
 import { smoothTrailGeoJson } from "@/lib/map/smoothPolyline";
 import { useMoonTransitStore } from "@/stores/moon-transit-store";
@@ -93,8 +94,14 @@ export function useSelectedFlightTrail(
         })
         .then((data) => {
           if (cancelled) return;
+          // Samo trenutni let: 2 h prozor zna uhvatiti i prethodni let iste
+          // letjelice, pa trag izgleda kao jedan let s prekidom.
+          const current =
+            data?.type === "FeatureCollection" && Array.isArray(data.features)
+              ? currentFlightTrail(data, Date.now())
+              : data;
           const src = map.getSource(SELECTED_FLIGHT_TRAIL_SOURCE) as mapboxgl.GeoJSONSource | undefined;
-          src?.setData(smoothTrailGeoJson(data) as Parameters<typeof src.setData>[0]);
+          src?.setData(smoothTrailGeoJson(current) as Parameters<typeof src.setData>[0]);
         })
         .catch(() => {})
         .finally(() => { inFlight = false; });
