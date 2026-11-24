@@ -194,14 +194,29 @@ export function withBorrowedKinematics(
   if (donor == null) {
     return base;
   }
-  if (nowMs - donor.timestamp > KINEMATICS_BORROW_MAX_AGE_MS) {
+  const donorKinematicsAtMs = donor.kinematicsAtMs ?? donor.timestamp;
+  const kinematicsFresh = nowMs - donorKinematicsAtMs <= KINEMATICS_BORROW_MAX_AGE_MS;
+  const altitudeFresh = nowMs - donor.timestamp <= KINEMATICS_BORROW_MAX_AGE_MS;
+  if (!kinematicsFresh && !altitudeFresh) {
     return base;
   }
-  const trackDeg = base.trackDeg ?? donor.trackDeg;
-  const groundSpeedMps = base.groundSpeedMps ?? donor.groundSpeedMps;
-  const baroAltitudeMeters = base.baroAltitudeMeters ?? donor.baroAltitudeMeters;
-  const geoAltitudeMeters = base.geoAltitudeMeters ?? donor.geoAltitudeMeters;
-  const verticalRateFpm = base.verticalRateFpm ?? donor.verticalRateFpm;
+  // Track i brzina idu u paru: posuđuju se samo kad bazi fale oba ili jedno,
+  // a njihova starost se pamti da lanac posuđivanja ne traje unedogled.
+  const borrowsKinematics =
+    kinematicsFresh && (base.trackDeg == null || base.groundSpeedMps == null);
+  const trackDeg = borrowsKinematics ? base.trackDeg ?? donor.trackDeg : base.trackDeg;
+  const groundSpeedMps = borrowsKinematics
+    ? base.groundSpeedMps ?? donor.groundSpeedMps
+    : base.groundSpeedMps;
+  const baroAltitudeMeters = altitudeFresh
+    ? base.baroAltitudeMeters ?? donor.baroAltitudeMeters
+    : base.baroAltitudeMeters;
+  const geoAltitudeMeters = altitudeFresh
+    ? base.geoAltitudeMeters ?? donor.geoAltitudeMeters
+    : base.geoAltitudeMeters;
+  const verticalRateFpm = altitudeFresh
+    ? base.verticalRateFpm ?? donor.verticalRateFpm
+    : base.verticalRateFpm;
   if (
     trackDeg === base.trackDeg &&
     groundSpeedMps === base.groundSpeedMps &&
@@ -211,6 +226,8 @@ export function withBorrowedKinematics(
   ) {
     return base;
   }
+  const borrowedSome =
+    trackDeg !== base.trackDeg || groundSpeedMps !== base.groundSpeedMps;
   return {
     ...base,
     trackDeg,
@@ -218,6 +235,7 @@ export function withBorrowedKinematics(
     baroAltitudeMeters,
     geoAltitudeMeters,
     verticalRateFpm,
+    ...(borrowedSome ? { kinematicsAtMs: donorKinematicsAtMs } : {}),
   };
 }
 

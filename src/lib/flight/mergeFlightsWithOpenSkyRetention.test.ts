@@ -87,3 +87,40 @@ describe("mergeFlightsWithOpenSkyRetention", () => {
     expect(second).toHaveLength(0);
   });
 });
+
+describe("mergeFlightsWithOpenSkyRetention — position-only rows (Pi, 2026-11-24)", () => {
+  const ctx = (nowMs: number) => ({
+    providerId: "localsdr" as const,
+    filterBounds,
+    nowMs,
+    openSkyLatencySkewMs: 0,
+  });
+
+  it("keeps the last reported heading and speed on a full tick", () => {
+    const t0 = 1_700_000_000_000;
+    const prev = [flight("abc", { timestamp: t0, trackDeg: 117, groundSpeedMps: 230 })];
+    const [out] = mergeFlightsWithOpenSkyRetention(
+      [flight("abc", { timestamp: t0 + 30_000, trackDeg: null, groundSpeedMps: null })],
+      prev,
+      ctx(t0 + 30_000)
+    );
+    expect(out.trackDeg).toBe(117);
+    expect(out.groundSpeedMps).toBe(230);
+    expect(out.kinematicsAtMs).toBe(t0);
+  });
+
+  it("stops borrowing once the heading itself is older than 60 s, even if positions kept coming", () => {
+    const t0 = 1_700_000_000_000;
+    let flights: readonly FlightState[] = [
+      flight("abc", { timestamp: t0, trackDeg: 117, groundSpeedMps: 230 }),
+    ];
+    for (const dt of [30_000, 55_000, 65_000]) {
+      flights = mergeFlightsWithOpenSkyRetention(
+        [flight("abc", { timestamp: t0 + dt, trackDeg: null, groundSpeedMps: null })],
+        flights,
+        ctx(t0 + dt)
+      );
+      expect(flights[0].trackDeg).toBe(dt <= 60_000 ? 117 : null);
+    }
+  });
+});

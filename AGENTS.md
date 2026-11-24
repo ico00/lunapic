@@ -223,6 +223,31 @@ Kad pobjednik nema track/brzinu/visinu, posuđuju se od gubitnika
 Position-only ADS-B redak inače sruši `timeToAlignmentSec` na `null` → let
 ispadne iz kandidata i izgubi odbrojavanje iako je na karti.
 
+**I iz prethodnog snimka istog izvora (2026-11-24).** Pi na rubu dometa zna 40+ s
+slati poziciju bez `gs`/`track`. Brzi tick je posuđivao iz prethodnog stanja, ali
+puni tick (`mergeFlightsWithOpenSkyRetention`) nije, pa je kinematika nestajala
+svakih 30 s. Kad bi redak s kursom stigao, meta je skočila i do 11 km naprijed.
+Sada posuđuju oba ticka, a `FlightState.kinematicsAtMs` pamti kad su kurs i brzina
+stvarno javljeni. Granica od 60 s (`KINEMATICS_BORROW_MAX_AGE_MS`) mjeri se od
+toga, ne od `timestamp`: svaki position-only redak osvježi `timestamp`, pa bi se
+inače kurs prenosio unedogled. Server (`server.js` scan) i dalje računa iz sirovog
+snimka, bez posuđivanja.
+
+### Prikaz neodabranih aviona na karti (`flightDisplayPositionFilter.ts`)
+
+Odabrani avion crta se točno na meti (`extrapolateFlightForDisplay`), jednako kao
+Photographer. Neodabrani prolaze kroz filter koji nikad ne ide unatrag. Razlika
+između njih je skok koji se vidi pri kliku. Dva pravila (2026-11-24):
+
+* **Meta stoji, prikaz stoji.** Iza `MAX_LEAD_SEC` meta se ne miče, pa filter ne
+  dead-reckona (`targetFrozen`). Prije je nastavljao brzinom ≥ 0.5·v i nakon 4 min
+  bio 23 km ispred, sve do snapa na 30 km.
+* **Velika pogreška se sustiže eksponencijalno** (`LARGE_ERROR_TAU_MS` = 2.5 s)
+  naprijed i bočno. Unatrag i dalje vrijedi ≥ 0.5·v. Na 163 s Pi feeda (67 aviona)
+  vrijeme s razlikom > 1 km palo je s 111 na 50 avion-sekundi. Ostatak čine avioni
+  koji se ponovno jave nakon 40–90 s tišine. Gdje je avion bio, nitko ne zna, pa se
+  taj skok ne može izbjeći.
+
 ### Avionix `timestamp` je epoch ms kao string, ne ISO
 
 Uređaj šalje `{"timestamp":"1787679514274", ...}`. `Date.parse` na tome vraća

@@ -1,4 +1,7 @@
-import { extrapolateFlightForDisplay } from "@/lib/flight/extrapolateFlightPosition";
+import {
+  extrapolateFlightForDisplay,
+  MAX_LEAD_SEC,
+} from "@/lib/flight/extrapolateFlightPosition";
 import {
   advanceDisplayPosition,
   type DisplayFix,
@@ -49,6 +52,8 @@ export function computeDisplayFlights(
       trackDeg: f.trackDeg ?? null,
       groundSpeedMps: f.groundSpeedMps ?? null,
       nowMs,
+      // Iza MAX_LEAD_SEC meta stoji (vidi extrapolateFlightForDisplay).
+      targetFrozen: (nowMs + latencySkewMs - f.timestamp) / 1000 >= MAX_LEAD_SEC,
     });
     displayById.set(f.id, next);
     return { ...target, position: { lat: next.lat, lng: next.lng } };

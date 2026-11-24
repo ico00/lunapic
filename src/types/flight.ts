@@ -31,6 +31,13 @@ export interface FlightState {
   /** Unix epoch ms when this state was valid. */
   readonly timestamp: number;
   /**
+   * Kad su `trackDeg`/`groundSpeedMps` stvarno javljeni, ako su posuđeni iz
+   * ranijeg snimka (`withBorrowedKinematics`). Izostavljeno = `timestamp`.
+   * Bez ovoga bi se posuđena kinematika prenosila iz ticka u tick zauvijek,
+   * jer svaki position-only redak osvježi `timestamp`.
+   */
+  readonly kinematicsAtMs?: number;
+  /**
    * OpenSky `origin_country` — zemlja registracije / operatora u izvoru
    * (nisu uvijek ime avioprijevoznika).
    */

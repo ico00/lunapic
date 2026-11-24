@@ -1,5 +1,6 @@
 import { expandBounds } from "@/data/staticRouteUtils";
 import { extrapolateFlightForDisplay } from "@/lib/flight/extrapolateFlightPosition";
+import { withBorrowedKinematics } from "@/lib/flight/mergeLiveFlightLists";
 import { mergeStickyFlightMetadata } from "@/lib/flight/mergeStickyFlightMetadata";
 import type { FlightState } from "@/types/flight";
 import type { FlightProviderId } from "@/types/flight-provider";
@@ -56,7 +57,15 @@ export function mergeFlightsWithOpenSkyRetention(
     readonly openSkyLatencySkewMs: number;
   }
 ): readonly FlightState[] {
-  const mergedMeta = mergeStickyFlightMetadata(fromProvider, previousFlights);
+  // Position-only redak (Pi na rubu dometa zna 40+ s slati poziciju bez
+  // gs/track) bi inače na svakom punom ticku izbrisao kinematiku: marker i
+  // odbrojavanje stanu, a idući redak s kursom pomakne metu ~11 km odjednom
+  // (snimljeno 2026-11-24). Brzi tick to već radi u
+  // `mergeLocalFeedTickIntoPrevious`; ovo je isto pravilo za puni tick.
+  const prevById = new Map(previousFlights.map((f) => [f.id, f]));
+  const mergedMeta = mergeStickyFlightMetadata(fromProvider, previousFlights).map(
+    (f) => withBorrowedKinematics(f, prevById.get(f.id), context.nowMs)
+  );
   for (const f of mergedMeta) {
     flightLastSeenAtMs.set(f.id, context.nowMs);
   }

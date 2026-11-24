@@ -141,3 +141,34 @@ describe.each([40, 80])("advanceDisplayPosition (tick %i ms)", (TICK_MS) => {
     ).toEqual(prev);
   });
 });
+
+describe("advanceDisplayPosition — velika pogreška ispred markera (Pi, 2026-11-24)", () => {
+  it("sustiže 11 km za nekoliko sekundi, ne ~80 s", () => {
+    // Pi je 40 s slao poziciju bez gs/track, pa redak s kursom pomakne metu
+    // ~11 km naprijed. Uz budžet od samo 0.5·v marker je zaostajao ~80 s.
+    const TICK_MS = 80;
+    let cur = { ...START, atMs: 0 };
+    let targetM = 11_000;
+    let secondsToConverge = Infinity;
+    for (let i = 1; i <= 30_000 / TICK_MS; i++) {
+      const nowMs = i * TICK_MS;
+      targetM += V * (TICK_MS / 1000);
+      const target = destinationByAzimuthMeters(START.lat, START.lng, EAST, targetM);
+      const next = advanceDisplayPosition({
+        prev: cur,
+        target,
+        trackDeg: EAST,
+        groundSpeedMps: V,
+        nowMs,
+      });
+      expect(next.lng).toBeGreaterThan(cur.lng);
+      cur = next;
+      const errM = greatCircleDistanceMeters(cur.lat, cur.lng, target.lat, target.lng);
+      if (errM < 300) {
+        secondsToConverge = nowMs / 1000;
+        break;
+      }
+    }
+    expect(secondsToConverge).toBeLessThan(12);
+  });
+});
