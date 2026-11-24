@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_OBSERVER_LOCATION as observer } from "@/lib/defaultObserverLocation";
 import { getMoonState } from "@/lib/domain/astro/moon";
+import { greatCircleDistanceMeters } from "@/lib/domain/geo/greatCircleDistance";
 import { photographerPack } from "@/lib/domain/geometry/geometryEnginePhotographer";
 import { destinationByAzimuthMeters } from "@/lib/domain/geometry/wgs84";
 import { extrapolateFlightForDisplay } from "@/lib/flight/extrapolateFlightPosition";
@@ -63,5 +64,32 @@ describe("selected flight display agrees with Photographer", () => {
     expect(unselected.position.lat).toBeCloseTo(
       extrapolateFlightForDisplay(flight, +at + 5080, 2000).position.lat, 6
     );
+  });
+});
+
+describe("unselected marker with a stale fix", () => {
+  it("does not run ahead of the frozen position, so selecting it does not jump", () => {
+    // Fix stops updating (aircraft out of range, receiver gap). After
+    // MAX_LEAD_SEC the target freezes; the filter used to keep flying at
+    // ≥0.5·v and reached ~23 km off after 240 s before it snapped back.
+    const t0 = +at;
+    const stale: FlightState = { ...flight, timestamp: t0 };
+    const display = new Map<string, DisplayFix>();
+    let worstGapM = 0;
+    for (let s = 0; s <= 240; s += 0.25) {
+      const now = t0 + s * 1000;
+      const unselected = computeDisplayFlights([stale], 0, now, display, null)[0];
+      const selected = computeDisplayFlights([stale], 0, now, new Map(), stale.id)[0];
+      worstGapM = Math.max(
+        worstGapM,
+        greatCircleDistanceMeters(
+          unselected.position.lat,
+          unselected.position.lng,
+          selected.position.lat,
+          selected.position.lng
+        )
+      );
+    }
+    expect(worstGapM).toBeLessThan(50);
   });
 });

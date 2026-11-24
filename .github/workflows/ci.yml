@@ -12,7 +12,8 @@ concurrency:
 
 jobs:
   quality:
-    runs-on: ubuntu-latest
+    # ubuntu-latest je 2026-11 prešao na 26.04, koji Playwright (chromium) ne podržava.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
